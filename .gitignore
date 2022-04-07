@@ -1,0 +1,6 @@
+
+# Project exclude paths
+/.gradle/
+/build/
+/kdbc-core/build/
+/kdbc-processing/build/
