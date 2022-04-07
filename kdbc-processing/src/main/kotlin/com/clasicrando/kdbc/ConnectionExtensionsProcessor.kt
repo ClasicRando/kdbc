@@ -206,8 +206,10 @@ class ConnectionExtensionsProcessor (
             
             /**
              * Runs a batch DML using the [sql] DML statement provided, treating each element of the [parameters][parameters]
-             * iterable as a batch used for the statement. If the item type of [parameters] is not an [Iterable] then each item gets
-             * treated as a single item in the batch.
+             * iterable as a batch used for the statement. If the item type of [parameters] is not an [Iterable] then each item
+             * gets treated as a single item in the batch.
+             *
+             * @throws SQLException if the statement preparation or execution throw an exception
              */
             fun Connection.runBatchDML(
                 sql: String,
