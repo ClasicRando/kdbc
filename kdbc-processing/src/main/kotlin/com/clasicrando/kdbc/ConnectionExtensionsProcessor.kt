@@ -19,12 +19,15 @@ class ConnectionExtensionsProcessor (
         val classNames = resolver
             .getSymbolsWithAnnotation(QueryResult::class.qualifiedName!!)
             .filter { it is KSClassDeclaration && it.validate() }
-            .map { (it as KSClassDeclaration).simpleName.asString() }
+            .map {
+                it as KSClassDeclaration
+                it.simpleName.asString() to it.packageName.asString()
+            }
         createExtensionsFile(classNames)
         return emptyList()
     }
 
-    private fun createExtensionsFile(classNames: Sequence<String>) {
+    private fun createExtensionsFile(classNames: Sequence<Pair<String, String>>) {
         val file = try {
             codeGenerator.createNewFile(
                 Dependencies(true),
@@ -39,8 +42,8 @@ class ConnectionExtensionsProcessor (
             separator = ",\n                ",
             prefix = "\n                ",
             postfix = "\n            "
-        ) {
-            "$it::class to ${it}ResultSetParser"
+        ) { (className, packageName) ->
+            "${packageName}.$className::class to ${className}ResultSetParser"
         }.ifBlank { "" }
         file.appendText("""
             @file:Suppress("UNUSED")

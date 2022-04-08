@@ -61,8 +61,13 @@ class QueryResultProcessor (
             val parent = function.parentDeclaration!! as KSClassDeclaration
             val packageName = parent.containingFile!!.packageName.asString()
             val className = "${parent.simpleName.asString()}ResultSetParser"
-            val file = codeGenerator.createNewFile(Dependencies(true, function.containingFile!!), packageName , className)
-            file.appendText("package $packageName\n\n")
+            val file = codeGenerator.createNewFile(
+                dependencies = Dependencies(true, function.containingFile!!),
+                packageName = "com.clasicrando.kdbc" ,
+                fileName = className,
+            )
+            file.appendText("package com.clasicrando.kdbc\n\n")
+            file.appendText("import ${packageName}.${parent.simpleName.asString()}\n")
             file.appendText("import java.sql.ResultSet\n\n")
             file.appendText("object $className: ResultSetParser<${parent.simpleName.asString()}>{\n")
             file.appendText("    override fun parse(rs: ResultSet): ${parent.simpleName.asString()} {\n")
