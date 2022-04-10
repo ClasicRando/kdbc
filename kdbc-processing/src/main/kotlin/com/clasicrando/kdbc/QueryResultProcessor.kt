@@ -70,7 +70,11 @@ class QueryResultProcessor (
             file.appendText("import ${packageName}.${parent.simpleName.asString()}\n")
             file.appendText("import java.sql.ResultSet\n\n")
             file.appendText("object $className: ResultSetParser<${parent.simpleName.asString()}>{\n")
+            file.appendText("    private const val columnCount = ${function.parameters.size}\n")
             file.appendText("    override fun parse(rs: ResultSet): ${parent.simpleName.asString()} {\n")
+            file.appendText("        require(rs.metaData.columnCount == columnCount) {\n")
+            file.appendText("            \"Expected ${'$'}columnCount columns, got ${'$'}{rs.metaData.columnCount}\"\n")
+            file.appendText("        }\n")
             file.appendText("        return ${parent.simpleName.asString()}(\n")
             for ((i, param) in function.parameters.withIndex()) {
                 file.appendText("            ${getResultSetExtract(param, i)},\n")

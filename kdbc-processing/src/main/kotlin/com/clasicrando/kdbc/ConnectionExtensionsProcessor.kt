@@ -35,7 +35,7 @@ class ConnectionExtensionsProcessor (
                 fileName = "ConnectionExtensions",
             )
         } catch (ex: FileAlreadyExistsException) {
-            logger.warn("ConnectionExtensions file already exists. Skipping creation")
+            logger.info("ConnectionExtensions file already exists. Skipping creation")
             return
         }
         val registeredParsers = classNames.joinToString(

@@ -7,6 +7,9 @@ val log4jVersion: String by project
 val kspVersion: String by project
 val coroutinesVersion: String by project
 val postgresqlVersion: String by project
+val logbackVersion: String by project
+
+description = "A library for streamlining interactions with JDBC drivers through Kotlin"
 
 plugins {
     id("com.google.devtools.ksp")
@@ -34,29 +37,10 @@ dependencies {
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
     implementation("org.slf4j:slf4j-api:$slf4Version")
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-simple
-    implementation("org.slf4j:slf4j-simple:$slf4Version")
+    implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("io.github.microutils:kotlin-logging-jvm:$kotlinLoggingVersion")
     // https://mvnrepository.com/artifact/org.postgresql/postgresql
-    implementation("org.postgresql","postgresql", postgresqlVersion)
-    constraints {
-        add("implementation", "org.apache.logging.log4j:log4j-core") {
-            version {
-                strictly("[$log4jVersion, 3[")
-                prefer(log4jVersion)
-            }
-            because("CVE-2021-44228/45105/45046: Log4j vulnerable to remote code execution")
-        }
-        add("implementation", "org.apache.logging.log4j:log4j-api") {
-            version {
-                strictly("[$log4jVersion, 3[")
-                prefer(log4jVersion)
-            }
-            because("CVE-2021-44228/45105/45046: Log4j vulnerable to remote code execution")
-        }
-    }
-}
-
-ksp {
+    // implementation("org.postgresql","postgresql", postgresqlVersion)
 }
 
 kotlin {
