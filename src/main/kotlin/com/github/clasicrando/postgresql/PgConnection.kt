@@ -6,6 +6,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.flow
 
 interface PgConnection : Connection {
@@ -16,22 +17,17 @@ interface PgConnection : Connection {
     ): QueryResult {
         return copyIn(copyInStatement, flow(block))
     }
-    suspend fun copyIn(copyInStatement: String, data: Sequence<ByteArray>): QueryResult {
+    suspend fun copyInSequence(copyInStatement: String, data: Sequence<ByteArray>): QueryResult {
         return copyIn(copyInStatement, data.asFlow())
     }
-    suspend fun copyIn(
+    suspend fun copyInSequence(
         copyInStatement: String,
         block: suspend SequenceScope<ByteArray>.() -> Unit
     ): QueryResult {
         return copyIn(copyInStatement, sequence(block).asFlow())
     }
     suspend fun copyOutAsFlow(copyOutStatement: String): Flow<ByteArray> {
-        val channel = copyOut(copyOutStatement)
-        return flow {
-            for (bytes in channel) {
-                emit(bytes)
-            }
-        }
+        return copyOut(copyOutStatement).consumeAsFlow()
     }
     suspend fun copyOut(copyOutStatement: String): ReceiveChannel<ByteArray>
 }
