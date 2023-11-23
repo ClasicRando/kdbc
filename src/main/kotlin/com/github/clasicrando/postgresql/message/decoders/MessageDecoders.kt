@@ -28,8 +28,12 @@ class MessageDecoders(charset: Charset) : NoCoLogging {
             PgMessage.PARSE_COMPLETE_CODE -> PgMessage.ParseComplete
             PgMessage.BIND_COMPLETE_CODE -> PgMessage.BindComplete
             PgMessage.CLOSE_COMPLETE_CODE -> PgMessage.CloseComplete
+            PgMessage.COPY_IN_RESPONSE_CODE -> CopyInResponseDecoder.decode(contents)
+            PgMessage.COPY_OUT_RESPONSE_CODE -> CopyOutResponseDecoder.decode(contents)
+            PgMessage.COPY_DATA_CODE -> CopyDataDecoder.decode(contents)
+            PgMessage.COPY_DONE -> PgMessage.CopyDone
             else -> {
-                logger.info("Received message ${rawMessage.format}")
+                logger.trace("Received message ${rawMessage.format}")
                 PgMessage.NoData
 //                error("Cannot parse message ${rawMessage.format}")
             }

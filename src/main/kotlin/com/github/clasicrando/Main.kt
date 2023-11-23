@@ -2,19 +2,11 @@ package com.github.clasicrando
 
 import com.github.clasicrando.common.pool.PoolOptions
 import com.github.clasicrando.postgresql.PgConnectOptions
+import com.github.clasicrando.postgresql.PgConnection
 import com.github.clasicrando.postgresql.PostgresqlConnectionBuilder
 import io.klogging.config.loggingConfiguration
 import io.klogging.logger
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.supervisorScope
-import kotlinx.datetime.DateTimePeriod
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlin.coroutines.coroutineContext
 
 val logger = logger("MainKt")
 
@@ -37,15 +29,25 @@ suspend fun main() {
             configuration,
         )
         pool.useConnection {
-            val result = it.sendPreparedStatement("select $1 int_field, $2 text_field", listOf(1, "Test"))
-//            val result = it.sendQuery("select 1 int_field, 'Test' text_field")
-            logger.info(result)
-            for (row in result.rows) {
-                logger.info(row)
+            it.sendQuery("drop table if exists test_table")
+            it.sendQuery("create table if not exists test_table(id int primary key, text_field text not null)")
+            it as PgConnection
+            val result = it.copyIn(
+                "COPY test_table FROM STDIN WITH (FORMAT csv)",
+            ) {
+                for (i in 1..100) {
+                    emit("$i,\"test $i\"\n".toByteArray())
+                }
+            }
+            logger.info("{result}", result)
+            it.copyOutAsFlow(
+                "COPY test_table TO STDOUT WITH (FORMAT csv)",
+            ).collect { bytes ->
+                logger.info(bytes.decodeToString().trim())
             }
         }
     } catch (ex: Throwable) {
-        println(ex)
+        logger.error(ex)
     } finally {
         delay(2000)
     }

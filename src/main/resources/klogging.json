@@ -9,7 +9,7 @@
     {
       "levelRanges": [
         {
-          "fromMinLevel": "INFO",
+          "fromMinLevel": "TRACE",
           "toSinks": ["stdout"]
         }
       ]

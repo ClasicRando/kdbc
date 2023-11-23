@@ -15,7 +15,7 @@ class MutableResultSet(internal val columnMapping: List<ColumnData>) : ResultSet
         backingList.add(row)
     }
 
-    override val columnCount: Int get() = backingList.size
+    override val columnCount: Int get() = columnMapping.size
 
     override fun columnType(index: Int): ColumnData {
         require(index >= 0 && index < columnMapping.size) {

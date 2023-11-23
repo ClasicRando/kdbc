@@ -26,7 +26,7 @@ sealed class PgMessage(val code: Byte) {
         val rowCount: Long,
         val message: String,
     ) : PgMessage(COMMAND_COMPLETE_CODE) // B
-    class CopyData(val data: ByteArray) : PgMessage(COPY_DATE_CODE) // F & B
+    class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE) // F & B
     data object CopyDone : PgMessage(COPY_DONE) // F & B
     data class CopyFail(val message: String) : PgMessage(COPY_FAIL) // F
     class CopyInResponse(
@@ -110,7 +110,7 @@ sealed class PgMessage(val code: Byte) {
         const val CLOSE_CODE = 'C'.code.toByte()
         const val CLOSE_COMPLETE_CODE = '3'.code.toByte()
         const val COMMAND_COMPLETE_CODE = 'C'.code.toByte()
-        const val COPY_DATE_CODE = 'd'.code.toByte()
+        const val COPY_DATA_CODE = 'd'.code.toByte()
         const val COPY_DONE = 'c'.code.toByte()
         const val COPY_FAIL = 'f'.code.toByte()
         const val COPY_IN_RESPONSE_CODE = 'G'.code.toByte()

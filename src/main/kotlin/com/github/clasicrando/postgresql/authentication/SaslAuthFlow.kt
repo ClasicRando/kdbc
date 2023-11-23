@@ -20,7 +20,7 @@ private suspend fun sendScramInit(
         scramClient.scramMechanism.name,
         session.clientFirstMessage(),
     )
-    connection.logger.info("Sending initial SASL Response")
+    connection.logger.trace("Sending initial SASL Response")
     connection.writeToStream(initialResponse)
     return session
 }
@@ -42,7 +42,7 @@ private suspend fun receiveContinueMessage(connection: PgConnectionImpl): Authen
         )
         return null
     }
-    connection.logger.info("Received SASL Continue message")
+    connection.logger.trace("Received SASL Continue message")
     return continueAuthMessage
 }
 
@@ -55,7 +55,7 @@ private suspend fun sendClientFinalMessage(
     val serverFirstProcessor = session.receiveServerFirstMessage(continueAuthMessage.saslData)
     val clientFinalProcessor = serverFirstProcessor.clientFinalProcessor(password)
     val responseMessage = PgMessage.SaslResponse(clientFinalProcessor.clientFinalMessage())
-    connection.logger.info("Sending SASL Response")
+    connection.logger.trace("Sending SASL Response")
     connection.writeToStream(responseMessage)
     return clientFinalProcessor
 }
@@ -101,11 +101,11 @@ private suspend fun receiveOkAuthMessage(connection: PgConnectionImpl): Boolean 
 }
 
 suspend fun saslAuthFlow(connection: PgConnectionImpl, auth: Authentication.Sasl): Boolean {
-    connection.logger.info("Starting Scram Client")
+    connection.logger.trace("Starting Scram Client")
     val session = sendScramInit(connection, auth.authMechanisms.toTypedArray())
 
     val continueAuthMessage = receiveContinueMessage(connection) ?: return false
-    connection.logger.info("Received SASL Continue message")
+    connection.logger.trace("Received SASL Continue message")
 
     val clientFinalProcessor = sendClientFinalMessage(connection, continueAuthMessage, session)
 

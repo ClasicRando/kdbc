@@ -96,13 +96,13 @@ class PgTypeRegistry(
             for ((oid, pair) in nonStandardTypesByOid) {
                 val (dbType, hasArray) = pair
                 val verifiedOid = checkDbTypeByOid(oid, connection) ?: continue
-                logger.info("Adding column decoder for type {oid}", verifiedOid)
+                logger.trace("Adding column decoder for type {oid}", verifiedOid)
                 checkAgainstDefaultTypes(verifiedOid)
                 this[verifiedOid] = dbType
 
                 if (hasArray) {
                     checkArrayDbTypeByOid(verifiedOid, connection)?.let {
-                        logger.info(
+                        logger.trace(
                             "Adding array column decoder for type {oid}",
                             verifiedOid,
                         )
@@ -115,7 +115,7 @@ class PgTypeRegistry(
             for ((name, pair) in nonStandardTypesByName) {
                 val (dbType, hasArray) = pair
                 val verifiedOid = checkDbTypeByName(name, connection) ?: continue
-                logger.info(
+                logger.trace(
                     "Adding column decoder for type {name} ({oid})",
                     name,
                     verifiedOid,
@@ -125,7 +125,7 @@ class PgTypeRegistry(
 
                 if (hasArray) {
                     checkArrayDbTypeByOid(verifiedOid, connection)?.let {
-                        logger.info(
+                        logger.trace(
                             "Adding array column decoder for type {name} ({oid})",
                             name,
                             verifiedOid,
@@ -139,7 +139,7 @@ class PgTypeRegistry(
             for ((name, pair) in enumTypes) {
                 val (dbType, hasArray) = pair
                 val verifiedOid = checkEnumDbTypeByName(name, connection) ?: continue
-                logger.info(
+                logger.trace(
                     "Adding column decoder for enum type {name} ({oid})",
                     name,
                     verifiedOid,
@@ -149,7 +149,7 @@ class PgTypeRegistry(
 
                 if (hasArray) {
                     checkArrayDbTypeByOid(verifiedOid, connection)?.let {
-                        logger.info(
+                        logger.trace(
                             "Adding array column decoder for enum type {name} ({oid})",
                             name,
                             verifiedOid,
@@ -322,7 +322,7 @@ class PgTypeRegistry(
 
         private suspend fun checkAgainstDefaultTypes(type: Int) {
             if (defaultTypes.containsKey(type)) {
-                logger.info("Replacing default type definition for type = {type}", type)
+                logger.trace("Replacing default type definition for type = {type}", type)
             }
         }
 
@@ -344,7 +344,7 @@ class PgTypeRegistry(
             hasArray: Boolean = true,
         ) {
             if (nonStandardTypesByOid.containsKey(type)) {
-                logger.info("Replacing already registered custom type for type = {oid}", type)
+                logger.trace("Replacing already registered custom type for type = {oid}", type)
             }
             nonStandardTypesByOid[type] = dbType to hasArray
         }
@@ -363,7 +363,7 @@ class PgTypeRegistry(
             hasArray: Boolean = true,
         ) {
             if (nonStandardTypesByName.containsKey(type)) {
-                logger.info("Replacing already registered custom type for type = {name}", type)
+                logger.trace("Replacing already registered custom type for type = {name}", type)
             }
             nonStandardTypesByName[type] = dbType to hasArray
         }
