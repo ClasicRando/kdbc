@@ -1,24 +1,26 @@
 package com.github.clasicrando.postgresql
 
-import com.github.clasicrando.common.result.ArrayDataRow
-import com.github.clasicrando.common.result.MutableResultSet
-import com.github.clasicrando.common.result.QueryResult
+import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.common.atomic.AtomicMutableMap
+import com.github.clasicrando.common.exceptions.ConnectionNotRunningQuery
 import com.github.clasicrando.common.exceptions.ConnectionRunningQuery
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
 import com.github.clasicrando.common.pool.ConnectionPool
 import com.github.clasicrando.common.pool.PoolConnection
-import com.github.clasicrando.common.result.EMPTY_RESULT
-import com.github.clasicrando.common.result.ResultSet
+import com.github.clasicrando.common.result.ArrayDataRow
+import com.github.clasicrando.common.result.MutableResultSet
+import com.github.clasicrando.common.result.QueryResult
+import com.github.clasicrando.common.selectLoop
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.message.CloseTarget
 import com.github.clasicrando.postgresql.message.DescribeTarget
-import com.github.clasicrando.postgresql.message.decoders.MessageDecoders
 import com.github.clasicrando.postgresql.message.PgMessage
+import com.github.clasicrando.postgresql.message.decoders.MessageDecoders
 import com.github.clasicrando.postgresql.message.encoders.MessageEncoders
+import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import com.github.clasicrando.postgresql.stream.PgStream
 import io.klogging.Klogging
 import io.ktor.utils.io.charsets.Charset
@@ -28,6 +30,7 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
@@ -39,24 +42,32 @@ class PgConnectionImpl private constructor(
     internal val configuration: PgConnectOptions,
     private val charset: Charset,
     private val stream: PgStream,
-    private val scope: CoroutineScope,
+    scope: CoroutineScope,
     private val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
     private val encoders: MessageEncoders = MessageEncoders(charset, typeRegistry),
     private val decoders: MessageDecoders = MessageDecoders(charset),
     override val connectionId: String = UUID.randomUUID().toString(),
     override var pool: ConnectionPool? = null,
 ) : PgConnection, PoolConnection, Klogging {
+
     private var isAuthenticated = false
     private var backendKeyData: PgMessage.BackendKeyData? = null
-    private val initialReadyForQuery: CompletableDeferred<Unit> = CompletableDeferred()
+    private val initialReadyForQuery: CompletableDeferred<Unit> = CompletableDeferred(
+        parent = scope.coroutineContext.job,
+    )
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
-    private val deferredQueryResult: AtomicRef<CompletableDeferred<QueryResult>?> = atomic(null)
-    private var resultSet: MutableResultSet? = null
-    private val queryResult: AtomicRef<QueryResult?> = atomic(null)
+
+    private val queryRunning: AtomicBoolean = atomic(true)
+    private val rowDescriptionChannel = Channel<List<PgRowFieldDescription>>()
+    private val dataRowChannel = Channel<PgMessage.DataRow>(capacity = Channel.BUFFERED)
+    private val commandCompleteChannel = Channel<PgMessage.CommandComplete>()
+    private val releasePreparedStatement: AtomicBoolean = atomic(false)
+    private val closeStatementChannel = Channel<Unit>()
+    private val queryDoneChannel = Channel<Unit>()
+
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
     private val currentPreparedStatement: AtomicRef<PgPreparedStatement?> = atomic(null)
-    private val deferredCloseStatement: AtomicRef<CompletableDeferred<Unit>?> = atomic(null)
 
     private val messageProcessorJob = scope.launch {
         sendStartupMessage()
@@ -140,10 +151,12 @@ class PgConnectionImpl private constructor(
 
     private suspend fun onErrorMessage(message: PgMessage.ErrorResponse) {
         logger.error("Error, message -> {errorResponse}", message)
-        deferredQueryResult.getAndSet(null)
-            ?.completeExceptionally(GeneralPostgresError(message))
-        deferredCloseStatement.getAndSet(null)
-            ?.completeExceptionally(GeneralPostgresError(message))
+        val throwable = GeneralPostgresError(message)
+        rowDescriptionChannel.close(cause = throwable)
+        dataRowChannel.close(cause = throwable)
+        commandCompleteChannel.close(cause = throwable)
+        queryDoneChannel.close(cause = throwable)
+        closeStatementChannel.close(cause = throwable)
     }
 
     private suspend fun onBackendKeyData(message: PgMessage.BackendKeyData) {
@@ -163,43 +176,35 @@ class PgConnectionImpl private constructor(
             "Connection ready for query. Transaction Status: {status}",
             message.transactionStatus,
         )
-        queryResult.getAndSet(null)?.let {
-            clearQueryDeferredResult()?.complete(it)
-        }
+        resetQueryRunning()
         if (initialReadyForQuery.complete(Unit)) {
             logger.info("Connection is now initialized and ready for queries")
+            return
         }
+        queryDoneChannel.send(Unit)
     }
 
     private suspend fun onRowDescription(message: PgMessage.RowDescription) {
         logger.info("Received row description -> {desc}", message)
-        resultSet = MutableResultSet(message.fields)
+        rowDescriptionChannel.send(message.fields)
         currentPreparedStatement.value?.metadata = message.fields
     }
 
     private suspend fun onDataRow(message: PgMessage.DataRow) {
         logger.info("Received row size = {size}", message.values.size)
-        resultSet.let { rs ->
-            if (rs == null) {
-                return
-            }
-            val fields: Array<Any?> = Array(message.values.size) { i ->
-               message.values[i]?.let {
-                   val columnType = rs.columnMapping[i]
-                   typeRegistry.decode(columnType, it, configuration.charset)
-               }
-            }
-            rs.addRow(ArrayDataRow(columnMapping = rs.columnMap, values = fields))
+        dataRowChannel.send(message)
+    }
+
+    private suspend fun onCommandComplete(message: PgMessage.CommandComplete) {
+        logger.info("Received command complete -> {message}", message)
+        commandCompleteChannel.send(message)
+    }
+
+    private suspend fun onCloseComplete() {
+        logger.info("Received close complete")
+        if (releasePreparedStatement.getAndSet(false)) {
+            closeStatementChannel.send(Unit)
         }
-    }
-
-    private fun onCommandComplete(message: PgMessage.CommandComplete) {
-        val result = resultSet ?: ResultSet.EMPTY_RESULT
-        queryResult.getAndSet(QueryResult(message.rowCount, message.message, result))
-    }
-
-    private fun onCloseComplete() {
-        clearDeferredClose()?.complete(Unit)
     }
 
     private fun createSimplePasswordMessage(
@@ -252,29 +257,44 @@ class PgConnectionImpl private constructor(
         check(isConnected) { "Cannot execute queries against a closed connection" }
     }
 
-    private fun setCompleteQueryResult() : CompletableDeferred<QueryResult> {
-        val newDeferred = CompletableDeferred<QueryResult>(parent = scope.coroutineContext.job)
-        if (!deferredQueryResult.compareAndSet(null, newDeferred)) {
+    private fun checkRunningQuery() {
+        if (queryRunning.value) {
             throw ConnectionRunningQuery(connectionId)
         }
-        return newDeferred
     }
 
-    private fun clearQueryDeferredResult(): CompletableDeferred<QueryResult>? {
-        resultSet = null
-        return deferredQueryResult.getAndSet(null)
-    }
-
-    private fun setDeferredClose() : CompletableDeferred<Unit> {
-        val newDeferred = CompletableDeferred<Unit>(parent = scope.coroutineContext.job)
-        if (!deferredCloseStatement.compareAndSet(null, newDeferred)) {
+    private fun checkNotRunningQuery() {
+        if (!queryRunning.value) {
             throw ConnectionRunningQuery(connectionId)
         }
-        return newDeferred
     }
 
-    private fun clearDeferredClose(): CompletableDeferred<Unit>? {
-        return deferredCloseStatement.getAndSet(null)
+    private fun setReleasingStatement() {
+        if (!releasePreparedStatement.compareAndSet(expect = false, update = true)) {
+            error("Cannot release a prepared statement while releasing another")
+        }
+    }
+
+    private fun resetQueryRunning() {
+        if (!queryRunning.compareAndSet(expect = true, update = false)) {
+            throw ConnectionNotRunningQuery(connectionId)
+        }
+    }
+
+    private fun setQueryRunning() {
+        if (!queryRunning.compareAndSet(expect = false, update = true)) {
+            throw ConnectionRunningQuery(connectionId)
+        }
+    }
+
+    private fun addDataRow(resultSet: MutableResultSet, dataRow: PgMessage.DataRow) {
+        val fields: Array<Any?> = Array(dataRow.values.size) { i ->
+            dataRow.values[i]?.let {
+                val columnType = resultSet.columnMapping[i]
+                typeRegistry.decode(columnType, it, configuration.charset)
+            }
+        }
+        resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
     }
 
     override val isConnected: Boolean get() = stream.isActive
@@ -323,9 +343,32 @@ class PgConnectionImpl private constructor(
     override suspend fun sendQuery(query: String): QueryResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
-        val deferred = setCompleteQueryResult()
+        setQueryRunning()
         writeToStream(PgMessage.Query(query))
-        return deferred.await()
+
+        val rowDescription = rowDescriptionChannel.receive()
+        val result = MutableResultSet(rowDescription)
+
+        var commandComplete: PgMessage.CommandComplete? = null
+        selectLoop {
+            dataRowChannel.onReceive {
+                addDataRow(result, it)
+                Loop.Continue
+            }
+            commandCompleteChannel.onReceive {
+                commandComplete = it
+                Loop.Continue
+            }
+            queryDoneChannel.onReceive {
+                Loop.Break
+            }
+        }
+
+        checkNotNull(commandComplete) {
+            "Command complete message must exist before existing query. Something went really wrong"
+        }
+
+        return QueryResult(commandComplete!!.rowCount, commandComplete!!.message, result)
     }
 
     override suspend fun sendPreparedStatement(
@@ -335,13 +378,14 @@ class PgConnectionImpl private constructor(
     ): QueryResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
-        val deferred = setCompleteQueryResult()
+        setQueryRunning()
+
         val statement = preparedStatements.getOrPut(query) {
             PgPreparedStatement(query)
         }
 
         require(statement.paramCount == parameters.size) {
-            clearQueryDeferredResult()
+            queryRunning.value = false
             """
             Query does not have the correct number of parameters.
             
@@ -352,7 +396,6 @@ class PgConnectionImpl private constructor(
         }
 
         currentPreparedStatement.value = statement
-        resultSet = MutableResultSet(statement.metadata)
 
         val messages = buildList {
             if (!statement.prepared) {
@@ -390,22 +433,38 @@ class PgConnectionImpl private constructor(
         }
         writeManyToStream(messages)
 
-        val queryResult = deferred.await()
+        val rowDescription = rowDescriptionChannel.receive()
+        val result = MutableResultSet(rowDescription)
+
+        var commandComplete: PgMessage.CommandComplete? = null
+        selectLoop {
+            dataRowChannel.onReceive {
+                addDataRow(result, it)
+                Loop.Continue
+            }
+            commandCompleteChannel.onReceive {
+                commandComplete = it
+                Loop.Continue
+            }
+            queryDoneChannel.onReceive {
+                logger.info("Query Done")
+                Loop.Break
+            }
+        }
 
         if (release) {
             releasePreparedStatement(query)
         }
+        checkNotNull(commandComplete) {
+            "Command complete message must exist before existing query. Something went really wrong"
+        }
 
-        return queryResult
+        return QueryResult(commandComplete!!.rowCount, commandComplete!!.message, result)
     }
 
     override suspend fun releasePreparedStatement(query: String) {
-        require(deferredCloseStatement.value == null) {
-            "Cannot release a prepared statement while another close operation is ongoing"
-        }
-        require(deferredQueryResult.value == null) {
-            "Cannot release a prepared statement while a query is ongoing"
-        }
+        checkNotRunningQuery()
+        setReleasingStatement()
 
         val statement = preparedStatements[query]
             ?: error("Could not find prepared statement for query\n\n$query")
@@ -414,7 +473,7 @@ class PgConnectionImpl private constructor(
             targetName = statement.statementId,
         )
         writeManyToStream(closeMessage, PgMessage.Sync)
-        setDeferredClose().await()
+        closeStatementChannel.receive()
         preparedStatements.remove(query)
     }
 
