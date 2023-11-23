@@ -1,0 +1,18 @@
+{
+  "sinks": {
+    "stdout": {
+      "renderWith": "RENDER_SIMPLE",
+      "sendTo": "STDOUT"
+    }
+  },
+  "logging": [
+    {
+      "levelRanges": [
+        {
+          "fromMinLevel": "INFO",
+          "toSinks": ["stdout"]
+        }
+      ]
+    }
+  ]
+}
