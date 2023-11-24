@@ -9,11 +9,21 @@ interface ConnectionPool : Executor, CoroutineScope {
     suspend fun exhausted(): Boolean
     suspend fun giveBack(connection: Connection): Boolean
     suspend fun <R> useConnection(block: suspend (Connection) -> R): R {
+        var connection: Connection? = null
+        var cause: Throwable? = null
         return try {
-            val connection = acquire()
+            connection = acquire()
             block(connection)
+        } catch (ex: Throwable) {
+            cause = ex
+            throw ex
         } finally {
-
+            try {
+                connection?.close()
+            } catch (ex: Throwable) {
+                cause?.addSuppressed(ex)
+                throw cause ?: ex
+            }
         }
     }
 }

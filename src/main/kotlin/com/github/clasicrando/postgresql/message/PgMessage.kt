@@ -2,7 +2,6 @@ package com.github.clasicrando.postgresql.message
 
 import com.github.clasicrando.postgresql.copy.CopyFormat
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
-import com.github.clasicrando.postgresql.type.PgOid
 
 sealed class PgMessage(val code: Byte) {
 
@@ -51,7 +50,7 @@ sealed class PgMessage(val code: Byte) {
     data class Execute(val portalName: String, val maxRowCount: Int) : PgMessage(EXECUTE_CODE) // F
     data object Flush : PgMessage(FLUSH_CODE) // F
     data class FunctionCall(
-        val functionOid: PgOid,
+        val functionOid: Int,
         val arguments: List<Any?>,
     ) : PgMessage(FUNCTION_CALL_CODE) // F
     class FunctionCallResponse(val result: ByteArray?) : PgMessage(FUNCTION_CALL_RESPONSE_CODE) // B

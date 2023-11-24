@@ -30,7 +30,7 @@ class PgConnectionFactory(private val connectOptions: PgConnectOptions) : Connec
 
     override suspend fun validate(item: Connection): Boolean {
         val connection = item as? PgConnection ?: return false
-        if (connection.inTransaction) {
+        if (connection.isConnected && connection.inTransaction) {
             connection.rollback()
         }
         return connection.isConnected && !connection.inTransaction

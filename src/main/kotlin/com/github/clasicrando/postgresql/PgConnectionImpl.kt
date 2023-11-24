@@ -3,6 +3,7 @@ package com.github.clasicrando.postgresql
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.common.atomic.AtomicMutableMap
+import com.github.clasicrando.common.connectionLogger
 import com.github.clasicrando.common.exceptions.ConnectionNotRunningQuery
 import com.github.clasicrando.common.exceptions.ConnectionRunningQuery
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
@@ -83,13 +84,12 @@ class PgConnectionImpl private constructor(
                 processServerMessage()
             }
         } catch (ex: Throwable) {
-            logger.error(ex, "Error within server message processor")
+            connectionLogger { error(ex, "Error within server message processor") }
             closeChannels(ex)
-            cancel()
         } catch(cancel: CancellationException) {
             throw cancel
         } finally {
-            logger.trace("Server Message Processor is closing")
+            connectionLogger { trace("Server Message Processor is closing") }
         }
     }
 
@@ -111,9 +111,7 @@ class PgConnectionImpl private constructor(
     }
 
     private suspend fun processServerMessage() {
-        val message = receiveServerMessage()
-        logger.trace("{message}", message)
-        when (message) {
+        when (val message = receiveServerMessage()) {
             is PgMessage.ErrorResponse -> onErrorMessage(message)
             is PgMessage.NoticeResponse -> onNotice(message)
             is PgMessage.ParameterStatus -> onParameterStatus(message)
@@ -128,7 +126,7 @@ class PgConnectionImpl private constructor(
             is PgMessage.CopyData -> onCopyData(message)
             is PgMessage.CopyDone -> onCopyDone()
             else -> {
-                logger.trace("Received message: $message")
+                connectionLogger { trace("Received message: $message") }
             }
         }
     }
@@ -154,7 +152,7 @@ class PgConnectionImpl private constructor(
         }
         when (val auth = message.authentication) {
             Authentication.Ok -> {
-                logger.trace("Successfully logged in to database")
+                connectionLogger { trace("Successfully logged in to database") }
                 isAuthenticated = true
             }
             Authentication.CleartextPassword -> {
@@ -176,81 +174,85 @@ class PgConnectionImpl private constructor(
     }
 
     private suspend fun onNotice(message: PgMessage.NoticeResponse) {
-        logger.trace("Notice, message -> {noticeResponse}", message)
+        connectionLogger { trace("Notice, message -> {noticeResponse}", message) }
     }
 
     private suspend fun onErrorMessage(message: PgMessage.ErrorResponse) {
-        logger.error("Error, message -> {errorResponse}", message)
+        connectionLogger { error("Error, message -> {errorResponse}", message) }
         val throwable = GeneralPostgresError(message)
+        stream.close()
         closeChannels(throwable)
-        close()
     }
 
     private suspend fun onBackendKeyData(message: PgMessage.BackendKeyData) {
-        logger.trace(
-            "Got backend key data. Process ID: {processId}, Secret Key: ****",
-            message.processId,
-        )
+        connectionLogger {
+            trace(
+                "Got backend key data. Process ID: {processId}, Secret Key: ****",
+                message.processId,
+            )
+        }
         backendKeyData = message
     }
 
     private suspend fun onParameterStatus(message: PgMessage.ParameterStatus) {
-        logger.trace("Parameter Status, {status}", message)
+        connectionLogger { trace("Parameter Status, {status}", message) }
     }
 
     private suspend fun onReadyForQuery(message: PgMessage.ReadyForQuery) {
-        logger.trace(
-            "Connection ready for query. Transaction Status: {status}",
-            message.transactionStatus,
-        )
+        connectionLogger {
+            trace(
+                "Connection ready for query. Transaction Status: {status}",
+                message.transactionStatus,
+            )
+        }
         resetQueryRunning()
         if (initialReadyForQuery.complete(Unit)) {
-            logger.trace("Connection is now initialized and ready for queries")
+            connectionLogger { trace("Connection is now initialized and ready for queries") }
             return
         }
         queryDoneChannel.send(Unit)
     }
 
     private suspend fun onRowDescription(message: PgMessage.RowDescription) {
-        logger.trace("Received row description -> {desc}", message)
+        connectionLogger { trace("Received row description -> {desc}", message) }
         rowDescriptionChannel.send(message.fields)
         currentPreparedStatement.value?.metadata = message.fields
     }
 
     private suspend fun onDataRow(message: PgMessage.DataRow) {
-        logger.trace("Received row size = {size}", message.values.size)
+        connectionLogger { trace("Received row size = {size}", message.values.size) }
         dataRowChannel.send(message)
     }
 
     private suspend fun onCommandComplete(message: PgMessage.CommandComplete) {
-        logger.trace("Received command complete -> {message}", message)
+        connectionLogger { trace("Received command complete -> {message}", message) }
         commandCompleteChannel.send(message)
     }
 
     private suspend fun onCloseComplete() {
-        logger.trace("Received close complete")
+        connectionLogger { trace("Received close complete") }
         if (releasePreparedStatement.getAndSet(false)) {
             closeStatementChannel.send(Unit)
         }
     }
 
     private suspend fun onCopyInResponse(message: PgMessage.CopyInResponse) {
-        logger.trace("Received CopyInResponse -> {message}", message)
+        connectionLogger { trace("Received CopyInResponse -> {message}", message) }
         copyInResponseChannel.send(Unit)
     }
 
     private suspend fun onCopyOutResponse(message: PgMessage.CopyOutResponse) {
-        logger.trace("Received CopyOutResponse -> {message}", message)
+        connectionLogger { trace("Received CopyOutResponse -> {message}", message) }
         copyOutResponseChannel.send(Unit)
     }
 
     private suspend fun onCopyData(message: PgMessage.CopyData) {
-        logger.trace("Received CopyData, size = {size}", message.data.size)
+        connectionLogger { trace("Received CopyData, size = {size}", message.data.size) }
         copyDataChannel.send(message)
     }
 
     private suspend fun onCopyDone() {
-        logger.trace("Received CopyDone")
+        connectionLogger { trace("Received CopyDone") }
         copyDoneChannel.send(Unit)
     }
 
@@ -273,7 +275,7 @@ class PgConnectionImpl private constructor(
     }
 
     internal suspend fun writeToStream(message: PgMessage) {
-        logger.trace("Writing message, -> {message}", message)
+        connectionLogger { trace("Writing message, -> {message}", message) }
         val encoder = encoders.encoderFor(message)
         stream.writeMessage {
             encoder.encode(message, it)
@@ -282,7 +284,7 @@ class PgConnectionImpl private constructor(
 
     private suspend fun writeManyToStream(messages: Iterable<PgMessage>) {
         for (message in messages) {
-            logger.trace("Writing message, -> {message}", message)
+            connectionLogger { trace("Writing message, -> {message}", message) }
             val encoder = encoders.encoderFor(message)
             stream.writeMessage {
                 encoder.encode(message, it)
@@ -292,7 +294,7 @@ class PgConnectionImpl private constructor(
 
     private suspend fun writeManyToStream(vararg messages: PgMessage) {
         for (message in messages) {
-            logger.trace("Writing message, -> {message}", message)
+            connectionLogger { trace("Writing message, -> {message}", message) }
             val encoder = encoders.encoderFor(message)
             stream.writeMessage {
                 encoder.encode(message, it)
@@ -306,7 +308,7 @@ class PgConnectionImpl private constructor(
 
     private suspend fun checkNotRunningQuery() {
         if (queryRunning.value) {
-            logger.trace("Check to ensure query not running failed")
+            connectionLogger { trace("Check to ensure query not running failed") }
             throw ConnectionRunningQuery(connectionId)
         }
     }
@@ -325,7 +327,7 @@ class PgConnectionImpl private constructor(
 
     private suspend fun setQueryRunning() {
         if (!queryRunning.compareAndSet(expect = false, update = true)) {
-            logger.trace("Query running already set to true")
+            connectionLogger { trace("Query running already set to true") }
             throw ConnectionRunningQuery(connectionId)
         }
     }
@@ -340,7 +342,7 @@ class PgConnectionImpl private constructor(
         resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
     }
 
-    override val isConnected: Boolean get() = stream.isActive
+    override val isConnected: Boolean get() = stream.isActive && messageProcessorJob.isActive
 
     override suspend fun begin() {
         try {
@@ -353,10 +355,12 @@ class PgConnectionImpl private constructor(
                 try {
                     rollback()
                 } catch (ex2: Throwable) {
-                    logger.error(
-                        ex2,
-                        "Error while trying to rollback. BEGIN called while in transaction"
-                    )
+                    connectionLogger {
+                        error(
+                            ex2,
+                            "Error while trying to rollback. BEGIN called while in transaction"
+                        )
+                    }
                 }
             }
             throw ex
@@ -368,7 +372,7 @@ class PgConnectionImpl private constructor(
             sendQuery("COMMIT;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
-                logger.error("Attempted to COMMIT a connection not within a transaction")
+                connectionLogger { error("Attempted to COMMIT a connection not within a transaction") }
             }
         }
     }
@@ -378,7 +382,7 @@ class PgConnectionImpl private constructor(
             sendQuery("ROLLBACK;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
-                logger.error("Attempted to ROLLBACK a connection not within a transaction")
+                connectionLogger { error("Attempted to ROLLBACK a connection not within a transaction") }
             }
         }
     }
@@ -454,6 +458,7 @@ class PgConnectionImpl private constructor(
                     query = query,
                     parameters = parameters,
                 )
+                statement.prepared = true
                 add(parseMessage)
             }
             val bindMessage = PgMessage.Bind(
@@ -498,7 +503,6 @@ class PgConnectionImpl private constructor(
                 Loop.Continue
             }
             queryDoneChannel.onReceive {
-                logger.trace("Query Done")
                 Loop.Break
             }
         }
@@ -532,8 +536,15 @@ class PgConnectionImpl private constructor(
         if (pool != null && pool!!.giveBack(this)) {
             return
         }
-        writeToStream(PgMessage.Terminate)
-        stream.close()
+        try {
+            if (stream.isActive) {
+                writeToStream(PgMessage.Terminate)
+            }
+        } catch (ex: Throwable) {
+            connectionLogger { warn(ex, "Error sending terminate message") }
+        } finally {
+            stream.close()
+        }
         if (messageProcessorJob.isActive) {
             messageProcessorJob.cancelAndJoin()
         }
@@ -615,6 +626,7 @@ class PgConnectionImpl private constructor(
         ): PgConnectionImpl {
             val connection = PgConnectionImpl(configuration, charset, stream, scope)
             connection.initialReadyForQuery.await()
+            connection.typeRegistry.finalizeTypes(connection)
             return connection
         }
     }

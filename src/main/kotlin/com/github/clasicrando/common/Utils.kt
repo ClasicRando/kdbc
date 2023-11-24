@@ -1,5 +1,8 @@
 package com.github.clasicrando.common
 
+import io.klogging.Klogger
+import io.klogging.Klogging
+import io.klogging.context.withLogContext
 import kotlinx.coroutines.selects.SelectBuilder
 import kotlinx.coroutines.selects.select
 
@@ -24,5 +27,15 @@ suspend inline fun selectLoop(crossinline block: SelectBuilder<Loop>.() -> Unit)
             is Loop.Continue -> continue
             is Loop.Break -> break
         }
+    }
+}
+
+suspend inline fun <C> C.connectionLogger(crossinline block: suspend Klogger.() -> Unit)
+where
+    C : Connection,
+    C : Klogging
+{
+    withLogContext("connectionId" to connectionId) {
+        logger.block()
     }
 }

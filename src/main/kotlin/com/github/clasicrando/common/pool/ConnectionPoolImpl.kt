@@ -50,6 +50,7 @@ class ConnectionPoolImpl(
         var connectionId = ""
         try {
             connectionId = connection.connectionId
+            logger.trace("Invalidating connection id = {id}", connectionId)
             connection.pool = null
             connection.close()
         } catch (ex: Throwable) {

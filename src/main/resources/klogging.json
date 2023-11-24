@@ -1,7 +1,7 @@
 {
   "sinks": {
     "stdout": {
-      "renderWith": "RENDER_SIMPLE",
+      "renderWith": "RENDER_ANSI",
       "sendTo": "STDOUT"
     }
   },
@@ -9,7 +9,7 @@
     {
       "levelRanges": [
         {
-          "fromMinLevel": "TRACE",
+          "fromMinLevel": "INFO",
           "toSinks": ["stdout"]
         }
       ]

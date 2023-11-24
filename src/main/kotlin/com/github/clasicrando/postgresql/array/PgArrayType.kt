@@ -4,10 +4,9 @@ import com.github.clasicrando.common.column.ColumnData
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.columnDecodeError
 import io.ktor.utils.io.charsets.Charset
-import java.nio.ByteBuffer
 import kotlin.reflect.KClass
 
-class ArrayType(private val innerDbType: DbType) : DbType {
+class PgArrayType(private val innerDbType: DbType) : DbType {
 
     override val supportsStringDecoding: Boolean get() = false
 

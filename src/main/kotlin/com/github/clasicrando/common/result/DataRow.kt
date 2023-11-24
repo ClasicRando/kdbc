@@ -9,6 +9,9 @@ interface DataRow {
     fun indexFromColumn(column: String): Int
     operator fun get(index: Int): Any?
     operator fun get(column: String): Any? = get(indexFromColumn(column))
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> getAs(index: Int): T? = get(index) as T?
+    fun <T : Any> getAs(column: String): T? = getAs(indexFromColumn(column))
     fun getBoolean(index: Int): Boolean? = getBooleanCoerce(get(index))
     fun getBoolean(column: String): Boolean? = getBooleanCoerce(get(column))
     private fun getBooleanCoerce(value: Any?): Boolean? {

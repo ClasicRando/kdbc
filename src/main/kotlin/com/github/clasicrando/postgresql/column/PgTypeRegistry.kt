@@ -10,6 +10,7 @@ import com.github.clasicrando.common.column.DoubleDbType
 import com.github.clasicrando.common.column.FloatDbType
 import com.github.clasicrando.common.column.IntDbType
 import com.github.clasicrando.common.column.LocalDateDbType
+import com.github.clasicrando.common.column.LocalDateTimeDbType
 import com.github.clasicrando.common.column.LocalTimeDbType
 import com.github.clasicrando.common.column.LongDbType
 import com.github.clasicrando.common.column.ShortDbType
@@ -17,11 +18,13 @@ import com.github.clasicrando.common.column.StringDbType
 import com.github.clasicrando.common.column.TypeRegistry
 import com.github.clasicrando.common.column.UuidDbType
 import com.github.clasicrando.postgresql.PgConnection
-import com.github.clasicrando.postgresql.array.ArrayType
+import com.github.clasicrando.postgresql.array.PgArrayType
+import com.github.clasicrando.postgresql.type.PgCompositeDbType
 import com.github.clasicrando.postgresql.type.enumDbType
+import com.github.clasicrando.postgresql.type.pgCompositeDbType
 import io.klogging.Klogging
 import io.ktor.utils.io.charsets.Charset
-import kotlinx.coroutines.sync.Mutex
+import java.lang.StringBuilder
 
 private typealias DbTypeDefinition = Pair<DbType, Boolean>
 
@@ -33,12 +36,57 @@ class PgTypeRegistry(
     private var types = defaultTypes
     private var classToType = types.entries
         .asSequence()
-        .filter { it.value !is ArrayType }
+        .filter { it.value !is PgArrayType }
         .associateBy { it.value.encodeType }
+    private var compositeClassToType = types.entries
+        .asSequence()
+        .mapNotNull { it.value as? PgCompositeDbType<*> }
+        .associateBy { it.encodeType }
 
     override fun decode(type: ColumnData, value: ByteArray, charset: Charset): Any {
         return types.getOrDefault(type.dataType, StringDbType)
             .decode(type, value, charset)
+    }
+
+    private fun replaceInComposite(value: String?): String? {
+        return value?.replace("\\", "\\\\")?.replace("\"", "\"\"")
+    }
+
+    private fun StringBuilder.prependCommaIfNeeded() {
+        if (length == 1) {
+            return
+        }
+        append(',')
+    }
+
+    private fun encodeComposite(composite: Any, dbType: PgCompositeDbType<*>): String {
+        return buildString {
+            append('(')
+            for ((property, type) in dbType.properties) {
+                prependCommaIfNeeded()
+                val propertyValue = property.getter.call(composite) ?: continue
+                val encodedValue = encode(propertyValue) ?: continue
+                when (type) {
+                    is PgCompositeDbType<*>, is PgArrayType -> {
+                        append('"')
+                        append(replaceInComposite(encodedValue))
+                        append('"')
+                    }
+                    is StringDbType -> {
+                        append('"')
+                        append(encodedValue.replace("\"", "\"\""))
+                        append('"')
+                    }
+                    is LocalDateTimeDbType, is DateTimeDbType -> {
+                        append('"')
+                        append(encodedValue)
+                        append('"')
+                    }
+                    else -> append(encodedValue)
+                }
+            }
+            append(')')
+        }
     }
 
     private fun encodeArray(array: Iterable<*>): String {
@@ -76,10 +124,16 @@ class PgTypeRegistry(
         return when (value) {
             is Array<*> -> encodeArray(value.asIterable())
             is Iterable<*> -> encodeArray(value)
-            else -> classToType[value::class]
-                ?.value
-                ?.encode(value)
-                ?: StringDbType.encode(value)
+            else -> {
+                val valueClass = value::class
+                compositeClassToType[valueClass]?.let {
+                    return encodeComposite(value, it)
+                }
+                classToType[valueClass]
+                    ?.value
+                    ?.encode(value)
+                    ?: StringDbType.encode(value)
+            }
         }
     }
 
@@ -91,7 +145,7 @@ class PgTypeRegistry(
         }
     }
     
-    suspend fun finalizeTypes(connection: PgConnection) {
+    internal suspend fun finalizeTypes(connection: PgConnection) {
         val nonStandardTypes = buildMap {
             for ((oid, pair) in nonStandardTypesByOid) {
                 val (dbType, hasArray) = pair
@@ -107,7 +161,7 @@ class PgTypeRegistry(
                             verifiedOid,
                         )
                         checkAgainstDefaultTypes(it)
-                        this[it] = ArrayType(dbType)
+                        this[it] = PgArrayType(dbType)
                     }
                 }
             }
@@ -131,7 +185,7 @@ class PgTypeRegistry(
                             verifiedOid,
                         )
                         checkAgainstDefaultTypes(it)
-                        this[it] = ArrayType(dbType)
+                        this[it] = PgArrayType(dbType)
                     }
                 }
             }
@@ -155,7 +209,31 @@ class PgTypeRegistry(
                             verifiedOid,
                         )
                         checkAgainstDefaultTypes(it)
-                        this[it] = ArrayType(dbType)
+                        this[it] = PgArrayType(dbType)
+                    }
+                }
+            }
+
+            for ((name, pair) in compositeTypes) {
+                val (dbType, hasArray) = pair
+                val verifiedOid = checkCompositeDbTypeByName(name, connection) ?: continue
+                logger.trace(
+                    "Adding column decoder for composite type {name} ({oid})",
+                    name,
+                    verifiedOid,
+                )
+                checkAgainstDefaultTypes(verifiedOid)
+                this[verifiedOid] = dbType
+
+                if (hasArray) {
+                    checkArrayDbTypeByOid(verifiedOid, connection)?.let {
+                        logger.trace(
+                            "Adding array column decoder for composite type {name} ({oid})",
+                            name,
+                            verifiedOid,
+                        )
+                        checkAgainstDefaultTypes(it)
+                        this[it] = PgArrayType(dbType)
                     }
                 }
             }
@@ -163,37 +241,42 @@ class PgTypeRegistry(
         types = defaultTypes.plus(nonStandardTypes)
         classToType = types.entries
             .asSequence()
-            .filter { it.value !is ArrayType }
+            .filter { it.value !is PgArrayType }
             .associateBy { it.value.encodeType }
+        compositeClassToType = types.entries
+            .asSequence()
+            .mapNotNull { it.value as? PgCompositeDbType<*> }
+            .associateBy { it.encodeType }
     }
 
     companion object : Klogging {
-        private val stringArrayType = ArrayType(StringDbType)
-        private val dateTimeArrayType = ArrayType(DateTimeDbType)
+        private val stringArrayType = PgArrayType(StringDbType)
+        private val dateTimeArrayType = PgArrayType(DateTimeDbType)
+        private val intArrayType = PgArrayType(IntDbType)
 
         private val defaultTypes: Map<Int, DbType> get() = mapOf(
             PgColumnTypes.Boolean to PgBooleanDbType,
-            PgColumnTypes.BooleanArray to ArrayType(PgBooleanDbType),
+            PgColumnTypes.BooleanArray to PgArrayType(PgBooleanDbType),
             PgColumnTypes.Char to PgCharDbType,
-            PgColumnTypes.CharArray to ArrayType(PgCharDbType),
+            PgColumnTypes.CharArray to PgArrayType(PgCharDbType),
             PgColumnTypes.ByteA to PgByteArrayDbType,
-            PgColumnTypes.ByteA_Array to ArrayType(PgByteArrayDbType),
+            PgColumnTypes.ByteA_Array to PgArrayType(PgByteArrayDbType),
             PgColumnTypes.Smallint to ShortDbType,
-            PgColumnTypes.SmallintArray to ArrayType(ShortDbType),
+            PgColumnTypes.SmallintArray to PgArrayType(ShortDbType),
             PgColumnTypes.Integer to IntDbType,
-            PgColumnTypes.IntegerArray to ArrayType(IntDbType),
+            PgColumnTypes.IntegerArray to intArrayType,
             PgColumnTypes.Bigint to LongDbType,
-            PgColumnTypes.BigintArray to ArrayType(LongDbType),
-            PgColumnTypes.OID to PgOidDbType,
-            PgColumnTypes.OIDArray to ArrayType(PgOidDbType),
+            PgColumnTypes.BigintArray to PgArrayType(LongDbType),
+            PgColumnTypes.OID to IntDbType,
+            PgColumnTypes.OIDArray to intArrayType,
             PgColumnTypes.Numeric to BigDecimalDbType,
-            PgColumnTypes.NumericArray to ArrayType(BigDecimalDbType),
+            PgColumnTypes.NumericArray to PgArrayType(BigDecimalDbType),
             PgColumnTypes.Real to FloatDbType,
-            PgColumnTypes.RealArray to ArrayType(FloatDbType),
+            PgColumnTypes.RealArray to PgArrayType(FloatDbType),
             PgColumnTypes.Double to DoubleDbType,
-            PgColumnTypes.DoubleArray to ArrayType(DoubleDbType),
+            PgColumnTypes.DoubleArray to PgArrayType(DoubleDbType),
             PgColumnTypes.Money to PgMoneyDbType,
-            PgColumnTypes.MoneyArray to ArrayType(PgMoneyDbType),
+            PgColumnTypes.MoneyArray to PgArrayType(PgMoneyDbType),
             PgColumnTypes.Text to StringDbType,
             PgColumnTypes.TextArray to stringArrayType,
             PgColumnTypes.Bpchar to StringDbType,
@@ -205,27 +288,27 @@ class PgTypeRegistry(
             PgColumnTypes.Name to StringDbType,
             PgColumnTypes.NameArray to stringArrayType,
             PgColumnTypes.UUID to UuidDbType,
-            PgColumnTypes.UUIDArray to ArrayType(UuidDbType),
+            PgColumnTypes.UUIDArray to PgArrayType(UuidDbType),
             PgColumnTypes.Json to PgJsonDbType,
-            PgColumnTypes.JsonArray to ArrayType(PgJsonDbType),
+            PgColumnTypes.JsonArray to PgArrayType(PgJsonDbType),
             PgColumnTypes.Jsonb to PgJsonDbType,
-            PgColumnTypes.JsonbArray to ArrayType(PgJsonDbType),
+            PgColumnTypes.JsonbArray to PgArrayType(PgJsonDbType),
             PgColumnTypes.XML to StringDbType,
             PgColumnTypes.XMLArray to stringArrayType,
             PgColumnTypes.Inet to PgInetDbType,
-            PgColumnTypes.InetArray to ArrayType(PgInetDbType),
+            PgColumnTypes.InetArray to PgArrayType(PgInetDbType),
             PgColumnTypes.Date to LocalDateDbType,
-            PgColumnTypes.DateArray to ArrayType(LocalDateDbType),
+            PgColumnTypes.DateArray to PgArrayType(LocalDateDbType),
             PgColumnTypes.Time to LocalTimeDbType,
-            PgColumnTypes.TimeArray to ArrayType(LocalTimeDbType),
+            PgColumnTypes.TimeArray to PgArrayType(LocalTimeDbType),
             PgColumnTypes.Timestamp to DateTimeDbType,
             PgColumnTypes.TimestampArray to dateTimeArrayType,
             PgColumnTypes.TimeWithTimezone to PgTimeTzDbType,
-            PgColumnTypes.TimeWithTimezoneArray to ArrayType(PgTimeTzDbType),
+            PgColumnTypes.TimeWithTimezoneArray to PgArrayType(PgTimeTzDbType),
             PgColumnTypes.TimestampWithTimezone to DateTimeDbType,
             PgColumnTypes.TimestampWithTimezoneArray to dateTimeArrayType,
             PgColumnTypes.Interval to DateTimePeriodDbType,
-            PgColumnTypes.IntervalArray to ArrayType(DateTimePeriodDbType),
+            PgColumnTypes.IntervalArray to PgArrayType(DateTimePeriodDbType),
         )
         private var instance: PgTypeRegistry? = null
         private val pgTypeByOid =
@@ -252,6 +335,16 @@ class PgTypeRegistry(
                 t.typname = $1
                 and n.nspname = coalesce(nullif($2,''), 'public')
                 and t.typcategory = 'E'
+            """.trimIndent()
+        private val pgCompositeTypeByName =
+            """
+            select t.oid
+            from pg_type t
+            join pg_namespace n on t.typnamespace = n.oid
+            where
+                t.typname = $1
+                and n.nspname = coalesce(nullif($2,''), 'public')
+                and t.typcategory = 'C'
             """.trimIndent()
         private val pgArrayTypeByInnerOid =
             """
@@ -320,6 +413,30 @@ class PgTypeRegistry(
             return oid
         }
 
+        private suspend fun checkCompositeDbTypeByName(
+            name: String,
+            connection: PgConnection,
+        ): Int? {
+            var schema: String? = null
+            var typeName = name
+            val schemaQualifierIndex = name.indexOf('.')
+            if (schemaQualifierIndex > -1) {
+                schema = name.substring(0, schemaQualifierIndex)
+                typeName = name.substring(schemaQualifierIndex + 1)
+            }
+
+            val result = connection.sendPreparedStatement(
+                pgCompositeTypeByName,
+                listOf(typeName, schema),
+            )
+            val oid = result.rows.firstOrNull()?.getInt(0)
+            if (oid == null) {
+                logger.warn("Could not find composite type for name = {name}", name)
+                return null
+            }
+            return oid
+        }
+
         private suspend fun checkAgainstDefaultTypes(type: Int) {
             if (defaultTypes.containsKey(type)) {
                 logger.trace("Replacing default type definition for type = {type}", type)
@@ -329,6 +446,7 @@ class PgTypeRegistry(
         private val nonStandardTypesByOid: MutableMap<Int, DbTypeDefinition> = AtomicMutableMap()
         private val nonStandardTypesByName: MutableMap<String, DbTypeDefinition> = AtomicMutableMap()
         private val enumTypes: MutableMap<String, DbTypeDefinition> = AtomicMutableMap()
+        private val compositeTypes: MutableMap<String, DbTypeDefinition> = AtomicMutableMap()
 
         /**
          * Register a new decoder with the specified [type] as it's type oid. You should prefer the
@@ -372,7 +490,7 @@ class PgTypeRegistry(
         internal fun registerEnumType(
             dbType: DbType,
             type: String,
-            hasArray: Boolean = true,
+            hasArray: Boolean,
         ) {
             enumTypes[type] = dbType to hasArray
         }
@@ -380,6 +498,29 @@ class PgTypeRegistry(
         inline fun <reified E : Enum<E>> registerEnumType(
             type: String,
             hasArray: Boolean = true,
-        ) = registerEnumType(enumDbType<E>(), type, hasArray)
+        ): DbType {
+            val dbType = enumDbType<E>()
+            registerEnumType(dbType, type, hasArray)
+            return dbType
+        }
+
+        @PublishedApi
+        internal fun registerCompositeType(
+            dbType: DbType,
+            type: String,
+            hasArray: Boolean,
+        ) {
+            compositeTypes[type] = dbType to hasArray
+        }
+
+        inline fun <reified T : Any> registerCompositeType(
+            type: String,
+            innerTypes: Array<out DbType>,
+            hasArray: Boolean = true,
+        ): DbType {
+            val dbType = pgCompositeDbType<T>(innerTypes)
+            registerCompositeType(dbType, type, hasArray)
+            return dbType
+        }
     }
 }

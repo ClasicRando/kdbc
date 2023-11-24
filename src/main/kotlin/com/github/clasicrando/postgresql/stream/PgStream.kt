@@ -7,9 +7,11 @@ import io.klogging.Klogging
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
+import io.ktor.network.sockets.isClosed
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
 import java.nio.ByteBuffer
@@ -18,11 +20,7 @@ class PgStream(private val socket: Socket) : Klogging, AutoCloseable {
     private val receiveChannel = socket.openReadChannel()
     private val sendChannel = socket.openWriteChannel(autoFlush = true)
 
-    val isActive: Boolean get() = socket.isActive
-
-    init {
-        socket.socketContext
-    }
+    val isActive: Boolean get() = socket.isActive && !socket.isClosed
 
     suspend fun receiveMessage(): RawMessage {
         val format = receiveChannel.readByte()
