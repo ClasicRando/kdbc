@@ -15,6 +15,7 @@ import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.selectLoop
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
+import com.github.clasicrando.postgresql.authentication.simplePasswordAuthFlow
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.message.CloseTarget
 import com.github.clasicrando.postgresql.message.DescribeTarget
@@ -43,7 +44,7 @@ import java.util.*
 
 class PgConnectionImpl private constructor(
     internal val configuration: PgConnectOptions,
-    private val charset: Charset,
+    internal val charset: Charset,
     private val stream: PgStream,
     private val scope: CoroutineScope,
     private val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
@@ -72,6 +73,7 @@ class PgConnectionImpl private constructor(
     private val copyOutResponseChannel = Channel<Unit>()
     private val copyDataChannel = Channel<PgMessage.CopyData>(capacity = Channel.BUFFERED)
     private val copyDoneChannel = Channel<Unit>()
+    private val copyFailed: AtomicBoolean = atomic(false)
 
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
     private val currentPreparedStatement: AtomicRef<PgPreparedStatement?> = atomic(null)
@@ -156,12 +158,19 @@ class PgConnectionImpl private constructor(
                 isAuthenticated = true
             }
             Authentication.CleartextPassword -> {
-                val passwordMessage = createSimplePasswordMessage()
-                writeToStream(passwordMessage)
+                isAuthenticated = simplePasswordAuthFlow(
+                    this,
+                    configuration.username,
+                    configuration.password ?: error("Password must be provided"),
+                )
             }
             is Authentication.Md5Password -> {
-                val passwordMessage = createSimplePasswordMessage(auth.salt)
-                writeToStream(passwordMessage)
+                isAuthenticated = simplePasswordAuthFlow(
+                    this,
+                    configuration.username,
+                    configuration.password ?: error("Password must be provided"),
+                    auth.salt,
+                )
             }
             is Authentication.Sasl -> {
                 isAuthenticated = saslAuthFlow(this, auth)
@@ -178,6 +187,12 @@ class PgConnectionImpl private constructor(
     }
 
     private suspend fun onErrorMessage(message: PgMessage.ErrorResponse) {
+        if (copyFailed.getAndSet(false)) {
+            connectionLogger { warn("CopyIn was failed by client -> {message}", message) }
+            val commandComplete = PgMessage.CommandComplete(0, "CopyIn failed by client")
+            commandCompleteChannel.send(commandComplete)
+            return
+        }
         connectionLogger { error("Error, message -> {errorResponse}", message) }
         val throwable = GeneralPostgresError(message)
         stream.close()
@@ -256,26 +271,7 @@ class PgConnectionImpl private constructor(
         copyDoneChannel.send(Unit)
     }
 
-    private fun createSimplePasswordMessage(
-        salt: ByteArray? = null,
-    ): PgMessage.PasswordMessage {
-        val passwordBytes = configuration.password
-            ?.toByteArray(charset = charset)
-            ?: byteArrayOf()
-        val bytes = if (salt == null) {
-            passwordBytes
-        } else {
-            PasswordHelper.encode(
-                username = configuration.username.toByteArray(charset = charset),
-                password = passwordBytes,
-                salt = salt,
-            )
-        }
-        return PgMessage.PasswordMessage(bytes)
-    }
-
     internal suspend fun writeToStream(message: PgMessage) {
-        connectionLogger { trace("Writing message, -> {message}", message) }
         val encoder = encoders.encoderFor(message)
         stream.writeMessage {
             encoder.encode(message, it)
@@ -283,20 +279,18 @@ class PgConnectionImpl private constructor(
     }
 
     private suspend fun writeManyToStream(messages: Iterable<PgMessage>) {
-        for (message in messages) {
-            connectionLogger { trace("Writing message, -> {message}", message) }
-            val encoder = encoders.encoderFor(message)
-            stream.writeMessage {
+        stream.writeMessage {
+            for (message in messages) {
+                val encoder = encoders.encoderFor(message)
                 encoder.encode(message, it)
             }
         }
     }
 
     private suspend fun writeManyToStream(vararg messages: PgMessage) {
-        for (message in messages) {
-            connectionLogger { trace("Writing message, -> {message}", message) }
-            val encoder = encoders.encoderFor(message)
-            stream.writeMessage {
+        stream.writeMessage {
+            for (message in messages) {
+                val encoder = encoders.encoderFor(message)
                 encoder.encode(message, it)
             }
         }
@@ -391,6 +385,7 @@ class PgConnectionImpl private constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         setQueryRunning()
+        connectionLogger { trace("Sending query\n$query") }
         writeToStream(PgMessage.Query(query))
 
         var result = MutableResultSet(listOf())
@@ -486,6 +481,7 @@ class PgConnectionImpl private constructor(
             add(closePortalMessage)
             add(PgMessage.Sync)
         }
+        connectionLogger { trace("Sending prepared statement\n$query") }
         writeManyToStream(messages)
 
         var commandComplete: PgMessage.CommandComplete? = null
@@ -572,6 +568,7 @@ class PgConnectionImpl private constructor(
             writeToStream(PgMessage.CopyDone)
         } catch (ex: Throwable) {
             if (stream.isActive) {
+                copyFailed.value = true
                 writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
             }
         }

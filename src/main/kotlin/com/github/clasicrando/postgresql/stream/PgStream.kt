@@ -1,8 +1,6 @@
 package com.github.clasicrando.postgresql.stream
 
-import com.github.clasicrando.common.message.MessageEncoder
 import com.github.clasicrando.postgresql.PgConnectOptions
-import com.github.clasicrando.postgresql.message.PgMessage
 import io.klogging.Klogging
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.Socket
@@ -11,7 +9,6 @@ import io.ktor.network.sockets.isClosed
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
 import java.nio.ByteBuffer
@@ -31,12 +28,6 @@ class PgStream(private val socket: Socket) : Klogging, AutoCloseable {
             size = size.toUInt(),
             contents = packet,
         )
-    }
-
-    suspend fun <T : PgMessage> writeMessage(value: T, messageEncoder: MessageEncoder<T>) {
-        sendChannel.write {
-            messageEncoder.encode(value, it)
-        }
     }
 
     suspend fun writeMessage(block: (ByteBuffer) -> Unit) {
