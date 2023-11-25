@@ -12,6 +12,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.uuid.UUID
 import kotlin.coroutines.CoroutineContext
 
 class ConnectionPoolImpl(
@@ -19,7 +20,7 @@ class ConnectionPoolImpl(
     private val factory: ConnectionFactory,
 ) : ConnectionPool, Klogging {
     private val connections = Channel<PoolConnection>(capacity = poolOptions.maxConnections)
-    private val connectionIds: MutableSet<String> = AtomicMutableSet()
+    private val connectionIds: MutableSet<UUID> = AtomicMutableSet()
     private val neededConnections = atomic(poolOptions.minConnections.coerceAtLeast(0))
 
     override val coroutineContext: CoroutineContext
@@ -47,12 +48,13 @@ class ConnectionPoolImpl(
     }
 
     private fun invalidateConnection(connection: PoolConnection) = launch {
-        var connectionId = ""
+        var connectionId: UUID? = null
         try {
             connectionId = connection.connectionId
             logger.trace("Invalidating connection id = {id}", connectionId)
             connection.pool = null
             connection.close()
+            connectionIds.remove(connectionId)
         } catch (ex: Throwable) {
             logger.error(
                 ex,
@@ -60,7 +62,6 @@ class ConnectionPoolImpl(
                 connectionId,
             )
         }
-        connectionIds.remove(connectionId)
     }
 
     override suspend fun acquire(): Connection {

@@ -1,9 +1,11 @@
 package com.github.clasicrando.common
 
+import kotlinx.uuid.UUID
+
 interface Connection : Executor {
     val isConnected: Boolean
     val inTransaction: Boolean
-    val connectionId: String
+    val connectionId: UUID
     suspend fun close()
     suspend fun begin()
     suspend fun commit()

@@ -32,6 +32,7 @@ val scramClientVersion: String by project
 val kotlinVersion: String by project
 val kotlinxSerializationJsonVersion: String by project
 val kotlinxDateTimeVersion: String by project
+val kotlinxUuidVersion: String by project
 
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
@@ -44,6 +45,8 @@ dependencies {
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDateTimeVersion")
+    // https://mvnrepository.com/artifact/app.softwork/kotlinx-uuid-core
+    implementation("app.softwork:kotlinx-uuid-core:$kotlinxUuidVersion")
 }
 
 kotlin {

@@ -1,9 +1,9 @@
 package com.github.clasicrando.common.result
 
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.OffsetDateTime
+import com.github.clasicrando.common.datetime.DateTime
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 
 interface DataRow {
     fun indexFromColumn(column: String): Int
@@ -38,6 +38,6 @@ interface DataRow {
     fun getTime(column: String): LocalTime? = get(column) as LocalTime?
     fun getDateTime(index: Int): LocalDateTime? = get(index) as LocalDateTime?
     fun getDateTIme(column: String): LocalDateTime? = get(column) as LocalDateTime?
-    fun getDateTimeTimezone(index: Int): OffsetDateTime? = get(index) as OffsetDateTime?
-    fun getDateTImeTimeZone(column: String): OffsetDateTime? = get(column) as OffsetDateTime?
+    fun getDateTimeTimezone(index: Int): DateTime? = get(index) as DateTime?
+    fun getDateTImeTimeZone(column: String): DateTime? = get(column) as DateTime?
 }

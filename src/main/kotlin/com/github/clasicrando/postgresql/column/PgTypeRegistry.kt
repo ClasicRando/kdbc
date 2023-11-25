@@ -24,7 +24,7 @@ import com.github.clasicrando.postgresql.type.enumDbType
 import com.github.clasicrando.postgresql.type.pgCompositeDbType
 import io.klogging.Klogging
 import io.ktor.utils.io.charsets.Charset
-import java.lang.StringBuilder
+import kotlin.text.StringBuilder
 
 private typealias DbTypeDefinition = Pair<DbType, Boolean>
 

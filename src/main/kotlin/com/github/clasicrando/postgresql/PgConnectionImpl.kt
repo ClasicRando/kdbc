@@ -25,6 +25,7 @@ import com.github.clasicrando.postgresql.message.encoders.MessageEncoders
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import com.github.clasicrando.postgresql.stream.PgStream
 import io.klogging.Klogging
+import io.klogging.Level
 import io.ktor.utils.io.charsets.Charset
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.AtomicRef
@@ -40,7 +41,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import java.util.*
+import kotlinx.uuid.UUID
+import kotlinx.uuid.generateUUID
 
 class PgConnectionImpl private constructor(
     internal val configuration: PgConnectOptions,
@@ -50,7 +52,7 @@ class PgConnectionImpl private constructor(
     private val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
     private val encoders: MessageEncoders = MessageEncoders(charset, typeRegistry),
     private val decoders: MessageDecoders = MessageDecoders(charset),
-    override val connectionId: String = UUID.randomUUID().toString(),
+    override val connectionId: UUID = UUID.generateUUID(),
     override var pool: ConnectionPool? = null,
 ) : PgConnection, PoolConnection, Klogging {
 
@@ -385,7 +387,14 @@ class PgConnectionImpl private constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         setQueryRunning()
-        connectionLogger { trace("Sending query\n$query") }
+        connectionLogger {
+            when (configuration.logSettings.statementLevel) {
+                Level.TRACE -> trace(STATEMENT_TEMPLATE, query)
+                Level.DEBUG -> debug(STATEMENT_TEMPLATE, query)
+                Level.INFO -> info(STATEMENT_TEMPLATE, query)
+                else -> warn("Statement logging level set to invalid level")
+            }
+        }
         writeToStream(PgMessage.Query(query))
 
         var result = MutableResultSet(listOf())
@@ -449,7 +458,7 @@ class PgConnectionImpl private constructor(
         val messages = buildList {
             if (!statement.prepared) {
                 val parseMessage = PgMessage.Parse(
-                    preparedStatementName = statement.statementId,
+                    preparedStatementName = statement.statementName,
                     query = query,
                     parameters = parameters,
                 )
@@ -457,31 +466,38 @@ class PgConnectionImpl private constructor(
                 add(parseMessage)
             }
             val bindMessage = PgMessage.Bind(
-                portal =  statement.statementId,
-                statementName =  statement.statementId,
+                portal =  statement.statementName,
+                statementName =  statement.statementName,
                 parameters = parameters,
             )
             add(bindMessage)
             if (statement.metadata.isEmpty()) {
                 val describeMessage = PgMessage.Describe(
                     target = DescribeTarget.Portal,
-                    name = statement.statementId,
+                    name = statement.statementName,
                 )
                 add(describeMessage)
             }
             val executeMessage = PgMessage.Execute(
-                portalName = statement.statementId,
+                portalName = statement.statementName,
                 maxRowCount = 0,
             )
             add(executeMessage)
             val closePortalMessage = PgMessage.Close(
                 target = CloseTarget.Portal,
-                targetName = statement.statementId,
+                targetName = statement.statementName,
             )
             add(closePortalMessage)
             add(PgMessage.Sync)
         }
-        connectionLogger { trace("Sending prepared statement\n$query") }
+        connectionLogger {
+            when (configuration.logSettings.statementLevel) {
+                Level.TRACE -> trace(STATEMENT_TEMPLATE, query)
+                Level.DEBUG -> debug(STATEMENT_TEMPLATE, query)
+                Level.INFO -> info(STATEMENT_TEMPLATE, query)
+                else -> warn("Statement logging level set to invalid level")
+            }
+        }
         writeManyToStream(messages)
 
         var commandComplete: PgMessage.CommandComplete? = null
@@ -521,7 +537,7 @@ class PgConnectionImpl private constructor(
             ?: error("Could not find prepared statement for query\n\n$query")
         val closeMessage = PgMessage.Close(
             target = CloseTarget.PreparedStatement,
-            targetName = statement.statementId,
+            targetName = statement.statementName,
         )
         writeManyToStream(closeMessage, PgMessage.Sync)
         closeStatementChannel.receive()
@@ -614,6 +630,7 @@ class PgConnectionImpl private constructor(
 
     companion object {
         private val COPY_CHECK_REGEX = Regex("^copy\\s+", RegexOption.IGNORE_CASE)
+        private const val STATEMENT_TEMPLATE = "Sending prepared statement\n{query}"
 
         suspend fun connect(
             configuration: PgConnectOptions,

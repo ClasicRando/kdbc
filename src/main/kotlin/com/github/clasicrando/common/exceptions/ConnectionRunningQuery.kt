@@ -1,4 +1,6 @@
 package com.github.clasicrando.common.exceptions
 
-class ConnectionRunningQuery(connectionId: String)
+import kotlinx.uuid.UUID
+
+class ConnectionRunningQuery(connectionId: UUID)
     : Throwable("$connectionId - Connection is still executing a query")
