@@ -1,5 +1,6 @@
 package com.github.clasicrando.common
 
+import com.github.clasicrando.common.connection.Connection
 import io.klogging.Klogger
 import io.klogging.Klogging
 import io.klogging.context.withLogContext

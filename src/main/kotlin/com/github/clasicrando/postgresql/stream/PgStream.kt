@@ -10,6 +10,7 @@ import io.ktor.network.sockets.Connection
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
+import io.ktor.network.tls.TLSConfigBuilder
 import io.ktor.network.tls.tls
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.isActive
@@ -24,7 +25,7 @@ class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
     val isActive: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
 
     suspend fun receiveMessage(): RawMessage {
-        val format = connection.input.readByte()
+        val format = receiveChannel.readByte()
         val size = receiveChannel.readInt()
         val packet = receiveChannel.readPacket(size - 4)
         return RawMessage(
@@ -57,7 +58,7 @@ class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
         }
     }
 
-    @Suppress("BlockingMethodInNonBlockingContext")
+    @Suppress("BlockingMethodInNonBlockingContext", "UNUSED")
     private suspend fun upgradeIfNeeded(
         coroutineContext: CoroutineContext,
         connectOptions: PgConnectOptions,
@@ -69,25 +70,18 @@ class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
                     logger.warn(TLS_REJECT_WARNING)
                     return
                 }
-                connection.socket.close()
-                connection = createConnection(
-                    coroutineContext = coroutineContext,
-                    connectOptions = connectOptions,
-                    tls = true,
-                )
             }
             SslMode.Require, SslMode.VerifyCa, SslMode.VerifyFull -> {
                 check(requestUpgrade()) {
                     "TLS connection required by client but server does not accept TSL connection"
                 }
-                connection.socket.close()
-                connection = createConnection(
-                    coroutineContext = coroutineContext,
-                    connectOptions = connectOptions,
-                    tls = true,
-                )
             }
         }
+        connection.socket.close()
+        connection = createConnection(
+            coroutineContext = coroutineContext,
+            connectOptions = connectOptions,
+        )
     }
 
     companion object {
@@ -97,7 +91,7 @@ class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
         private suspend fun createConnection(
             coroutineContext: CoroutineContext,
             connectOptions: PgConnectOptions,
-            tls: Boolean = false,
+            tlsConfig: (TLSConfigBuilder.() -> Unit)? = null,
         ): Connection {
             val selectorManager = SelectorManager(coroutineContext)
             val builder = aSocket(selectorManager).tcp()
@@ -107,8 +101,8 @@ class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
                 }
             }
 
-            if (tls) {
-                return socket.tls(coroutineContext).connection()
+            tlsConfig?.let {
+                return socket.tls(coroutineContext, block = it).connection()
             }
             return socket.connection()
         }
@@ -117,14 +111,18 @@ class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
             val socket = createConnection(
                 coroutineContext = coroutineScope.coroutineContext,
                 connectOptions = connectOptions,
-                tls = false,
             )
-            val stream = PgStream(socket)
-            stream.upgradeIfNeeded(
-                coroutineContext = coroutineScope.coroutineContext,
-                connectOptions = connectOptions,
-            )
-            return stream
+            return PgStream(socket)
+            /***
+             * TODO
+             * Need to add ability to upgrade to SSL connection, currently do not understand how
+             * that is done with specified cert details with ktor-io
+             */
+//            stream.upgradeIfNeeded(
+//                coroutineContext = coroutineScope.coroutineContext,
+//                connectOptions = connectOptions,
+//            )
+//            return stream
         }
     }
 }

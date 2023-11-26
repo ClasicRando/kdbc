@@ -1,4 +1,4 @@
-package com.github.clasicrando.common
+package com.github.clasicrando.common.connection
 
 import io.klogging.Level
 import kotlin.time.Duration

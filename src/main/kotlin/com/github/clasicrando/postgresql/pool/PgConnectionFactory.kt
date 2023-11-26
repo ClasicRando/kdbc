@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.pool
 
-import com.github.clasicrando.common.Connection
+import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.pool.ConnectionFactory
 import com.github.clasicrando.postgresql.PgConnectOptions
 import com.github.clasicrando.postgresql.PgConnection

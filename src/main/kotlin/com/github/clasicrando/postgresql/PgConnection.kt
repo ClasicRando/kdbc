@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql
 
-import com.github.clasicrando.common.Connection
+import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.result.QueryResult
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow

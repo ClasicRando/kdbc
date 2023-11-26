@@ -9,4 +9,18 @@ interface Executor {
         parameters: List<Any?>,
         release: Boolean = false,
     ): QueryResult
+    suspend fun sendQueryCatching(query: String): Result<QueryResult> {
+        return runCatching {
+            sendQuery(query)
+        }
+    }
+    suspend fun sendPreparedStatementCatching(
+        query: String,
+        parameters: List<Any?>,
+        release: Boolean = false,
+    ): Result<QueryResult> {
+        return runCatching {
+            sendPreparedStatement(query, parameters, release)
+        }
+    }
 }

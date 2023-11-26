@@ -1,6 +1,6 @@
 package com.github.clasicrando.common.pool
 
-import com.github.clasicrando.common.Connection
+import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.atomic.AtomicMutableSet
 import com.github.clasicrando.common.result.QueryResult
 import io.klogging.Klogging

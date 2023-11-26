@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql
 
-import com.github.clasicrando.common.ConnectOptions
+import com.github.clasicrando.common.connection.ConnectOptions
 import com.github.clasicrando.common.SslMode
 import io.klogging.Level
 import io.ktor.utils.io.charsets.Charset
@@ -19,7 +19,7 @@ data class PgConnectOptions(
     val statementCacheCapacity: ULong = 100U,
     val charset: Charset = Charsets.UTF_8,
     val extraFloatDigits: String = "2",
-    val sslMode: SslMode = SslMode.Disable,
+    val sslMode: SslMode = SslMode.DEFAULT,
     val sslRootCert: CertificateInput? = null,
     val sslClientCert: CertificateInput? = null,
     val sslClientKey: CertificateInput? = null,

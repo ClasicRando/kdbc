@@ -8,6 +8,10 @@ enum class SslMode {
     VerifyCa,
     VerifyFull,;
 
+    fun acceptInvalidCerts(): Boolean = this != VerifyCa && this != VerifyFull
+
+    fun acceptInvalidHostnames(): Boolean = this != VerifyFull
+
     companion object {
         val DEFAULT = Prefer
 

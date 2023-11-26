@@ -1,5 +1,6 @@
-package com.github.clasicrando.common
+package com.github.clasicrando.common.connection
 
+import com.github.clasicrando.common.Executor
 import kotlinx.uuid.UUID
 
 interface Connection : Executor {
