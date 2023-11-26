@@ -1,26 +1,30 @@
 package com.github.clasicrando.postgresql.stream
 
+import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.postgresql.PgConnectOptions
+import com.github.clasicrando.postgresql.message.PgMessage
+import com.github.clasicrando.postgresql.message.encoders.SslMessageEncoder
 import io.klogging.Klogging
 import io.ktor.network.selector.SelectorManager
-import io.ktor.network.sockets.Socket
+import io.ktor.network.sockets.Connection
 import io.ktor.network.sockets.aSocket
+import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
-import io.ktor.network.sockets.openReadChannel
-import io.ktor.network.sockets.openWriteChannel
+import io.ktor.network.tls.tls
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
 import java.nio.ByteBuffer
+import kotlin.coroutines.CoroutineContext
 
-class PgStream(private val socket: Socket) : Klogging, AutoCloseable {
-    private val receiveChannel = socket.openReadChannel()
-    private val sendChannel = socket.openWriteChannel(autoFlush = true)
+class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
+    private val receiveChannel get() = connection.input
+    private val sendChannel get() = connection.output
 
-    val isActive: Boolean get() = socket.isActive && !socket.isClosed
+    val isActive: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
 
     suspend fun receiveMessage(): RawMessage {
-        val format = receiveChannel.readByte()
+        val format = connection.input.readByte()
         val size = receiveChannel.readInt()
         val packet = receiveChannel.readPacket(size - 4)
         return RawMessage(
@@ -32,22 +36,95 @@ class PgStream(private val socket: Socket) : Klogging, AutoCloseable {
 
     suspend fun writeMessage(block: (ByteBuffer) -> Unit) {
         sendChannel.write(block = block)
+        sendChannel.flush()
     }
 
     override fun close() {
-        socket.close()
+        connection.socket.close()
+    }
+
+    private suspend fun requestUpgrade(): Boolean {
+        writeMessage {
+            SslMessageEncoder.encode(PgMessage.SslRequest, it)
+        }
+        return when (val response = receiveChannel.readByte()) {
+            'S'.code.toByte() -> true
+            'N'.code.toByte() -> false
+            else -> {
+                val responseChar = response.toInt().toChar()
+                error("Invalid response byte after SSL request. Byte = '$responseChar'")
+            }
+        }
+    }
+
+    @Suppress("BlockingMethodInNonBlockingContext")
+    private suspend fun upgradeIfNeeded(
+        coroutineContext: CoroutineContext,
+        connectOptions: PgConnectOptions,
+    ) {
+        when (connectOptions.sslMode) {
+            SslMode.Disable, SslMode.Allow -> return
+            SslMode.Prefer -> {
+                if (!requestUpgrade()) {
+                    logger.warn(TLS_REJECT_WARNING)
+                    return
+                }
+                connection.socket.close()
+                connection = createConnection(
+                    coroutineContext = coroutineContext,
+                    connectOptions = connectOptions,
+                    tls = true,
+                )
+            }
+            SslMode.Require, SslMode.VerifyCa, SslMode.VerifyFull -> {
+                check(requestUpgrade()) {
+                    "TLS connection required by client but server does not accept TSL connection"
+                }
+                connection.socket.close()
+                connection = createConnection(
+                    coroutineContext = coroutineContext,
+                    connectOptions = connectOptions,
+                    tls = true,
+                )
+            }
+        }
     }
 
     companion object {
-        suspend fun connect(coroutineScope: CoroutineScope, connectOptions: PgConnectOptions): PgStream {
-            val selectorManager = SelectorManager(coroutineScope.coroutineContext)
+        private const val TLS_REJECT_WARNING = "Preferred SSL mode was rejected by server. " +
+                "Continuing with non TLS connection"
+
+        private suspend fun createConnection(
+            coroutineContext: CoroutineContext,
+            connectOptions: PgConnectOptions,
+            tls: Boolean = false,
+        ): Connection {
+            val selectorManager = SelectorManager(coroutineContext)
             val builder = aSocket(selectorManager).tcp()
             val socket = withTimeout(connectOptions.connectionTimeout.toLong()) {
                 builder.connect(connectOptions.host, connectOptions.port.toInt()) {
                     keepAlive = true
                 }
             }
-            return PgStream(socket)
+
+            if (tls) {
+                return socket.tls(coroutineContext).connection()
+            }
+            return socket.connection()
+        }
+
+        suspend fun connect(coroutineScope: CoroutineScope, connectOptions: PgConnectOptions): PgStream {
+            val socket = createConnection(
+                coroutineContext = coroutineScope.coroutineContext,
+                connectOptions = connectOptions,
+                tls = false,
+            )
+            val stream = PgStream(socket)
+            stream.upgradeIfNeeded(
+                coroutineContext = coroutineScope.coroutineContext,
+                connectOptions = connectOptions,
+            )
+            return stream
         }
     }
 }

@@ -1,9 +1,11 @@
 package com.github.clasicrando
 
+import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.common.pool.PoolOptions
 import com.github.clasicrando.postgresql.PgConnectOptions
 import com.github.clasicrando.postgresql.PgConnection
 import com.github.clasicrando.postgresql.PostgresqlConnectionBuilder
+import io.klogging.Level
 import io.klogging.config.loggingConfiguration
 import io.klogging.logger
 import kotlinx.coroutines.delay
@@ -21,7 +23,8 @@ suspend fun main() {
         connectionTimeout = 5000U,
         applicationName = "Test",
         options = null,
-    )
+        sslMode = SslMode.Prefer,
+    ).logStatements(Level.INFO) as PgConnectOptions
     val poolOptions = PoolOptions(maxConnections = 2)
     try {
         val pool = PostgresqlConnectionBuilder.createConnectionPool(

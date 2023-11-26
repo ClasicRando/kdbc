@@ -7,7 +7,6 @@ import java.nio.ByteBuffer
 object SslMessageEncoder : MessageEncoder<PgMessage.SslRequest> {
     override fun encode(value: PgMessage.SslRequest, buffer: ByteBuffer) {
         buffer.putLengthPrefixed {
-            putInt(8)
             putShort(1234)
             putShort(5679)
         }

@@ -5,8 +5,8 @@ import com.github.clasicrando.common.Executor
 import kotlinx.coroutines.CoroutineScope
 
 interface ConnectionPool : Executor, CoroutineScope {
+    val isExhausted: Boolean
     suspend fun acquire(): Connection
-    suspend fun exhausted(): Boolean
     suspend fun giveBack(connection: Connection): Boolean
     suspend fun <R> useConnection(block: suspend (Connection) -> R): R {
         var connection: Connection? = null

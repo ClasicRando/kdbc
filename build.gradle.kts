@@ -40,6 +40,7 @@ dependencies {
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$kotlinxCoroutinesVersion")
     implementation("io.ktor:ktor-network:$ktorVersion")
+    implementation("io.ktor:ktor-network-tls:$ktorVersion")
     implementation("com.ongres.scram:client:$scramClientVersion")
     implementation(kotlin("reflect", version = kotlinVersion))
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm

@@ -4,10 +4,10 @@ import com.github.clasicrando.common.Connection
 import com.github.clasicrando.common.atomic.AtomicMutableSet
 import com.github.clasicrando.common.result.QueryResult
 import io.klogging.Klogging
-import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -21,7 +21,7 @@ class ConnectionPoolImpl(
 ) : ConnectionPool, Klogging {
     private val connections = Channel<PoolConnection>(capacity = poolOptions.maxConnections)
     private val connectionIds: MutableSet<UUID> = AtomicMutableSet()
-    private val neededConnections = atomic(poolOptions.minConnections.coerceAtLeast(0))
+    private val connectionsNeeded = Channel<Unit>(capacity = poolOptions.maxConnections)
 
     override val coroutineContext: CoroutineContext
         get() = SupervisorJob(
@@ -37,12 +37,26 @@ class ConnectionPoolImpl(
 
     init {
         launch {
-            while (isActive) {
-                val needed = neededConnections.getAndSet(0)
-                for (i in 1..needed) {
+            var cause: Throwable? = null
+            try {
+                while (isActive) {
+                    connectionsNeeded.receive()
+                    if (isExhausted) {
+                        continue
+                    }
                     addNewConnection()
                 }
-                delay(50)
+            } catch (ex: CancellationException) {
+                cause = ex
+                throw ex
+            } catch (ex: Throwable) {
+                this.cancel(message = "Error creating new connection", cause = ex)
+                cause = ex
+                throw ex
+            } finally {
+                connections.close(cause = cause)
+                connectionsNeeded.close(cause = cause)
+                logger.error("Exiting pool observer")
             }
         }
     }
@@ -66,11 +80,11 @@ class ConnectionPoolImpl(
 
     override suspend fun acquire(): Connection {
         while (true) {
-            val possibleConnection = withTimeoutOrNull(500) {
+            val possibleConnection = withTimeoutOrNull(50) {
                 connections.receive()
             }
-            if (possibleConnection == null && !exhausted()) {
-                neededConnections.incrementAndGet()
+            if (possibleConnection == null) {
+                connectionsNeeded.send(Unit)
             }
             val connection = possibleConnection ?: connections.receive()
             if (factory.validate(connection)) {
@@ -80,9 +94,7 @@ class ConnectionPoolImpl(
         }
     }
 
-    override suspend fun exhausted(): Boolean {
-        return connectionIds.size == poolOptions.maxConnections
-    }
+    override val isExhausted: Boolean get() = connectionIds.size == poolOptions.maxConnections
 
     override suspend fun sendQuery(query: String): QueryResult {
         var connection: Connection? = null

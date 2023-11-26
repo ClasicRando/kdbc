@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql
 
 import com.github.clasicrando.common.Loop
-import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connectionLogger
 import com.github.clasicrando.common.exceptions.ConnectionNotRunningQuery
@@ -33,7 +32,6 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -58,9 +56,6 @@ class PgConnectionImpl private constructor(
 
     private var isAuthenticated = false
     private var backendKeyData: PgMessage.BackendKeyData? = null
-    private val initialReadyForQuery: CompletableDeferred<Unit> = CompletableDeferred(
-        parent = scope.coroutineContext.job,
-    )
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
 
@@ -81,21 +76,24 @@ class PgConnectionImpl private constructor(
     private val currentPreparedStatement: AtomicRef<PgPreparedStatement?> = atomic(null)
 
     private val messageProcessorJob = scope.launch {
-        sendStartupMessage()
+        writeToStream(PgMessage.StartupMessage(params = configuration.properties))
         try {
             handleAuthFlow()
             while (isActive && stream.isActive) {
                 processServerMessage()
             }
+        } catch(cancel: CancellationException) {
+            throw cancel
         } catch (ex: Throwable) {
             connectionLogger { error(ex, "Error within server message processor") }
             closeChannels(ex)
-        } catch(cancel: CancellationException) {
-            throw cancel
         } finally {
             connectionLogger { trace("Server Message Processor is closing") }
         }
     }
+    private val initialReadyForQuery: CompletableDeferred<Unit> = CompletableDeferred(
+        parent = scope.coroutineContext.job,
+    )
 
     internal suspend fun receiveServerMessage(): PgMessage {
         val rawMessage = stream.receiveMessage()
@@ -135,21 +133,11 @@ class PgConnectionImpl private constructor(
         }
     }
 
-    private suspend fun sendStartupMessage() {
-        val startupMessage = if (configuration.sslMode == SslMode.Disable) {
-            PgMessage.StartupMessage(params = configuration.properties)
-        } else {
-            PgMessage.SslRequest
-        }
-        writeToStream(startupMessage)
-    }
-
     private suspend fun handleAuthFlow() {
         val message = receiveServerMessage()
         if (message is PgMessage.ErrorResponse) {
             onErrorMessage(message)
-            close()
-            error("Expected auth message but got error response. Closing connection")
+            return
         }
         if (message !is PgMessage.Authentication) {
             error("Server sent non-auth message that was not an error. Closing connection")
@@ -199,6 +187,9 @@ class PgConnectionImpl private constructor(
         val throwable = GeneralPostgresError(message)
         stream.close()
         closeChannels(throwable)
+        if (!initialReadyForQuery.isCompleted) {
+            initialReadyForQuery.complete(Unit)
+        }
     }
 
     private suspend fun onBackendKeyData(message: PgMessage.BackendKeyData) {
@@ -560,7 +551,6 @@ class PgConnectionImpl private constructor(
         if (messageProcessorJob.isActive) {
             messageProcessorJob.cancelAndJoin()
         }
-        scope.cancel()
     }
 
     private fun validateCopyQuery(copyStatement: String) {
@@ -574,6 +564,14 @@ class PgConnectionImpl private constructor(
         setQueryRunning()
         validateCopyQuery(copyInStatement)
 
+        connectionLogger {
+            when (configuration.logSettings.statementLevel) {
+                Level.TRACE -> trace(STATEMENT_TEMPLATE, copyInStatement)
+                Level.DEBUG -> debug(STATEMENT_TEMPLATE, copyInStatement)
+                Level.INFO -> info(STATEMENT_TEMPLATE, copyInStatement)
+                else -> warn("Statement logging level set to invalid level")
+            }
+        }
         writeToStream(PgMessage.Query(copyInStatement))
 
         copyInResponseChannel.receive()
@@ -600,6 +598,14 @@ class PgConnectionImpl private constructor(
         setQueryRunning()
         validateCopyQuery(copyOutStatement)
 
+        connectionLogger {
+            when (configuration.logSettings.statementLevel) {
+                Level.TRACE -> trace(STATEMENT_TEMPLATE, copyOutStatement)
+                Level.DEBUG -> debug(STATEMENT_TEMPLATE, copyOutStatement)
+                Level.INFO -> info(STATEMENT_TEMPLATE, copyOutStatement)
+                else -> warn("Statement logging level set to invalid level")
+            }
+        }
         writeToStream(PgMessage.Query(copyOutStatement))
 
         copyOutResponseChannel.receive()
@@ -640,6 +646,9 @@ class PgConnectionImpl private constructor(
         ): PgConnectionImpl {
             val connection = PgConnectionImpl(configuration, charset, stream, scope)
             connection.initialReadyForQuery.await()
+            if (!connection.isConnected) {
+                error("Could not initialize connection")
+            }
             connection.typeRegistry.finalizeTypes(connection)
             return connection
         }
