@@ -1,10 +1,24 @@
 package com.github.clasicrando.common.atomic
 
+import kotlinx.atomicfu.AtomicRef
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.update
 
-class AtomicMutableSet<E>(vararg init: E) : MutableSet<E> {
-    private val inner = atomic(setOf(*init))
+/**
+ * Mutable set with an [AtomicRef] wrapping an immutable [Set]. The underlining [Set] is exposed as
+ * a [MutableSet] where update operations are handled with an atomic [AtomicRef.update] method call.
+ *
+ * NOTE
+ * - for [iterator], a new [MutableSet] is used to return the same unique entries in the backing
+ * [Set] to avoid iterating or accessing that views while concurrent updates happen. This means the
+ * contents you are iterating over might not match the exact contents of the [Set] at the time of
+ * iteration. If you need that consistency, you should use a suspending mutex backed [Set].
+ */
+internal class AtomicMutableSet<E>(initial: Set<E> = emptySet()) : MutableSet<E> {
+    private val inner: AtomicRef<Set<E>> = atomic(initial)
+
+    constructor(vararg init: E): this(init.toSet())
+    constructor(iterable: Iterable<E>): this(iterable.toSet())
 
     override fun add(element: E): Boolean {
         var result = false
@@ -23,7 +37,7 @@ class AtomicMutableSet<E>(vararg init: E) : MutableSet<E> {
         inner.update { current ->
             val initSize = current.size
             val new = current.plus(elements)
-            result = initSize < new.size
+            result = new.size > initSize
             new
         }
         return result
