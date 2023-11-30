@@ -2,7 +2,7 @@ package com.github.clasicrando.postgresql
 
 import com.github.clasicrando.common.connection.ConnectOptions
 import com.github.clasicrando.common.SslMode
-import io.klogging.Level
+import io.github.oshai.kotlinlogging.Level
 import io.ktor.utils.io.charsets.Charset
 import kotlinx.io.files.Path
 import kotlin.time.Duration

@@ -1,9 +1,10 @@
 package com.github.clasicrando.common
 
 import com.github.clasicrando.common.connection.Connection
-import io.klogging.Klogger
-import io.klogging.Klogging
-import io.klogging.context.withLogContext
+import io.github.oshai.kotlinlogging.KLogger
+import io.github.oshai.kotlinlogging.KLoggingEventBuilder
+import io.github.oshai.kotlinlogging.Level
+import io.github.oshai.kotlinlogging.withLoggingContext
 import kotlinx.coroutines.selects.SelectBuilder
 import kotlinx.coroutines.selects.select
 
@@ -31,12 +32,12 @@ suspend inline fun selectLoop(crossinline block: SelectBuilder<Loop>.() -> Unit)
     }
 }
 
-suspend inline fun <C> C.connectionLogger(crossinline block: suspend Klogger.() -> Unit)
-where
-    C : Connection,
-    C : Klogging
-{
-    withLogContext("connectionId" to connectionId) {
-        logger.block()
+fun KLogger.connectionLogger(
+    connection: Connection,
+    level: Level,
+    block: KLoggingEventBuilder.() -> Unit,
+) {
+    withLoggingContext("connectionId" to connection.connectionId.toString()) {
+        at(level, block = block)
     }
 }

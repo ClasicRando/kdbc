@@ -1,7 +1,7 @@
 package com.github.clasicrando.common.datetime
 
 import com.github.clasicrando.common.mapError
-import io.klogging.noCoLogger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -10,7 +10,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toLocalTime
 import kotlin.reflect.KClass
 
-val logger = noCoLogger("DateTimeUtilsKt")
+private val logger = KotlinLogging.logger {}
 
 class InvalidDateString(
     value: String,
@@ -63,9 +63,9 @@ fun TimeZone.Companion.fromStringOrDefault(str: String): TimeZone {
             ?.let { of(it) }
             ?: UTC
     }.onFailure {
-        logger.warn(
-            "Could not parse timezone value from {str}. Error suppressed and UTC returned",
-            str
-        )
+        logger.atWarn {
+            message = "Could not parse timezone value from {str}. Error suppressed and UTC returned"
+            payload = mapOf("str" to "str")
+        }
     }.getOrDefault(UTC)
 }

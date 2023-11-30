@@ -22,9 +22,11 @@ import com.github.clasicrando.postgresql.array.PgArrayType
 import com.github.clasicrando.postgresql.type.PgCompositeDbType
 import com.github.clasicrando.postgresql.type.enumDbType
 import com.github.clasicrando.postgresql.type.pgCompositeDbType
-import io.klogging.Klogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.utils.io.charsets.Charset
 import kotlin.text.StringBuilder
+
+private val logger = KotlinLogging.logger {}
 
 private typealias DbTypeDefinition = Pair<DbType, Boolean>
 
@@ -150,16 +152,19 @@ class PgTypeRegistry(
             for ((oid, pair) in nonStandardTypesByOid) {
                 val (dbType, hasArray) = pair
                 val verifiedOid = checkDbTypeByOid(oid, connection) ?: continue
-                logger.trace("Adding column decoder for type {oid}", verifiedOid)
+                logger.atTrace {
+                    message = "Adding column decoder for type {oid}"
+                    payload = mapOf("oid" to verifiedOid)
+                }
                 checkAgainstDefaultTypes(verifiedOid)
                 this[verifiedOid] = dbType
 
                 if (hasArray) {
                     checkArrayDbTypeByOid(verifiedOid, connection)?.let {
-                        logger.trace(
-                            "Adding array column decoder for type {oid}",
-                            verifiedOid,
-                        )
+                        logger.atTrace {
+                            message = "Adding array column decoder for type {oid}"
+                            payload = mapOf("oid" to verifiedOid)
+                        }
                         checkAgainstDefaultTypes(it)
                         this[it] = PgArrayType(dbType)
                     }
@@ -169,21 +174,19 @@ class PgTypeRegistry(
             for ((name, pair) in nonStandardTypesByName) {
                 val (dbType, hasArray) = pair
                 val verifiedOid = checkDbTypeByName(name, connection) ?: continue
-                logger.trace(
-                    "Adding column decoder for type {name} ({oid})",
-                    name,
-                    verifiedOid,
-                )
+                logger.atTrace {
+                    message = "Adding column decoder for type {name} ({oid})"
+                    payload = mapOf("oid" to verifiedOid)
+                }
                 checkAgainstDefaultTypes(verifiedOid)
                 this[verifiedOid] = dbType
 
                 if (hasArray) {
                     checkArrayDbTypeByOid(verifiedOid, connection)?.let {
-                        logger.trace(
-                            "Adding array column decoder for type {name} ({oid})",
-                            name,
-                            verifiedOid,
-                        )
+                        logger.atTrace {
+                            message = "Adding array column decoder for type {name} ({oid})"
+                            payload = mapOf("oid" to verifiedOid)
+                        }
                         checkAgainstDefaultTypes(it)
                         this[it] = PgArrayType(dbType)
                     }
@@ -193,21 +196,19 @@ class PgTypeRegistry(
             for ((name, pair) in enumTypes) {
                 val (dbType, hasArray) = pair
                 val verifiedOid = checkEnumDbTypeByName(name, connection) ?: continue
-                logger.trace(
-                    "Adding column decoder for enum type {name} ({oid})",
-                    name,
-                    verifiedOid,
-                )
+                logger.atTrace {
+                    message = "Adding column decoder for enum type {name} ({oid})"
+                    payload = mapOf("name" to name, "oid" to verifiedOid)
+                }
                 checkAgainstDefaultTypes(verifiedOid)
                 this[verifiedOid] = dbType
 
                 if (hasArray) {
                     checkArrayDbTypeByOid(verifiedOid, connection)?.let {
-                        logger.trace(
-                            "Adding array column decoder for enum type {name} ({oid})",
-                            name,
-                            verifiedOid,
-                        )
+                        logger.atTrace {
+                            message = "Adding array column decoder for enum type {name} ({oid})"
+                            payload = mapOf("name" to name, "oid" to verifiedOid)
+                        }
                         checkAgainstDefaultTypes(it)
                         this[it] = PgArrayType(dbType)
                     }
@@ -217,21 +218,19 @@ class PgTypeRegistry(
             for ((name, pair) in compositeTypes) {
                 val (dbType, hasArray) = pair
                 val verifiedOid = checkCompositeDbTypeByName(name, connection) ?: continue
-                logger.trace(
-                    "Adding column decoder for composite type {name} ({oid})",
-                    name,
-                    verifiedOid,
-                )
+                logger.atTrace {
+                    message = "Adding column decoder for composite type {name} ({oid})"
+                    payload = mapOf("name" to name, "oid" to verifiedOid)
+                }
                 checkAgainstDefaultTypes(verifiedOid)
                 this[verifiedOid] = dbType
 
                 if (hasArray) {
                     checkArrayDbTypeByOid(verifiedOid, connection)?.let {
-                        logger.trace(
-                            "Adding array column decoder for composite type {name} ({oid})",
-                            name,
-                            verifiedOid,
-                        )
+                        logger.atTrace {
+                            message = "Adding array column decoder for composite type {name} ({oid})"
+                            payload = mapOf("name" to name, "oid" to verifiedOid)
+                        }
                         checkAgainstDefaultTypes(it)
                         this[it] = PgArrayType(dbType)
                     }
@@ -249,7 +248,7 @@ class PgTypeRegistry(
             .associateBy { it.encodeType }
     }
 
-    companion object : Klogging {
+    companion object {
         private val stringArrayType = PgArrayType(StringDbType)
         private val dateTimeArrayType = PgArrayType(DateTimeDbType)
         private val intArrayType = PgArrayType(IntDbType)
@@ -310,7 +309,6 @@ class PgTypeRegistry(
             PgColumnTypes.Interval to DateTimePeriodDbType,
             PgColumnTypes.IntervalArray to PgArrayType(DateTimePeriodDbType),
         )
-        private var instance: PgTypeRegistry? = null
         private val pgTypeByOid =
             """
             select null
@@ -356,7 +354,10 @@ class PgTypeRegistry(
         private suspend fun checkDbTypeByOid(oid: Int, connection: PgConnection): Int? {
             val result = connection.sendPreparedStatement(pgTypeByOid, listOf(oid))
             if (result.rowsAffected == 0L) {
-                logger.warn("Could not find type for oid = {oid}", oid)
+                logger.atWarn {
+                    message = "Could not find type for oid = {oid}"
+                    payload = mapOf("oid" to oid)
+                }
                 return null
             }
             return oid
@@ -365,7 +366,10 @@ class PgTypeRegistry(
         private suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgConnection): Int? {
             val result = connection.sendPreparedStatement(pgArrayTypeByInnerOid, listOf(oid))
             if (result.rowsAffected == 0L) {
-                logger.warn("Could not find array type for oid = {oid}", oid)
+                logger.atWarn {
+                    message = "Could not find array type for oid = {oid}"
+                    payload = mapOf("oid" to oid)
+                }
                 return null
             }
             return result.rows.firstOrNull()?.getInt(0)
@@ -386,7 +390,10 @@ class PgTypeRegistry(
             )
             val oid = result.rows.firstOrNull()?.getInt(0)
             if (oid == null) {
-                logger.warn("Could not find type for name = {name}", name)
+                logger.atWarn {
+                    message = "Could not find type for name = {name}"
+                    payload = mapOf("name" to name)
+                }
                 return null
             }
             return oid
@@ -407,7 +414,10 @@ class PgTypeRegistry(
             )
             val oid = result.rows.firstOrNull()?.getInt(0)
             if (oid == null) {
-                logger.warn("Could not find enum type for name = {name}", name)
+                logger.atWarn {
+                    message = "Could not find enum type for name = {name}"
+                    payload = mapOf("name" to name)
+                }
                 return null
             }
             return oid
@@ -431,15 +441,21 @@ class PgTypeRegistry(
             )
             val oid = result.rows.firstOrNull()?.getInt(0)
             if (oid == null) {
-                logger.warn("Could not find composite type for name = {name}", name)
+                logger.atWarn {
+                    message = "Could not find composite type for name = {name}"
+                    payload = mapOf("name" to name)
+                }
                 return null
             }
             return oid
         }
 
-        private suspend fun checkAgainstDefaultTypes(type: Int) {
+        private fun checkAgainstDefaultTypes(type: Int) {
             if (defaultTypes.containsKey(type)) {
-                logger.trace("Replacing default type definition for type = {type}", type)
+                logger.atWarn {
+                    message = "Replacing default type definition for type = {type}"
+                    payload = mapOf("type" to type)
+                }
             }
         }
 
@@ -456,13 +472,16 @@ class PgTypeRegistry(
          * Note, if you provide a type oid that belongs to a built-in type, this new type definition
          * will override the default and possibly cause the decoding and encoding of values to fail
          */
-        suspend fun registerType(
+        fun registerType(
             type: Int,
             dbType: DbType,
             hasArray: Boolean = true,
         ) {
             if (nonStandardTypesByOid.containsKey(type)) {
-                logger.trace("Replacing already registered custom type for type = {oid}", type)
+                logger.atTrace {
+                    message = "Replacing already registered custom type for type = {oid}"
+                    payload = mapOf("oid" to type)
+                }
             }
             nonStandardTypesByOid[type] = dbType to hasArray
         }
@@ -475,13 +494,16 @@ class PgTypeRegistry(
          * Note, if you provide a type oid that belongs to a built-in type, this new type definition
          * will override the default and possibly cause the decoding and encoding of values to fail
          */
-        suspend fun registerType(
+        fun registerType(
             type: String,
             dbType: DbType,
             hasArray: Boolean = true,
         ) {
             if (nonStandardTypesByName.containsKey(type)) {
-                logger.trace("Replacing already registered custom type for type = {name}", type)
+                logger.atWarn {
+                    message = "Replacing already registered custom type for type = {name}"
+                    payload = mapOf("name" to type)
+                }
             }
             nonStandardTypesByName[type] = dbType to hasArray
         }
@@ -492,6 +514,12 @@ class PgTypeRegistry(
             type: String,
             hasArray: Boolean,
         ) {
+            if (enumTypes.containsKey(type)) {
+                logger.atWarn {
+                    message = "Replacing already registered enum type for type = {name}"
+                    payload = mapOf("name" to type)
+                }
+            }
             enumTypes[type] = dbType to hasArray
         }
 
@@ -510,6 +538,12 @@ class PgTypeRegistry(
             type: String,
             hasArray: Boolean,
         ) {
+            if (compositeTypes.containsKey(type)) {
+                logger.atWarn {
+                    message = "Replacing already registered composite type for type = {name}"
+                    payload = mapOf("name" to type)
+                }
+            }
             compositeTypes[type] = dbType to hasArray
         }
 

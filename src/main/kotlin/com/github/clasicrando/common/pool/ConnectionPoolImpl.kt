@@ -3,7 +3,7 @@ package com.github.clasicrando.common.pool
 import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.atomic.AtomicMutableSet
 import com.github.clasicrando.common.result.QueryResult
-import io.klogging.Klogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -15,10 +15,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.uuid.UUID
 import kotlin.coroutines.CoroutineContext
 
+private val logger = KotlinLogging.logger {}
+
 class ConnectionPoolImpl(
     private val poolOptions: PoolOptions,
     private val factory: ConnectionFactory,
-) : ConnectionPool, Klogging {
+) : ConnectionPool {
     private val connections = Channel<PoolConnection>(capacity = poolOptions.maxConnections)
     private val connectionIds: MutableSet<UUID> = AtomicMutableSet()
     private val connectionsNeeded = Channel<Unit>(capacity = poolOptions.maxConnections)
@@ -56,7 +58,9 @@ class ConnectionPoolImpl(
             } finally {
                 connections.close(cause = cause)
                 connectionsNeeded.close(cause = cause)
-                logger.error("Exiting pool observer")
+                logger.atError {
+                    message = "Exiting pool observer"
+                }
             }
         }
     }
@@ -65,16 +69,19 @@ class ConnectionPoolImpl(
         var connectionId: UUID? = null
         try {
             connectionId = connection.connectionId
-            logger.trace("Invalidating connection id = {id}", connectionId)
+            logger.atTrace {
+                message = "Invalidating connection id = {id}"
+                payload = mapOf("id" to connectionId)
+            }
             connection.pool = null
             connection.close()
             connectionIds.remove(connectionId)
         } catch (ex: Throwable) {
-            logger.error(
-                ex,
-                "Error while closing invalid connection, '{connectionId}'",
-                connectionId,
-            )
+            logger.atError {
+                cause = ex
+                message = "Error while closing invalid connection, '{connectionId}'"
+                payload = connectionId?.let { mapOf("connectionId" to it) }
+            }
         }
     }
 
@@ -102,11 +109,11 @@ class ConnectionPoolImpl(
             connection = acquire()
             connection.sendQuery(query)
         } catch (ex: Throwable) {
-            logger.error(
-                ex,
-                "Error sending raw query, {connectionId}",
-                connection?.connectionId,
-            )
+            logger.atError {
+                cause = ex
+                message = "Error sending raw query, {connectionId}"
+                payload = connection?.connectionId?.let { mapOf("connectionId" to it) }
+            }
             throw ex
         } finally {
             connection?.close()
@@ -123,11 +130,11 @@ class ConnectionPoolImpl(
             connection = acquire()
             connection.sendPreparedStatement(query, parameters)
         } catch (ex: Throwable) {
-            logger.error(
-                ex,
-                "Error sending raw query, {connectionId}",
-                connection?.connectionId,
-            )
+            logger.atError {
+                cause = ex
+                message = "Error sending prepared statement, {connectionId}"
+                payload = connection?.connectionId?.let { mapOf("connectionId" to it) }
+            }
             throw ex
         } finally {
             connection?.close()

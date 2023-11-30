@@ -2,10 +2,12 @@ package com.github.clasicrando.postgresql.message.decoders
 
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.stream.RawMessage
-import io.klogging.NoCoLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.utils.io.charsets.Charset
 
-class MessageDecoders(charset: Charset) : NoCoLogging {
+private val logger = KotlinLogging.logger {}
+
+class MessageDecoders(charset: Charset) {
     private val authenticationMessageDecoder = AuthenticationMessageDecoder(charset)
     private val errorResponseDecoder = ErrorResponseDecoder(charset)
     private val noticeResponseDecoder = NoticeResponseDecoder(charset)
@@ -33,9 +35,11 @@ class MessageDecoders(charset: Charset) : NoCoLogging {
             PgMessage.COPY_DATA_CODE -> CopyDataDecoder.decode(contents)
             PgMessage.COPY_DONE -> PgMessage.CopyDone
             else -> {
-                logger.trace("Received message ${rawMessage.format}")
+                logger.atTrace {
+                    message = "Received message {format}"
+                    payload = mapOf("format" to rawMessage.format)
+                }
                 PgMessage.NoData
-//                error("Cannot parse message ${rawMessage.format}")
             }
         }
     }

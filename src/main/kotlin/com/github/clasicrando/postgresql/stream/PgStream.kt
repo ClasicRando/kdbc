@@ -4,7 +4,7 @@ import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.postgresql.PgConnectOptions
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.encoders.SslMessageEncoder
-import io.klogging.Klogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.Connection
 import io.ktor.network.sockets.aSocket
@@ -18,7 +18,9 @@ import kotlinx.coroutines.withTimeout
 import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
 
-class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
+private val logger = KotlinLogging.logger {}
+
+class PgStream(private var connection: Connection): AutoCloseable {
     private val receiveChannel get() = connection.input
     private val sendChannel get() = connection.output
 
@@ -67,7 +69,9 @@ class PgStream(private var connection: Connection) : Klogging, AutoCloseable {
             SslMode.Disable, SslMode.Allow -> return
             SslMode.Prefer -> {
                 if (!requestUpgrade()) {
-                    logger.warn(TLS_REJECT_WARNING)
+                    logger.atWarn {
+                        message = TLS_REJECT_WARNING
+                    }
                     return
                 }
             }

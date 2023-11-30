@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql
 
-import io.klogging.Level
+import io.github.oshai.kotlinlogging.Level
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration

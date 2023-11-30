@@ -5,11 +5,12 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import com.ongres.scram.client.ScramClient
 import com.ongres.scram.client.ScramSession
 import com.ongres.scram.common.stringprep.StringPreparations
+import io.github.oshai.kotlinlogging.Level
 
-private suspend fun sendScramInit(
-    connection: PgConnectionImpl,
+private suspend fun PgConnectionImpl.sendScramInit(
     authMechanisms: Array<String>,
 ): ScramSession {
+    log(Level.TRACE) { message = "Starting Scram Client" }
     val scramClient = ScramClient
         .channelBinding(ScramClient.ChannelBinding.NO)
         .stringPreparation(StringPreparations.NO_PREPARATION)
@@ -20,98 +21,97 @@ private suspend fun sendScramInit(
         scramClient.scramMechanism.name,
         session.clientFirstMessage(),
     )
-    connection.logger.trace("Sending initial SASL Response")
-    connection.writeToStream(initialResponse)
+    log(Level.TRACE) { message = "Sending initial SASL Response" }
+    writeToStream(initialResponse)
     return session
 }
 
-private suspend fun receiveContinueMessage(connection: PgConnectionImpl): Authentication.SaslContinue? {
-    val continueMessage = connection.receiveServerMessage()
+private suspend fun PgConnectionImpl.receiveContinueMessage(): Authentication.SaslContinue? {
+    val continueMessage = this.receiveServerMessage()
     if (continueMessage !is PgMessage.Authentication) {
-        connection.logger.error(
-            "Expected an Authentication message but got {code}",
-            continueMessage.code,
-        )
+        this.log(Level.ERROR) {
+            message = "Expected an Authentication message but got {code}"
+            payload = mapOf("code" to continueMessage.code)
+        }
         return null
     }
     val continueAuthMessage = continueMessage.authentication
     if (continueAuthMessage !is Authentication.SaslContinue) {
-        connection.logger.error(
-            "Expected a SASL Continue message but got {authMessage}",
-            continueAuthMessage,
-        )
+        this.log(Level.TRACE) {
+            message = "Expected a SASL Continue message but got {authMessage}"
+            payload = mapOf("authMessage" to continueAuthMessage)
+        }
         return null
     }
-    connection.logger.trace("Received SASL Continue message")
+    this.log(Level.TRACE) {
+        message = "Received SASL Continue message"
+    }
     return continueAuthMessage
 }
 
-private suspend fun sendClientFinalMessage(
-    connection: PgConnectionImpl,
+private suspend fun PgConnectionImpl.sendClientFinalMessage(
     continueAuthMessage: Authentication.SaslContinue,
     session: ScramSession,
 ): ScramSession.ClientFinalProcessor {
-    val password = connection.configuration.password ?: error("Missing Password")
+    val password = this.configuration.password ?: error("Missing Password")
     val serverFirstProcessor = session.receiveServerFirstMessage(continueAuthMessage.saslData)
     val clientFinalProcessor = serverFirstProcessor.clientFinalProcessor(password)
     val responseMessage = PgMessage.SaslResponse(clientFinalProcessor.clientFinalMessage())
-    connection.logger.trace("Sending SASL Response")
-    connection.writeToStream(responseMessage)
+    this.log(Level.TRACE) { message = "Sending SASL Response" }
+    this.writeToStream(responseMessage)
     return clientFinalProcessor
 }
 
-private suspend fun receiveFinalAuthMessage(connection: PgConnectionImpl): Authentication.SaslFinal? {
-    val finalMessage = connection.receiveServerMessage()
+private suspend fun PgConnectionImpl.receiveFinalAuthMessage(): Authentication.SaslFinal? {
+    val finalMessage = this.receiveServerMessage()
     if (finalMessage !is PgMessage.Authentication) {
-        connection.logger.error(
-            "Expected an Authentication message but got {code}",
-            finalMessage.code,
-        )
+        this.log(Level.ERROR) {
+            message = "Expected an Authentication message but got {code}"
+            payload = mapOf("code" to finalMessage.code)
+        }
         return null
     }
     val finalAuthMessage = finalMessage.authentication
     if (finalAuthMessage !is Authentication.SaslFinal) {
-        connection.logger.error(
-            "Expected an OK auth message but got {authMessage}",
-            finalAuthMessage,
-        )
+        this.log(Level.ERROR) {
+            message = "Expected an OK auth message but got {authMessage}"
+            payload = mapOf("authMessage" to finalAuthMessage)
+        }
         return null
     }
     return finalAuthMessage
 }
 
-private suspend fun receiveOkAuthMessage(connection: PgConnectionImpl): Boolean {
-    val okMessage = connection.receiveServerMessage()
+private suspend fun PgConnectionImpl.receiveOkAuthMessage(): Boolean {
+    val okMessage = this.receiveServerMessage()
     if (okMessage !is PgMessage.Authentication) {
-        connection.logger.error(
-            "Expected an Authentication message but got {code}",
-            okMessage.code,
-        )
+        this.log(Level.ERROR) {
+            message = "Expected an Authentication message but got {code}"
+            payload = mapOf("code" to okMessage.code)
+        }
         return false
     }
     val okAuthMessage = okMessage.authentication
     if (okAuthMessage !is Authentication.Ok) {
-        connection.logger.error(
-            "Expected an OK auth message but got {authMessage}",
-            okAuthMessage,
-        )
+        this.log(Level.ERROR) {
+            message = "Expected an OK auth message but got {authMessage}"
+            payload = mapOf("authMessage" to okMessage)
+        }
         return false
     }
     return true
 }
 
-suspend fun saslAuthFlow(connection: PgConnectionImpl, auth: Authentication.Sasl): Boolean {
-    connection.logger.trace("Starting Scram Client")
-    val session = sendScramInit(connection, auth.authMechanisms.toTypedArray())
+suspend fun PgConnectionImpl.saslAuthFlow(auth: Authentication.Sasl): Boolean {
+    val session = this.sendScramInit(auth.authMechanisms.toTypedArray())
 
-    val continueAuthMessage = receiveContinueMessage(connection) ?: return false
-    connection.logger.trace("Received SASL Continue message")
+    val continueAuthMessage = this.receiveContinueMessage() ?: return false
 
-    val clientFinalProcessor = sendClientFinalMessage(connection, continueAuthMessage, session)
+    val clientFinalProcessor = this.sendClientFinalMessage(continueAuthMessage, session)
 
-    val finalAuthMessage = receiveFinalAuthMessage(connection) ?: return false
+    val finalAuthMessage = this.receiveFinalAuthMessage() ?: return false
 
     clientFinalProcessor.receiveServerFinalMessage(finalAuthMessage.saslData)
 
-    return receiveOkAuthMessage(connection)
+    return this.receiveOkAuthMessage()
 }
