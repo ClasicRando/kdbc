@@ -1,4 +1,6 @@
-![kdbc-logo](kdbc.png)
+<p align="center">
+  <img src="kdbc.png" />
+</p>
 
 Non-blocking and event driven database driver using Kotlin coroutines to drive database
 communication as well as channels to facilitate message passing within asynchronous operations.
