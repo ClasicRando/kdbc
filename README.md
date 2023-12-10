@@ -1,5 +1,5 @@
-<p align="center">
-  <img src="kdbc.png" />
+<p style="text-align:center">
+  <img src="kdbc.png"  alt="kdbc Logo"/>
 </p>
 
 Non-blocking and event driven database driver using Kotlin coroutines to drive database
