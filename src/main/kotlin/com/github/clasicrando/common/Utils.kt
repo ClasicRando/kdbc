@@ -7,7 +7,6 @@ import io.github.oshai.kotlinlogging.Level
 import io.github.oshai.kotlinlogging.withLoggingContext
 import kotlinx.coroutines.selects.SelectBuilder
 import kotlinx.coroutines.selects.select
-import kotlin.experimental.and
 
 val Byte.Companion.ZERO: Byte get() = 0
 
