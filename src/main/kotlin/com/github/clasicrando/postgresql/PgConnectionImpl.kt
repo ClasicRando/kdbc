@@ -165,15 +165,13 @@ class PgConnectionImpl private constructor(
                 isAuthenticated = true
             }
             Authentication.CleartextPassword -> {
-                isAuthenticated = simplePasswordAuthFlow(
-                    this,
+                isAuthenticated = this.simplePasswordAuthFlow(
                     configuration.username,
                     configuration.password ?: error("Password must be provided"),
                 )
             }
             is Authentication.Md5Password -> {
-                isAuthenticated = simplePasswordAuthFlow(
-                    this,
+                isAuthenticated = this.simplePasswordAuthFlow(
                     configuration.username,
                     configuration.password ?: error("Password must be provided"),
                     auth.salt,
@@ -572,7 +570,13 @@ class PgConnectionImpl private constructor(
         setReleasingStatement()
 
         val statement = preparedStatements[query]
-            ?: error("Could not find prepared statement for query\n\n$query")
+        if (statement == null) {
+            log(Level.WARN) {
+                message = "query supplied did not match a stored prepared statement"
+                payload = mapOf("query" to query)
+            }
+            return
+        }
         val closeMessage = PgMessage.Close(
             target = CloseTarget.PreparedStatement,
             targetName = statement.statementName,

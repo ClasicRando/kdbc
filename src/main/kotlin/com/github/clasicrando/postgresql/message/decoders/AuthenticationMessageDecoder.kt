@@ -1,7 +1,7 @@
 package com.github.clasicrando.postgresql.message.decoders
 
 import com.github.clasicrando.common.message.MessageDecoder
-import com.github.clasicrando.common.ZERO
+import com.github.clasicrando.common.splitAsCString
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
@@ -23,20 +23,7 @@ class AuthenticationMessageDecoder(
 //            8 -> Authentication.KerberosV5
             10 -> {
                 val bytes = packet.readBytes()
-                val mechanisms = buildList {
-                    val builder = StringBuilder()
-                    for (byte in bytes) {
-                        if (byte != Byte.ZERO) {
-                            builder.append(byte.toInt().toChar())
-                        } else {
-                            builder.takeIf { it.isNotEmpty() }?.let {
-                                this.add(it.toString())
-                            }
-                            builder.clear()
-                        }
-                    }
-                }
-                Authentication.Sasl(mechanisms)
+                Authentication.Sasl(bytes.splitAsCString())
             }
             11 -> Authentication.SaslContinue(
                 String(bytes = packet.readBytes(), charset = charset)

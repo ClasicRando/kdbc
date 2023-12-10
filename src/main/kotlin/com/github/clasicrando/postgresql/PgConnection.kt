@@ -11,23 +11,27 @@ import kotlinx.coroutines.flow.flow
 
 interface PgConnection : Connection {
     suspend fun copyIn(copyInStatement: String, data: Flow<ByteArray>): QueryResult
-    suspend fun copyIn(
-        copyInStatement: String,
-        block: suspend FlowCollector<ByteArray>.() -> Unit,
-    ): QueryResult {
-        return copyIn(copyInStatement, flow(block))
-    }
-    suspend fun copyInSequence(copyInStatement: String, data: Sequence<ByteArray>): QueryResult {
-        return copyIn(copyInStatement, data.asFlow())
-    }
-    suspend fun copyInSequence(
-        copyInStatement: String,
-        block: suspend SequenceScope<ByteArray>.() -> Unit
-    ): QueryResult {
-        return copyIn(copyInStatement, sequence(block).asFlow())
-    }
-    suspend fun copyOutAsFlow(copyOutStatement: String): Flow<ByteArray> {
-        return copyOut(copyOutStatement).consumeAsFlow()
-    }
     suspend fun copyOut(copyOutStatement: String): ReceiveChannel<ByteArray>
+}
+
+suspend fun PgConnection.copyIn(
+    copyInStatement: String,
+    block: suspend FlowCollector<ByteArray>.() -> Unit,
+): QueryResult {
+    return copyIn(copyInStatement, flow(block))
+}
+suspend fun PgConnection.copyInSequence(
+    copyInStatement: String,
+    data: Sequence<ByteArray>,
+): QueryResult {
+    return copyIn(copyInStatement, data.asFlow())
+}
+suspend fun PgConnection.copyInSequence(
+    copyInStatement: String,
+    block: suspend SequenceScope<ByteArray>.() -> Unit
+): QueryResult {
+    return copyIn(copyInStatement, sequence(block).asFlow())
+}
+suspend fun PgConnection.copyOutAsFlow(copyOutStatement: String): Flow<ByteArray> {
+    return copyOut(copyOutStatement).consumeAsFlow()
 }

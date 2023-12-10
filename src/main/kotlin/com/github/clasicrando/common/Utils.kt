@@ -7,6 +7,7 @@ import io.github.oshai.kotlinlogging.Level
 import io.github.oshai.kotlinlogging.withLoggingContext
 import kotlinx.coroutines.selects.SelectBuilder
 import kotlinx.coroutines.selects.select
+import kotlin.experimental.and
 
 val Byte.Companion.ZERO: Byte get() = 0
 
@@ -39,5 +40,26 @@ fun KLogger.connectionLogger(
 ) {
     withLoggingContext("connectionId" to connection.connectionId.toString()) {
         at(level, block = block)
+    }
+}
+
+fun ByteArray.splitAsCString(): List<String> {
+    return this.splitBy(Byte.ZERO)
+        .map { chunk ->
+            chunk.map { it.toInt().toChar() }
+                .joinToString()
+        }
+        .toList()
+}
+
+fun ByteArray.splitBy(byte: Byte): Sequence<Sequence<Byte>> = sequence {
+    var index = 0
+    while (index < this@splitBy.lastIndex) {
+        yield(generateSequence {
+            if (index == this@splitBy.lastIndex) {
+                return@generateSequence null
+            }
+            this@splitBy[index++].takeIf { it != byte }
+        })
     }
 }

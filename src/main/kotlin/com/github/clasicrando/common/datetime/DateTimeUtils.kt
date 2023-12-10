@@ -1,71 +1,82 @@
 package com.github.clasicrando.common.datetime
 
 import com.github.clasicrando.common.mapError
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.UtcOffset
+import kotlinx.datetime.asTimeZone
+import kotlinx.datetime.toLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toLocalTime
 import kotlin.reflect.KClass
 
-private val logger = KotlinLogging.logger {}
-
+/** Exception thrown when a string cannot be converted to the required date type */
 class InvalidDateString(
     value: String,
     cls: KClass<*>,
 ) : Throwable("Cannot parse date string, '$value', into $cls")
 
-fun LocalDate.Companion.tryFromString(str: String): Result<LocalDateTime> {
+/**
+ * Attempt to convert the string [value] provided into a [LocalDate]. If the conversion fails, an
+ * [InvalidDateString] exception will be returns within the [Result].
+ */
+fun LocalDate.Companion.tryFromString(value: String): Result<LocalDate> {
     return kotlin.runCatching {
-        str.takeWhile { it != '+' && it != 'Z' }
+        value.toLocalDate()
+    }.mapError { t ->
+        when (t) {
+            is IllegalArgumentException -> InvalidDateString(value, LocalDate::class)
+            else -> t
+        }
+    }
+}
+
+/**
+ * Attempt to convert the string [value] provided into a [LocalDateTime]. If the conversion fails,
+ * an [InvalidDateString] exception will be returns within the [Result].
+ */
+fun LocalDateTime.Companion.tryFromString(value: String): Result<LocalDateTime> {
+    return kotlin.runCatching {
+        value.takeWhile { it != '+' && it != 'Z' }
             .trim()
             .replace(' ', 'T')
             .toLocalDateTime()
     }.mapError { t ->
         when (t) {
-            is IllegalArgumentException -> InvalidDateString(str, LocalDate::class)
+            is IllegalArgumentException -> InvalidDateString(value, LocalDateTime::class)
             else -> t
         }
     }
 }
 
-fun LocalDateTime.Companion.tryFromString(str: String): Result<LocalDateTime> {
+/**
+ * Attempt to convert the string [value] provided into a [LocalTime]. If the conversion fails, an
+ * [InvalidDateString] exception will be returns within the [Result].
+ */
+fun LocalTime.Companion.tryFromString(value: String): Result<LocalTime> {
     return kotlin.runCatching {
-        str.takeWhile { it != '+' && it != 'Z' }
-            .trim()
-            .replace(' ', 'T')
-            .toLocalDateTime()
+        value.toLocalTime()
     }.mapError { t ->
         when (t) {
-            is IllegalArgumentException -> InvalidDateString(str, LocalDateTime::class)
+            is IllegalArgumentException -> InvalidDateString(value, LocalTime::class)
             else -> t
         }
     }
 }
 
-fun LocalTime.Companion.tryFromString(str: String): Result<LocalTime> {
+/**
+ * Attempt to extract a [TimeZone] from the date string [value] provided. If the extraction fails,
+ * an [InvalidDateString] exception will be returns within the [Result]. If there is no timezone
+ * information in the string, [TimeZone.UTC] is returned.
+ */
+fun TimeZone.Companion.tryFromString(value: String): Result<TimeZone> {
     return kotlin.runCatching {
-        str.toLocalTime()
-    }.mapError { t ->
-        when (t) {
-            is IllegalArgumentException -> InvalidDateString(str, LocalTime::class)
-            else -> t
-        }
+        val timeZoneStr = value.dropWhile { it != '+' }
+            .takeIf { it.isNotBlank() } ?: return@runCatching UTC
+        timeZoneStr.toIntOrNull()
+            ?.let { UtcOffset(hours = it).asTimeZone() }
+            ?: throw InvalidDateString(timeZoneStr, TimeZone::class)
     }
-}
-
-fun TimeZone.Companion.fromStringOrDefault(str: String): TimeZone {
-    return kotlin.runCatching {
-        str.dropWhile { it != '+' }
-            .takeIf { it.isNotBlank() }
-            ?.let { of(it) }
-            ?: UTC
-    }.onFailure {
-        logger.atWarn {
-            message = "Could not parse timezone value from {str}. Error suppressed and UTC returned"
-            payload = mapOf("str" to "str")
-        }
-    }.getOrDefault(UTC)
 }

@@ -1,7 +1,7 @@
 package com.github.clasicrando.common.pool
 
-import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.atomic.AtomicMutableSet
+import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.result.QueryResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
@@ -11,12 +11,28 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.uuid.UUID
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Default implementation of a [ConnectionPool], using a [Channel] to provide and buffer
+ * [Connection] instances as needed. Uses the [poolOptions] and [factory] provided to set the pools
+ * details and allow for creating/validating [Connection] instances.
+ *
+ * When the pool is created, an observer coroutine is launched to listen for requests for more
+ * [Connection]s, creating new [Connection]s if the pool has not been exhausted. If the pool is
+ * exhausted, no new connections will be made for the lifetime of the pool. Upon pool
+ * initialization, the connections Channel is pre-populated with the [PoolOptions.minConnections]
+ * value specified.
+ *
+ * TODO
+ * - look into an algorithm to close connections after a certain duration stored within the
+ * [connections] channel, down to the [PoolOptions.minConnections] threshold
+ */
 class ConnectionPoolImpl(
     private val poolOptions: PoolOptions,
     private val factory: ConnectionFactory,
@@ -30,6 +46,11 @@ class ConnectionPoolImpl(
             parent = poolOptions.parentScope?.coroutineContext?.job,
         ) + poolOptions.coroutineDispatcher
 
+    /**
+     * Create a new connection using the pool's [factory], set the connection's
+     * [PoolConnection.pool] so it can be returned, add the [Connection.connectionId] to the
+     * [connectionIds] set and send the [PoolConnection] to [connections] channel
+     */
     private suspend fun addNewConnection() {
         val connection = factory.create(this@ConnectionPoolImpl) as PoolConnection
         connection.pool = this@ConnectionPoolImpl
@@ -39,6 +60,9 @@ class ConnectionPoolImpl(
 
     init {
         launch {
+            for (i in 1..poolOptions.minConnections) {
+                connectionsNeeded.send(Unit)
+            }
             var cause: Throwable? = null
             try {
                 while (isActive) {
@@ -65,17 +89,23 @@ class ConnectionPoolImpl(
         }
     }
 
+    /**
+     * Invalidate a [Connection] from the pool by launching a coroutine to move the
+     * [PoolConnection] out of the pool's resources and references. This means, removing the
+     * [Connection.connectionId] out of the [connectionIds] set, removing the reference to the pool
+     * in the [PoolConnection] and closing the actual [Connection]. This coroutine will never fail.
+     */
     private fun invalidateConnection(connection: PoolConnection) = launch {
         var connectionId: UUID? = null
         try {
             connectionId = connection.connectionId
+            connectionIds.remove(connectionId)
             logger.atTrace {
                 message = "Invalidating connection id = {id}"
                 payload = mapOf("id" to connectionId)
             }
             connection.pool = null
             connection.close()
-            connectionIds.remove(connectionId)
         } catch (ex: Throwable) {
             logger.atError {
                 cause = ex
@@ -85,7 +115,7 @@ class ConnectionPoolImpl(
         }
     }
 
-    override suspend fun acquire(): Connection {
+    private suspend fun acquireConnection(): Connection {
         while (true) {
             val possibleConnection = withTimeoutOrNull(50) {
                 connections.receive()
@@ -98,6 +128,12 @@ class ConnectionPoolImpl(
                 return connection
             }
             invalidateConnection(connection)
+        }
+    }
+
+    override suspend fun acquire(): Connection {
+        return withTimeout(poolOptions.acquireTimeout) {
+            acquireConnection()
         }
     }
 

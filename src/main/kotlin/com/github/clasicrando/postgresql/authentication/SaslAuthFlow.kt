@@ -7,6 +7,10 @@ import com.ongres.scram.client.ScramSession
 import com.ongres.scram.common.stringprep.StringPreparations
 import io.github.oshai.kotlinlogging.Level
 
+/**
+ * Using the provided [authMechanisms], initialize a [ScramClient] and create a [ScramSession] for
+ * creating the first client message as well as the final client message sent in a later step.
+ */
 private suspend fun PgConnectionImpl.sendScramInit(
     authMechanisms: Array<String>,
 ): ScramSession {
@@ -26,6 +30,10 @@ private suspend fun PgConnectionImpl.sendScramInit(
     return session
 }
 
+/**
+ * Wait for the next server message, returning the [Authentication.SaslContinue] message if the
+ * server sent back the expected message. Otherwise, null is returned.
+ */
 private suspend fun PgConnectionImpl.receiveContinueMessage(): Authentication.SaslContinue? {
     val continueMessage = this.receiveServerMessage()
     if (continueMessage !is PgMessage.Authentication) {
@@ -49,6 +57,10 @@ private suspend fun PgConnectionImpl.receiveContinueMessage(): Authentication.Sa
     return continueAuthMessage
 }
 
+/**
+ * Using the supplied [continueAuthMessage] and scram [session], process the server's first message
+ * and send the required client final message.
+ */
 private suspend fun PgConnectionImpl.sendClientFinalMessage(
     continueAuthMessage: Authentication.SaslContinue,
     session: ScramSession,
@@ -62,6 +74,10 @@ private suspend fun PgConnectionImpl.sendClientFinalMessage(
     return clientFinalProcessor
 }
 
+/**
+ * Wait for the next server message, returning the [Authentication.SaslFinal] message if the server
+ * sent back the expected message. Otherwise, null is returned.
+ */
 private suspend fun PgConnectionImpl.receiveFinalAuthMessage(): Authentication.SaslFinal? {
     val finalMessage = this.receiveServerMessage()
     if (finalMessage !is PgMessage.Authentication) {
@@ -82,6 +98,7 @@ private suspend fun PgConnectionImpl.receiveFinalAuthMessage(): Authentication.S
     return finalAuthMessage
 }
 
+/** Wait for the next server message, returning true if the message is [Authentication.Ok] */
 private suspend fun PgConnectionImpl.receiveOkAuthMessage(): Boolean {
     val okMessage = this.receiveServerMessage()
     if (okMessage !is PgMessage.Authentication) {
@@ -102,7 +119,24 @@ private suspend fun PgConnectionImpl.receiveOkAuthMessage(): Boolean {
     return true
 }
 
-suspend fun PgConnectionImpl.saslAuthFlow(auth: Authentication.Sasl): Boolean {
+/**
+ * Handles the various messages to and from the server for authentication using SASL (see
+ * [docs](https://www.postgresql.org/docs/current/sasl-authentication.html)). This should be called
+ * when the initial SASL request message is received from a postgresql server. Steps are as follows:
+ *
+ * 1. Initialize the scram session, sending the first client message
+ * 2. Wait for and process the server response. Only a SASL Continue message will move to the next
+ * step
+ * 3. Using the existing scram session and contents of the previously received continue message,
+ * prepare and send the final client message
+ * 4. Wait for and process the server response. Only a SASL Final message will move to the next step
+ * 5. Validate that the final server response was correct
+ * 6. Wait for and process the server response. If the message was an Authentication OK message,
+ * return true, otherwise return false.
+ *
+ * @return True when authentication was successful, otherwise false
+ */
+internal suspend fun PgConnectionImpl.saslAuthFlow(auth: Authentication.Sasl): Boolean {
     val session = this.sendScramInit(auth.authMechanisms.toTypedArray())
 
     val continueAuthMessage = this.receiveContinueMessage() ?: return false

@@ -1,5 +1,12 @@
 package com.github.clasicrando.postgresql.authentication
 
+/**
+ * Constrained set of backend sent messages that correlate with an authentication request message.
+ * Messages can either initiate the authentication process or continue the process with more
+ * data/context to continue.
+ *
+ * Currently, only Cleartext, MD5 and SASL authentication is supported.
+ */
 sealed interface Authentication {
     data object Ok : Authentication
 //    data object KerberosV5 : Authentication

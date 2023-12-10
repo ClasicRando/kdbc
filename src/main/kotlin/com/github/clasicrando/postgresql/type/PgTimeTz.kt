@@ -1,6 +1,5 @@
 package com.github.clasicrando.postgresql.type
 
-import com.github.clasicrando.common.datetime.fromStringOrDefault
 import com.github.clasicrando.common.datetime.tryFromString
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -14,7 +13,7 @@ data class PgTimeTz(val time: LocalTime, val timeZone: TimeZone) {
         fun fromString(value: String): PgTimeTz {
             return PgTimeTz(
                 time = LocalTime.tryFromString(value).getOrThrow(),
-                timeZone = TimeZone.fromStringOrDefault(value),
+                timeZone = TimeZone.tryFromString(value).getOrThrow(),
             )
         }
     }
