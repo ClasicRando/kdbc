@@ -1,12 +1,14 @@
 package com.github.clasicrando.common.pool
 
-import com.github.clasicrando.common.atomic.AtomicMutableSet
+import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.result.QueryResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
@@ -38,8 +40,8 @@ class ConnectionPoolImpl(
     private val factory: ConnectionFactory,
 ) : ConnectionPool {
     private val connections = Channel<PoolConnection>(capacity = poolOptions.maxConnections)
-    private val connectionIds: MutableSet<UUID> = AtomicMutableSet()
-    private val connectionsNeeded = Channel<Unit>(capacity = poolOptions.maxConnections)
+    private val connectionIds: MutableMap<UUID, PoolConnection> = AtomicMutableMap()
+    private val connectionsNeeded = Channel<Unit>(capacity = Channel.BUFFERED)
 
     override val coroutineContext: CoroutineContext
         get() = SupervisorJob(
@@ -54,37 +56,34 @@ class ConnectionPoolImpl(
     private suspend fun addNewConnection() {
         val connection = factory.create(this@ConnectionPoolImpl) as PoolConnection
         connection.pool = this@ConnectionPoolImpl
-        connectionIds.add(connection.connectionId)
+        connectionIds[connection.connectionId] = connection
         connections.send(connection)
     }
 
-    init {
-        launch {
-            for (i in 1..poolOptions.minConnections) {
-                connectionsNeeded.send(Unit)
+    private val observerJob: Job = launch {
+        for (i in 1..poolOptions.minConnections) {
+            connectionsNeeded.send(Unit)
+        }
+        var cause: Throwable? = null
+        try {
+            while (isActive) {
+                connectionsNeeded.receive()
+                if (isExhausted) {
+                    continue
+                }
+                addNewConnection()
             }
-            var cause: Throwable? = null
-            try {
-                while (isActive) {
-                    connectionsNeeded.receive()
-                    if (isExhausted) {
-                        continue
-                    }
-                    addNewConnection()
-                }
-            } catch (ex: CancellationException) {
-                cause = ex
-                throw ex
-            } catch (ex: Throwable) {
-                this.cancel(message = "Error creating new connection", cause = ex)
-                cause = ex
-                throw ex
-            } finally {
-                connections.close(cause = cause)
-                connectionsNeeded.close(cause = cause)
-                logger.atError {
-                    message = "Exiting pool observer"
-                }
+        } catch (ex: CancellationException) {
+            cause = ex
+        } catch (ex: Throwable) {
+            this.cancel(message = "Error creating new connection", cause = ex)
+            cause = ex
+            throw ex
+        } finally {
+            connections.close(cause = cause)
+            connectionsNeeded.close(cause = cause)
+            logger.atError {
+                message = "Exiting pool observer"
             }
         }
     }
@@ -106,6 +105,7 @@ class ConnectionPoolImpl(
             }
             connection.pool = null
             connection.close()
+            connectionsNeeded.send(Unit)
         } catch (ex: Throwable) {
             logger.atError {
                 cause = ex
@@ -177,9 +177,13 @@ class ConnectionPoolImpl(
         }
     }
 
+    internal fun hasConnection(poolConnection: PoolConnection): Boolean {
+        return connectionIds.contains(poolConnection.connectionId)
+    }
+
     override suspend fun giveBack(connection: Connection): Boolean {
         val poolConnection = connection as? PoolConnection ?: return false
-        if (!connectionIds.contains(poolConnection.connectionId)) {
+        if (!hasConnection(connection)) {
             return false
         }
         if (!factory.validate(poolConnection)) {
@@ -188,5 +192,13 @@ class ConnectionPoolImpl(
         }
         connections.send(poolConnection)
         return true
+    }
+
+    override suspend fun close() {
+        observerJob.cancelAndJoin()
+        for (connection in connectionIds.values) {
+            connection.close()
+        }
+        cancel()
     }
 }

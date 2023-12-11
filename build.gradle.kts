@@ -38,6 +38,7 @@ val kotlinxUuidVersion: String by project
 val kotlinTestVersion: String by project
 val junitVersion: String by project
 val logbackVersion: String by project
+val mockkVersion: String by project
 
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
@@ -60,6 +61,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testImplementation("ch.qos.logback:logback-classic:$logbackVersion")
+    testImplementation("io.mockk:mockk:$mockkVersion")
 }
 
 kotlin {
