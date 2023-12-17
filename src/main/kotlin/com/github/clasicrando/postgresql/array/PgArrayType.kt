@@ -6,6 +6,15 @@ import com.github.clasicrando.common.column.columnDecodeError
 import io.ktor.utils.io.charsets.Charset
 import kotlin.reflect.KClass
 
+/**
+ * [DbType] for Postgresql arrays of any [innerDbType]. Allows for decoding array literals into
+ * a [List] of the [innerDbType]'s [DbType.encodeType].
+ *
+ * Note that this class does not encode lists into array literals (that is handled by the
+ * postgresql [TypeRegistry][com.github.clasicrando.common.column.TypeRegistry]) and string
+ * decoding is not supported (the bytes are converted to a string and the [Charset] is used to
+ * decode the [innerDbType] is string decoding is not supported).
+ */
 class PgArrayType(private val innerDbType: DbType) : DbType {
 
     override val supportsStringDecoding: Boolean get() = false
@@ -17,13 +26,10 @@ class PgArrayType(private val innerDbType: DbType) : DbType {
         }
 
         return ArrayLiteralParser.parse(literal).map {
-            if (it == null) {
-                return@map null
-            }
-            if (innerDbType.supportsStringDecoding) {
-                innerDbType.decode(type, it)
-            } else {
-                innerDbType.decode(type, it.toByteArray(charset = charset), charset)
+            when {
+                it == null -> null
+                innerDbType.supportsStringDecoding -> innerDbType.decode(type, it)
+                else -> innerDbType.decode(type, it.toByteArray(charset = charset), charset)
             }
         }.toList()
     }

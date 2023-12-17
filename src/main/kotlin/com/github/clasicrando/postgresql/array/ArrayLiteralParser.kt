@@ -1,10 +1,17 @@
 package com.github.clasicrando.postgresql.array
 
+/** Parser of Postgresql array literal string */
 object ArrayLiteralParser {
-    private const val DELIMITER = ','
-
+    /**
+     * Parse the provided [literal] into a [Sequence] of [String] chunks that represent each value
+     * in the array
+     */
     fun parse(literal: String): Sequence<String?> = sequence {
         val charBuffer = literal.substring(1, literal.length - 1).toMutableList()
+        if (charBuffer.isEmpty()) {
+            return@sequence
+        }
+
         var isDone = false
         val builder = StringBuilder()
 
@@ -22,9 +29,9 @@ object ArrayLiteralParser {
                         inEscape = false
                     }
 
-                    char == '"' -> inQuotes = true
+                    char == '"' -> inQuotes = !inQuotes
                     char == '\\' -> inEscape = true
-                    char == DELIMITER && !inQuotes -> {
+                    char == ',' && !inQuotes -> {
                         foundDelimiter = true
                         break
                     }
