@@ -1,6 +1,7 @@
 package com.github.clasicrando.common.result
 
-class ArrayDataRow(
+/** Default implementation of a [DataRow] where the values are backed by an [Array] */
+internal class ArrayDataRow(
     private val columnMapping: Map<String, Int>,
     private val values: Array<Any?>,
 ) : DataRow {

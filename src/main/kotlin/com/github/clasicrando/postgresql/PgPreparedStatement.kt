@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql
 
-import com.github.clasicrando.common.PreparedStatement
+import com.github.clasicrando.common.statement.PreparedStatement
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
