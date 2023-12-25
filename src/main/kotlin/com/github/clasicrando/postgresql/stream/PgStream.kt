@@ -7,6 +7,7 @@ import com.github.clasicrando.postgresql.message.encoders.SslMessageEncoder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.Connection
+import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
@@ -103,24 +104,37 @@ class PgStream(
         private const val TLS_REJECT_WARNING = "Preferred SSL mode was rejected by server. " +
                 "Continuing with non TLS connection"
 
+        @Suppress("BlockingMethodInNonBlockingContext")
         private suspend fun createConnection(
             coroutineContext: CoroutineContext,
             connectOptions: PgConnectOptions,
             tlsConfig: (TLSConfigBuilder.() -> Unit)? = null,
         ): Pair<SelectorManager, Connection> {
-            val selectorManager = SelectorManager(coroutineContext)
-            val socket = withTimeout(connectOptions.connectionTimeout.toLong()) {
-                aSocket(selectorManager)
-                    .tcp()
-                    .connect(connectOptions.host, connectOptions.port.toInt()) {
-                        keepAlive = true
-                    }
-            }
+            var selectorManager: SelectorManager? = null
+            var socket: Socket? = null
+            try {
+                selectorManager = SelectorManager(coroutineContext)
+                socket = withTimeout(connectOptions.connectionTimeout.toLong()) {
+                    aSocket(selectorManager)
+                        .tcp()
+                        .connect(connectOptions.host, connectOptions.port.toInt()) {
+                            keepAlive = true
+                        }
+                }
 
-            tlsConfig?.let {
-                return selectorManager to socket.tls(coroutineContext, block = it).connection()
+                tlsConfig?.let {
+                    return selectorManager to socket.tls(coroutineContext, block = it).connection()
+                }
+                return selectorManager to socket.connection()
+            } catch (ex: Throwable) {
+                if (socket?.isActive == true) {
+                    socket.close()
+                }
+                if (selectorManager?.isActive == true) {
+                    selectorManager.close()
+                }
+                throw ex
             }
-            return selectorManager to socket.connection()
         }
 
         suspend fun connect(coroutineScope: CoroutineScope, connectOptions: PgConnectOptions): PgStream {
