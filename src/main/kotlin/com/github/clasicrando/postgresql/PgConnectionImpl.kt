@@ -45,7 +45,7 @@ import kotlinx.uuid.generateUUID
 
 private val logger = KotlinLogging.logger {}
 
-class PgConnectionImpl private constructor(
+class PgConnectionImpl internal constructor(
     internal val configuration: PgConnectOptions,
     internal val charset: Charset,
     private val stream: PgStream,
@@ -83,6 +83,7 @@ class PgConnectionImpl private constructor(
     }
 
     private val messageProcessorJob = scope.launch {
+        var cause: Throwable? = null
         writeToStream(PgMessage.StartupMessage(params = configuration.properties))
         try {
             handleAuthFlow()
@@ -90,14 +91,17 @@ class PgConnectionImpl private constructor(
                 processServerMessage()
             }
         } catch(cancel: CancellationException) {
+            cause = cancel
             throw cancel
         } catch (ex: Throwable) {
+            cause = ex
             log(Level.ERROR) {
                 message = "Error within server message processor"
                 cause = ex
             }
-            closeChannels(ex)
+            initialReadyForQuery.completeExceptionally(ex)
         } finally {
+            closeChannels(cause)
             log(Level.TRACE) {
                 message = "Server Message Processor is closing"
             }
@@ -112,7 +116,7 @@ class PgConnectionImpl private constructor(
         return decoders.decode(rawMessage)
     }
 
-    private fun closeChannels(throwable: Throwable) {
+    private fun closeChannels(throwable: Throwable? = null) {
         rowDescriptionChannel.close(cause = throwable)
         dataRowChannel.close(cause = throwable)
         commandCompleteChannel.close(cause = throwable)
@@ -593,6 +597,9 @@ class PgConnectionImpl private constructor(
         try {
             if (stream.isActive) {
                 writeToStream(PgMessage.Terminate)
+                logger.connectionLogger(this, Level.INFO) {
+                    this.message = "Successfully sent termination message"
+                }
             }
         } catch (ex: Throwable) {
             logger.connectionLogger(this, Level.WARN) {
@@ -690,13 +697,23 @@ class PgConnectionImpl private constructor(
             stream: PgStream,
             scope: CoroutineScope
         ): PgConnectionImpl {
-            val connection = PgConnectionImpl(configuration, charset, stream, scope)
-            connection.initialReadyForQuery.await()
-            if (!connection.isConnected) {
-                error("Could not initialize connection")
+            var connection: PgConnectionImpl? = null
+            try {
+                connection = PgConnectionImpl(configuration, charset, stream, scope)
+                connection.initialReadyForQuery.await()
+                if (!connection.isConnected) {
+                    error("Could not initialize connection")
+                }
+                connection.typeRegistry.finalizeTypes(connection)
+                return connection
+            } catch (ex: Throwable) {
+                try {
+                    connection?.close()
+                } catch (ex2: Throwable) {
+                    ex.addSuppressed(ex2)
+                }
+                throw ex
             }
-            connection.typeRegistry.finalizeTypes(connection)
-            return connection
         }
     }
 }
