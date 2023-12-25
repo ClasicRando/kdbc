@@ -20,13 +20,17 @@ import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
 
-class PgStream(private var connection: Connection): AutoCloseable {
+class PgStream(
+    private var connection: Connection,
+    private var selectorManager: SelectorManager,
+): AutoCloseable {
     private val receiveChannel get() = connection.input
     private val sendChannel get() = connection.output
 
     val isActive: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
 
     suspend fun receiveMessage(): RawMessage {
+        receiveChannel.awaitContent()
         val format = receiveChannel.readByte()
         val size = receiveChannel.readInt()
         val packet = receiveChannel.readPacket(size - 4)
@@ -43,7 +47,12 @@ class PgStream(private var connection: Connection): AutoCloseable {
     }
 
     override fun close() {
-        connection.socket.close()
+        if (connection.socket.isActive) {
+            connection.socket.close()
+        }
+        if (selectorManager.isActive) {
+            selectorManager.close()
+        }
     }
 
     private suspend fun requestUpgrade(): Boolean {
@@ -82,10 +91,12 @@ class PgStream(private var connection: Connection): AutoCloseable {
             }
         }
         connection.socket.close()
-        connection = createConnection(
+        val newConnection = createConnection(
             coroutineContext = coroutineContext,
             connectOptions = connectOptions,
         )
+        selectorManager = newConnection.first
+        connection = newConnection.second
     }
 
     companion object {
@@ -96,27 +107,28 @@ class PgStream(private var connection: Connection): AutoCloseable {
             coroutineContext: CoroutineContext,
             connectOptions: PgConnectOptions,
             tlsConfig: (TLSConfigBuilder.() -> Unit)? = null,
-        ): Connection {
+        ): Pair<SelectorManager, Connection> {
             val selectorManager = SelectorManager(coroutineContext)
-            val builder = aSocket(selectorManager).tcp()
             val socket = withTimeout(connectOptions.connectionTimeout.toLong()) {
-                builder.connect(connectOptions.host, connectOptions.port.toInt()) {
-                    keepAlive = true
-                }
+                aSocket(selectorManager)
+                    .tcp()
+                    .connect(connectOptions.host, connectOptions.port.toInt()) {
+                        keepAlive = true
+                    }
             }
 
             tlsConfig?.let {
-                return socket.tls(coroutineContext, block = it).connection()
+                return selectorManager to socket.tls(coroutineContext, block = it).connection()
             }
-            return socket.connection()
+            return selectorManager to socket.connection()
         }
 
         suspend fun connect(coroutineScope: CoroutineScope, connectOptions: PgConnectOptions): PgStream {
-            val socket = createConnection(
+            val (selectorManager, socket) = createConnection(
                 coroutineContext = coroutineScope.coroutineContext,
                 connectOptions = connectOptions,
             )
-            return PgStream(socket)
+            return PgStream(socket, selectorManager)
             /***
              * TODO
              * Need to add ability to upgrade to SSL connection, currently do not understand how
