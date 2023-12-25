@@ -1,22 +1,47 @@
 package com.github.clasicrando.postgresql.type
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlin.math.absoluteValue
 
-@Serializable
-data class PgMoney(val integer: Int) {
-    private val strRep: String get() = buildString {
-        if (integer < 0) {
-            append('-')
+@Serializable(with = PgMoney.Companion::class)
+class PgMoney private constructor(internal val integer: Long) {
+    constructor(strMoney: String): this(integerFromString(strMoney))
+
+    private val strRep: String by lazy {
+        buildString {
+            if (this@PgMoney.integer < 0) {
+                append('-')
+            }
+            val chars = this@PgMoney.integer.absoluteValue.toString()
+            if (chars.length > 2) {
+                for (char in chars.asSequence().take(chars.length - 2)) {
+                    append(char)
+                }
+            } else {
+                append('0')
+            }
+            append('.')
+            when {
+                chars.length >= 2 -> {
+                    append(chars[chars.length - 2])
+                    append(chars[chars.length - 1])
+                }
+                chars.length == 1 -> {
+                    append('0')
+                    append(chars[0])
+                }
+                else -> {
+                    append('0')
+                    append('0')
+                }
+            }
         }
-        val chars = integer.absoluteValue.toString()
-        if (chars.length > 2) {
-            append(chars.dropLast(2))
-        } else {
-            append('0')
-        }
-        append('.')
-        append(chars.takeLast(2).padStart(2, '0'))
     }
 
     operator fun plus(other: PgMoney): PgMoney {
@@ -29,21 +54,30 @@ data class PgMoney(val integer: Int) {
 
     override fun toString(): String = strRep
 
-    companion object {
-        private val MONEY_REGEX = Regex("^-?$?\\d+(.\\d{1,2})?$")
+    companion object : KSerializer<PgMoney> {
+        private val MONEY_REGEX = Regex("^-?\\$?\\d+(.\\d{1,2})?$")
 
-        fun fromString(money: String): PgMoney {
-            require(money.matches(MONEY_REGEX)) {
+        override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
+            "PgMoney",
+            PrimitiveKind.STRING,
+        )
+
+        override fun deserialize(decoder: Decoder): PgMoney = PgMoney(decoder.decodeString())
+
+        override fun serialize(encoder: Encoder, value: PgMoney) {
+            encoder.encodeString(value.strRep)
+        }
+
+        private fun integerFromString(strMoney: String): Long {
+            require(strMoney.matches(MONEY_REGEX)) {
                 """
-                String supplied to PgMoney does not match the required pattern
-                Pattern: '${MONEY_REGEX.pattern}'
-                Actual Value: $money
-                """.trimIndent()
+            String supplied to PgMoney does not match the required pattern
+            Pattern: '${MONEY_REGEX.pattern}'
+            Actual Value: $strMoney
+            """.trimIndent()
             }
-            return PgMoney(
-                integer = money.filter(predicate = Char::isDigit)
-                    .toInt() * if (money.startsWith('-')) -1 else 1
-            )
+            return strMoney.filter(predicate = Char::isDigit)
+                .toLong() * if (strMoney.startsWith('-')) -1 else 1
         }
     }
 }
