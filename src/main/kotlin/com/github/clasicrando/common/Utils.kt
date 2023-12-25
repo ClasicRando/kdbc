@@ -46,7 +46,7 @@ fun ByteArray.splitAsCString(): List<String> {
     return this.splitBy(Byte.ZERO)
         .map { chunk ->
             chunk.map { it.toInt().toChar() }
-                .joinToString()
+                .joinToString(separator = "")
         }
         .toList()
 }
