@@ -76,7 +76,7 @@ interface Connection : Executor {
  * the function. Note, this does not catch the exception, rather it rethrows after cleaning up
  * resources if an exception was thrown.
  */
-suspend inline fun <R> Connection.use(crossinline block: suspend (Connection) -> R): R {
+suspend inline fun <R, C : Connection> C.use(crossinline block: suspend (C) -> R): R {
     var cause: Throwable? = null
     return try {
         block(this)
@@ -99,8 +99,8 @@ suspend inline fun <R> Connection.use(crossinline block: suspend (Connection) ->
  * the function. Note, this does catch the exception and wraps that is a [Result]. Otherwise, it
  * returns a [Result] with the result of [block].
  */
-suspend inline fun <R> Connection.useCatching(
-    crossinline block: suspend (Connection) -> R,
+suspend inline fun <R, C : Connection> C.useCatching(
+    crossinline block: suspend (C) -> R,
 ): Result<R> {
     var cause: Throwable? = null
     return try {
@@ -123,8 +123,8 @@ suspend inline fun <R> Connection.useCatching(
  * otherwise, [Connection.rollback] is called and the original exception is rethrown. This all
  * happens within a [Connection.use] block so the resources are always cleaned up before returning.
  */
-suspend inline fun <R> Connection.transaction(
-    crossinline block: suspend (Connection) -> R,
+suspend inline fun <R, C : Connection> C.transaction(
+    crossinline block: suspend (C) -> R,
 ): R = use {
     try {
         this.begin()
@@ -145,8 +145,8 @@ suspend inline fun <R> Connection.transaction(
  * [Connection.useCatching] block so the resources are always cleaned up before returning and all
  * other exceptions are caught and returned as a [Result].
  */
-suspend inline fun <R> Connection.transactionCatching(
-    crossinline block: suspend (Connection) -> R,
+suspend inline fun <R, C : Connection> C.transactionCatching(
+    crossinline block: suspend (C) -> R,
 ): Result<R> = useCatching {
     try {
         this.begin()

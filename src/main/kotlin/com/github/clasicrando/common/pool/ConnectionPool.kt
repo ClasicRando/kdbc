@@ -1,7 +1,7 @@
 package com.github.clasicrando.common.pool
 
-import com.github.clasicrando.common.connection.Executor
 import com.github.clasicrando.common.connection.Connection
+import com.github.clasicrando.common.connection.Executor
 import com.github.clasicrando.common.connection.use
 import kotlinx.coroutines.CoroutineScope
 
