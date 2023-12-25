@@ -10,9 +10,9 @@ object PostgresqlConnectionBuilder {
     suspend fun createConnection(
         scope: CoroutineScope,
         connectOptions: PgConnectOptions,
-    ): PgConnectionImpl {
+    ): PgConnection {
         val factory = PgConnectionFactory(connectOptions)
-        return factory.create(scope) as PgConnectionImpl
+        return factory.create(scope) as PgConnection
     }
 
     fun createConnectionPool(
