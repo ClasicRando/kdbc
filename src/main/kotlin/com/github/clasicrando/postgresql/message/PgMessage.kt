@@ -138,6 +138,6 @@ sealed class PgMessage(val code: Byte) {
         const val READY_FOR_QUERY_CODE = 'Z'.code.toByte()
         const val ROW_DESCRIPTION_CODE = 'T'.code.toByte()
         const val SYNC_CODE = 'S'.code.toByte()
-        const val TERMINATE_CODE = 'F'.code.toByte()
+        const val TERMINATE_CODE = 'X'.code.toByte()
     }
 }
