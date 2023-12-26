@@ -41,7 +41,7 @@ object PgByteArrayDbType : DbType {
 
     private fun charToDigit(char: Char, index: Int): Int {
         val digit = char.digitToInt(16)
-        require(digit > 0) {
+        require(digit >= 0) {
             "Illegal hexadecimal character $char at index $index"
         }
         return digit
@@ -49,9 +49,8 @@ object PgByteArrayDbType : DbType {
 
     private fun decodeWithPrefix(value: String): ByteArray {
         val size = value.length - HEX_START.length
-        val end = value.length
 
-        require(size.and(0x01) != 0) {
+        require(size.and(0x01) == 0) {
             "Hex encoded byte array must have an even number of elements"
         }
 
@@ -98,7 +97,7 @@ object PgByteArrayDbType : DbType {
                 index++
                 val thirdDigit = value.getOrThrow(index)
                 index++
-                writeByte("0$nextChar$secondDigit$thirdDigit".toByte(16))
+                writeByte("0$nextChar$secondDigit$thirdDigit".toInt(8).toByte())
             }
         }.readBytes()
     }
@@ -119,20 +118,20 @@ object PgByteArrayDbType : DbType {
         }
 
         val size = bytes.size * 2 + hexStartChars.size
-        val chars = CharArray(size) { i ->
-            if (i < hexStartChars.size) {
-                return@CharArray hexStartChars[i]
-            }
-            val offset = i - hexStartChars.size
-            val (currentByte, shiftCount) = when {
-                offset == 0 -> bytes[0] to 4
-                offset % 2 == 0 -> bytes[offset.shr(1)] to 4
-                else -> bytes[(offset - 1).shr(1)] to 0
-            }
-            val index = currentByte.toInt()
-                .and(0xF0)
-                .ushr(shiftCount)
-            digits[index]
+        var charIndex = 0
+        val chars = CharArray(size)
+        for (char in hexStartChars) {
+            chars[charIndex] = char
+            charIndex++
+        }
+
+        for (byte in bytes) {
+            val byteAsInt = byte.toInt()
+            chars[charIndex] = digits[(0xF0 and byteAsInt) ushr 4]
+            charIndex++
+
+            chars[charIndex] = digits[0x0F and byteAsInt]
+            charIndex++
         }
 
         return String(chars)
