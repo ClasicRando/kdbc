@@ -1,8 +1,7 @@
-package com.github.clasicrando.postgresql.column
+package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
-import com.github.clasicrando.postgresql.type.PgMoney
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.params.ParameterizedTest
