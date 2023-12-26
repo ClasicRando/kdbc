@@ -1,12 +1,18 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.connection.use
+import com.github.clasicrando.postgresql.PgConnectionHelper
 import com.github.clasicrando.postgresql.type.PgMoney
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class TestPgMoney {
     @ParameterizedTest
@@ -66,5 +72,20 @@ class TestPgMoney {
         val result = money1 - money2
 
         assertEquals((value1 - value2) * 100, result.integer.toDouble())
+    }
+
+    @Test
+    @EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
+    fun `PgMoney should construct when executing query returning a money field`() = runBlocking {
+        PgConnectionHelper.defaultConnection(this).use {
+            val result = it.sendQuery("SELECT 71.68::money")
+            assertEquals(1, result.rowsAffected)
+            val firstRow = result.rows.firstOrNull()
+            assertNotNull(firstRow)
+            val firstColumn = firstRow[0]
+            assertTrue(firstColumn is PgMoney)
+            assertEquals(7168, firstColumn.integer)
+            assertEquals("$71.68", firstColumn.toString())
+        }
     }
 }

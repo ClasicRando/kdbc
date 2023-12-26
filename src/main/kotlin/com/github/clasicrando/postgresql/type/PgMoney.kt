@@ -18,6 +18,7 @@ class PgMoney private constructor(internal val integer: Long) {
             if (this@PgMoney.integer < 0) {
                 append('-')
             }
+            append('$')
             val chars = this@PgMoney.integer.absoluteValue.toString()
             if (chars.length > 2) {
                 for (char in chars.asSequence().take(chars.length - 2)) {
