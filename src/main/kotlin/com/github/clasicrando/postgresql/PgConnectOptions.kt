@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql
 
+import com.github.clasicrando.common.LogSettings
 import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.common.connection.ConnectOptions
 import io.github.oshai.kotlinlogging.Level
