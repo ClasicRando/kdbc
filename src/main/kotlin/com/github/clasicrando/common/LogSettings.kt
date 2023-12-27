@@ -1,4 +1,4 @@
-package com.github.clasicrando.postgresql
+package com.github.clasicrando.common
 
 import io.github.oshai.kotlinlogging.Level
 import kotlin.time.Duration
