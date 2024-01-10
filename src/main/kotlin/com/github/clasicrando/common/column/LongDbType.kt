@@ -7,7 +7,7 @@ import kotlin.reflect.KClass
  * and decoded as strings.
  */
 object LongDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any = value.toLong()
+    override fun decode(type: ColumnInfo, value: String): Any = value.toLong()
 
     override val encodeType: KClass<*> = Long::class
 }

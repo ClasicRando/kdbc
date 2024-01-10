@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.array
 
-import com.github.clasicrando.common.column.ColumnData
+import com.github.clasicrando.common.column.ColumnInfo
 import com.github.clasicrando.common.column.ColumnDecodeError
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.IntDbType
@@ -25,7 +25,7 @@ class TestPgArrayType {
     ) {
         val (literal, dbType, expected) = triple
         val type = PgArrayType(dbType)
-        val columnType = mockk<ColumnData>()
+        val columnType = mockk<ColumnInfo>()
 
         val result = type.decode(columnType, literal.toByteArray(), Charsets.UTF_8)
 
@@ -37,7 +37,7 @@ class TestPgArrayType {
     fun `decode should throw a column decode error when literal is not wrapped by curl braces`() {
         val literal = "1,2,3,4"
         val type = PgArrayType(IntDbType)
-        val columnType = mockk<ColumnData>()
+        val columnType = mockk<ColumnInfo>()
         every { columnType.dataType } returns 1
         every { columnType.name } returns "Test"
 

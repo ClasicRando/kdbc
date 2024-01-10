@@ -9,7 +9,7 @@ import kotlin.reflect.KClass
  * strings. The expected format is ISO-8601.
  */
 object LocalDateDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any {
+    override fun decode(type: ColumnInfo, value: String): Any {
         return LocalDate.tryFromString(value).getOrThrow()
     }
 

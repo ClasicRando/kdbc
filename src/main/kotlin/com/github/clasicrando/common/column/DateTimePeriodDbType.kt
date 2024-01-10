@@ -8,7 +8,7 @@ import kotlin.reflect.KClass
  * decoded as strings in the format of ISO-8601 durations.
  */
 object DateTimePeriodDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any = DateTimePeriod.parse(value)
+    override fun decode(type: ColumnInfo, value: String): Any = DateTimePeriod.parse(value)
 
     override val encodeType: KClass<*> = DateTimePeriod::class
 }

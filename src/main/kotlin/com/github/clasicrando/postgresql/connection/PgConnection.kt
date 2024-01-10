@@ -1,4 +1,4 @@
-package com.github.clasicrando.postgresql
+package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.result.QueryResult

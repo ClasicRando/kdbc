@@ -1,4 +1,4 @@
-package com.github.clasicrando.postgresql
+package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.atomic.AtomicMutableMap
@@ -12,6 +12,8 @@ import com.github.clasicrando.common.result.ArrayDataRow
 import com.github.clasicrando.common.result.MutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.selectLoop
+import com.github.clasicrando.postgresql.GeneralPostgresError
+import com.github.clasicrando.postgresql.PgPreparedStatement
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
 import com.github.clasicrando.postgresql.authentication.simplePasswordAuthFlow
@@ -192,7 +194,7 @@ class PgConnectionImpl internal constructor(
     }
 
     private fun onNotice(message: PgMessage.NoticeResponse) {
-        logger.connectionLogger(this, Level.TRACE) { 
+        logger.connectionLogger(this, Level.TRACE) {
             this.message = "Notice, message -> {noticeResponse}"
             payload = mapOf("noticeResponse" to message)
         }

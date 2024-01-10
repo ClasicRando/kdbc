@@ -13,5 +13,5 @@ import kotlin.reflect.KClass
 object BigDecimalDbType : DbType {
     override val encodeType: KClass<*> = BigDecimal::class
 
-    override fun decode(type: ColumnData, value: String): Any = value.toBigDecimal()
+    override fun decode(type: ColumnInfo, value: String): Any = value.toBigDecimal()
 }

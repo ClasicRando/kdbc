@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.column.ColumnData
+import com.github.clasicrando.common.column.ColumnInfo
 import io.ktor.utils.io.core.buildPacket
 import io.ktor.utils.io.core.writeFully
 import io.mockk.every
@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 @ExtendWith(MockKExtension::class)
 class TestPgByteArrayDbType {
     @RelaxedMockK
-    lateinit var columnData: ColumnData
+    lateinit var columnInfo: ColumnInfo
 
     private val ints = IntArray(256) { it }
     private val expectedByteString =
@@ -37,7 +37,7 @@ class TestPgByteArrayDbType {
             it.toString(16).padStart(2, '0')
         }
 
-        val result = PgByteArrayDbType.decode(columnData, byteString)
+        val result = PgByteArrayDbType.decode(columnInfo, byteString)
 
         assertTrue(result is ByteArray)
         Assertions.assertArrayEquals(bytes, result)
@@ -53,7 +53,7 @@ class TestPgByteArrayDbType {
             }
         }
 
-        val result = PgByteArrayDbType.decode(columnData, byteString)
+        val result = PgByteArrayDbType.decode(columnInfo, byteString)
 
         assertTrue(result is ByteArray)
         Assertions.assertArrayEquals(bytes, result)

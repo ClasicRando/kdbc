@@ -8,7 +8,7 @@ import kotlin.reflect.KClass
  * and encoded by simply passing forward the [String] reference.
  */
 object StringDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any = value
+    override fun decode(type: ColumnInfo, value: String): Any = value
 
     override val encodeType: KClass<*> = String::class
 

@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.authentication
 
-import com.github.clasicrando.postgresql.PgConnectionImpl
+import com.github.clasicrando.postgresql.connection.PgConnectionImpl
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.ongres.scram.client.ScramClient
 import com.ongres.scram.client.ScramSession

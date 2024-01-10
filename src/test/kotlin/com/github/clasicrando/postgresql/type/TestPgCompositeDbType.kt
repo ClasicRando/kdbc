@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.type
 
-import com.github.clasicrando.common.column.ColumnData
+import com.github.clasicrando.common.column.ColumnInfo
 import com.github.clasicrando.common.column.DateTimeDbType
 import com.github.clasicrando.common.column.FloatDbType
 import com.github.clasicrando.common.column.IntDbType
@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 @ExtendWith(MockKExtension::class)
 class TestPgCompositeDbType {
     @RelaxedMockK
-    lateinit var columnData: ColumnData
+    lateinit var columnInfo: ColumnInfo
 
     data class CompositeType(
         val int: Int,
@@ -67,7 +67,7 @@ class TestPgCompositeDbType {
             arrayOf(IntDbType, FloatDbType, StringDbType, DateTimeDbType)
         )
 
-        val result = dbType.decode(columnData, compositeLiteral)
+        val result = dbType.decode(columnInfo, compositeLiteral)
 
         assertTrue(result is CompositeType)
         assertEquals(1, result.int)

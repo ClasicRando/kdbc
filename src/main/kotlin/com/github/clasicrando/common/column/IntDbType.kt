@@ -9,5 +9,5 @@ import kotlin.reflect.KClass
 object IntDbType : DbType {
     override val encodeType: KClass<*> = Int::class
 
-    override fun decode(type: ColumnData, value: String): Any = value.toInt()
+    override fun decode(type: ColumnInfo, value: String): Any = value.toInt()
 }

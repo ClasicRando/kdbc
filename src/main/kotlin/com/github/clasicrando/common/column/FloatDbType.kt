@@ -7,7 +7,7 @@ import kotlin.reflect.KClass
  * encoded and decoded as strings.
  */
 object FloatDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any = value.toFloat()
+    override fun decode(type: ColumnInfo, value: String): Any = value.toFloat()
 
     override val encodeType: KClass<*> = Float::class
 }

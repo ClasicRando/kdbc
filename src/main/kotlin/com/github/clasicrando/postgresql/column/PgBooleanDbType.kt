@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.column.ColumnData
+import com.github.clasicrando.common.column.ColumnInfo
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.columnEncodeError
 import kotlin.reflect.KClass
@@ -8,7 +8,7 @@ import kotlin.reflect.KClass
 object PgBooleanDbType : DbType {
     override val supportsStringDecoding: Boolean get() = true
 
-    override fun decode(type: ColumnData, value: String): Any = value == "t"
+    override fun decode(type: ColumnInfo, value: String): Any = value == "t"
 
     override val encodeType: KClass<*> = Boolean::class
 

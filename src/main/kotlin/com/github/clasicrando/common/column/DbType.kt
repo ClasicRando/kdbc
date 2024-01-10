@@ -19,12 +19,12 @@ interface DbType {
      * The default implementation converts the bytes to a string using the [charset] specified,
      * passing that to the string parameter [decode] method.
      */
-    fun decode(type: ColumnData, bytes: ByteArray, charset: Charset): Any {
+    fun decode(type: ColumnInfo, bytes: ByteArray, charset: Charset): Any {
         return decode(type, String(bytes, charset))
     }
 
     /** Decode the string [value] supplied as the [type] specified by the database */
-    fun decode(type: ColumnData, value: String): Any
+    fun decode(type: ColumnInfo, value: String): Any
 
     /** Kotlin type mapped to the database type */
     val encodeType: KClass<*>

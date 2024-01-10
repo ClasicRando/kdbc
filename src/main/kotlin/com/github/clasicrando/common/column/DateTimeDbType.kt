@@ -9,7 +9,7 @@ import kotlin.reflect.KClass
  * type with both attributes stored. Values are encoded and decoded as ISO-8601 datetime values.
  */
 object DateTimeDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any = DateTime.fromString(value)
+    override fun decode(type: ColumnInfo, value: String): Any = DateTime.fromString(value)
 
     override val encodeType: KClass<*> = DateTime::class
 }

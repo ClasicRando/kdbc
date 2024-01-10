@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.array
 
-import com.github.clasicrando.common.column.ColumnData
+import com.github.clasicrando.common.column.ColumnInfo
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.columnDecodeError
 import io.ktor.utils.io.charsets.Charset
@@ -19,7 +19,7 @@ class PgArrayType(private val innerDbType: DbType) : DbType {
 
     override val supportsStringDecoding: Boolean get() = false
 
-    override fun decode(type: ColumnData, bytes: ByteArray, charset: Charset): Any {
+    override fun decode(type: ColumnInfo, bytes: ByteArray, charset: Charset): Any {
         val literal = String(bytes, charset = charset)
         if (!literal.startsWith('{') || !literal.endsWith('}')) {
             columnDecodeError(type, bytes)
@@ -34,7 +34,7 @@ class PgArrayType(private val innerDbType: DbType) : DbType {
         }.toList()
     }
 
-    override fun decode(type: ColumnData, value: String): Any {
+    override fun decode(type: ColumnInfo, value: String): Any {
         throw UnsupportedOperationException("Attempted to decode an array type as string")
     }
 

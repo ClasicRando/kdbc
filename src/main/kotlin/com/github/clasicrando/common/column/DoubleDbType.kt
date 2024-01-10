@@ -7,7 +7,7 @@ import kotlin.reflect.KClass
  * encoded and decoded as strings.
  */
 object DoubleDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any = value.toDouble()
+    override fun decode(type: ColumnInfo, value: String): Any = value.toDouble()
 
     override val encodeType: KClass<*> = Double::class
 }

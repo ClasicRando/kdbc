@@ -2,7 +2,7 @@ package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.column.BigDecimalDbType
-import com.github.clasicrando.common.column.ColumnData
+import com.github.clasicrando.common.column.ColumnInfo
 import com.github.clasicrando.common.column.DateTimeDbType
 import com.github.clasicrando.common.column.DateTimePeriodDbType
 import com.github.clasicrando.common.column.DbType
@@ -18,7 +18,7 @@ import com.github.clasicrando.common.column.StringDbType
 import com.github.clasicrando.common.column.TypeRegistry
 import com.github.clasicrando.common.column.UuidDbType
 import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.postgresql.PgConnection
+import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.array.PgArrayType
 import com.github.clasicrando.postgresql.type.PgCompositeDbType
 import com.github.clasicrando.postgresql.type.enumDbType
@@ -45,7 +45,7 @@ class PgTypeRegistry(
         .mapNotNull { it.value as? PgCompositeDbType<*> }
         .associateBy { it.encodeType }
 
-    override fun decode(type: ColumnData, value: ByteArray, charset: Charset): Any {
+    override fun decode(type: ColumnInfo, value: ByteArray, charset: Charset): Any {
         return types.getOrDefault(type.dataType, StringDbType)
             .decode(type, value, charset)
     }

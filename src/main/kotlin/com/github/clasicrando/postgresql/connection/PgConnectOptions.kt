@@ -1,8 +1,9 @@
-package com.github.clasicrando.postgresql
+package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.LogSettings
 import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.common.connection.ConnectOptions
+import com.github.clasicrando.postgresql.CertificateInput
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.utils.io.charsets.Charset
 import kotlinx.io.files.Path

@@ -9,6 +9,7 @@ import kotlinx.coroutines.selects.SelectBuilder
 import kotlinx.coroutines.selects.select
 
 val Byte.Companion.ZERO: Byte get() = 0
+const val USHORT_ZERO: UShort = 0u
 
 inline fun <T> Result<T>.mapError(block: (Throwable) -> Throwable): Result<T> {
     if (isSuccess) {

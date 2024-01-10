@@ -9,7 +9,7 @@ import kotlin.reflect.KClass
  * actual type returned is a kotlinx variant for multi-platform support.
  */
 object UuidDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any = UUID(value)
+    override fun decode(type: ColumnInfo, value: String): Any = UUID(value)
 
     override val encodeType: KClass<*> = UUID::class
 }

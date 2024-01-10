@@ -1,7 +1,7 @@
 package com.github.clasicrando.postgresql.authentication
 
 import com.github.clasicrando.postgresql.PasswordHelper
-import com.github.clasicrando.postgresql.PgConnectionImpl
+import com.github.clasicrando.postgresql.connection.PgConnectionImpl
 import com.github.clasicrando.postgresql.message.PgMessage
 import io.github.oshai.kotlinlogging.Level
 

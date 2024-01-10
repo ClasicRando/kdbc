@@ -2,6 +2,9 @@ package com.github.clasicrando.postgresql
 
 import com.github.clasicrando.common.pool.ConnectionPool
 import com.github.clasicrando.common.pool.PoolOptions
+import com.github.clasicrando.postgresql.connection.PgConnectOptions
+import com.github.clasicrando.postgresql.connection.PgConnection
+import com.github.clasicrando.postgresql.connection.PostgresqlConnectionBuilder
 import kotlinx.coroutines.CoroutineScope
 
 object PgConnectionHelper {

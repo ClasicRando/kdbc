@@ -7,7 +7,7 @@ import kotlin.reflect.KClass
  * and decoded as strings.
  */
 object ShortDbType : DbType {
-    override fun decode(type: ColumnData, value: String): Any = value.toShort()
+    override fun decode(type: ColumnInfo, value: String): Any = value.toShort()
 
     override val encodeType: KClass<*> = Short::class
 }

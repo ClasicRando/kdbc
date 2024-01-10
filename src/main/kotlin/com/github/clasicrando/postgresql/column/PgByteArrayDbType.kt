@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.column.ColumnData
+import com.github.clasicrando.common.column.ColumnInfo
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.columnEncodeError
 import io.ktor.utils.io.core.ByteReadPacket
@@ -31,7 +31,7 @@ object PgByteArrayDbType : DbType {
         'F',
     )
 
-    override fun decode(type: ColumnData, value: String): Any {
+    override fun decode(type: ColumnInfo, value: String): Any {
         return if (value.startsWith(HEX_START)) {
             decodeWithPrefix(value)
         } else {

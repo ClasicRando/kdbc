@@ -1,10 +1,10 @@
 package com.github.clasicrando.common.column
 
 /**
- * Database specified descriptor of column data types. Used for decoding values in server sent
- * result rows.
+ * Database specified descriptor of column type information. Used for decoding values in server
+ * sent result rows.
  */
-interface ColumnData {
+interface ColumnInfo {
     /** Database specific name of the type */
     val name: String
     /** ID associated with the type */

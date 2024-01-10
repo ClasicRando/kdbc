@@ -1,4 +1,4 @@
-package com.github.clasicrando.postgresql
+package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.pool.ConnectionPool
 import com.github.clasicrando.common.pool.ConnectionPoolImpl
