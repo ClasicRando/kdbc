@@ -22,7 +22,7 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * Default implementation of a [ConnectionPool], using a [Channel] to provide and buffer
- * [Connection] instances as needed. Uses the [poolOptions] and [factory] provided to set the pools
+ * [Connection] instances as needed. Uses the [poolOptions] and [provider] provided to set the pools
  * details and allow for creating/validating [Connection] instances.
  *
  * When the pool is created, an observer coroutine is launched to listen for requests for more
@@ -35,9 +35,9 @@ private val logger = KotlinLogging.logger {}
  * - look into an algorithm to close connections after a certain duration stored within the
  * [connections] channel, down to the [PoolOptions.minConnections] threshold
  */
-class ConnectionPoolImpl(
+abstract class AbstractConnectionPool(
     private val poolOptions: PoolOptions,
-    private val factory: ConnectionFactory,
+    private val provider: ConnectionProvider,
 ) : ConnectionPool {
     private val connections = Channel<PoolConnection>(capacity = poolOptions.maxConnections)
     private val connectionIds: MutableMap<UUID, PoolConnection> = AtomicMutableMap()
@@ -49,13 +49,13 @@ class ConnectionPoolImpl(
         ) + poolOptions.coroutineDispatcher
 
     /**
-     * Create a new connection using the pool's [factory], set the connection's
+     * Create a new connection using the pool's [provider], set the connection's
      * [PoolConnection.pool] so it can be returned, add the [Connection.connectionId] to the
      * [connectionIds] set and send the [PoolConnection] to [connections] channel
      */
     private suspend fun addNewConnection() {
-        val connection = factory.create(this@ConnectionPoolImpl) as PoolConnection
-        connection.pool = this@ConnectionPoolImpl
+        val connection = provider.create(this@AbstractConnectionPool) as PoolConnection
+        connection.pool = this@AbstractConnectionPool
         connectionIds[connection.connectionId] = connection
         connections.send(connection)
     }
@@ -124,7 +124,7 @@ class ConnectionPoolImpl(
                 connectionsNeeded.send(Unit)
             }
             val connection = possibleConnection ?: connections.receive()
-            if (factory.validate(connection)) {
+            if (provider.validate(connection)) {
                 return connection
             }
             invalidateConnection(connection)
@@ -186,7 +186,7 @@ class ConnectionPoolImpl(
         if (!hasConnection(connection)) {
             return false
         }
-        if (!factory.validate(poolConnection)) {
+        if (!provider.validate(poolConnection)) {
             invalidateConnection(poolConnection)
             return true
         }

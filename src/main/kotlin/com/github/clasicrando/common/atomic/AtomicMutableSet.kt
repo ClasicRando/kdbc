@@ -90,4 +90,8 @@ internal class AtomicMutableSet<E>(initial: Set<E> = emptySet()) : MutableSet<E>
         }
         return contains
     }
+
+    override fun toString(): String {
+        return "AtomicMutableSet(${inner.value.toList().joinToString(prefix = "[", postfix = "]")})"
+    }
 }

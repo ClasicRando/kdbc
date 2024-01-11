@@ -21,6 +21,8 @@ import com.github.clasicrando.postgresql.message.DescribeTarget
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.decoders.MessageDecoders
 import com.github.clasicrando.postgresql.message.encoders.MessageEncoders
+import com.github.clasicrando.postgresql.notification.PgNotification
+import com.github.clasicrando.postgresql.notification.PgNotificationConnection
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import com.github.clasicrando.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
@@ -55,7 +57,7 @@ class PgConnectionImpl internal constructor(
     private val decoders: MessageDecoders = MessageDecoders(charset),
     override val connectionId: UUID = UUID.generateUUID(),
     override var pool: ConnectionPool? = null,
-) : PgConnection, PoolConnection {
+) : PgNotificationConnection, PoolConnection {
 
     private var isAuthenticated = false
     private var backendKeyData: PgMessage.BackendKeyData? = null
@@ -73,6 +75,7 @@ class PgConnectionImpl internal constructor(
     private val copyOutResponseChannel = Channel<Unit>()
     private val copyDataChannel = Channel<PgMessage.CopyData>(capacity = Channel.BUFFERED)
     private val copyDoneChannel = Channel<Unit>()
+    override val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
     private val copyFailed: AtomicBoolean = atomic(false)
 
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
@@ -132,6 +135,7 @@ class PgConnectionImpl internal constructor(
         when (val message = receiveServerMessage()) {
             is PgMessage.ErrorResponse -> onErrorMessage(message)
             is PgMessage.NoticeResponse -> onNotice(message)
+            is PgMessage.NotificationResponse -> onNotification(message)
             is PgMessage.ParameterStatus -> onParameterStatus(message)
             is PgMessage.ReadyForQuery -> onReadyForQuery(message)
             is PgMessage.BackendKeyData -> onBackendKeyData(message)
@@ -196,6 +200,11 @@ class PgConnectionImpl internal constructor(
             this.message = "Notice, message -> {noticeResponse}"
             payload = mapOf("noticeResponse" to message)
         }
+    }
+
+    private suspend fun onNotification(message: PgMessage.NotificationResponse) {
+        val notification = PgNotification(message.channelName, message.payload)
+        notificationsChannel.send(notification)
     }
 
     private suspend fun onErrorMessage(message: PgMessage.ErrorResponse) {

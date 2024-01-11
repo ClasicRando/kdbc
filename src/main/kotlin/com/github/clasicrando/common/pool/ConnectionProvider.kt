@@ -4,7 +4,7 @@ import com.github.clasicrando.common.connection.Connection
 import kotlinx.coroutines.CoroutineScope
 
 /** Provides the basis for how different database vendors create and validate [Connection]s */
-interface ConnectionFactory {
+interface ConnectionProvider {
     /**
      * Create a new connection for the implementor's database. Uses the [scope] to enable
      * cancelling of the created connection when the parent scope is cancelled.
