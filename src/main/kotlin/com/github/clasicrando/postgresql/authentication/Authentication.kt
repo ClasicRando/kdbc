@@ -7,7 +7,7 @@ package com.github.clasicrando.postgresql.authentication
  *
  * Currently, only Cleartext, MD5 and SASL authentication is supported.
  */
-sealed interface Authentication {
+internal sealed interface Authentication {
     data object Ok : Authentication
 //    data object KerberosV5 : Authentication
     data object CleartextPassword : Authentication

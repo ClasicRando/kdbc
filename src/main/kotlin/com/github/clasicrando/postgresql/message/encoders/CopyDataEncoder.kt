@@ -4,7 +4,7 @@ import com.github.clasicrando.common.message.MessageEncoder
 import com.github.clasicrando.postgresql.message.PgMessage
 import java.nio.ByteBuffer
 
-object CopyDataEncoder : MessageEncoder<PgMessage.CopyData> {
+internal object CopyDataEncoder : MessageEncoder<PgMessage.CopyData> {
     override fun encode(value: PgMessage.CopyData, buffer: ByteBuffer) {
         buffer.putCode(value)
         buffer.putLengthPrefixed {

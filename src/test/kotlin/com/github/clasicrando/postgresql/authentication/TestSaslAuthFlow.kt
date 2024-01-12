@@ -10,7 +10,7 @@ class TestSaslAuthFlow {
     @Test
     @EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
     fun `saslAuthFlow should succeed when valid login`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection(this).use {
+        PgConnectionHelper.defaultConnection().use {
             it.sendQuery("SELECT 1")
         }
     }

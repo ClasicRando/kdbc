@@ -1,8 +1,9 @@
-package com.github.clasicrando.postgresql
+package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.LogSettings
 import com.github.clasicrando.common.SslMode
-import com.github.clasicrando.common.connection.ConnectOptions
+import com.github.clasicrando.common.pool.PoolOptions
+import com.github.clasicrando.postgresql.CertificateInput
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.utils.io.charsets.Charset
 import kotlinx.io.files.Path
@@ -27,7 +28,8 @@ data class PgConnectOptions(
     val socket: Path? = null,
     val currentSchema: String? = null,
     val options: String? = null,
-) : ConnectOptions {
+    val poolOptions: PoolOptions = PoolOptions(maxConnections = 100),
+) {
     val properties: List<Pair<String, String>> = listOf(
         "user" to username,
         "database" to database,
@@ -41,16 +43,33 @@ data class PgConnectOptions(
         value?.let { key to it }
     }
 
-    override fun logStatements(level: Level): ConnectOptions {
+    /**
+     * Return a shallow copy of the current [PgConnectOptions] with the log statement [level]
+     * altered
+     */
+    fun logStatements(level: Level): PgConnectOptions {
         val newLogSettings = logSettings.copy(statementLevel = level)
         return copy(logSettings = newLogSettings)
     }
 
-    override fun logSlowStatements(level: Level, duration: Duration): ConnectOptions {
+    /**
+     * Return a shallow copy of the current [PgConnectOptions] with the new log slow statement
+     * [level] and [duration] altered
+     */
+    fun logSlowStatements(level: Level, duration: Duration): PgConnectOptions {
         val newLogSettings = logSettings.copy(
             slowStatementsLevel = level,
             slowStatementDuration = duration,
         )
         return copy(logSettings = newLogSettings)
+    }
+
+    /**
+     * Return a shallow copy of the current [PgConnectOptions] with both log statement levels set
+     * to [Level.TRACE] and the slow statement duration set to [Duration.INFINITE].
+     */
+    fun disableStatementLogging(): PgConnectOptions {
+        return logStatements(Level.TRACE)
+            .logSlowStatements(Level.TRACE, Duration.INFINITE)
     }
 }

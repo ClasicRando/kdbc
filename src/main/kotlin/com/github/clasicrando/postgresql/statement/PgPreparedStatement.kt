@@ -1,11 +1,11 @@
-package com.github.clasicrando.postgresql
+package com.github.clasicrando.postgresql.statement
 
 import com.github.clasicrando.common.statement.PreparedStatement
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 
-class PgPreparedStatement(
+internal class PgPreparedStatement(
     override val query: String,
     override val statementId: UUID = UUID.generateUUID(),
 ) : PreparedStatement {

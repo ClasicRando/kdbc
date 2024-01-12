@@ -3,7 +3,7 @@ package com.github.clasicrando.postgresql.message
 import com.github.clasicrando.postgresql.copy.CopyFormat
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 
-sealed class PgMessage(val code: Byte) {
+internal sealed class PgMessage(val code: Byte) {
 
     data class Authentication(
         val authentication: com.github.clasicrando.postgresql.authentication.Authentication,

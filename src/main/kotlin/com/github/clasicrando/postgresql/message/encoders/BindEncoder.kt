@@ -6,7 +6,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 import java.nio.ByteBuffer
 
-class BindEncoder(
+internal class BindEncoder(
     private val charset: Charset,
     private val typeRegistry: TypeRegistry,
 ) : MessageEncoder<PgMessage.Bind> {

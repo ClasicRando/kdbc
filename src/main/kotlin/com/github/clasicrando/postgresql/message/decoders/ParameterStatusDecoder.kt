@@ -5,7 +5,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 import io.ktor.utils.io.core.ByteReadPacket
 
-class ParameterStatusDecoder(
+internal class ParameterStatusDecoder(
     private val charset: Charset
 ) : MessageDecoder<PgMessage.ParameterStatus> {
     override fun decode(packet: ByteReadPacket): PgMessage.ParameterStatus {

@@ -9,7 +9,7 @@ import java.nio.ByteBuffer
  * TODO
  * - move out of java.nio.ByteBuffer once Ktor uses a multiplatform option or kotlinx-io matures
  */
-interface MessageEncoder<in T> {
+internal interface MessageEncoder<in T> {
     /** Encode the message [value] of type [T] to the [buffer] supplied */
     fun encode(value: T, buffer: ByteBuffer)
 }

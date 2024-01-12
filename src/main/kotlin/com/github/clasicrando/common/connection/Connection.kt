@@ -1,5 +1,6 @@
 package com.github.clasicrando.common.connection
 
+import com.github.clasicrando.common.pool.ConnectionPool
 import kotlinx.uuid.UUID
 
 /**

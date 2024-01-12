@@ -18,7 +18,7 @@ import com.github.clasicrando.common.column.StringDbType
 import com.github.clasicrando.common.column.TypeRegistry
 import com.github.clasicrando.common.column.UuidDbType
 import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.postgresql.PgConnection
+import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.array.PgArrayType
 import com.github.clasicrando.postgresql.type.PgCompositeDbType
 import com.github.clasicrando.postgresql.type.enumDbType
@@ -30,7 +30,7 @@ private val logger = KotlinLogging.logger {}
 
 private typealias DbTypeDefinition = Pair<DbType, Boolean>
 
-class PgTypeRegistry(
+class PgTypeRegistry internal constructor(
     private val nonStandardTypesByOid: Map<Int, DbTypeDefinition> = Companion.nonStandardTypesByOid.toMap(),
     private val nonStandardTypesByName: Map<String, DbTypeDefinition> = Companion.nonStandardTypesByName.toMap(),
     private val enumTypes: Map<String, DbTypeDefinition> = Companion.enumTypes.toMap(),
@@ -399,7 +399,10 @@ class PgTypeRegistry(
             return oid
         }
 
-        private suspend fun checkEnumDbTypeByName(name: String, connection: PgConnection): Int? {
+        private suspend fun checkEnumDbTypeByName(
+            name: String,
+            connection: PgConnection,
+        ): Int? {
             var schema: String? = null
             var typeName = name
             val schemaQualifierIndex = name.indexOf('.')

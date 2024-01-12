@@ -1,17 +1,19 @@
-package com.github.clasicrando.postgresql
+package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.atomic.AtomicMutableMap
+import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.connectionLogger
 import com.github.clasicrando.common.exceptions.ConnectionNotRunningQuery
 import com.github.clasicrando.common.exceptions.ConnectionRunningQuery
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
 import com.github.clasicrando.common.pool.ConnectionPool
-import com.github.clasicrando.common.pool.PoolConnection
 import com.github.clasicrando.common.result.ArrayDataRow
 import com.github.clasicrando.common.result.MutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.selectLoop
+import com.github.clasicrando.postgresql.GeneralPostgresError
+import com.github.clasicrando.postgresql.statement.PgPreparedStatement
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
 import com.github.clasicrando.postgresql.authentication.simplePasswordAuthFlow
@@ -20,15 +22,14 @@ import com.github.clasicrando.postgresql.message.CloseTarget
 import com.github.clasicrando.postgresql.message.DescribeTarget
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.decoders.MessageDecoders
-import com.github.clasicrando.postgresql.message.encoders.MessageEncoders
+import com.github.clasicrando.postgresql.message.encoders.PgMessageEncoders
 import com.github.clasicrando.postgresql.notification.PgNotification
-import com.github.clasicrando.postgresql.notification.PgNotificationConnection
+import com.github.clasicrando.postgresql.pool.PgPoolManager
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import com.github.clasicrando.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import io.ktor.utils.io.charsets.Charset
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.AtomicRef
 import kotlinx.atomicfu.atomic
@@ -39,6 +40,10 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -47,18 +52,20 @@ import kotlinx.uuid.generateUUID
 
 private val logger = KotlinLogging.logger {}
 
-class PgConnectionImpl internal constructor(
-    internal val configuration: PgConnectOptions,
-    internal val charset: Charset,
+class PgConnection internal constructor(
+    internal val connectOptions: PgConnectOptions,
     private val stream: PgStream,
     private val scope: CoroutineScope,
     private val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
-    private val encoders: MessageEncoders = MessageEncoders(charset, typeRegistry),
-    private val decoders: MessageDecoders = MessageDecoders(charset),
+    private val encoders: PgMessageEncoders = PgMessageEncoders(
+        connectOptions.charset,
+        typeRegistry
+    ),
+    private val decoders: MessageDecoders = MessageDecoders(connectOptions.charset),
     override val connectionId: UUID = UUID.generateUUID(),
-    override var pool: ConnectionPool? = null,
-) : PgNotificationConnection, PoolConnection {
+) : Connection {
 
+    internal var pool: ConnectionPool<PgConnection>? = null
     private var isAuthenticated = false
     private var backendKeyData: PgMessage.BackendKeyData? = null
     private val _inTransaction: AtomicBoolean = atomic(false)
@@ -75,19 +82,20 @@ class PgConnectionImpl internal constructor(
     private val copyOutResponseChannel = Channel<Unit>()
     private val copyDataChannel = Channel<PgMessage.CopyData>(capacity = Channel.BUFFERED)
     private val copyDoneChannel = Channel<Unit>()
-    override val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
+    private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
+    val notifications: ReceiveChannel<PgNotification> get() = notificationsChannel
     private val copyFailed: AtomicBoolean = atomic(false)
 
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
     private val currentPreparedStatement: AtomicRef<PgPreparedStatement?> = atomic(null)
-    
+
     internal fun log(level: Level, block: KLoggingEventBuilder.() -> Unit) {
         logger.connectionLogger(this, level, block)
     }
 
     private val messageProcessorJob = scope.launch {
         var cause: Throwable? = null
-        writeToStream(PgMessage.StartupMessage(params = configuration.properties))
+        writeToStream(PgMessage.StartupMessage(params = connectOptions.properties))
         try {
             handleAuthFlow()
             while (isActive && stream.isActive) {
@@ -174,14 +182,14 @@ class PgConnectionImpl internal constructor(
             }
             Authentication.CleartextPassword -> {
                 isAuthenticated = this.simplePasswordAuthFlow(
-                    configuration.username,
-                    configuration.password ?: error("Password must be provided"),
+                    connectOptions.username,
+                    connectOptions.password ?: error("Password must be provided"),
                 )
             }
             is Authentication.Md5Password -> {
                 isAuthenticated = this.simplePasswordAuthFlow(
-                    configuration.username,
-                    configuration.password ?: error("Password must be provided"),
+                    connectOptions.username,
+                    connectOptions.password ?: error("Password must be provided"),
                     auth.salt,
                 )
             }
@@ -196,7 +204,7 @@ class PgConnectionImpl internal constructor(
     }
 
     private fun onNotice(message: PgMessage.NoticeResponse) {
-        logger.connectionLogger(this, Level.TRACE) { 
+        logger.connectionLogger(this, Level.TRACE) {
             this.message = "Notice, message -> {noticeResponse}"
             payload = mapOf("noticeResponse" to message)
         }
@@ -387,7 +395,7 @@ class PgConnectionImpl internal constructor(
         val fields: Array<Any?> = Array(dataRow.values.size) { i ->
             dataRow.values[i]?.let {
                 val columnType = resultSet.columnMapping[i]
-                typeRegistry.decode(columnType, it, configuration.charset)
+                typeRegistry.decode(columnType, it, connectOptions.charset)
             }
         }
         resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
@@ -444,7 +452,7 @@ class PgConnectionImpl internal constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         setQueryRunning()
-        logger.connectionLogger(this, configuration.logSettings.statementLevel) {
+        logger.connectionLogger(this, connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to query)
         }
@@ -519,8 +527,8 @@ class PgConnectionImpl internal constructor(
                 add(parseMessage)
             }
             val bindMessage = PgMessage.Bind(
-                portal =  statement.statementName,
-                statementName =  statement.statementName,
+                portal = statement.statementName,
+                statementName = statement.statementName,
                 parameters = parameters,
             )
             add(bindMessage)
@@ -543,7 +551,7 @@ class PgConnectionImpl internal constructor(
             add(closePortalMessage)
             add(PgMessage.Sync)
         }
-        logger.connectionLogger(this, configuration.logSettings.statementLevel) {
+        logger.connectionLogger(this, connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to query)
         }
@@ -600,8 +608,10 @@ class PgConnectionImpl internal constructor(
     }
 
     override suspend fun close() {
-        if (pool != null && pool!!.giveBack(this)) {
-            return
+        pool?.let {
+            if (it.giveBack(this)) {
+                return
+            }
         }
         try {
             if (stream.isActive) {
@@ -629,12 +639,12 @@ class PgConnectionImpl internal constructor(
         }
     }
 
-    override suspend fun copyIn(copyInStatement: String, data: Flow<ByteArray>): QueryResult {
+    suspend fun copyIn(copyInStatement: String, data: Flow<ByteArray>): QueryResult {
         checkConnected()
         setQueryRunning()
         validateCopyQuery(copyInStatement)
 
-        logger.connectionLogger(this, configuration.logSettings.statementLevel) {
+        logger.connectionLogger(this, connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyInStatement)
         }
@@ -659,12 +669,12 @@ class PgConnectionImpl internal constructor(
         return QueryResult(commandComplete.rowCount, commandComplete.message)
     }
 
-    override suspend fun copyOut(copyOutStatement: String): ReceiveChannel<ByteArray> {
+    suspend fun copyOut(copyOutStatement: String): ReceiveChannel<ByteArray> {
         checkConnected()
         setQueryRunning()
         validateCopyQuery(copyOutStatement)
 
-        logger.connectionLogger(this, configuration.logSettings.statementLevel) {
+        logger.connectionLogger(this, connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyOutStatement)
         }
@@ -696,19 +706,57 @@ class PgConnectionImpl internal constructor(
         return resultChannel
     }
 
+    suspend fun copyIn(
+        copyInStatement: String,
+        block: suspend FlowCollector<ByteArray>.() -> Unit,
+    ): QueryResult {
+        return copyIn(copyInStatement, flow(block))
+    }
+    suspend fun copyInSequence(
+        copyInStatement: String,
+        data: Sequence<ByteArray>,
+    ): QueryResult {
+        return copyIn(copyInStatement, data.asFlow())
+    }
+    suspend fun copyInSequence(
+        copyInStatement: String,
+        block: suspend SequenceScope<ByteArray>.() -> Unit
+    ): QueryResult {
+        return copyIn(copyInStatement, sequence(block).asFlow())
+    }
+    suspend fun copyOutAsFlow(copyOutStatement: String): Flow<ByteArray> {
+        return copyOut(copyOutStatement).consumeAsFlow()
+    }
+
+    private fun quoteChannelName(channelName: String): String {
+        return channelName.replace("\"", "\"\"")
+    }
+
+    suspend fun listen(channelName: String) {
+        sendQuery("LISTEN \"${quoteChannelName(channelName)}\";")
+    }
+
+    suspend fun notify(channelName: String, payload: String) {
+        val escapedPayload = payload.replace("'", "''")
+        sendQuery("NOTIFY \"${quoteChannelName(channelName)}\", '${escapedPayload}';")
+    }
+
     companion object {
         private val COPY_CHECK_REGEX = Regex("^copy\\s+", RegexOption.IGNORE_CASE)
         private const val STATEMENT_TEMPLATE = "Sending {query}"
 
-        suspend fun connect(
-            configuration: PgConnectOptions,
-            charset: Charset,
+        suspend fun connect(connectOptions: PgConnectOptions): PgConnection {
+            return PgPoolManager.createConnection(connectOptions)
+        }
+
+        internal suspend fun connect(
+            connectOptions: PgConnectOptions,
             stream: PgStream,
             scope: CoroutineScope
-        ): PgConnectionImpl {
-            var connection: PgConnectionImpl? = null
+        ): PgConnection {
+            var connection: PgConnection? = null
             try {
-                connection = PgConnectionImpl(configuration, charset, stream, scope)
+                connection = PgConnection(connectOptions, stream, scope)
                 connection.initialReadyForQuery.await()
                 if (!connection.isConnected) {
                     error("Could not initialize connection")

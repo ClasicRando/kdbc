@@ -5,7 +5,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 import java.nio.ByteBuffer
 
-class QueryEncoder(private val charset: Charset) : MessageEncoder<PgMessage.Query> {
+internal class QueryEncoder(private val charset: Charset) : MessageEncoder<PgMessage.Query> {
     override fun encode(value: PgMessage.Query, buffer: ByteBuffer) {
         buffer.putCode(value)
         buffer.putLengthPrefixed {

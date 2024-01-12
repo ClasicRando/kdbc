@@ -3,7 +3,7 @@ package com.github.clasicrando.postgresql
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 
-object PasswordHelper {
+internal object PasswordHelper {
     private val Lookup = byteArrayOf(
         '0'.code.toByte(),
         '1'.code.toByte(),

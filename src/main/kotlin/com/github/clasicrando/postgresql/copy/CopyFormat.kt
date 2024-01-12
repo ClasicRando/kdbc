@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.copy
 
-enum class CopyFormat {
+internal enum class CopyFormat {
     Text,
     Binary,;
 

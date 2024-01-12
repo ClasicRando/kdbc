@@ -2,7 +2,7 @@ package com.github.clasicrando.postgresql.row
 
 import com.github.clasicrando.common.column.ColumnData
 
-data class PgRowFieldDescription(
+internal data class PgRowFieldDescription(
     val fieldName: String,
     val tableOid: Int,
     val columnAttribute: Short,

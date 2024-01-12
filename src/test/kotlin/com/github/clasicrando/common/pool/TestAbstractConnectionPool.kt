@@ -1,5 +1,7 @@
 package com.github.clasicrando.common.pool
 
+import com.github.clasicrando.common.connection.Connection
+import com.github.clasicrando.common.result.QueryResult
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -24,16 +26,16 @@ import kotlin.time.toDuration
 class TestAbstractConnectionPool {
     @Test
     fun `isExhausted should be true when maxConnections = 0`(): Unit = runBlocking {
-        val factory = mockk<ConnectionProvider>()
+        val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<PoolConnection>(relaxed = true)
+            val connection = mockk<Connection>(relaxed = true)
             every { connection.connectionId } returns connectionId
             connection
         }
         val options = PoolOptions(maxConnections = 0, minConnections = 0)
-        AbstractConnectionPool(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -43,16 +45,16 @@ class TestAbstractConnectionPool {
 
     @Test
     fun `isExhausted should be true when all connections acquired`(): Unit = runBlocking {
-        val factory = mockk<ConnectionProvider>()
+        val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<PoolConnection>(relaxed = true)
+            val connection = mockk<Connection>(relaxed = true)
             every { connection.connectionId } returns connectionId
             connection
         }
         val options = PoolOptions(maxConnections = 1, minConnections = 0)
-        AbstractConnectionPool(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -64,11 +66,11 @@ class TestAbstractConnectionPool {
     @ParameterizedTest
     @ValueSource(ints = [0, 1])
     fun `acquire should return connection`(minConnections: Int): Unit = runBlocking {
-        val factory = mockk<ConnectionProvider>()
+        val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<PoolConnection>(relaxed = true)
+            val connection = mockk<Connection>(relaxed = true)
             every { connection.connectionId } returns connectionId
             connection
         }
@@ -77,7 +79,7 @@ class TestAbstractConnectionPool {
             minConnections = minConnections,
             acquireTimeout = 1.toDuration(DurationUnit.SECONDS),
         )
-        AbstractConnectionPool(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -87,16 +89,16 @@ class TestAbstractConnectionPool {
 
     @Test
     fun `acquire should return connection after suspending when pool exhausted`(): Unit = runBlocking {
-        val factory = mockk<ConnectionProvider>()
+        val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<PoolConnection>(relaxed = true)
+            val connection = mockk<Connection>(relaxed = true)
             every { connection.connectionId } returns connectionId
             connection
         }
         val options = PoolOptions(maxConnections = 1, minConnections = 0)
-        AbstractConnectionPool(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -116,11 +118,11 @@ class TestAbstractConnectionPool {
 
     @Test
     fun `acquire should throw cancellation exception when acquire duration exceeded`(): Unit = runBlocking {
-        val factory = mockk<ConnectionProvider>()
+        val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<PoolConnection>(relaxed = true)
+            val connection = mockk<Connection>(relaxed = true)
             every { connection.connectionId } returns connectionId
             connection
         }
@@ -129,7 +131,7 @@ class TestAbstractConnectionPool {
             minConnections = 0,
             acquireTimeout = 1.toDuration(DurationUnit.SECONDS),
         )
-        AbstractConnectionPool(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -139,11 +141,11 @@ class TestAbstractConnectionPool {
 
     @Test
     fun `giveBack should return connection to pool when returned connection is valid`(): Unit = runBlocking {
-        val factory = mockk<ConnectionProvider>()
+        val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<PoolConnection>(relaxed = true)
+            val connection = mockk<Connection>(relaxed = true)
             every { connection.connectionId } returns connectionId
             connection
         }
@@ -152,11 +154,11 @@ class TestAbstractConnectionPool {
             minConnections = 0,
             acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
         )
-        AbstractConnectionPool(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
-            val acquiredConnection = it.acquire() as PoolConnection
+            val acquiredConnection = it.acquire()
             val result = it.giveBack(acquiredConnection)
 
             assertTrue(result)
@@ -168,11 +170,11 @@ class TestAbstractConnectionPool {
 
     @Test
     fun `giveBack should invalidate connection and request another connection when returned connection is invalid`(): Unit = runBlocking {
-        val factory = mockk<ConnectionProvider>()
+        val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returnsMany (listOf(true, false, true))
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<PoolConnection>(relaxed = true)
+            val connection = mockk<Connection>(relaxed = true)
             every { connection.connectionId } returns connectionId
             connection
         }
@@ -181,11 +183,11 @@ class TestAbstractConnectionPool {
             minConnections = 0,
             acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
         )
-        AbstractConnectionPool(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
-            val acquiredConnection = it.acquire() as PoolConnection
+            val acquiredConnection = it.acquire()
             val result = it.giveBack(acquiredConnection)
             // Give time to invalidate connection
             delay(2_000)
@@ -196,4 +198,38 @@ class TestAbstractConnectionPool {
             assertDoesNotThrow { it.acquire() }
         }
     }
+}
+
+object TestConnectionImpl : Connection {
+    override val isConnected: Boolean = true
+    override val inTransaction: Boolean = false
+    override val connectionId: UUID = UUID.generateUUID()
+    internal var pool: TestConnectionPoolImpl? = null
+
+    override suspend fun close() = Unit
+
+    override suspend fun begin() = Unit
+
+    override suspend fun commit() = Unit
+
+    override suspend fun rollback() = Unit
+
+    override suspend fun releasePreparedStatement(query: String) = Unit
+
+    override suspend fun sendQuery(query: String): QueryResult = QueryResult(0, "")
+
+    override suspend fun sendPreparedStatement(
+        query: String,
+        parameters: List<Any?>,
+        release: Boolean,
+    ): QueryResult = QueryResult(0, "")
+}
+
+internal class TestConnectionPoolImpl(
+    poolOptions: PoolOptions,
+    provider: ConnectionProvider<Connection>,
+) : AbstractConnectionPool<Connection>(poolOptions, provider) {
+    override fun addPoolReferenceToConnection(connection: Connection) = Unit
+
+    override fun removePoolReferenceFromConnection(connection: Connection) = Unit
 }

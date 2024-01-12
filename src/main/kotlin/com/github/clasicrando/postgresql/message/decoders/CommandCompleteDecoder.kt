@@ -5,7 +5,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 import io.ktor.utils.io.core.ByteReadPacket
 
-class CommandCompleteDecoder(
+internal class CommandCompleteDecoder(
     private val charset: Charset,
 ) : MessageDecoder<PgMessage.CommandComplete> {
     override fun decode(packet: ByteReadPacket): PgMessage.CommandComplete {

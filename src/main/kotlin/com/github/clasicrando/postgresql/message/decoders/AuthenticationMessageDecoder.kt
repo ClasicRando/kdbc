@@ -9,7 +9,7 @@ import io.ktor.utils.io.core.ByteReadPacket
 import io.ktor.utils.io.core.readBytes
 import io.ktor.utils.io.core.readInt
 
-class AuthenticationMessageDecoder(
+internal class AuthenticationMessageDecoder(
     private val charset: Charset,
 ) : MessageDecoder<PgMessage.Authentication> {
     override fun decode(packet: ByteReadPacket): PgMessage.Authentication {

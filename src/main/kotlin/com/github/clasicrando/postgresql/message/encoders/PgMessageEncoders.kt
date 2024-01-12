@@ -1,13 +1,13 @@
 package com.github.clasicrando.postgresql.message.encoders
 
-import com.github.clasicrando.common.column.TypeRegistry
 import com.github.clasicrando.common.message.MessageEncoder
+import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 
-class MessageEncoders(
+internal class PgMessageEncoders(
     charset: Charset,
-    typeRegistry: TypeRegistry,
+    typeRegistry: PgTypeRegistry,
 ) {
     private val startupEncoder = StartupEncoder(charset)
     private val saslInitialResponseEncoder = SaslInitialResponseEncoder(charset)

@@ -6,7 +6,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 import java.nio.ByteBuffer
 
-class ParseEncoder(
+internal class ParseEncoder(
     private val charset: Charset,
     private val typeRegistry: TypeRegistry,
 ) : MessageEncoder<PgMessage.Parse> {

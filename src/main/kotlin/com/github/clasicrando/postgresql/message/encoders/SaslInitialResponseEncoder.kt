@@ -5,7 +5,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 import java.nio.ByteBuffer
 
-class SaslInitialResponseEncoder(
+internal class SaslInitialResponseEncoder(
     private val charset: Charset,
 ) : MessageEncoder<PgMessage.SaslInitialResponse> {
     override fun encode(value: PgMessage.SaslInitialResponse, buffer: ByteBuffer) {

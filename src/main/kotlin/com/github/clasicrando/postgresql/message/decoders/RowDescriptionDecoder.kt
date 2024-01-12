@@ -8,7 +8,7 @@ import io.ktor.utils.io.core.ByteReadPacket
 import io.ktor.utils.io.core.readInt
 import io.ktor.utils.io.core.readShort
 
-class RowDescriptionDecoder(
+internal class RowDescriptionDecoder(
     private val charset: Charset,
 ) : MessageDecoder<PgMessage.RowDescription> {
     override fun decode(packet: ByteReadPacket): PgMessage.RowDescription {

@@ -35,12 +35,12 @@ private val logger = KotlinLogging.logger {}
  * - look into an algorithm to close connections after a certain duration stored within the
  * [connections] channel, down to the [PoolOptions.minConnections] threshold
  */
-abstract class AbstractConnectionPool(
+internal abstract class AbstractConnectionPool<C : Connection>(
     private val poolOptions: PoolOptions,
-    private val provider: ConnectionProvider,
-) : ConnectionPool {
-    private val connections = Channel<PoolConnection>(capacity = poolOptions.maxConnections)
-    private val connectionIds: MutableMap<UUID, PoolConnection> = AtomicMutableMap()
+    private val provider: ConnectionProvider<C>,
+) : ConnectionPool<C> {
+    private val connections = Channel<C>(capacity = poolOptions.maxConnections)
+    private val connectionIds: MutableMap<UUID, C> = AtomicMutableMap()
     private val connectionsNeeded = Channel<Unit>(capacity = Channel.BUFFERED)
 
     override val coroutineContext: CoroutineContext
@@ -48,14 +48,16 @@ abstract class AbstractConnectionPool(
             parent = poolOptions.parentScope?.coroutineContext?.job,
         ) + poolOptions.coroutineDispatcher
 
+    abstract fun addPoolReferenceToConnection(connection: C)
+
     /**
-     * Create a new connection using the pool's [provider], set the connection's
-     * [PoolConnection.pool] so it can be returned, add the [Connection.connectionId] to the
-     * [connectionIds] set and send the [PoolConnection] to [connections] channel
+     * Create a new connection using the pool's [provider], set the connection's pool reference,
+     * add the [Connection.connectionId] to the [connectionIds] set and send the [Connection] to
+     * [connections] channel
      */
     private suspend fun addNewConnection() {
-        val connection = provider.create(this@AbstractConnectionPool) as PoolConnection
-        connection.pool = this@AbstractConnectionPool
+        val connection = provider.create(this@AbstractConnectionPool)
+        addPoolReferenceToConnection(connection)
         connectionIds[connection.connectionId] = connection
         connections.send(connection)
     }
@@ -88,13 +90,15 @@ abstract class AbstractConnectionPool(
         }
     }
 
+    abstract fun removePoolReferenceFromConnection(connection: C)
+
     /**
      * Invalidate a [Connection] from the pool by launching a coroutine to move the
-     * [PoolConnection] out of the pool's resources and references. This means, removing the
+     * [Connection] out of the pool's resources and references. This means, removing the
      * [Connection.connectionId] out of the [connectionIds] set, removing the reference to the pool
-     * in the [PoolConnection] and closing the actual [Connection]. This coroutine will never fail.
+     * in the [Connection] and closing the actual [Connection]. This coroutine will never fail.
      */
-    private fun invalidateConnection(connection: PoolConnection) = launch {
+    private fun invalidateConnection(connection: C) = launch {
         var connectionId: UUID? = null
         try {
             connectionId = connection.connectionId
@@ -103,7 +107,7 @@ abstract class AbstractConnectionPool(
                 message = "Invalidating connection id = {id}"
                 payload = mapOf("id" to connectionId)
             }
-            connection.pool = null
+            removePoolReferenceFromConnection(connection)
             connection.close()
             connectionsNeeded.send(Unit)
         } catch (ex: Throwable) {
@@ -115,7 +119,7 @@ abstract class AbstractConnectionPool(
         }
     }
 
-    private suspend fun acquireConnection(): Connection {
+    private suspend fun acquireConnection(): C {
         while (true) {
             val possibleConnection = withTimeoutOrNull(50) {
                 connections.receive()
@@ -131,7 +135,7 @@ abstract class AbstractConnectionPool(
         }
     }
 
-    override suspend fun acquire(): Connection {
+    override suspend fun acquire(): C {
         return withTimeout(poolOptions.acquireTimeout) {
             acquireConnection()
         }
@@ -177,20 +181,19 @@ abstract class AbstractConnectionPool(
         }
     }
 
-    internal fun hasConnection(poolConnection: PoolConnection): Boolean {
+    internal fun hasConnection(poolConnection: C): Boolean {
         return connectionIds.contains(poolConnection.connectionId)
     }
 
-    override suspend fun giveBack(connection: Connection): Boolean {
-        val poolConnection = connection as? PoolConnection ?: return false
+    override suspend fun giveBack(connection: C): Boolean {
         if (!hasConnection(connection)) {
             return false
         }
-        if (!provider.validate(poolConnection)) {
-            invalidateConnection(poolConnection)
+        if (!provider.validate(connection)) {
+            invalidateConnection(connection)
             return true
         }
-        connections.send(poolConnection)
+        connections.send(connection)
         return true
     }
 

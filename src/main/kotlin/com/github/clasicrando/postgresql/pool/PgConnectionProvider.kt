@@ -1,24 +1,23 @@
 package com.github.clasicrando.postgresql.pool
 
-import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.pool.ConnectionProvider
-import com.github.clasicrando.postgresql.PgConnectOptions
-import com.github.clasicrando.postgresql.PgConnection
-import com.github.clasicrando.postgresql.PgConnectionImpl
+import com.github.clasicrando.postgresql.connection.PgConnectOptions
+import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.stream.PgStream
 import kotlinx.coroutines.CoroutineScope
 
-class PgConnectionProvider(private val connectOptions: PgConnectOptions) : ConnectionProvider {
-    override suspend fun create(scope: CoroutineScope): Connection {
+internal class PgConnectionProvider(
+    private val connectOptions: PgConnectOptions,
+) : ConnectionProvider<PgConnection> {
+    override suspend fun create(scope: CoroutineScope): PgConnection {
         var stream: PgStream? = null
         try {
             stream = PgStream.connect(
                 coroutineScope = scope,
                 connectOptions = connectOptions,
             )
-            return PgConnectionImpl.connect(
-                configuration = connectOptions,
-                charset = Charsets.UTF_8,
+            return PgConnection.connect(
+                connectOptions = connectOptions,
                 stream = stream,
                 scope = scope,
             )
@@ -28,8 +27,7 @@ class PgConnectionProvider(private val connectOptions: PgConnectOptions) : Conne
         }
     }
 
-    override suspend fun validate(item: Connection): Boolean {
-        val connection = item as? PgConnection ?: return false
+    override suspend fun validate(connection: PgConnection): Boolean {
         if (connection.isConnected && connection.inTransaction) {
             connection.rollback()
         }

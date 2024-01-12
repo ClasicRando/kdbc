@@ -4,7 +4,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 import java.nio.ByteBuffer
 
-fun ByteBuffer.putCode(message: PgMessage) {
+internal fun ByteBuffer.putCode(message: PgMessage) {
     put(message.code)
 }
 

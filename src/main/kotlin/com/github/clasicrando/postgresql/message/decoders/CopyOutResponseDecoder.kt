@@ -6,7 +6,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.core.ByteReadPacket
 import io.ktor.utils.io.core.readShort
 
-object CopyOutResponseDecoder : MessageDecoder<PgMessage.CopyOutResponse> {
+internal object CopyOutResponseDecoder : MessageDecoder<PgMessage.CopyOutResponse> {
     override fun decode(packet: ByteReadPacket): PgMessage.CopyOutResponse {
         val copyFormat = CopyFormat.fromByte(packet.readByte())
         val columnCount = packet.readShort().toInt()

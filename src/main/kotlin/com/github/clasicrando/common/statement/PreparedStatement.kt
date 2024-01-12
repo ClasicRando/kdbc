@@ -6,7 +6,7 @@ import kotlinx.uuid.UUID
  * Required properties of a statement prepared by the data for repeated execution and supplied
  * parameters
  */
-interface PreparedStatement {
+internal interface PreparedStatement {
     /** Query backing this prepared statement */
     val query: String
     /** Unique identifier for each statement to keep track of a prepared statement cache */

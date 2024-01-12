@@ -1,7 +1,7 @@
 package com.github.clasicrando.postgresql.stream
 
 import com.github.clasicrando.common.SslMode
-import com.github.clasicrando.postgresql.PgConnectOptions
+import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.encoders.SslMessageEncoder
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -21,7 +21,7 @@ import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
 
-class PgStream(
+internal class PgStream(
     private var connection: Connection,
     private var selectorManager: SelectorManager,
 ): AutoCloseable {

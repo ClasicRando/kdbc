@@ -1,7 +1,7 @@
 package com.github.clasicrando.postgresql.array
 
 /** Parser of Postgresql array literal string */
-object ArrayLiteralParser {
+internal object ArrayLiteralParser {
     /**
      * Parse the provided [literal] into a [Sequence] of [String] chunks that represent each value
      * in the array

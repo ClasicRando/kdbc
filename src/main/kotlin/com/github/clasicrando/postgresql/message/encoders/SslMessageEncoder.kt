@@ -4,7 +4,7 @@ import com.github.clasicrando.common.message.MessageEncoder
 import com.github.clasicrando.postgresql.message.PgMessage
 import java.nio.ByteBuffer
 
-object SslMessageEncoder : MessageEncoder<PgMessage.SslRequest> {
+internal object SslMessageEncoder : MessageEncoder<PgMessage.SslRequest> {
     override fun encode(value: PgMessage.SslRequest, buffer: ByteBuffer) {
         buffer.putLengthPrefixed {
             putShort(1234)

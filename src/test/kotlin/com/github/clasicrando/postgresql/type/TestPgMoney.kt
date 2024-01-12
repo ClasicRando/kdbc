@@ -76,7 +76,7 @@ class TestPgMoney {
     @Test
     @EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
     fun `PgMoney should construct when executing query returning a money field`() = runBlocking {
-        PgConnectionHelper.defaultConnection(this).use {
+        PgConnectionHelper.defaultConnection().use {
             val result = it.sendQuery("SELECT 71.68::money")
             assertEquals(1, result.rowsAffected)
             val firstRow = result.rows.firstOrNull()

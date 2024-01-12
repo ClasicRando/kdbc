@@ -7,7 +7,7 @@ import io.ktor.utils.io.core.readBytes
 import io.ktor.utils.io.core.readInt
 import io.ktor.utils.io.core.readShort
 
-object DataRowDecoder : MessageDecoder<PgMessage.DataRow> {
+internal object DataRowDecoder : MessageDecoder<PgMessage.DataRow> {
     override fun decode(packet: ByteReadPacket): PgMessage.DataRow {
         val columnCount = packet.readShort()
         val row = Array(columnCount.toInt()) {

@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.message
 
-enum class CloseTarget(val code: Byte) {
+internal enum class CloseTarget(val code: Byte) {
     PreparedStatement('S'.code.toByte()),
     Portal('P'.code.toByte()),;
 

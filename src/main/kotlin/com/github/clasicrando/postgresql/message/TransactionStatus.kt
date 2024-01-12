@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.message
 
-enum class TransactionStatus(val code: Byte) {
+internal enum class TransactionStatus(val code: Byte) {
     Idle('I'.code.toByte()),
     InTransaction('T'.code.toByte()),
     FailedTransaction('E'.code.toByte()),;
