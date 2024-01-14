@@ -24,22 +24,3 @@ interface Executor {
         parameters: List<Any?>,
     ): Iterable<QueryResult> = sendPreparedStatementFlow(query, parameters).toList()
 }
-
-/** Run [Executor.sendQueryFlow] wrapped in a [runCatching] block */
-internal suspend inline fun Executor.sendQueryFlowCatching(
-    query: String,
-): Result<Flow<QueryResult>> {
-    return runCatching {
-        sendQueryFlow(query)
-    }
-}
-
-/** Run [Executor.sendPreparedStatementFlow] wrapped in a [runCatching] block */
-internal suspend inline fun Executor.sendPreparedStatementCatching(
-    query: String,
-    parameters: List<Any?>,
-): Result<Flow<QueryResult>> {
-    return runCatching {
-        sendPreparedStatementFlow(query, parameters)
-    }
-}

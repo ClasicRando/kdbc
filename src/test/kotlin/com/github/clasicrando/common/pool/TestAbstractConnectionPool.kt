@@ -202,30 +202,6 @@ class TestAbstractConnectionPool {
     }
 }
 
-object TestConnectionImpl : Connection {
-    override val isConnected: Boolean = true
-    override val inTransaction: Boolean = false
-    override val connectionId: UUID = UUID.generateUUID()
-    internal var pool: TestConnectionPoolImpl? = null
-
-    override suspend fun close() = Unit
-
-    override suspend fun begin() = Unit
-
-    override suspend fun commit() = Unit
-
-    override suspend fun rollback() = Unit
-
-    override suspend fun releasePreparedStatement(query: String) = Unit
-
-    override suspend fun sendQueryFlow(query: String): Flow<QueryResult> = emptyFlow()
-
-    override suspend fun sendPreparedStatementFlow(
-        query: String,
-        parameters: List<Any?>,
-    ): Flow<QueryResult> = emptyFlow()
-}
-
 internal class TestConnectionPoolImpl(
     poolOptions: PoolOptions,
     provider: ConnectionProvider<Connection>,
