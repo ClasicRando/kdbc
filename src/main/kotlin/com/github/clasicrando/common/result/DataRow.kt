@@ -179,3 +179,15 @@ fun DataRow.getDateTime(index: Int): DateTime? = getAs(index)
  * [DateTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
  */
 fun DataRow.getDateTime(column: String): DateTime? = getAs(column)
+
+/**
+ * Get the value stored within the field at the [index] specified, performing a non-safe cast to
+ * [String]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ */
+fun DataRow.getString(index: Int): String? = getAs(index)
+
+/**
+ * Get the value stored within the field of [column] specified, performing a non-safe cast to
+ * [String]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ */
+fun DataRow.getString(column: String): String? = getAs(column)

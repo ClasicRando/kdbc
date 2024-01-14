@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.connection.use
-import com.github.clasicrando.common.result.getAs
 import com.github.clasicrando.common.result.getInt
 import com.github.clasicrando.common.result.getString
 import com.github.clasicrando.postgresql.PgConnectionHelper
@@ -10,7 +9,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestSimpleQuerySpec {
+class TestExtendedQuerySpec {
     @BeforeTest
     fun setup(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
@@ -19,9 +18,9 @@ class TestSimpleQuerySpec {
     }
 
     @Test
-    fun `sendQuery should return 1 result when regular query`(): Unit = runBlocking {
+    fun `sendPreparedStatement should return 1 result when regular query`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
-            val result = it.sendQuery(QUERY_SERIES).toList()
+            val result = it.sendPreparedStatement(QUERY_SERIES, listOf(1, 10)).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(10, queryResult.rowsAffected)
@@ -38,55 +37,39 @@ class TestSimpleQuerySpec {
     @Test
     fun `sendQuery should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
-            val result = it.sendQuery("CALL public.test_proc(null, null)").toList()
+            val param1 = 2
+            val param2 = "start"
+            val params = listOf<Any?>(param1, param2)
+            val result = it.sendPreparedStatement(
+                "CALL public.test_proc_ext($1::int, $2::text)",
+                params,
+            ).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(0, queryResult.rowsAffected)
             val rows = queryResult.rows.toList()
             assertEquals(1, rows.size)
-            assertEquals(4, rows[0].getInt(0))
-            assertEquals("This is a test", rows[0].getString(1))
-        }
-    }
-
-    @Test
-    fun `sendQuery should return multiple results when multiple statements`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use { connection ->
-            val queries = """
-                CALL public.test_proc(null, null);
-                SELECT 1 test_i;
-            """.trimIndent()
-            var resultCount = 0
-            connection.sendQueryFlow(queries).collect {
-                resultCount++
-                if (resultCount == 1) {
-                    assertEquals(0, it.rowsAffected)
-                    assertEquals(4, it.rows.firstOrNull()?.getInt(0))
-                } else {
-                    assertEquals(1, it.rowsAffected)
-                    assertEquals(1, it.rows.firstOrNull()?.getInt("test_i"))
-                }
-            }
-            assertEquals(2, resultCount)
+            assertEquals(param1 + 1, rows[0].getInt(0))
+            assertEquals("$param2,${param1 + 1}", rows[0].getString(1))
         }
     }
 
     companion object {
         const val TEST_PROC = """
-            DROP PROCEDURE IF EXISTS public.test_proc;
-            CREATE PROCEDURE public.test_proc(out int, out text)
+            DROP PROCEDURE IF EXISTS public.test_proc_ext;
+            CREATE PROCEDURE public.test_proc_ext(in out int, in out text)
             LANGUAGE plpgsql
             AS $$
             BEGIN
-                $1 := 4;
-                $2 := 'This is a test';
+                $1 := COALESCE($1,0) + 1;
+                $2 := LTRIM($2 || ',' || $1, ',');
             END;
             $$;
         """
 
         const val QUERY_SERIES = """
             SELECT s.s, 'Regular Query' t
-            FROM generate_series(1, 10) s
+            FROM generate_series($1::int, $2::int) s
         """
     }
 }

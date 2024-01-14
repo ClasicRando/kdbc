@@ -273,7 +273,6 @@ class PgConnection internal constructor(
             payload = mapOf("dec" to message)
         }
         rowDescriptionChannel.send(message.fields)
-        currentPreparedStatement.value?.metadata = message.fields
     }
 
     private suspend fun onDataRow(message: PgMessage.DataRow) {
@@ -459,6 +458,9 @@ class PgConnection internal constructor(
         var result = initialResultSet ?: MutableResultSet(listOf())
         selectLoop {
             rowDescriptionChannel.onReceive {
+                currentPreparedStatement.value?.let { statement ->
+                    statement.metadata = it
+                }
                 result = MutableResultSet(it)
                 Loop.Continue
             }

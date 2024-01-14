@@ -8,7 +8,6 @@ import com.github.clasicrando.common.column.ColumnData
  * therefore backed by a [MutableList] with a [columnMapping] [List] to provide column metadata.
  */
 internal class MutableResultSet(internal val columnMapping: List<ColumnData>) : ResultSet {
-    private var rowIndex = 0
     private val backingList = mutableListOf<DataRow>()
 
     /** [Map] of column name to column index. Used within other internal classes */
@@ -31,11 +30,5 @@ internal class MutableResultSet(internal val columnMapping: List<ColumnData>) : 
         return columnMapping[index]
     }
 
-    override fun hasNext(): Boolean = rowIndex < backingList.size
-
-    override fun next(): DataRow {
-        val temp = backingList[rowIndex]
-        rowIndex++
-        return temp
-    }
+    override fun iterator(): Iterator<DataRow> = backingList.iterator()
 }
