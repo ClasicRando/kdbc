@@ -405,7 +405,7 @@ class PgConnection internal constructor(
 
     override suspend fun begin() {
         try {
-            sendQueryFlow("BEGIN;")
+            sendQuery("BEGIN;")
             if (_inTransaction.compareAndSet(expect = false, update = true)) {
                 throw UnexpectedTransactionState(inTransaction = true)
             }
@@ -426,7 +426,7 @@ class PgConnection internal constructor(
 
     override suspend fun commit() {
         try {
-            sendQueryFlow("COMMIT;")
+            sendQuery("COMMIT;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
                 logger.connectionLogger(this, Level.ERROR) {
@@ -438,7 +438,7 @@ class PgConnection internal constructor(
 
     override suspend fun rollback() {
         try {
-            sendQueryFlow("ROLLBACK;")
+            sendQuery("ROLLBACK;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
                 logger.connectionLogger(this, Level.ERROR) {
@@ -717,12 +717,12 @@ class PgConnection internal constructor(
     }
 
     suspend fun listen(channelName: String) {
-        sendQueryFlow("LISTEN \"${quoteChannelName(channelName)}\";")
+        sendQuery("LISTEN \"${quoteChannelName(channelName)}\";")
     }
 
     suspend fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
-        sendQueryFlow("NOTIFY \"${quoteChannelName(channelName)}\", '${escapedPayload}';")
+        sendQuery("NOTIFY \"${quoteChannelName(channelName)}\", '${escapedPayload}';")
     }
 
     companion object {
