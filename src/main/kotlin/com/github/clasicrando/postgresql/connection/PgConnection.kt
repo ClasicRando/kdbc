@@ -405,7 +405,7 @@ class PgConnection internal constructor(
 
     override suspend fun begin() {
         try {
-            sendQuery("BEGIN;")
+            sendQueryFlow("BEGIN;")
             if (_inTransaction.compareAndSet(expect = false, update = true)) {
                 throw UnexpectedTransactionState(inTransaction = true)
             }
@@ -426,7 +426,7 @@ class PgConnection internal constructor(
 
     override suspend fun commit() {
         try {
-            sendQuery("COMMIT;")
+            sendQueryFlow("COMMIT;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
                 logger.connectionLogger(this, Level.ERROR) {
@@ -438,7 +438,7 @@ class PgConnection internal constructor(
 
     override suspend fun rollback() {
         try {
-            sendQuery("ROLLBACK;")
+            sendQueryFlow("ROLLBACK;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
                 logger.connectionLogger(this, Level.ERROR) {
@@ -448,52 +448,54 @@ class PgConnection internal constructor(
         }
     }
 
-    override suspend fun sendQuery(query: String): QueryResult {
-        require(query.isNotBlank()) { "Cannot send an empty query" }
-        checkConnected()
-        setQueryRunning()
-        logger.connectionLogger(this, connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to query)
+    private suspend fun collectResults(
+        resultCount: UInt,
+        initialResultSet: MutableResultSet? = null,
+    ): Flow<QueryResult> = flow {
+        if (resultCount == 0u) {
+            return@flow
         }
-        writeToStream(PgMessage.Query(query))
 
-        var result = MutableResultSet(listOf())
-        var commandComplete: PgMessage.CommandComplete? = null
+        var result = initialResultSet ?: MutableResultSet(listOf())
         selectLoop {
             rowDescriptionChannel.onReceive {
                 result = MutableResultSet(it)
                 Loop.Continue
             }
-            dataRowChannel.onReceive { dataRow ->
-                addDataRow(result, dataRow)
+            dataRowChannel.onReceive {
+                addDataRow(result, it)
                 Loop.Continue
             }
             commandCompleteChannel.onReceive {
-                commandComplete = it
+                emit(QueryResult(it.rowCount, it.message, result))
                 Loop.Continue
             }
             queryDoneChannel.onReceive {
                 Loop.Break
             }
         }
-
-        checkNotNull(commandComplete) {
-            "Command complete message must exist before existing query. Something went really wrong"
-        }
-
-        return QueryResult(
-            rowsAffected = commandComplete!!.rowCount,
-            message = commandComplete!!.message,
-            rows = result,
-        )
     }
 
-    override suspend fun sendPreparedStatement(
+    override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
+        require(query.isNotBlank()) { "Cannot send an empty query" }
+        checkConnected()
+        setQueryRunning()
+        logger.connectionLogger(
+            this@PgConnection,
+            connectOptions.logSettings.statementLevel,
+        ) {
+            message = STATEMENT_TEMPLATE
+            payload = mapOf("query" to query)
+        }
+        writeToStream(PgMessage.Query(query))
+
+        return collectResults(resultCount = 1u)
+    }
+
+    override suspend fun sendPreparedStatementFlow(
         query: String,
         parameters: List<Any?>,
-        release: Boolean,
-    ): QueryResult {
+    ): Flow<QueryResult> {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         setQueryRunning()
@@ -514,7 +516,6 @@ class PgConnection internal constructor(
         }
 
         currentPreparedStatement.value = statement
-        var result = MutableResultSet(statement.metadata)
 
         val messages = buildList {
             if (!statement.prepared) {
@@ -551,39 +552,19 @@ class PgConnection internal constructor(
             add(closePortalMessage)
             add(PgMessage.Sync)
         }
-        logger.connectionLogger(this, connectOptions.logSettings.statementLevel) {
+        logger.connectionLogger(
+            this@PgConnection,
+            connectOptions.logSettings.statementLevel,
+        ) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to query)
         }
         writeManyToStream(messages)
 
-        var commandComplete: PgMessage.CommandComplete? = null
-        selectLoop {
-            rowDescriptionChannel.onReceive {
-                result = MutableResultSet(it)
-                Loop.Continue
-            }
-            dataRowChannel.onReceive {
-                addDataRow(result, it)
-                Loop.Continue
-            }
-            commandCompleteChannel.onReceive {
-                commandComplete = it
-                Loop.Continue
-            }
-            queryDoneChannel.onReceive {
-                Loop.Break
-            }
-        }
-
-        if (release) {
-            releasePreparedStatement(query)
-        }
-        checkNotNull(commandComplete) {
-            "Command complete message must exist before existing query. Something went really wrong"
-        }
-
-        return QueryResult(commandComplete!!.rowCount, commandComplete!!.message, result)
+        return collectResults(
+            resultCount = 1u,
+            initialResultSet = MutableResultSet(statement.metadata),
+        )
     }
 
     override suspend fun releasePreparedStatement(query: String) {
@@ -712,18 +693,21 @@ class PgConnection internal constructor(
     ): QueryResult {
         return copyIn(copyInStatement, flow(block))
     }
+
     suspend fun copyInSequence(
         copyInStatement: String,
         data: Sequence<ByteArray>,
     ): QueryResult {
         return copyIn(copyInStatement, data.asFlow())
     }
+
     suspend fun copyInSequence(
         copyInStatement: String,
         block: suspend SequenceScope<ByteArray>.() -> Unit
     ): QueryResult {
         return copyIn(copyInStatement, sequence(block).asFlow())
     }
+
     suspend fun copyOutAsFlow(copyOutStatement: String): Flow<ByteArray> {
         return copyOut(copyOutStatement).consumeAsFlow()
     }
@@ -733,12 +717,12 @@ class PgConnection internal constructor(
     }
 
     suspend fun listen(channelName: String) {
-        sendQuery("LISTEN \"${quoteChannelName(channelName)}\";")
+        sendQueryFlow("LISTEN \"${quoteChannelName(channelName)}\";")
     }
 
     suspend fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
-        sendQuery("NOTIFY \"${quoteChannelName(channelName)}\", '${escapedPayload}';")
+        sendQueryFlow("NOTIFY \"${quoteChannelName(channelName)}\", '${escapedPayload}';")
     }
 
     companion object {

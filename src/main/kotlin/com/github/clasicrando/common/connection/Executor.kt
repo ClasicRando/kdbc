@@ -1,6 +1,8 @@
 package com.github.clasicrando.common.connection
 
 import com.github.clasicrando.common.result.QueryResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.toList
 
 /**
  * Query [Executor] for all database connection like objects. This provides the basis for any
@@ -10,33 +12,34 @@ import com.github.clasicrando.common.result.QueryResult
  */
 interface Executor {
     /** Send a raw query with no parameters, returning a [QueryResult] */
-    suspend fun sendQuery(query: String): QueryResult
-    /**
-     * Send a prepared statement with [parameters], returning a [QueryResult]. If you do not think
-     * you will need to use the statement again you can specify true for [release] to force the
-     * database to release the prepared statement on the server side.
-     */
+    suspend fun sendQueryFlow(query: String): Flow<QueryResult>
+    suspend fun sendQuery(query: String): Iterable<QueryResult> = sendQueryFlow(query).toList()
+    /** Send a prepared statement with [parameters], returning a [QueryResult]. */
+    suspend fun sendPreparedStatementFlow(
+        query: String,
+        parameters: List<Any?>,
+    ): Flow<QueryResult>
     suspend fun sendPreparedStatement(
         query: String,
         parameters: List<Any?>,
-        release: Boolean = false,
-    ): QueryResult
+    ): Iterable<QueryResult> = sendPreparedStatementFlow(query, parameters).toList()
 }
 
-/** Run [Executor.sendQuery] wrapped in a [runCatching] block */
-suspend fun Executor.sendQueryCatching(query: String): Result<QueryResult> {
+/** Run [Executor.sendQueryFlow] wrapped in a [runCatching] block */
+internal suspend inline fun Executor.sendQueryFlowCatching(
+    query: String,
+): Result<Flow<QueryResult>> {
     return runCatching {
-        sendQuery(query)
+        sendQueryFlow(query)
     }
 }
 
-/** Run [Executor.sendPreparedStatement] wrapped in a [runCatching] block */
-suspend fun Executor.sendPreparedStatementCatching(
+/** Run [Executor.sendPreparedStatementFlow] wrapped in a [runCatching] block */
+internal suspend inline fun Executor.sendPreparedStatementCatching(
     query: String,
     parameters: List<Any?>,
-    release: Boolean = false,
-): Result<QueryResult> {
+): Result<Flow<QueryResult>> {
     return runCatching {
-        sendPreparedStatement(query, parameters, release)
+        sendPreparedStatementFlow(query, parameters)
     }
 }

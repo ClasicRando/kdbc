@@ -7,6 +7,8 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -216,13 +218,12 @@ object TestConnectionImpl : Connection {
 
     override suspend fun releasePreparedStatement(query: String) = Unit
 
-    override suspend fun sendQuery(query: String): QueryResult = QueryResult(0, "")
+    override suspend fun sendQueryFlow(query: String): Flow<QueryResult> = emptyFlow()
 
-    override suspend fun sendPreparedStatement(
+    override suspend fun sendPreparedStatementFlow(
         query: String,
         parameters: List<Any?>,
-        release: Boolean,
-    ): QueryResult = QueryResult(0, "")
+    ): Flow<QueryResult> = emptyFlow()
 }
 
 internal class TestConnectionPoolImpl(

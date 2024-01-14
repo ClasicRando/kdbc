@@ -353,6 +353,8 @@ class PgTypeRegistry internal constructor(
 
         private suspend fun checkDbTypeByOid(oid: Int, connection: PgConnection): Int? {
             val result = connection.sendPreparedStatement(pgTypeByOid, listOf(oid))
+                .firstOrNull()
+                ?: error("Found no results when executing a check for db type by oid")
             if (result.rowsAffected == 0L) {
                 logger.atWarn {
                     message = "Could not find type for oid = {oid}"
@@ -365,6 +367,8 @@ class PgTypeRegistry internal constructor(
 
         private suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgConnection): Int? {
             val result = connection.sendPreparedStatement(pgArrayTypeByInnerOid, listOf(oid))
+                .firstOrNull()
+                ?: error("Found no results when executing a check for array db type by oid")
             if (result.rowsAffected == 0L) {
                 logger.atWarn {
                     message = "Could not find array type for oid = {oid}"
@@ -387,7 +391,7 @@ class PgTypeRegistry internal constructor(
             val result = connection.sendPreparedStatement(
                 pgTypeByName,
                 listOf(typeName, schema),
-            )
+            ).firstOrNull() ?: error("Found no results when executing a check for db type by name")
             val oid = result.rows.firstOrNull()?.getInt(0)
             if (oid == null) {
                 logger.atWarn {
@@ -411,10 +415,10 @@ class PgTypeRegistry internal constructor(
                 typeName = name.substring(schemaQualifierIndex + 1)
             }
 
-            val result = connection.sendPreparedStatement(
-                pgEnumTypeByName,
-                listOf(typeName, schema),
-            )
+            val parameters = listOf(typeName, schema)
+            val result = connection.sendPreparedStatement(pgEnumTypeByName, parameters)
+                .firstOrNull()
+                ?: error("Found no results when executing a check for enum db type by name")
             val oid = result.rows.firstOrNull()?.getInt(0)
             if (oid == null) {
                 logger.atWarn {
@@ -438,10 +442,10 @@ class PgTypeRegistry internal constructor(
                 typeName = name.substring(schemaQualifierIndex + 1)
             }
 
-            val result = connection.sendPreparedStatement(
-                pgCompositeTypeByName,
-                listOf(typeName, schema),
-            )
+            val parameters = listOf(typeName, schema)
+            val result = connection.sendPreparedStatement(pgCompositeTypeByName, parameters)
+                .firstOrNull()
+                ?: error("Found no results when executing a check for composite db type by name")
             val oid = result.rows.firstOrNull()?.getInt(0)
             if (oid == null) {
                 logger.atWarn {

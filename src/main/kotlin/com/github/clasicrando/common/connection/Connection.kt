@@ -1,6 +1,5 @@
 package com.github.clasicrando.common.connection
 
-import com.github.clasicrando.common.pool.ConnectionPool
 import kotlinx.uuid.UUID
 
 /**
@@ -64,7 +63,7 @@ interface Connection : Executor {
      * query is not attached to a prepared statement.
      *
      * Only call this method if you are sure you need it. Instead, use the `release` parameter in
-     * a call of [Executor.sendPreparedStatement] to release a prepared statement immediately after
+     * a call of [Executor.sendPreparedStatementFlow] to release a prepared statement immediately after
      * the query result finishes.
      */
     suspend fun releasePreparedStatement(query: String)

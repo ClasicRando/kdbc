@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -143,11 +144,11 @@ internal abstract class AbstractConnectionPool<C : Connection>(
 
     override val isExhausted: Boolean get() = connectionIds.size == poolOptions.maxConnections
 
-    override suspend fun sendQuery(query: String): QueryResult {
+    override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
         var connection: Connection? = null
         return try {
             connection = acquire()
-            connection.sendQuery(query)
+            connection.sendQueryFlow(query)
         } catch (ex: Throwable) {
             logger.atError {
                 cause = ex
@@ -160,15 +161,14 @@ internal abstract class AbstractConnectionPool<C : Connection>(
         }
     }
 
-    override suspend fun sendPreparedStatement(
+    override suspend fun sendPreparedStatementFlow(
         query: String,
         parameters: List<Any?>,
-        release: Boolean,
-    ): QueryResult {
+    ): Flow<QueryResult> {
         var connection: Connection? = null
         return try {
             connection = acquire()
-            connection.sendPreparedStatement(query, parameters)
+            connection.sendPreparedStatementFlow(query, parameters)
         } catch (ex: Throwable) {
             logger.atError {
                 cause = ex
