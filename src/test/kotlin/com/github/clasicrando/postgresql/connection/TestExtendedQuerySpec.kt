@@ -35,7 +35,7 @@ class TestExtendedQuerySpec {
     }
 
     @Test
-    fun `sendQuery should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
+    fun `sendPreparedStatement should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
             val param1 = 2
             val param2 = "start"

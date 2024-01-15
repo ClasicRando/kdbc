@@ -31,7 +31,6 @@ import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
-import kotlinx.atomicfu.AtomicRef
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -72,6 +71,7 @@ class PgConnection internal constructor(
     override val inTransaction: Boolean get() = _inTransaction.value
 
     private val queryRunning: AtomicBoolean = atomic(true)
+    private val pipelineRunning: AtomicBoolean = atomic(false)
     private val rowDescriptionChannel = Channel<List<PgRowFieldDescription>>()
     private val dataRowChannel = Channel<PgMessage.DataRow>(capacity = Channel.BUFFERED)
     private val commandCompleteChannel = Channel<PgMessage.CommandComplete>()
@@ -87,7 +87,6 @@ class PgConnection internal constructor(
     private val copyFailed: AtomicBoolean = atomic(false)
 
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
-    private val currentPreparedStatement: AtomicRef<PgPreparedStatement?> = atomic(null)
 
     internal fun log(level: Level, block: KLoggingEventBuilder.() -> Unit) {
         logger.connectionLogger(this, level, block)
@@ -375,7 +374,25 @@ class PgConnection internal constructor(
         }
     }
 
+    private fun resetPipelineRunning() {
+        if (!pipelineRunning.compareAndSet(expect = true, update = false)) {
+            throw ConnectionNotRunningQuery(connectionId)
+        }
+    }
+
+    private fun setPipelineRunning() {
+        if (!pipelineRunning.compareAndSet(expect = false, update = true)) {
+            logger.connectionLogger(this, Level.TRACE) {
+                this.message = "Pipeline running already set to true"
+            }
+            throw ConnectionRunningQuery(connectionId)
+        }
+    }
+
     private fun resetQueryRunning() {
+        if (pipelineRunning.value) {
+            return
+        }
         if (!queryRunning.compareAndSet(expect = true, update = false)) {
             throw ConnectionNotRunningQuery(connectionId)
         }
@@ -448,35 +465,39 @@ class PgConnection internal constructor(
     }
 
     private suspend fun collectResults(
-        resultCount: UInt,
-        initialResultSet: MutableResultSet? = null,
+        statements: Array<PgPreparedStatement?> = emptyArray(),
     ): Flow<QueryResult> = flow {
-        if (resultCount == 0u) {
-            return@flow
-        }
-
-        var result = initialResultSet ?: MutableResultSet(listOf())
-        selectLoop {
-            rowDescriptionChannel.onReceive {
-                currentPreparedStatement.value?.let { statement ->
-                    statement.metadata = it
+        val isPipeline = statements.size > 1
+        for ((i, preparedStatement) in statements.withIndex()) {
+            var result = MutableResultSet(preparedStatement?.metadata ?: listOf())
+            selectLoop {
+                rowDescriptionChannel.onReceive {
+                    preparedStatement?.metadata = it
+                    result = MutableResultSet(it)
+                    Loop.Continue
                 }
-                result = MutableResultSet(it)
-                Loop.Continue
-            }
-            dataRowChannel.onReceive {
-                addDataRow(result, it)
-                Loop.Continue
-            }
-            commandCompleteChannel.onReceive {
-                emit(QueryResult(it.rowCount, it.message, result))
-                Loop.Continue
-            }
-            queryDoneChannel.onReceive {
-                Loop.Break
+                dataRowChannel.onReceive {
+                    addDataRow(result, it)
+                    Loop.Continue
+                }
+                commandCompleteChannel.onReceive {
+                    emit(QueryResult(it.rowCount, it.message, result))
+                    Loop.Continue
+                }
+                queryDoneChannel.onReceive {
+                    if (isPipeline && i == statements.size - 1) {
+                        resetPipelineRunning()
+                        resetQueryRunning()
+                    }
+                    Loop.Break
+                }
             }
         }
     }
+
+    private suspend inline fun collectResult(
+        statement: PgPreparedStatement? = null,
+    ): Flow<QueryResult> = collectResults(arrayOf(statement))
 
     override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
         require(query.isNotBlank()) { "Cannot send an empty query" }
@@ -491,17 +512,14 @@ class PgConnection internal constructor(
         }
         writeToStream(PgMessage.Query(query))
 
-        return collectResults(resultCount = 1u)
+        return collectResult()
     }
 
-    override suspend fun sendPreparedStatementFlow(
+    private suspend fun sendPreparedStatementMessage(
         query: String,
         parameters: List<Any?>,
-    ): Flow<QueryResult> {
-        require(query.isNotBlank()) { "Cannot send an empty query" }
-        checkConnected()
-        setQueryRunning()
-
+        isAutoCommit: Boolean = true,
+    ): PgPreparedStatement {
         val statement = preparedStatements.getOrPut(query) {
             PgPreparedStatement(query)
         }
@@ -516,8 +534,6 @@ class PgConnection internal constructor(
             Expected ${statement.paramCount}, got ${parameters.size}
             """.trimIndent()
         }
-
-        currentPreparedStatement.value = statement
 
         val messages = buildList {
             if (!statement.prepared) {
@@ -552,7 +568,9 @@ class PgConnection internal constructor(
                 targetName = statement.statementName,
             )
             add(closePortalMessage)
-            add(PgMessage.Sync)
+            if (isAutoCommit) {
+                add(PgMessage.Sync)
+            }
         }
         logger.connectionLogger(
             this@PgConnection,
@@ -562,11 +580,18 @@ class PgConnection internal constructor(
             payload = mapOf("query" to query)
         }
         writeManyToStream(messages)
+        return statement
+    }
 
-        return collectResults(
-            resultCount = 1u,
-            initialResultSet = MutableResultSet(statement.metadata),
-        )
+    override suspend fun sendPreparedStatementFlow(
+        query: String,
+        parameters: List<Any?>,
+    ): Flow<QueryResult> {
+        require(query.isNotBlank()) { "Cannot send an empty query" }
+        checkConnected()
+        setQueryRunning()
+        val statement = sendPreparedStatementMessage(query, parameters)
+        return collectResult(statement = statement)
     }
 
     override suspend fun releasePreparedStatement(query: String) {
@@ -614,6 +639,23 @@ class PgConnection internal constructor(
         if (messageProcessorJob.isActive) {
             messageProcessorJob.cancelAndJoin()
         }
+    }
+
+    suspend fun pipelineQueries(vararg queries: Pair<String, List<Any?>>): Flow<QueryResult> {
+        return pipelineQueries(queries = queries)
+    }
+
+    suspend fun pipelineQueries(
+        isAutoCommit: Boolean = true,
+        queries: Array<out Pair<String, List<Any?>>>,
+    ): Flow<QueryResult> {
+        setQueryRunning()
+        setPipelineRunning()
+        val statements = Array<PgPreparedStatement?>(queries.size) { i ->
+            val (queryText, queryParams) = queries[i]
+            sendPreparedStatementMessage(queryText, queryParams, isAutoCommit)
+        }
+        return collectResults(statements)
     }
 
     private fun validateCopyQuery(copyStatement: String) {
