@@ -144,43 +144,6 @@ internal abstract class AbstractConnectionPool<C : Connection>(
 
     override val isExhausted: Boolean get() = connectionIds.size == poolOptions.maxConnections
 
-    override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
-        var connection: Connection? = null
-        return try {
-            connection = acquire()
-            connection.sendQueryFlow(query)
-        } catch (ex: Throwable) {
-            logger.atError {
-                cause = ex
-                message = "Error sending raw query, {connectionId}"
-                payload = connection?.connectionId?.let { mapOf("connectionId" to it) }
-            }
-            throw ex
-        } finally {
-            connection?.close()
-        }
-    }
-
-    override suspend fun sendPreparedStatementFlow(
-        query: String,
-        parameters: List<Any?>,
-    ): Flow<QueryResult> {
-        var connection: Connection? = null
-        return try {
-            connection = acquire()
-            connection.sendPreparedStatementFlow(query, parameters)
-        } catch (ex: Throwable) {
-            logger.atError {
-                cause = ex
-                message = "Error sending prepared statement, {connectionId}"
-                payload = connection?.connectionId?.let { mapOf("connectionId" to it) }
-            }
-            throw ex
-        } finally {
-            connection?.close()
-        }
-    }
-
     internal fun hasConnection(poolConnection: C): Boolean {
         return connectionIds.contains(poolConnection.connectionId)
     }

@@ -1,15 +1,13 @@
 package com.github.clasicrando.common.pool
 
 import com.github.clasicrando.common.connection.Connection
-import com.github.clasicrando.common.connection.Executor
-import com.github.clasicrando.common.connection.use
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * Non-blocking pool of connections. Allows for acquiring of new connections and using the pool as
- * an [Executor] to avoid handling connections explicitly.
+ * Non-blocking pool of connections. Allows for acquiring of new connections and returning of
+ * connections no longer needed.
  */
-internal interface ConnectionPool<C : Connection> : Executor, CoroutineScope {
+internal interface ConnectionPool<C : Connection> : CoroutineScope {
     /**
      * Flag indicating if the pool of connections is exhausted (number of connections is use has
      * reached the cap on [PoolOptions.maxConnections]
@@ -18,9 +16,8 @@ internal interface ConnectionPool<C : Connection> : Executor, CoroutineScope {
     /**
      * Attempt to acquire a [Connection] from the pool, suspending until a [Connection] is
      * available if the pool has been exhausted or waiting for the time specified by
-     * [PoolOptions.acquireTimeout]. Make sure to return acquired [Connection]s by using the
-     * [useConnection] extension method or calling [Connection.close] to return the [Connection] to
-     * the pool.
+     * [PoolOptions.acquireTimeout]. Make sure to return acquired [Connection]s by calling
+     * [Connection.close] to return the [Connection] to the pool.
      */
     suspend fun acquire(): C
     /**
@@ -50,14 +47,4 @@ internal suspend inline fun <R, C : Connection> ConnectionPool<C>.use(
             cause?.addSuppressed(ex)
         }
     }
-}
-
-/**
- * Acquire a new [Connection] from the [ConnectionPool] for usage within the [block], always
- * returning the connection to the pool when returning from the function.
- */
-internal suspend inline fun <R, C : Connection> ConnectionPool<C>.useConnection(
-    crossinline block: suspend (C) -> R,
-): R {
-    return acquire().use(block)
 }
