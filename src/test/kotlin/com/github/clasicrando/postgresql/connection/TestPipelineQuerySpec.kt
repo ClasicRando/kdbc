@@ -1,13 +1,16 @@
 package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.connection.use
+import com.github.clasicrando.common.connection.useCatching
 import com.github.clasicrando.common.result.getInt
+import com.github.clasicrando.common.result.getLong
 import com.github.clasicrando.common.result.getString
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TestPipelineQuerySpec {
     @Test
@@ -23,5 +26,61 @@ class TestPipelineQuerySpec {
             assertEquals(1, results[1].rowsAffected)
             assertEquals("Pipeline Query", results[1].rows.first().getString(0))
         }
+    }
+
+    @Test
+    fun `pipelineQueries should throw exception and keep previous changes when erroneous query and autocommit`(): Unit = runBlocking {
+        PgConnectionHelper.defaultConnection().use {
+            val results = it.sendQuery(ROLLBACK_CHECK).toList()
+            assertEquals(2, results.size)
+            assertEquals(0, results[0].rowsAffected)
+            assertEquals(0, results[1].rowsAffected)
+        }
+        val result = PgConnectionHelper.defaultConnection().useCatching {
+            it.pipelineQueries(
+                "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
+                "SELECT $1::int t" to listOf("not int"),
+            ).toList()
+        }
+        assertTrue(result.isFailure)
+        PgConnectionHelper.defaultConnection().use {
+            val results = it.sendQuery("SELECT COUNT(*) FROM public.rollback_check").toList()
+            assertEquals(1, results.size)
+            assertEquals(1, results[0].rowsAffected)
+            assertEquals(1, results[0].rows.first().getLong(0))
+        }
+    }
+
+    @Test
+    fun `pipelineQueries should throw exception and rollback transaction when erroneous query and not auto commit`(): Unit = runBlocking {
+        PgConnectionHelper.defaultConnection().use {
+            val results = it.sendQuery(ROLLBACK_CHECK).toList()
+            assertEquals(2, results.size)
+            assertEquals(0, results[0].rowsAffected)
+            assertEquals(0, results[1].rowsAffected)
+        }
+        val result = PgConnectionHelper.defaultConnection().useCatching {
+            it.pipelineQueries(
+                isAutoCommit = false,
+                queries = arrayOf(
+                    "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
+                    "SELECT $1::int t" to listOf("not int"),
+                ),
+            ).toList()
+        }
+        assertTrue(result.isFailure)
+        PgConnectionHelper.defaultConnection().use {
+            val results = it.sendQuery("SELECT COUNT(*) FROM public.rollback_check").toList()
+            assertEquals(1, results.size)
+            assertEquals(1, results[0].rowsAffected)
+            assertEquals(0, results[0].rows.first().getLong(0))
+        }
+    }
+
+    companion object {
+        private const val ROLLBACK_CHECK = """
+            DROP TABLE IF EXISTS public.rollback_check;
+            CREATE TABLE public.rollback_check(id int, value text);
+        """
     }
 }
