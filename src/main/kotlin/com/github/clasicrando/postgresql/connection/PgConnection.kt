@@ -11,7 +11,6 @@ import com.github.clasicrando.common.result.MutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.selectLoop
 import com.github.clasicrando.postgresql.GeneralPostgresError
-import com.github.clasicrando.postgresql.statement.PgPreparedStatement
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
 import com.github.clasicrando.postgresql.authentication.simplePasswordAuthFlow
@@ -24,6 +23,7 @@ import com.github.clasicrando.postgresql.message.encoders.PgMessageEncoders
 import com.github.clasicrando.postgresql.notification.PgNotification
 import com.github.clasicrando.postgresql.pool.PgPoolManager
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
+import com.github.clasicrando.postgresql.statement.PgPreparedStatement
 import com.github.clasicrando.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -33,6 +33,7 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -44,6 +45,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 
@@ -70,6 +72,8 @@ class PgConnection internal constructor(
 
     private val canRunQuery = Channel<Unit>(capacity = 1)
     private val canRunPipeline = Channel<Unit>(capacity = 1)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    internal val isWaiting get() = canRunQuery.isEmpty
     private val rowDescriptionChannel = Channel<List<PgRowFieldDescription>>()
     private val dataRowChannel = Channel<PgMessage.DataRow>(capacity = Channel.BUFFERED)
     private val commandCompleteChannel = Channel<PgMessage.CommandComplete>()
@@ -80,6 +84,7 @@ class PgConnection internal constructor(
     private val copyOutResponseChannel = Channel<Unit>()
     private val copyDataChannel = Channel<PgMessage.CopyData>(capacity = Channel.BUFFERED)
     private val copyDoneChannel = Channel<Unit>()
+    private val errorChannel = Channel<Throwable>(capacity = Channel.BUFFERED)
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
     val notifications: ReceiveChannel<PgNotification> get() = notificationsChannel
     private val copyFailed: AtomicBoolean = atomic(false)
@@ -136,10 +141,12 @@ class PgConnection internal constructor(
         copyDoneChannel.close(cause = throwable)
         canRunQuery.close(cause = throwable)
         canRunPipeline.close(cause = throwable)
+        errorChannel.close(cause = throwable)
     }
 
     private suspend fun processServerMessage() {
-        when (val message = receiveServerMessage()) {
+        val message = receiveServerMessage()
+        when (message) {
             is PgMessage.ErrorResponse -> onErrorMessage(message)
             is PgMessage.NoticeResponse -> onNotice(message)
             is PgMessage.NotificationResponse -> onNotification(message)
@@ -229,11 +236,12 @@ class PgConnection internal constructor(
             payload = mapOf("errorResponse" to message)
         }
         val throwable = GeneralPostgresError(message)
-        stream.close()
-        closeChannels(throwable)
-        if (!initialReadyForQuery.isCompleted) {
-            initialReadyForQuery.complete(Unit)
-        }
+        errorChannel.send(throwable)
+//        stream.close()
+//        closeChannels(throwable)
+//        if (!initialReadyForQuery.isCompleted) {
+//            initialReadyForQuery.complete(Unit)
+//        }
     }
 
     private fun onBackendKeyData(message: PgMessage.BackendKeyData) {
@@ -330,27 +338,27 @@ class PgConnection internal constructor(
         copyDoneChannel.send(Unit)
     }
 
-    internal suspend fun writeToStream(message: PgMessage) {
+    internal suspend inline fun writeToStream(message: PgMessage) {
         val encoder = encoders.encoderFor(message)
-        stream.writeMessage {
-            encoder.encode(message, it)
+        stream.writeMessage { builder ->
+            encoder.encode(message, builder)
         }
     }
 
-    private suspend fun writeManyToStream(messages: Iterable<PgMessage>) {
-        stream.writeMessage {
+    private suspend inline fun writeManyToStream(messages: Iterable<PgMessage>) {
+        stream.writeMessage { builder ->
             for (message in messages) {
                 val encoder = encoders.encoderFor(message)
-                encoder.encode(message, it)
+                encoder.encode(message, builder)
             }
         }
     }
 
-    private suspend fun writeManyToStream(vararg messages: PgMessage) {
-        stream.writeMessage {
+    private suspend inline fun writeManyToStream(vararg messages: PgMessage) {
+        stream.writeMessage { builder ->
             for (message in messages) {
                 val encoder = encoders.encoderFor(message)
-                encoder.encode(message, it)
+                encoder.encode(message, builder)
             }
         }
     }
@@ -431,9 +439,10 @@ class PgConnection internal constructor(
     }
 
     private suspend fun collectResults(
+        isAutoCommit: Boolean,
         statements: Array<PgPreparedStatement?> = emptyArray(),
     ): Flow<QueryResult> = flow {
-        val isPipeline = statements.size > 1
+        val errors = mutableListOf<Throwable>()
         for ((i, preparedStatement) in statements.withIndex()) {
             var result = MutableResultSet(preparedStatement?.metadata ?: listOf())
             selectLoop {
@@ -451,22 +460,76 @@ class PgConnection internal constructor(
                     Loop.Continue
                 }
                 queryDoneChannel.onReceive {
-                    if (isPipeline) {
-                        if (i == statements.size - 1) {
-                            enablePipelineRunning()
-                        }
-                        return@onReceive Loop.Break
+                    if (i == statements.size - 1) {
+                        enablePipelineRunning()
                     }
-                    enableQueryRunning()
                     Loop.Break
                 }
+                errorChannel.onReceive {
+                    errors.add(it)
+                    Loop.Continue
+                }
             }
+            if (errors.isNotEmpty() && !isAutoCommit) {
+                enablePipelineRunning()
+                break
+            }
+        }
+        if (errors.isNotEmpty()) {
+            val resultError = errors.reduce { acc, throwable ->
+                acc.addSuppressed(throwable)
+                acc
+            }
+            log(Level.ERROR) {
+                message = "Error during query pipeline execution. " +
+                        "Some results might have been retained if autoCommit is enabled"
+                payload = mapOf("autoCommit" to isAutoCommit)
+                cause = resultError
+            }
+            throw resultError
         }
     }
 
     private suspend inline fun collectResult(
         statement: PgPreparedStatement? = null,
-    ): Flow<QueryResult> = collectResults(arrayOf(statement))
+    ): Flow<QueryResult> = flow {
+        val errors = mutableListOf<Throwable>()
+        var result = MutableResultSet(statement?.metadata ?: listOf())
+        selectLoop {
+            rowDescriptionChannel.onReceive {
+                statement?.metadata = it
+                result = MutableResultSet(it)
+                Loop.Continue
+            }
+            dataRowChannel.onReceive {
+                addDataRow(result, it)
+                Loop.Continue
+            }
+            commandCompleteChannel.onReceive {
+                emit(QueryResult(it.rowCount, it.message, result))
+                Loop.Continue
+            }
+            queryDoneChannel.onReceive {
+                enableQueryRunning()
+                Loop.Break
+            }
+            errorChannel.onReceive {
+                errors.add(it)
+                Loop.Continue
+            }
+        }
+        if (errors.isNotEmpty()) {
+            val resultError = errors.reduce { acc, throwable ->
+                acc.addSuppressed(throwable)
+                acc
+            }
+            log(Level.ERROR) {
+                message = "Error during single query execution"
+                cause = resultError
+            }
+            throw resultError
+        }
+    }
 
     override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
         require(query.isNotBlank()) { "Cannot send an empty query" }
@@ -623,9 +686,13 @@ class PgConnection internal constructor(
         waitForPipelineRunning()
         val statements = Array<PgPreparedStatement?>(queries.size) { i ->
             val (queryText, queryParams) = queries[i]
-            sendPreparedStatementMessage(queryText, queryParams, isAutoCommit)
+            sendPreparedStatementMessage(
+                queryText,
+                queryParams,
+                isAutoCommit = isAutoCommit || i == queries.size - 1,
+            )
         }
-        return collectResults(statements)
+        return collectResults(isAutoCommit, statements)
     }
 
     private fun validateCopyQuery(copyStatement: String) {
@@ -755,7 +822,16 @@ class PgConnection internal constructor(
             var connection: PgConnection? = null
             try {
                 connection = PgConnection(connectOptions, stream, scope)
-                connection.initialReadyForQuery.await()
+                select {
+                    connection.initialReadyForQuery.onAwait {
+                        connection.log(Level.TRACE) {
+                            message = "Received initial ReadyForQuery message"
+                        }
+                    }
+                    connection.errorChannel.onReceive {
+                        throw it
+                    }
+                }
                 if (!connection.isConnected) {
                     error("Could not initialize connection")
                 }

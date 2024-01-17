@@ -4,7 +4,6 @@ import com.github.clasicrando.common.connection.Connection
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
-import io.github.oshai.kotlinlogging.withLoggingContext
 import kotlinx.coroutines.selects.SelectBuilder
 import kotlinx.coroutines.selects.select
 
@@ -37,8 +36,10 @@ fun KLogger.connectionLogger(
     level: Level,
     block: KLoggingEventBuilder.() -> Unit,
 ) {
-    withLoggingContext("connectionId" to connection.connectionId.toString()) {
-        at(level, block = block)
+    val connectionId = "connectionId" to connection.connectionId.toString()
+    at(level) {
+        block()
+        payload = payload?.plus(connectionId) ?: mapOf(connectionId)
     }
 }
 

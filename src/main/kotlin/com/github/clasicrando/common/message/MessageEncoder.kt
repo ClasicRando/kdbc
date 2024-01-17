@@ -1,6 +1,6 @@
 package com.github.clasicrando.common.message
 
-import java.nio.ByteBuffer
+import io.ktor.utils.io.core.BytePacketBuilder
 
 /**
  * Server message encoder. Enables writing a message of type [T] to the output channel that passes
@@ -11,5 +11,5 @@ import java.nio.ByteBuffer
  */
 internal interface MessageEncoder<in T> {
     /** Encode the message [value] of type [T] to the [buffer] supplied */
-    fun encode(value: T, buffer: ByteBuffer)
+    fun encode(value: T, buffer: BytePacketBuilder)
 }

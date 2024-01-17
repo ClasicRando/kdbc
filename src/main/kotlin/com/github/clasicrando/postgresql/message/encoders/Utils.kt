@@ -2,26 +2,26 @@ package com.github.clasicrando.postgresql.message.encoders
 
 import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
-import java.nio.ByteBuffer
+import io.ktor.utils.io.core.BytePacketBuilder
+import io.ktor.utils.io.core.buildPacket
+import io.ktor.utils.io.core.writeFully
+import io.ktor.utils.io.core.writeInt
 
-internal fun ByteBuffer.putCode(message: PgMessage) {
-    put(message.code)
+internal fun BytePacketBuilder.writeCode(message: PgMessage) {
+    writeByte(message.code)
 }
 
-fun ByteBuffer.writeCString(content: String, charset: Charset) {
-    put(content.toByteArray(charset = charset))
-    put(0)
+fun BytePacketBuilder.writeCString(content: String, charset: Charset) {
+    writeFully(content.toByteArray(charset = charset))
+    writeByte(0)
 }
 
-fun ByteBuffer.putCString(content: String, charset: Charset) {
-    put(content.toByteArray(charset = charset))
-    put(0)
-}
-
-inline fun ByteBuffer.putLengthPrefixed(block: ByteBuffer.() -> Unit) {
-    val sizeIndex = this.position()
-    this.putInt(0)
-    this.block()
-    val size = this.position() - sizeIndex
-    this.putInt(sizeIndex, size)
+inline fun BytePacketBuilder.writeLengthPrefixed(block: BytePacketBuilder.() -> Unit) {
+    val size: Int
+    val packet = buildPacket {
+        block()
+        size = this.size
+    }
+    writeInt(size + 4)
+    writePacket(packet)
 }

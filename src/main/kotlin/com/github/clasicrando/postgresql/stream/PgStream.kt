@@ -13,10 +13,11 @@ import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
 import io.ktor.network.tls.TLSConfigBuilder
 import io.ktor.network.tls.tls
+import io.ktor.utils.io.core.BytePacketBuilder
+import io.ktor.utils.io.core.buildPacket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
-import java.nio.ByteBuffer
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
@@ -42,8 +43,8 @@ internal class PgStream(
         )
     }
 
-    suspend fun writeMessage(block: (ByteBuffer) -> Unit) {
-        sendChannel.write(block = block)
+    suspend fun writeMessage(block: (BytePacketBuilder) -> Unit) {
+        sendChannel.writePacket(buildPacket(block))
         sendChannel.flush()
     }
 
@@ -57,8 +58,8 @@ internal class PgStream(
     }
 
     private suspend fun requestUpgrade(): Boolean {
-        writeMessage {
-            SslMessageEncoder.encode(PgMessage.SslRequest, it)
+        writeMessage { builder ->
+            SslMessageEncoder.encode(PgMessage.SslRequest, builder)
         }
         return when (val response = receiveChannel.readByte()) {
             'S'.code.toByte() -> true

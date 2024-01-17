@@ -18,8 +18,8 @@ import com.github.clasicrando.common.column.StringDbType
 import com.github.clasicrando.common.column.TypeRegistry
 import com.github.clasicrando.common.column.UuidDbType
 import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.array.PgArrayType
+import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.type.PgCompositeDbType
 import com.github.clasicrando.postgresql.type.enumDbType
 import com.github.clasicrando.postgresql.type.pgCompositeDbType

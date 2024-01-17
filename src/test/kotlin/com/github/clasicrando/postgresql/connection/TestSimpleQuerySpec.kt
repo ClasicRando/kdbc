@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.connection.use
-import com.github.clasicrando.common.result.getAs
 import com.github.clasicrando.common.result.getInt
 import com.github.clasicrando.common.result.getString
 import com.github.clasicrando.postgresql.PgConnectionHelper

@@ -31,6 +31,6 @@ internal class PgConnectionProvider(
         if (connection.isConnected && connection.inTransaction) {
             connection.rollback()
         }
-        return connection.isConnected && !connection.inTransaction
+        return connection.isConnected && !connection.inTransaction && !connection.isWaiting
     }
 }

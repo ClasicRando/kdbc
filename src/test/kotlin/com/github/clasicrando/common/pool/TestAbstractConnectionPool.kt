@@ -1,14 +1,11 @@
 package com.github.clasicrando.common.pool
 
 import com.github.clasicrando.common.connection.Connection
-import com.github.clasicrando.common.result.QueryResult
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
