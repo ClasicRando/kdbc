@@ -35,7 +35,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -147,8 +146,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun processServerMessage() {
-        val message = receiveServerMessage()
-        when (message) {
+        when (val message = receiveServerMessage()) {
             is PgMessage.ErrorResponse -> onErrorMessage(message)
             is PgMessage.NoticeResponse -> onNotice(message)
             is PgMessage.NotificationResponse -> onNotification(message)
@@ -164,7 +162,7 @@ class PgConnection internal constructor(
             is PgMessage.CopyData -> onCopyData(message)
             is PgMessage.CopyDone -> onCopyDone()
             else -> {
-                logger.connectionLogger(this, Level.TRACE) {
+                log(Level.TRACE) {
                     this.message = "Received message: {message}"
                     payload = mapOf("message" to message)
                 }
@@ -183,7 +181,7 @@ class PgConnection internal constructor(
         }
         when (val auth = message.authentication) {
             Authentication.Ok -> {
-                logger.connectionLogger(this, Level.TRACE) {
+                log(Level.TRACE) {
                     this.message = "Successfully logged in to database"
                 }
                 isAuthenticated = true
@@ -212,7 +210,7 @@ class PgConnection internal constructor(
     }
 
     private fun onNotice(message: PgMessage.NoticeResponse) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Notice, message -> {noticeResponse}"
             payload = mapOf("noticeResponse" to message)
         }
@@ -220,12 +218,16 @@ class PgConnection internal constructor(
 
     private suspend fun onNotification(message: PgMessage.NotificationResponse) {
         val notification = PgNotification(message.channelName, message.payload)
+        log(Level.TRACE) {
+            this.message = "Notification, message -> {notification}"
+            payload = mapOf("notification" to message)
+        }
         notificationsChannel.send(notification)
     }
 
     private suspend fun onErrorMessage(message: PgMessage.ErrorResponse) {
         if (copyFailed.getAndSet(false)) {
-            logger.connectionLogger(this, Level.WARN) {
+            log(Level.WARN) {
                 this.message = "CopyIn was failed by client -> {message}"
                 payload = mapOf("message" to message)
             }
@@ -233,21 +235,16 @@ class PgConnection internal constructor(
             commandCompleteChannel.send(commandComplete)
             return
         }
-        logger.connectionLogger(this, Level.ERROR) {
+        log(Level.ERROR) {
             this.message = "Error, message -> {errorResponse}"
             payload = mapOf("errorResponse" to message)
         }
         val throwable = GeneralPostgresError(message)
         errorChannel.send(throwable)
-//        stream.close()
-//        closeChannels(throwable)
-//        if (!initialReadyForQuery.isCompleted) {
-//            initialReadyForQuery.complete(Unit)
-//        }
     }
 
     private fun onBackendKeyData(message: PgMessage.BackendKeyData) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Got backend key data. Process ID: {processId}, Secret Key: ****"
             payload = mapOf("payloadId" to message.processId)
         }
@@ -255,20 +252,20 @@ class PgConnection internal constructor(
     }
 
     private fun onParameterStatus(message: PgMessage.ParameterStatus) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Parameter Status, {status}"
             payload = mapOf("status" to message)
         }
     }
 
     private suspend fun onReadyForQuery(message: PgMessage.ReadyForQuery) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Connection ready for query. Transaction Status: {status}"
             payload = mapOf("status" to message.transactionStatus)
         }
         if (initialReadyForQuery.complete(Unit)) {
             enablePipelineRunning()
-            logger.connectionLogger(this, Level.TRACE) {
+            log(Level.TRACE) {
                 this.message = "Connection is now initialized and ready for queries"
             }
             return
@@ -277,7 +274,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun onRowDescription(message: PgMessage.RowDescription) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Received row description -> {desc}"
             payload = mapOf("dec" to message)
         }
@@ -285,7 +282,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun onDataRow(message: PgMessage.DataRow) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Received row size = {size}"
             payload = mapOf("size" to message.values.size)
         }
@@ -293,7 +290,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun onCommandComplete(message: PgMessage.CommandComplete) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Received command complete -> {message}"
             payload = mapOf("message" to message)
         }
@@ -301,7 +298,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun onCloseComplete() {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Received close complete"
         }
         if (releasePreparedStatement.getAndSet(false)) {
@@ -310,7 +307,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun onCopyInResponse(message: PgMessage.CopyInResponse) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Received CopyInResponse -> {message}"
             payload = mapOf("message" to message)
         }
@@ -318,7 +315,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun onCopyOutResponse(message: PgMessage.CopyOutResponse) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Received CopyOutResponse -> {message}"
             payload = mapOf("message" to message)
         }
@@ -326,7 +323,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun onCopyData(message: PgMessage.CopyData) {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Received CopyData, size = {size}"
             payload = mapOf("size" to message.data.size)
         }
@@ -334,7 +331,7 @@ class PgConnection internal constructor(
     }
 
     private suspend fun onCopyDone() {
-        logger.connectionLogger(this, Level.TRACE) {
+        log(Level.TRACE) {
             this.message = "Received CopyDone"
         }
         copyDoneChannel.send(Unit)
@@ -406,7 +403,7 @@ class PgConnection internal constructor(
                 try {
                     rollback()
                 } catch (ex2: Throwable) {
-                    logger.connectionLogger(this, Level.ERROR) {
+                    log(Level.ERROR) {
                         message = "Error while trying to rollback. BEGIN called while in transaction"
                         cause = ex2
                     }
@@ -421,7 +418,7 @@ class PgConnection internal constructor(
             sendQuery("COMMIT;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
-                logger.connectionLogger(this, Level.ERROR) {
+                log(Level.ERROR) {
                     this.message = "Attempted to COMMIT a connection not within a transaction"
                 }
             }
@@ -433,7 +430,7 @@ class PgConnection internal constructor(
             sendQuery("ROLLBACK;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
-                logger.connectionLogger(this, Level.ERROR) {
+                log(Level.ERROR) {
                     this.message = "Attempted to ROLLBACK a connection not within a transaction"
                 }
             }
@@ -650,12 +647,12 @@ class PgConnection internal constructor(
         try {
             if (stream.isActive) {
                 writeToStream(PgMessage.Terminate)
-                logger.connectionLogger(this, Level.INFO) {
+                log(Level.INFO) {
                     this.message = "Successfully sent termination message"
                 }
             }
         } catch (ex: Throwable) {
-            logger.connectionLogger(this, Level.WARN) {
+            log(Level.WARN) {
                 this.message = "Error sending terminate message"
                 cause = ex
             }

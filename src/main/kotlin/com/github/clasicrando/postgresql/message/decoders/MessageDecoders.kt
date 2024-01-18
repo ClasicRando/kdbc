@@ -14,6 +14,7 @@ internal class MessageDecoders(charset: Charset) {
     private val parameterStatusDecoder = ParameterStatusDecoder(charset)
     private val commandCompleteDecoder = CommandCompleteDecoder(charset)
     private val rowDescriptionDecoder = RowDescriptionDecoder(charset)
+    private val notificationResponseDecoder = NotificationResponseDecoder(charset)
 
     fun decode(rawMessage: RawMessage): PgMessage {
         val contents = rawMessage.contents
@@ -34,6 +35,7 @@ internal class MessageDecoders(charset: Charset) {
             PgMessage.COPY_OUT_RESPONSE_CODE -> CopyOutResponseDecoder.decode(contents)
             PgMessage.COPY_DATA_CODE -> CopyDataDecoder.decode(contents)
             PgMessage.COPY_DONE -> PgMessage.CopyDone
+            PgMessage.NOTIFICATION_RESPONSE_CODE -> notificationResponseDecoder.decode(contents)
             else -> {
                 logger.atTrace {
                     message = "Received message {format}"
