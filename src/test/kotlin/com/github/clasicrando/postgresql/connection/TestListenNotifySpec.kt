@@ -4,7 +4,6 @@ import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
