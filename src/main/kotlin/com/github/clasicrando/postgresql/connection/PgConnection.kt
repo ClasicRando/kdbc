@@ -6,6 +6,7 @@ import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.connectionLogger
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
 import com.github.clasicrando.common.pool.ConnectionPool
+import com.github.clasicrando.common.reduceToSingleOrNull
 import com.github.clasicrando.common.result.ArrayDataRow
 import com.github.clasicrando.common.result.MutableResultSet
 import com.github.clasicrando.common.result.QueryResult
@@ -34,6 +35,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -91,7 +93,7 @@ class PgConnection internal constructor(
 
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
 
-    internal fun log(level: Level, block: KLoggingEventBuilder.() -> Unit) {
+    internal inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
         logger.connectionLogger(this, level, block)
     }
 
@@ -110,7 +112,7 @@ class PgConnection internal constructor(
             cause = ex
             log(Level.ERROR) {
                 message = "Error within server message processor"
-                cause = ex
+                this.cause = ex
             }
             initialReadyForQuery.completeExceptionally(ex)
         } finally {
@@ -475,19 +477,13 @@ class PgConnection internal constructor(
                 break
             }
         }
-        if (errors.isNotEmpty()) {
-            val resultError = errors.reduce { acc, throwable ->
-                acc.addSuppressed(throwable)
-                acc
-            }
-            log(Level.ERROR) {
-                message = "Error during query pipeline execution. " +
-                        "Some results might have been retained if autoCommit is enabled"
-                payload = mapOf("autoCommit" to isAutoCommit)
-                cause = resultError
-            }
-            throw resultError
+
+        val error = errors.reduceToSingleOrNull() ?: return@flow
+        log(Level.ERROR) {
+            message = "Error during single query execution"
+            cause = error
         }
+        throw error
     }
 
     private suspend inline fun collectResult(
@@ -518,17 +514,13 @@ class PgConnection internal constructor(
                 Loop.Continue
             }
         }
-        if (errors.isNotEmpty()) {
-            val resultError = errors.reduce { acc, throwable ->
-                acc.addSuppressed(throwable)
-                acc
-            }
-            log(Level.ERROR) {
-                message = "Error during single query execution"
-                cause = resultError
-            }
-            throw resultError
+
+        val error = errors.reduceToSingleOrNull() ?: return@flow
+        log(Level.ERROR) {
+            message = "Error during single query execution"
+            cause = error
         }
+        throw error
     }
 
     override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
@@ -706,29 +698,62 @@ class PgConnection internal constructor(
         waitForQueryRunning()
         validateCopyQuery(copyInStatement)
 
-        logger.connectionLogger(this, connectOptions.logSettings.statementLevel) {
+        log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyInStatement)
         }
         writeToStream(PgMessage.Query(copyInStatement))
 
         copyInResponseChannel.receive()
-        try {
-            data.collect {
-                writeToStream(PgMessage.CopyData(it))
-            }
-            writeToStream(PgMessage.CopyDone)
-        } catch (ex: Throwable) {
-            if (stream.isActive) {
-                copyFailed.value = true
-                writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
+        val copyInJob = scope.launch {
+            try {
+                data.collect {
+                    writeToStream(PgMessage.CopyData(it))
+                }
+                writeToStream(PgMessage.CopyDone)
+            } catch (ex: Throwable) {
+                if (stream.isActive) {
+                    copyFailed.value = true
+                    writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
+                }
             }
         }
 
-        val commandComplete = commandCompleteChannel.receive()
-        queryDoneChannel.receive()
+        var completeMessage: PgMessage.CommandComplete? = null
+        val errors = mutableListOf<Throwable>()
+        selectLoop {
+            errorChannel.onReceive {
+                if (copyInJob.isActive) {
+                    copyInJob.cancel()
+                }
+                copyInJob.join()
+                log(Level.ERROR) {
+                    message = "Error during COPYIN operation"
+                    cause = it
+                }
+                errors.add(it)
+                Loop.Continue
+            }
+            commandCompleteChannel.onReceive {
+                completeMessage = it
+                Loop.Continue
+            }
+            queryDoneChannel.onReceive {
+                copyInJob.join()
+                enableQueryRunning()
+                Loop.Break
+            }
+        }
 
-        return QueryResult(commandComplete.rowCount, commandComplete.message)
+        val error = errors.reduceToSingleOrNull()
+        if (error != null) {
+            throw error
+        }
+
+        return QueryResult(
+            completeMessage?.rowCount ?: 0,
+            completeMessage?.message ?: "Default copy in complete message",
+        )
     }
 
     suspend fun copyOut(copyOutStatement: String): ReceiveChannel<ByteArray> {
@@ -736,7 +761,7 @@ class PgConnection internal constructor(
         waitForQueryRunning()
         validateCopyQuery(copyOutStatement)
 
-        logger.connectionLogger(this, connectOptions.logSettings.statementLevel) {
+        log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyOutStatement)
         }
@@ -748,6 +773,11 @@ class PgConnection internal constructor(
 
         scope.launch {
             selectLoop {
+                errorChannel.onReceive {
+                    enableQueryRunning()
+                    resultChannel.close(cause = it)
+                    Loop.Break
+                }
                 copyDataChannel.onReceive {
                     resultChannel.send(it.data)
                     Loop.Continue
@@ -759,6 +789,7 @@ class PgConnection internal constructor(
                     Loop.Continue
                 }
                 queryDoneChannel.onReceive {
+                    enableQueryRunning()
                     resultChannel.close()
                     Loop.Break
                 }

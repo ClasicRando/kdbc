@@ -31,10 +31,10 @@ suspend inline fun selectLoop(crossinline block: SelectBuilder<Loop>.() -> Unit)
     }
 }
 
-fun KLogger.connectionLogger(
+inline fun KLogger.connectionLogger(
     connection: Connection,
     level: Level,
-    block: KLoggingEventBuilder.() -> Unit,
+    crossinline block: KLoggingEventBuilder.() -> Unit,
 ) {
     val connectionId = "connectionId" to connection.connectionId.toString()
     at(level) {
@@ -61,5 +61,12 @@ fun ByteArray.splitBy(byte: Byte): Sequence<Sequence<Byte>> = sequence {
             }
             this@splitBy[index++].takeIf { it != byte }
         })
+    }
+}
+
+fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
+    return this.reduceOrNull { acc, throwable ->
+        acc.addSuppressed(throwable)
+        acc
     }
 }
