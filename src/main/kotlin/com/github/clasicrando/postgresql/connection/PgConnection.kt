@@ -72,7 +72,6 @@ class PgConnection internal constructor(
     override val inTransaction: Boolean get() = _inTransaction.value
 
     private val canRunQuery = Channel<Unit>(capacity = 1)
-    private val canRunPipeline = Channel<Unit>(capacity = 1)
     @OptIn(ExperimentalCoroutinesApi::class)
     internal val isWaiting get() = canRunQuery.isEmpty
     private val rowDescriptionChannel = Channel<List<PgRowFieldDescription>>()
@@ -141,7 +140,6 @@ class PgConnection internal constructor(
         copyDataChannel.close(cause = throwable)
         copyDoneChannel.close(cause = throwable)
         canRunQuery.close(cause = throwable)
-        canRunPipeline.close(cause = throwable)
         errorChannel.close(cause = throwable)
     }
 
@@ -264,7 +262,7 @@ class PgConnection internal constructor(
             payload = mapOf("status" to message.transactionStatus)
         }
         if (initialReadyForQuery.complete(Unit)) {
-            enablePipelineRunning()
+            enableQueryRunning()
             log(Level.TRACE) {
                 this.message = "Connection is now initialized and ready for queries"
             }
@@ -370,16 +368,6 @@ class PgConnection internal constructor(
 
     private suspend inline fun waitForQueryRunning() = canRunQuery.receive()
 
-    private suspend inline fun enablePipelineRunning() {
-        canRunPipeline.send(Unit)
-        enableQueryRunning()
-    }
-
-    private suspend inline fun waitForPipelineRunning() {
-        waitForQueryRunning()
-        canRunPipeline.receive()
-    }
-
     private fun addDataRow(resultSet: MutableResultSet, dataRow: PgMessage.DataRow) {
         val fields: Array<Any?> = Array(dataRow.values.size) { i ->
             dataRow.values[i]?.let {
@@ -460,7 +448,7 @@ class PgConnection internal constructor(
                 }
                 queryDoneChannel.onReceive {
                     if (i == statements.size - 1) {
-                        enablePipelineRunning()
+                        enableQueryRunning()
                     }
                     Loop.Break
                 }
@@ -470,7 +458,7 @@ class PgConnection internal constructor(
                 }
             }
             if (errors.isNotEmpty() && !isAutoCommit) {
-                enablePipelineRunning()
+                enableQueryRunning()
                 break
             }
         }
@@ -672,7 +660,7 @@ class PgConnection internal constructor(
         isAutoCommit: Boolean = true,
         queries: Array<out Pair<String, List<Any?>>>,
     ): Flow<QueryResult> {
-        waitForPipelineRunning()
+        waitForQueryRunning()
         val statements = Array<PgPreparedStatement?>(queries.size) { i ->
             val (queryText, queryParams) = queries[i]
             sendPreparedStatementMessage(
