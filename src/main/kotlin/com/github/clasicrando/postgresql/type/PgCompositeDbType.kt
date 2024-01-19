@@ -3,9 +3,12 @@ package com.github.clasicrando.postgresql.type
 import com.github.clasicrando.common.column.ColumnData
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.columnDecodeError
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
+
+private val logger = KotlinLogging.logger {}
 
 inline fun <reified T : Any> pgCompositeDbType(innerTypes: Array<out DbType>): DbType {
     require(T::class.isData) { "Only data classes are available as composites" }
@@ -47,7 +50,11 @@ class PgCompositeDbType<T : Any> @PublishedApi internal constructor(
         return try {
             primaryConstructor.call(*attributes)
         } catch (ex: Throwable) {
-            println(ex)
+            logger.atError {
+                message = "Could not construct a new instance of $encodeType using {attributes}"
+                cause = ex
+                payload = mapOf("attributes" to attributes)
+            }
             columnDecodeError(type, value)
         }
     }
