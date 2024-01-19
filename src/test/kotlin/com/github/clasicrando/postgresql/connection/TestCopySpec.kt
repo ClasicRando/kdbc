@@ -8,11 +8,13 @@ import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+@EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
 class TestCopySpec {
     @BeforeTest
     fun setup(): Unit = runBlocking {

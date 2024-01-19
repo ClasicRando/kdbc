@@ -120,6 +120,7 @@ class PgConnection internal constructor(
             }
         }
     }
+
     private val initialReadyForQuery: CompletableDeferred<Unit> = CompletableDeferred(
         parent = scope.coroutineContext.job,
     )
@@ -143,7 +144,7 @@ class PgConnection internal constructor(
         errorChannel.close(cause = throwable)
     }
 
-    private suspend fun processServerMessage() {
+    private suspend inline fun processServerMessage() {
         when (val message = receiveServerMessage()) {
             is PgMessage.ErrorResponse -> onErrorMessage(message)
             is PgMessage.NoticeResponse -> onNotice(message)
@@ -527,7 +528,7 @@ class PgConnection internal constructor(
     private suspend fun sendPreparedStatementMessage(
         query: String,
         parameters: List<Any?>,
-        isAutoCommit: Boolean = true,
+        sendSync: Boolean = true,
     ): PgPreparedStatement {
         val statement = preparedStatements.getOrPut(query) {
             PgPreparedStatement(query)
@@ -577,7 +578,7 @@ class PgConnection internal constructor(
                 targetName = statement.statementName,
             )
             add(closePortalMessage)
-            if (isAutoCommit) {
+            if (sendSync) {
                 add(PgMessage.Sync)
             }
         }
@@ -657,7 +658,7 @@ class PgConnection internal constructor(
     }
 
     suspend fun pipelineQueries(
-        isAutoCommit: Boolean = true,
+        syncAll: Boolean = true,
         queries: Array<out Pair<String, List<Any?>>>,
     ): Flow<QueryResult> {
         waitForQueryRunning()
@@ -666,10 +667,10 @@ class PgConnection internal constructor(
             sendPreparedStatementMessage(
                 queryText,
                 queryParams,
-                isAutoCommit = isAutoCommit || i == queries.size - 1,
+                sendSync = syncAll || i == queries.size - 1,
             )
         }
-        return collectResults(isAutoCommit, statements)
+        return collectResults(syncAll, statements)
     }
 
     private fun validateCopyQuery(copyStatement: String) {
@@ -690,6 +691,7 @@ class PgConnection internal constructor(
         writeToStream(PgMessage.Query(copyInStatement))
 
         copyInResponseChannel.receive()
+
         val copyInJob = scope.launch {
             try {
                 data.collect {
@@ -713,7 +715,7 @@ class PgConnection internal constructor(
                 }
                 copyInJob.join()
                 log(Level.ERROR) {
-                    message = "Error during COPYIN operation"
+                    message = "Error during copy in operation"
                     cause = it
                 }
                 errors.add(it)

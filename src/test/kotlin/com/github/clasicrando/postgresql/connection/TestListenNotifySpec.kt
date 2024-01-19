@@ -4,9 +4,11 @@ import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+@EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
 class TestListenNotifySpec {
     @Test
     fun `listen should issue a listen command and receive notification`(): Unit = runBlocking {

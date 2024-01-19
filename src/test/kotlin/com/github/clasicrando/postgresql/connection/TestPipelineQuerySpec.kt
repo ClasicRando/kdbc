@@ -9,10 +9,12 @@ import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+@EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
 class TestPipelineQuerySpec {
     @Test
     fun `pipelineQueries should return multiple results with auto commit`(): Unit = runBlocking {
@@ -96,7 +98,7 @@ class TestPipelineQuerySpec {
         }
         val result = PgConnectionHelper.defaultConnection().useCatching {
             it.pipelineQueries(
-                isAutoCommit = false,
+                syncAll = false,
                 queries = arrayOf(
                     "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
                     "SELECT $1::int t" to listOf("not int"),
