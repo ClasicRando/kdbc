@@ -6,7 +6,6 @@ import com.github.clasicrando.common.result.getLong
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.BeforeTest
@@ -63,13 +62,13 @@ class TestCopySpec {
     @Test
     fun `copyOut should supply all rows from table`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
-            val channel = it.copyOut("COPY public.copy_out_test TO STDOUT WITH (FORMAT csv);")
             var rowIndex = 0L
-            channel.receiveAsFlow().collect { bytes ->
-                rowIndex++
-                val str = bytes.toString(Charsets.UTF_8)
-                assertEquals("$rowIndex,$rowIndex Value\n", str)
-            }
+            it.copyOut("COPY public.copy_out_test TO STDOUT WITH (FORMAT csv);")
+                .collect { bytes ->
+                    rowIndex++
+                    val str = bytes.toString(Charsets.UTF_8)
+                    assertEquals("$rowIndex,$rowIndex Value\n", str)
+                }
             assertEquals(ROW_COUNT, rowIndex)
         }
     }

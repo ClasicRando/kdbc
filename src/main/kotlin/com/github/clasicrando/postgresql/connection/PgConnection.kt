@@ -41,7 +41,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
@@ -353,12 +353,7 @@ class PgConnection internal constructor(
     }
 
     private suspend inline fun writeManyToStream(vararg messages: PgMessage) {
-        stream.writeMessage { builder ->
-            for (message in messages) {
-                val encoder = encoders.encoderFor(message)
-                encoder.encode(message, builder)
-            }
-        }
+        writeManyToStream(messages.asIterable())
     }
 
     private fun checkConnected() {
@@ -426,7 +421,7 @@ class PgConnection internal constructor(
         }
     }
 
-    private suspend fun collectResults(
+    private fun collectResults(
         isAutoCommit: Boolean,
         statements: Array<PgPreparedStatement?> = emptyArray(),
     ): Flow<QueryResult> = flow {
@@ -470,9 +465,9 @@ class PgConnection internal constructor(
             cause = error
         }
         throw error
-    }
+    }.buffer()
 
-    private suspend inline fun collectResult(
+    private fun collectResult(
         statement: PgPreparedStatement? = null,
     ): Flow<QueryResult> = flow {
         val errors = mutableListOf<Throwable>()
@@ -507,7 +502,7 @@ class PgConnection internal constructor(
             cause = error
         }
         throw error
-    }
+    }.buffer()
 
     override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
         require(query.isNotBlank()) { "Cannot send an empty query" }
@@ -743,7 +738,7 @@ class PgConnection internal constructor(
         )
     }
 
-    suspend fun copyOut(copyOutStatement: String): ReceiveChannel<ByteArray> {
+    suspend fun copyOut(copyOutStatement: String): Flow<ByteArray> {
         checkConnected()
         waitForQueryRunning()
         validateCopyQuery(copyOutStatement)
@@ -756,17 +751,14 @@ class PgConnection internal constructor(
 
         copyOutResponseChannel.receive()
 
-        val resultChannel = Channel<ByteArray>(capacity = Channel.BUFFERED)
-
-        scope.launch {
+        return flow {
             selectLoop {
                 errorChannel.onReceive {
                     enableQueryRunning()
-                    resultChannel.close(cause = it)
-                    Loop.Break
+                    throw it
                 }
                 copyDataChannel.onReceive {
-                    resultChannel.send(it.data)
+                    emit(it.data)
                     Loop.Continue
                 }
                 copyDoneChannel.onReceive {
@@ -777,13 +769,10 @@ class PgConnection internal constructor(
                 }
                 queryDoneChannel.onReceive {
                     enableQueryRunning()
-                    resultChannel.close()
                     Loop.Break
                 }
             }
-        }
-
-        return resultChannel
+        }.buffer()
     }
 
     suspend fun copyIn(
@@ -805,10 +794,6 @@ class PgConnection internal constructor(
         block: suspend SequenceScope<ByteArray>.() -> Unit
     ): QueryResult {
         return copyIn(copyInStatement, sequence(block).asFlow())
-    }
-
-    suspend fun copyOutAsFlow(copyOutStatement: String): Flow<ByteArray> {
-        return copyOut(copyOutStatement).consumeAsFlow()
     }
 
     private fun quoteChannelName(channelName: String): String {
