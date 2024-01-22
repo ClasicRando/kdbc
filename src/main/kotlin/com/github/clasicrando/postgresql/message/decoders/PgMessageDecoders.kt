@@ -7,7 +7,7 @@ import io.ktor.utils.io.charsets.Charset
 
 private val logger = KotlinLogging.logger {}
 
-internal class MessageDecoders(charset: Charset) {
+internal class PgMessageDecoders(charset: Charset) {
     private val authenticationMessageDecoder = AuthenticationMessageDecoder(charset)
     private val errorResponseDecoder = ErrorResponseDecoder(charset)
     private val noticeResponseDecoder = NoticeResponseDecoder(charset)

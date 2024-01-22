@@ -32,7 +32,7 @@ interface Connection {
     val inTransaction: Boolean
     /**
      * Unique identifier for the connection, utilized for logging to signify log messages as coming
-     * from the same connection
+     * from the same connection. Defaults to an auto-generated UUID.
      */
     val connectionId: UUID
 

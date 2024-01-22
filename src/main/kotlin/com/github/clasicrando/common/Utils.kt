@@ -70,3 +70,5 @@ fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
         acc
     }
 }
+
+fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""

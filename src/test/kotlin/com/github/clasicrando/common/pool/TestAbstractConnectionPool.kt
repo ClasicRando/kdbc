@@ -203,7 +203,5 @@ internal class TestConnectionPoolImpl(
     poolOptions: PoolOptions,
     provider: ConnectionProvider<Connection>,
 ) : AbstractConnectionPool<Connection>(poolOptions, provider) {
-    override fun addPoolReferenceToConnection(connection: Connection) = Unit
-
-    override fun removePoolReferenceFromConnection(connection: Connection) = Unit
+    override suspend fun disposeConnection(connection: Connection) = Unit
 }

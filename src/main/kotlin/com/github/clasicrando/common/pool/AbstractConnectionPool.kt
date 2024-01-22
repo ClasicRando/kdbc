@@ -47,8 +47,6 @@ internal abstract class AbstractConnectionPool<C : Connection>(
             parent = poolOptions.parentScope?.coroutineContext?.job,
         ) + poolOptions.coroutineDispatcher
 
-    abstract fun addPoolReferenceToConnection(connection: C)
-
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,
      * add the [Connection.connectionId] to the [connectionIds] set and send the [Connection] to
@@ -56,7 +54,6 @@ internal abstract class AbstractConnectionPool<C : Connection>(
      */
     private suspend fun addNewConnection() {
         val connection = provider.create(this@AbstractConnectionPool)
-        addPoolReferenceToConnection(connection)
         connectionIds[connection.connectionId] = connection
         connections.send(connection)
     }
@@ -89,7 +86,7 @@ internal abstract class AbstractConnectionPool<C : Connection>(
         }
     }
 
-    abstract fun removePoolReferenceFromConnection(connection: C)
+    abstract suspend fun disposeConnection(connection: C)
 
     /**
      * Invalidate a [Connection] from the pool by launching a coroutine to move the
@@ -106,8 +103,7 @@ internal abstract class AbstractConnectionPool<C : Connection>(
                 message = "Invalidating connection id = {id}"
                 payload = mapOf("id" to connectionId)
             }
-            removePoolReferenceFromConnection(connection)
-            connection.close()
+            disposeConnection(connection)
             connectionsNeeded.send(Unit)
         } catch (ex: Throwable) {
             logger.atError {

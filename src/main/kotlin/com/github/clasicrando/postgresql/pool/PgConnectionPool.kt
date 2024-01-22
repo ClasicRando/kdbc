@@ -10,11 +10,7 @@ internal class PgConnectionPool(
     poolOptions = connectOptions.poolOptions,
     provider = PgConnectionProvider(connectOptions),
 ) {
-    override fun removePoolReferenceFromConnection(connection: PgConnection) {
-        connection.pool = null
-    }
-
-    override fun addPoolReferenceToConnection(connection: PgConnection) {
-        connection.pool = this
+    override suspend fun disposeConnection(connection: PgConnection) {
+        connection.dispose()
     }
 }
