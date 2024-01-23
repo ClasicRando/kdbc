@@ -251,8 +251,7 @@ class PgConnection internal constructor(
 
     /** Delegate the next received server message to the proper event handler method */
     private suspend inline fun processServerMessage() {
-        val message = receiveServerMessage()
-        when (message) {
+        when (val message = receiveServerMessage()) {
             is PgMessage.ErrorResponse -> onErrorMessage(message)
             is PgMessage.NoticeResponse -> onNotice(message)
             is PgMessage.NotificationResponse -> onNotification(message)

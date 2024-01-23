@@ -32,7 +32,10 @@ suspend inline fun selectLoop(crossinline block: SelectBuilder<Loop>.() -> Unit)
     }
 }
 
-suspend inline fun waitOrError(errorChannel: ReceiveChannel<Throwable>, vararg otherChannels: ReceiveChannel<Any>) {
+suspend inline fun waitOrError(
+    errorChannel: ReceiveChannel<Throwable>,
+    vararg otherChannels: ReceiveChannel<Any>,
+) {
     select {
         errorChannel.onReceive {
             throw it
