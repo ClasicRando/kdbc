@@ -50,6 +50,7 @@ import com.github.clasicrando.common.quoteIdentifier
  */
 class CopyStatement(
     private val tableName: String,
+    private val schemaName: String? = null,
     private val columnNames: List<String> = emptyList(),
     private val format: CopyFormat = CopyFormat.Text,
     delimiter: Char? = null,
@@ -149,55 +150,59 @@ class CopyStatement(
      */
     fun toStatement(copyType: CopyType): String = buildString {
         append("COPY ")
+        schemaName?.let {
+            append(it.quoteIdentifier())
+            append('.')
+        }
         append(tableName.quoteIdentifier())
         columnNames.takeIf { it.isNotEmpty() }?.let {
             append(it.joinToString(separator = ",", prefix = "(", postfix = ")"))
         }
         val direction = when (copyType) {
-            CopyType.From -> " FROM STDIN"
-            CopyType.To -> " TO STDOUT"
+            CopyType.From -> " FROM STDIN "
+            CopyType.To -> " TO STDOUT "
         }
         append(direction)
         append("WITH (FORMAT ")
         append(format.toString())
         delimiter?.let {
             if (it == '\'') {
-                append("DELIMITER ''''")
+                append(", DELIMITER ''''")
                 return@let
             }
-            append("DELIMITER '$it'")
+            append(", DELIMITER '$it'")
         }
         nullString?.let {
-            append("NULL '${it.replace("'", "''")}'")
+            append(", NULL '${it.replace("'", "''")}'")
         }
         default?.let {
-            append("DEFAULT '${it.replace("'", "''")}'")
+            append(", DEFAULT '${it.replace("'", "''")}'")
         }
         header?.let {
-            append("HEADER $it")
+            append(", HEADER $it")
         }
         quote?.let {
             if (it == '\'') {
-                append("QUOTE ''''")
+                append(", QUOTE ''''")
                 return@let
             }
-            append("QUOTE '$it'")
+            append(", QUOTE '$it'")
         }
         escape?.let {
             if (it == '\'') {
-                append("ESCAPE ''''")
+                append(", ESCAPE ''''")
                 return@let
             }
-            append("ESCAPE '$it'")
+            append(", ESCAPE '$it'")
         }
         if (copyType == CopyType.To && format == CopyFormat.CSV && forceQuote != null) {
-            append("FORCE_QUOTE '$forceQuote'")
+            append(", FORCE_QUOTE '$forceQuote'")
         }
         if (copyType == CopyType.From && format == CopyFormat.CSV) {
             forceNotNull?.takeIf { it.columns.isNotEmpty() }
-                ?.let { append("FORCE_NOT_NULL '$it'") }
+                ?.let { append(", FORCE_NOT_NULL '$it'") }
             forceNull?.takeIf { it.columns.isNotEmpty() }
-                ?.let { append("FORCE_NULL '$it'") }
+                ?.let { append(", FORCE_NULL '$it'") }
         }
         append(")")
     }

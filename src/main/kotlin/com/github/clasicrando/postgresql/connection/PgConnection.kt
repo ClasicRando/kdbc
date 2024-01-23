@@ -12,6 +12,7 @@ import com.github.clasicrando.common.result.ArrayDataRow
 import com.github.clasicrando.common.result.MutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.selectLoop
+import com.github.clasicrando.common.waitOrError
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
@@ -250,7 +251,8 @@ class PgConnection internal constructor(
 
     /** Delegate the next received server message to the proper event handler method */
     private suspend inline fun processServerMessage() {
-        when (val message = receiveServerMessage()) {
+        val message = receiveServerMessage()
+        when (message) {
             is PgMessage.ErrorResponse -> onErrorMessage(message)
             is PgMessage.NoticeResponse -> onNotice(message)
             is PgMessage.NotificationResponse -> onNotification(message)
@@ -858,7 +860,7 @@ class PgConnection internal constructor(
             targetName = statement.statementName,
         )
         writeManyToStream(closeMessage, PgMessage.Sync)
-        closeStatementChannel.receive()
+        waitOrError(errorChannel, closeStatementChannel)
         preparedStatements.remove(query)
     }
 
@@ -974,7 +976,7 @@ class PgConnection internal constructor(
         }
         writeToStream(PgMessage.Query(copyQuery))
 
-        copyInResponseChannel.receive()
+        waitOrError(errorChannel, copyInResponseChannel)
 
         val copyInJob = pool.launch {
             try {
@@ -1043,14 +1045,14 @@ class PgConnection internal constructor(
         checkConnected()
         waitForQueryRunning()
 
-        val copyQuery = copyOutStatement.toStatement(CopyType.From)
+        val copyQuery = copyOutStatement.toStatement(CopyType.To)
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyQuery)
         }
         writeToStream(PgMessage.Query(copyQuery))
 
-        copyOutResponseChannel.receive()
+        waitOrError(errorChannel, copyOutResponseChannel)
         return flow {
             selectLoop {
                 errorChannel.onReceive {
@@ -1121,7 +1123,8 @@ class PgConnection internal constructor(
      * are accessible from the [notifications] [ReceiveChannel].
      */
     suspend fun listen(channelName: String) {
-        sendQuery("LISTEN \"${channelName.quoteIdentifier()}\";")
+        val query = "LISTEN ${channelName.quoteIdentifier()};"
+        sendQuery(query)
     }
 
     /**
@@ -1130,7 +1133,7 @@ class PgConnection internal constructor(
      */
     suspend fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
-        sendQuery("NOTIFY \"${channelName.quoteIdentifier()}\", '${escapedPayload}';")
+        sendQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
     }
 
     companion object {
