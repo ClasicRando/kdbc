@@ -1,12 +1,12 @@
 package com.github.clasicrando.postgresql.authentication
 
 import com.github.clasicrando.postgresql.PasswordHelper
-import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.message.PgMessage
+import com.github.clasicrando.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.Level
 
 /** Create a new simple password message, hashing the password if a [salt] provided */
-private fun PgConnection.createSimplePasswordMessage(
+private fun PgStream.createSimplePasswordMessage(
     username: String,
     password: String,
     salt: ByteArray?,
@@ -32,7 +32,7 @@ private fun PgConnection.createSimplePasswordMessage(
  * Connection then waits for a server response, only returning true if the response message is
  * Authentication OK.
  */
-internal suspend fun PgConnection.simplePasswordAuthFlow(
+internal suspend fun PgStream.simplePasswordAuthFlow(
     username: String,
     password: String,
     salt: ByteArray? = null,
@@ -44,7 +44,7 @@ internal suspend fun PgConnection.simplePasswordAuthFlow(
     )
     this.writeToStream(passwordMessage)
 
-    val response = this.receiveServerMessage()
+    val response = this.receiveNextServerMessage() ?: return false
     if (response !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
             message = "Response after a simple password message should be an Authentication.Ok"

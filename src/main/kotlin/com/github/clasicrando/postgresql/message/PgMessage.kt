@@ -4,7 +4,6 @@ import com.github.clasicrando.postgresql.copy.CopyFormat
 import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 
 internal sealed class PgMessage(val code: Byte) {
-
     data class Authentication(
         val authentication: com.github.clasicrando.postgresql.authentication.Authentication,
     ) : PgMessage(AUTHENTICATION_CODE) // B
@@ -15,7 +14,7 @@ internal sealed class PgMessage(val code: Byte) {
     data class Bind(
         val portal: String,
         val statementName: String,
-        val parameters: List<Any?>,
+        val parameters: List<ByteArray?>,
     ) : PgMessage(BIND_CODE) // F
     data object BindComplete : PgMessage(BIND_COMPLETE_CODE) // B
     data class CancelRequest(val processId: Int, val secretKey: Int) : PgMessage(ZERO_CODE) // F
@@ -78,7 +77,7 @@ internal sealed class PgMessage(val code: Byte) {
     data class Parse(
         val preparedStatementName: String,
         val query: String,
-        val parameters: List<Any?>,
+        val parameterTypes: List<Int>,
     ) : PgMessage(PARSE_CODE) // F
     data object ParseComplete : PgMessage(PARSE_COMPLETE_CODE) // B
     class PasswordMessage(val password: ByteArray) : PgMessage(PASSWORD_MESSAGE_CODE) // F

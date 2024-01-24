@@ -26,25 +26,8 @@ internal interface ConnectionPool<C : Connection> : CoroutineScope {
      * [Connection] was actually part of the pool and was returned. Otherwise, return false.
      */
     suspend fun giveBack(connection: C): Boolean
+    /** */
+    suspend fun waitForValidation(): Boolean
     /** Close the connection pool and all connections that are associated with the pool */
     suspend fun close()
-}
-
-/** Use a connection pool for a scoped duration, always closing even if an exception is thrown */
-internal suspend inline fun <R, C : Connection> ConnectionPool<C>.use(
-    crossinline block: suspend (ConnectionPool<C>) -> R
-): R {
-    var cause: Throwable? = null
-    return try {
-        block(this)
-    } catch (ex: Throwable) {
-        cause = ex
-        throw ex
-    } finally {
-        try {
-            close()
-        } catch (ex: Throwable) {
-            cause?.addSuppressed(ex)
-        }
-    }
 }

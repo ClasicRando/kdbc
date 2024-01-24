@@ -4,6 +4,7 @@ import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connection.Connection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -42,10 +43,12 @@ internal abstract class AbstractConnectionPool<C : Connection>(
     private val connectionIds: MutableMap<UUID, C> = AtomicMutableMap()
     private val connectionsNeeded = Channel<Unit>(capacity = Channel.BUFFERED)
 
-    override val coroutineContext: CoroutineContext
+    final override val coroutineContext: CoroutineContext
         get() = SupervisorJob(
             parent = poolOptions.parentScope?.coroutineContext?.job,
         ) + poolOptions.coroutineDispatcher
+
+    private val initialized = CompletableDeferred<Boolean>(parent = coroutineContext.job)
 
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,
@@ -59,6 +62,17 @@ internal abstract class AbstractConnectionPool<C : Connection>(
     }
 
     private val observerJob: Job = launch {
+        try {
+            val connection = provider.create(this@AbstractConnectionPool)
+            val isValid = provider.validate(connection)
+            initialized.complete(isValid)
+        } catch (ex: Throwable) {
+            logger.atTrace {
+                message = "Could not create the initial connection needed to validate the pool"
+            }
+            initialized.completeExceptionally(ex)
+            return@launch
+        }
         for (i in 1..poolOptions.minConnections) {
             connectionsNeeded.send(Unit)
         }
@@ -154,7 +168,13 @@ internal abstract class AbstractConnectionPool<C : Connection>(
         return true
     }
 
+    override suspend fun waitForValidation(): Boolean {
+        return initialized.await()
+    }
+
     override suspend fun close() {
+        connections.close()
+        connectionsNeeded.close()
         observerJob.cancelAndJoin()
         for (connection in connectionIds.values) {
             connection.close()

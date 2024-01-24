@@ -1,20 +1,16 @@
 package com.github.clasicrando.postgresql.message.encoders
 
 import com.github.clasicrando.common.message.MessageEncoder
-import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 
-internal class PgMessageEncoders(
-    charset: Charset,
-    typeRegistry: PgTypeRegistry,
-) {
+internal class PgMessageEncoders(charset: Charset) {
     private val startupEncoder = StartupEncoder(charset)
     private val saslInitialResponseEncoder = SaslInitialResponseEncoder(charset)
     private val saslResponseEncoder = SaslResponseEncoder(charset)
     private val queryEncoder = QueryEncoder(charset)
-    private val parseEncoder = ParseEncoder(charset, typeRegistry)
-    private val bindEncoder = BindEncoder(charset, typeRegistry)
+    private val parseEncoder = ParseEncoder(charset)
+    private val bindEncoder = BindEncoder(charset)
     private val describeEncoder = DescribeEncoder(charset)
     private val executeEncoder = ExecuteEncoder(charset)
     private val closeEncoder = CloseEncoder(charset)
