@@ -1,9 +1,11 @@
 package com.github.clasicrando.benchmarks.postgresql
 
 import com.github.clasicrando.common.connection.Connection
+import com.github.clasicrando.common.pool.KdbcPoolsManager
 import com.github.clasicrando.common.result.getDateTime
 import com.github.clasicrando.common.result.getInt
 import com.github.clasicrando.common.result.getString
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -14,6 +16,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 import java.util.concurrent.TimeUnit
 
@@ -38,7 +41,7 @@ open class KdbcBenchmark {
     }
 
 //    @Benchmark
-    open fun queryData() = runBlocking {
+    open fun queryData() = runBlocking(Dispatchers.IO) {
         step()
         val result = connection.sendPreparedStatement(kdbcQuery, listOf(id, id + 10)).first()
         result.rows.map { row ->
@@ -58,5 +61,17 @@ open class KdbcBenchmark {
                 row.getInt(12),
             )
         }
+    }
+
+    @TearDown
+    fun destroy() = runBlocking {
+        if (connection.isConnected) {
+            try {
+                connection.close()
+            } catch (ex: Throwable) {
+                ex.printStackTrace()
+            }
+        }
+        KdbcPoolsManager.closeAllPools()
     }
 }

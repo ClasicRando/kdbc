@@ -1,12 +1,10 @@
 package com.github.clasicrando.benchmarks.postgresql
 
-import com.github.clasicrando.common.connection.Connection
-import com.github.clasicrando.common.pool.KdbcPoolsManager
-import com.github.clasicrando.common.result.getDateTime
-import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.common.result.getString
-import kotlinx.coroutines.Dispatchers
+import com.github.jasync.sql.db.pool.ConnectionPool
+import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.toKotlinLocalDateTime
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -26,31 +24,30 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class KdbcBenchmarkSingle {
+open class JasyncBenchmark {
     private var id = 0
-    private val connection: Connection = runBlocking { getKdbcConnection() }
+    private val pool: ConnectionPool<PostgreSQLConnection> = getJasyncPool()
 
     @Setup
     open fun start(): Unit = runBlocking {
-        connection.sendQuery(setupQuery)
+        pool.sendQuery(setupQuery)
     }
 
     private fun step() {
-        id++
-        if (id > 5000) id = 1
+        id += 10
+        if (id >= 5000) id = 1
     }
 
-//    @Benchmark
-    open fun queryData(): Unit = runBlocking(Dispatchers.IO) {
+    @Benchmark
+    open fun queryData() = runBlocking {
         step()
-        val result = connection.sendPreparedStatement(kdbcQuerySingle, listOf(id)).firstOrNull()
-            ?: throw Exception("No records returned from $kdbcQuerySingle, id = $id")
+        val result = pool.sendPreparedStatement(jdbcQuery, listOf(id, id + 10)).await()
         result.rows.map { row ->
             PostDataClass(
                 row.getInt(0)!!,
                 row.getString(1)!!,
-                row.getDateTime(2)!!.datetime,
-                row.getDateTime(3)!!.datetime,
+                row.getAs<java.time.LocalDateTime>(2).toKotlinLocalDateTime(),
+                row.getAs<java.time.LocalDateTime>(3).toKotlinLocalDateTime(),
                 row.getInt(4),
                 row.getInt(5),
                 row.getInt(6),
@@ -66,13 +63,12 @@ open class KdbcBenchmarkSingle {
 
     @TearDown
     fun destroy() = runBlocking {
-        if (connection.isConnected) {
+        if (pool.isConnected()) {
             try {
-                connection.close()
+                pool.disconnect().await()
             } catch (ex: Throwable) {
                 ex.printStackTrace()
             }
         }
-        KdbcPoolsManager.closeAllPools()
     }
 }
