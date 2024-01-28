@@ -58,39 +58,22 @@ interface Connection {
      */
     suspend fun rollback()
 
-    /** Send a raw query with no parameters, returning a [Flow] of zero or more [QueryResult]s */
-    suspend fun sendQueryFlow(query: String): Flow<QueryResult>
-
     /**
      * Send a raw query with no parameters, returning an [Iterable] of zero or more [QueryResult]s
      */
-    suspend fun sendQuery(query: String): Iterable<QueryResult> = sendQueryFlow(query).toList()
-
-    /**
-     * Send a prepared statement with [parameters], returning a [Flow] of zero or more
-     * [QueryResult]s
-     */
-    suspend fun sendPreparedStatementFlow(
-        query: String,
-        parameters: List<Any?>,
-    ): Flow<QueryResult>
+    suspend fun sendQuery(query: String): Iterable<QueryResult>
 
     /**
      * Send a prepared statement with [parameters], returning an [Iterable] of zero or more
      * [QueryResult]s
      */
-    suspend fun sendPreparedStatement(
-        query: String,
-        parameters: List<Any?>,
-    ): Iterable<QueryResult> = sendPreparedStatementFlow(query, parameters).toList()
+    suspend fun sendPreparedStatement(query: String, parameters: List<Any?>): Iterable<QueryResult>
 
     /**
      * Manually release a prepared statement for the provided [query]. This will not error if the
      * query is not attached to a prepared statement.
      *
-     * Only call this method if you are sure you need it. Instead, use the `release` parameter in
-     * a call of [sendPreparedStatementFlow] to release a prepared statement immediately after the
-     * query result finishes.
+     * Only call this method if you are sure you need it.
      */
     suspend fun releasePreparedStatement(query: String)
 }

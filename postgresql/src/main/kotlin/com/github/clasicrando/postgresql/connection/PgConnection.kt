@@ -247,7 +247,7 @@ class PgConnection internal constructor(
             cause = error
         }
         throw error
-    }.buffer()
+    }
 
     /**
      * Collect all [QueryResult]s for the query as a buffered [Flow].
@@ -268,11 +268,12 @@ class PgConnection internal constructor(
      * [Throwable] (if any) and thrown. Otherwise, the [flow] exits with all [QueryResult]s
      * yielded.
      */
-    private fun collectResult(
+    private suspend fun collectResult(
         statement: PgPreparedStatement? = null,
-    ): Flow<QueryResult> = flow {
+    ): Iterable<QueryResult> {
         val errors = mutableListOf<Throwable>()
         var result = MutableResultSet(statement?.metadata ?: listOf())
+        val results = mutableListOf<QueryResult>()
         selectLoop {
             stream.errors.onReceive {
                 errors.add(it)
@@ -288,7 +289,7 @@ class PgConnection internal constructor(
                 Loop.Continue
             }
             stream.commandComplete.onReceive {
-                emit(QueryResult(it.rowCount, it.message, result))
+                results.add(QueryResult(it.rowCount, it.message, result))
                 Loop.Continue
             }
             stream.queryDone.onReceive {
@@ -297,15 +298,15 @@ class PgConnection internal constructor(
             }
         }
 
-        val error = errors.reduceToSingleOrNull() ?: return@flow
+        val error = errors.reduceToSingleOrNull() ?: return results
         log(Level.ERROR) {
             message = "Error during single query execution"
             cause = error
         }
         throw error
-    }.buffer()
+    }
 
-    override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
+    override suspend fun sendQuery(query: String): Iterable<QueryResult> {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
@@ -405,10 +406,10 @@ class PgConnection internal constructor(
         return statement
     }
 
-    override suspend fun sendPreparedStatementFlow(
+    override suspend fun sendPreparedStatement(
         query: String,
         parameters: List<Any?>,
-    ): Flow<QueryResult> {
+    ): Iterable<QueryResult> {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
@@ -506,7 +507,7 @@ class PgConnection internal constructor(
      *
      * If you are unsure of how this works or what the implications of pipelining has on your
      * database, you should opt to either send multiple statements in separate calls to
-     * [sendPreparedStatementFlow] or package your queries into a stored procedure.
+     * [sendPreparedStatement] or package your queries into a stored procedure.
      */
     suspend fun pipelineQueries(
         syncAll: Boolean = true,
@@ -643,7 +644,7 @@ class PgConnection internal constructor(
                     Loop.Break
                 }
             }
-        }.buffer()
+        }
     }
 
     /**
