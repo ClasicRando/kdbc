@@ -3,8 +3,11 @@ package com.github.clasicrando.common.pool
 import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connection.Connection
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.network.selector.SelectorManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -13,6 +16,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.uuid.UUID
@@ -48,7 +52,11 @@ abstract class AbstractConnectionPool<C : Connection>(
             parent = poolOptions.parentScope?.coroutineContext?.job,
         ) + poolOptions.coroutineDispatcher
 
-    private val initialized = CompletableDeferred<Boolean>(parent = coroutineContext.job)
+    final override val selectorManager = SelectorManager(dispatcher = coroutineContext)
+
+    private val initialized = CompletableDeferred<Boolean>(
+        parent = selectorManager.coroutineContext.job,
+    )
 
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,
@@ -67,15 +75,17 @@ abstract class AbstractConnectionPool<C : Connection>(
             val isValid = provider.validate(connection)
             initialized.complete(isValid)
         } catch (ex: Throwable) {
-            logger.atTrace {
+            logger.atError {
                 message = "Could not create the initial connection needed to validate the pool"
+                cause = ex
             }
             initialized.completeExceptionally(ex)
-            return@launch
         }
+
         for (i in 1..poolOptions.minConnections) {
             connectionsNeeded.send(Unit)
         }
+
         var cause: Throwable? = null
         try {
             while (isActive) {
@@ -156,11 +166,12 @@ abstract class AbstractConnectionPool<C : Connection>(
         return connectionIds.contains(poolConnection.connectionId)
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     override suspend fun giveBack(connection: C): Boolean {
         if (!hasConnection(connection)) {
             return false
         }
-        if (!provider.validate(connection)) {
+        if (!provider.validate(connection) || connections.isClosedForSend) {
             invalidateConnection(connection)
             return true
         }
@@ -173,11 +184,14 @@ abstract class AbstractConnectionPool<C : Connection>(
     }
 
     override suspend fun close() {
+        observerJob.cancelAndJoin()
         connections.close()
         connectionsNeeded.close()
-        observerJob.cancelAndJoin()
         for (connection in connectionIds.values) {
             connection.close()
+        }
+        withContext(Dispatchers.IO) {
+            selectorManager.close()
         }
         cancel()
     }

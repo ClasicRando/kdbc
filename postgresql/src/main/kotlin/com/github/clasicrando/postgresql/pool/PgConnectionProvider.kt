@@ -13,7 +13,7 @@ internal class PgConnectionProvider(
         var stream: PgStream? = null
         try {
             stream = PgStream.connect(
-                coroutineScope = pool,
+                selectorManager = pool.selectorManager,
                 connectOptions = connectOptions,
             )
             return PgConnection.connect(

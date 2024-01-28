@@ -48,7 +48,6 @@ private val logger = KotlinLogging.logger {}
 internal class PgStream(
     private val scope: CoroutineScope,
     private var connection: Connection,
-    private var selectorManager: SelectorManager,
     internal val connectOptions: PgConnectOptions,
 ): CoroutineScope, AutoCloseable {
     private val receiveChannel get() = connection.input
@@ -497,9 +496,6 @@ internal class PgStream(
         if (connection.socket.isActive) {
             connection.socket.close()
         }
-        if (selectorManager.isActive) {
-            selectorManager.close()
-        }
     }
 
     /**
@@ -567,7 +563,7 @@ internal class PgStream(
 
     @Suppress("BlockingMethodInNonBlockingContext", "UNUSED")
     private suspend fun upgradeIfNeeded(
-        coroutineContext: CoroutineContext,
+        selectorManager: SelectorManager,
         connectOptions: PgConnectOptions,
     ) {
         when (connectOptions.sslMode) {
@@ -588,11 +584,10 @@ internal class PgStream(
         }
         connection.socket.close()
         val newConnection = createConnection(
-            coroutineContext = coroutineContext,
+            selectorManager = selectorManager,
             connectOptions = connectOptions,
         )
-        selectorManager = newConnection.first
-        connection = newConnection.second
+        connection = newConnection
     }
 
     companion object {
@@ -601,14 +596,12 @@ internal class PgStream(
 
         @Suppress("BlockingMethodInNonBlockingContext")
         private suspend fun createConnection(
-            coroutineContext: CoroutineContext,
+            selectorManager: SelectorManager,
             connectOptions: PgConnectOptions,
             tlsConfig: (TLSConfigBuilder.() -> Unit)? = null,
-        ): Pair<SelectorManager, Connection> {
-            var selectorManager: SelectorManager? = null
+        ): Connection {
             var socket: Socket? = null
             try {
-                selectorManager = SelectorManager(coroutineContext)
                 socket = withTimeout(connectOptions.connectionTimeout.toLong()) {
                     aSocket(selectorManager)
                         .tcp()
@@ -618,14 +611,14 @@ internal class PgStream(
                 }
 
                 tlsConfig?.let {
-                    return selectorManager to socket.tls(coroutineContext, block = it).connection()
+                    return socket.tls(selectorManager.coroutineContext, block = it).connection()
                 }
-                return selectorManager to socket.connection()
+                return socket.connection()
             } catch (ex: Throwable) {
                 if (socket?.isActive == true) {
                     socket.close()
                 }
-                if (selectorManager?.isActive == true) {
+                if (selectorManager.isActive) {
                     selectorManager.close()
                 }
                 throw ex
@@ -644,14 +637,14 @@ internal class PgStream(
          * [PgStream] object is closed and an exception is thrown.
          */
         internal suspend fun connect(
-            coroutineScope: CoroutineScope,
+            selectorManager: SelectorManager,
             connectOptions: PgConnectOptions,
         ): PgStream {
-            val (selectorManager, socket) = createConnection(
-                coroutineContext = coroutineScope.coroutineContext,
+            val socket = createConnection(
+                selectorManager = selectorManager,
                 connectOptions = connectOptions,
             )
-            val stream = PgStream(coroutineScope, socket, selectorManager, connectOptions)
+            val stream = PgStream(selectorManager, socket, connectOptions)
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()
