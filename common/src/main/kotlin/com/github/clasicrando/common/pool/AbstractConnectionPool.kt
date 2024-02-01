@@ -18,7 +18,6 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.uuid.UUID
 import kotlin.coroutines.CoroutineContext
 
@@ -45,7 +44,7 @@ abstract class AbstractConnectionPool<C : Connection>(
 ) : ConnectionPool<C> {
     private val connections = Channel<C>(capacity = poolOptions.maxConnections)
     private val connectionIds: MutableMap<UUID, C> = AtomicMutableMap()
-    private val connectionsNeeded = Channel<Unit>(capacity = Channel.BUFFERED)
+    private val connectionNeeded = Channel<Unit>(capacity = Channel.BUFFERED)
 
     final override val coroutineContext: CoroutineContext
         get() = SupervisorJob(
@@ -83,13 +82,13 @@ abstract class AbstractConnectionPool<C : Connection>(
         }
 
         for (i in 1..poolOptions.minConnections) {
-            connectionsNeeded.send(Unit)
+            connectionNeeded.send(Unit)
         }
 
         var cause: Throwable? = null
         try {
             while (isActive) {
-                connectionsNeeded.receive()
+                connectionNeeded.receive()
                 if (isExhausted) {
                     continue
                 }
@@ -103,7 +102,7 @@ abstract class AbstractConnectionPool<C : Connection>(
             throw ex
         } finally {
             connections.close(cause = cause)
-            connectionsNeeded.close(cause = cause)
+            connectionNeeded.close(cause = cause)
             logger.atError {
                 message = "Exiting pool observer"
             }
@@ -128,7 +127,7 @@ abstract class AbstractConnectionPool<C : Connection>(
                 payload = mapOf("id" to connectionId)
             }
             disposeConnection(connection)
-            connectionsNeeded.send(Unit)
+            connectionNeeded.send(Unit)
         } catch (ex: Throwable) {
             logger.atError {
                 cause = ex
@@ -140,13 +139,8 @@ abstract class AbstractConnectionPool<C : Connection>(
 
     private suspend fun acquireConnection(): C {
         while (true) {
-            val possibleConnection = withTimeoutOrNull(50) {
-                connections.receive()
-            }
-            if (possibleConnection == null) {
-                connectionsNeeded.send(Unit)
-            }
-            val connection = possibleConnection ?: connections.receive()
+            connectionNeeded.send(Unit)
+            val connection = connections.receive()
             if (provider.validate(connection)) {
                 return connection
             }
@@ -155,6 +149,9 @@ abstract class AbstractConnectionPool<C : Connection>(
     }
 
     override suspend fun acquire(): C {
+        if (poolOptions.acquireTimeout.isInfinite()) {
+            return acquireConnection()
+        }
         return withTimeout(poolOptions.acquireTimeout) {
             acquireConnection()
         }
@@ -186,7 +183,7 @@ abstract class AbstractConnectionPool<C : Connection>(
     override suspend fun close() {
         observerJob.cancelAndJoin()
         connections.close()
-        connectionsNeeded.close()
+        connectionNeeded.close()
         for (connection in connectionIds.values) {
             connection.close()
         }
