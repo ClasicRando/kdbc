@@ -44,7 +44,7 @@ internal suspend fun PgStream.simplePasswordAuthFlow(
     )
     this.writeToStream(passwordMessage)
 
-    val response = this.receiveNextServerMessage() ?: return false
+    val response = this.receiveNextServerMessage()
     if (response !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
             message = "Response after a simple password message should be an Authentication.Ok"

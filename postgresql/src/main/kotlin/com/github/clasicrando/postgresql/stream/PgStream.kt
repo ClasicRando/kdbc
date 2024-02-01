@@ -166,11 +166,7 @@ internal class PgStream(
         }
     }
 
-    internal suspend fun receiveNextServerMessage(): PgMessage? {
-        receiveChannel.awaitContent()
-        if (!isConnected) {
-            return null
-        }
+    internal suspend fun receiveNextServerMessage(): PgMessage {
         val format = receiveChannel.readByte()
         val size = receiveChannel.readInt()
         val packet = receiveChannel.readPacket(size - 4)
@@ -187,7 +183,6 @@ internal class PgStream(
         try {
             while (isActive && this@PgStream.isConnected) {
                 when (val message = receiveNextServerMessage()) {
-                    null -> break
                     is PgMessage.ErrorResponse -> onErrorMessage(message)
                     is PgMessage.NoticeResponse -> onNotice(message)
                     is PgMessage.NotificationResponse -> onNotification(message)
