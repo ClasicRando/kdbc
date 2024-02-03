@@ -28,7 +28,7 @@ data class PgConnectOptions(
     val socket: Path? = null,
     val currentSchema: String? = null,
     val options: String? = null,
-    val poolOptions: PoolOptions = PoolOptions(maxConnections = 100),
+    val poolOptions: PoolOptions = PoolOptions(),
 ) {
     val properties: List<Pair<String, String>> = listOf(
         "user" to username,
@@ -71,5 +71,47 @@ data class PgConnectOptions(
     fun disableStatementLogging(): PgConnectOptions {
         return logStatements(Level.TRACE)
             .logSlowStatements(Level.TRACE, Duration.INFINITE)
+    }
+
+    override fun toString(): String {
+        return buildString {
+            append("PgConnectOptions(host=")
+            append(host)
+            append(",port=")
+            append(port)
+            append(",username=")
+            append(username)
+            append(",applicationName=")
+            append(applicationName)
+            append(",connectionTimeout=")
+            append(connectionTimeout)
+            append(",password=***, database=")
+            append(database)
+            append(",logSettings=")
+            append(logSettings)
+            append(",statementCacheCapacity=")
+            append(statementCacheCapacity)
+            append(",charset=")
+            append(charset)
+            append(",extraFloatDigits=")
+            append(extraFloatDigits)
+            append(",sslMode=")
+            append(sslMode)
+            append(",sslRootCert=")
+            append(sslRootCert)
+            append(",sslClientCert=")
+            append(sslClientCert)
+            append(",sslClientKey=")
+            append(sslClientKey)
+            append(",socket=")
+            append(socket)
+            append(",currentSchema=")
+            append(currentSchema)
+            append(",options=")
+            append(options)
+            append(",poolOptions=")
+            append(poolOptions)
+            append(")")
+        }
     }
 }

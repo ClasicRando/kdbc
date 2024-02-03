@@ -15,7 +15,7 @@ data class PoolOptions(
      * method will suspend until [Connection][com.github.clasicrando.common.connection.Connection]s
      * are returned.
      */
-    val maxConnections: Int,
+    val maxConnections: Int = 20,
     /**
      * Minimum number of [Connection][com.github.clasicrando.common.connection.Connection]
      * instances held within the pool. When the pool is initialized, it will be requested to create

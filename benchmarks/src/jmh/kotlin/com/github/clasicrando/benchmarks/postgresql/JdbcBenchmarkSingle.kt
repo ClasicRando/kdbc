@@ -12,7 +12,9 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
 import java.sql.Connection
+import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
+import kotlin.time.measureTimedValue
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -49,8 +51,8 @@ open class JdbcBenchmarkSingle {
                     val item = PostDataClass(
                         resultSet.getInt(1),
                         resultSet.getString(2),
-                        resultSet.getObject(3, java.time.LocalDateTime::class.java).toKotlinLocalDateTime(),
-                        resultSet.getObject(4, java.time.LocalDateTime::class.java).toKotlinLocalDateTime(),
+                        resultSet.getObject(3, LocalDateTime::class.java).toKotlinLocalDateTime(),
+                        resultSet.getObject(4, LocalDateTime::class.java).toKotlinLocalDateTime(),
                         resultSet.getInt(5),
                         resultSet.getInt(6),
                         resultSet.getInt(7),

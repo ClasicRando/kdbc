@@ -12,7 +12,7 @@ import com.github.clasicrando.common.result.ArrayDataRow
 import com.github.clasicrando.common.result.MutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.selectLoop
-import com.github.clasicrando.common.waitOrError
+import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.copy.CopyStatement
 import com.github.clasicrando.postgresql.copy.CopyType
@@ -35,7 +35,6 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
@@ -99,6 +98,7 @@ class PgConnection internal constructor(
      * TODO implement a cap to the cache so we don't hold too many prepared statements
      */
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
+    private val wasFailed = atomic(false)
 
     /**
      * Created a log message at the specified [level], applying the [block] to the
@@ -210,29 +210,38 @@ class PgConnection internal constructor(
         val errors = mutableListOf<Throwable>()
         for ((i, preparedStatement) in statements.withIndex()) {
             var result = MutableResultSet(preparedStatement?.metadata ?: listOf())
-            selectLoop {
-                stream.errors.onReceive {
-                    errors.add(it)
-                    Loop.Continue
-                }
-                stream.rowDescription.onReceive {
-                    preparedStatement?.metadata = it
-                    result = MutableResultSet(it)
-                    Loop.Continue
-                }
-                stream.dataRows.onReceive {
-                    addDataRow(result, it)
-                    Loop.Continue
-                }
-                stream.commandComplete.onReceive {
-                    emit(QueryResult(it.rowCount, it.message, result))
-                    Loop.Continue
-                }
-                stream.queryDone.onReceive {
-                    if (i == statements.size - 1) {
-                        enableQueryRunning()
+            stream.processMessageLoop {message ->
+                when (message) {
+                    is PgMessage.ErrorResponse -> {
+                        errors.add(GeneralPostgresError(message))
+                        Loop.Continue
                     }
-                    Loop.Break
+                    is PgMessage.RowDescription -> {
+                        preparedStatement?.metadata = message.fields
+                        result = MutableResultSet(message.fields)
+                        Loop.Continue
+                    }
+                    is PgMessage.DataRow -> {
+                        addDataRow(result, message)
+                        Loop.Continue
+                    }
+                    is PgMessage.CommandComplete -> {
+                        emit(QueryResult(message.rowCount, message.message, result))
+                        Loop.Continue
+                    }
+                    is PgMessage.ReadyForQuery -> {
+                        if (i == statements.size - 1) {
+                            enableQueryRunning()
+                        }
+                        Loop.Break
+                    }
+                    else -> {
+                        log(Level.TRACE) {
+                            this.message = "Ignoring {message} since it's not an error or the desired type"
+                            payload = mapOf("message" to message)
+                        }
+                        Loop.Continue
+                    }
                 }
             }
             if (errors.isNotEmpty() && !isAutoCommit) {
@@ -274,27 +283,36 @@ class PgConnection internal constructor(
         val errors = mutableListOf<Throwable>()
         var result = MutableResultSet(statement?.metadata ?: listOf())
         val results = mutableListOf<QueryResult>()
-        selectLoop {
-            stream.errors.onReceive {
-                errors.add(it)
-                Loop.Continue
-            }
-            stream.rowDescription.onReceive {
-                statement?.metadata = it
-                result = MutableResultSet(it)
-                Loop.Continue
-            }
-            stream.dataRows.onReceive {
-                addDataRow(result, it)
-                Loop.Continue
-            }
-            stream.commandComplete.onReceive {
-                results.add(QueryResult(it.rowCount, it.message, result))
-                Loop.Continue
-            }
-            stream.queryDone.onReceive {
-                enableQueryRunning()
-                Loop.Break
+        stream.processMessageLoop { message ->
+            when (message) {
+                is PgMessage.ErrorResponse -> {
+                    errors.add(GeneralPostgresError(message))
+                    Loop.Continue
+                }
+                is PgMessage.RowDescription -> {
+                    statement?.metadata = message.fields
+                    result = MutableResultSet(message.fields)
+                    Loop.Continue
+                }
+                is PgMessage.DataRow -> {
+                    addDataRow(result, message)
+                    Loop.Continue
+                }
+                is PgMessage.CommandComplete -> {
+                    results.add(QueryResult(message.rowCount, message.message, result))
+                    Loop.Continue
+                }
+                is PgMessage.ReadyForQuery -> {
+                    enableQueryRunning()
+                    Loop.Break
+                }
+                else -> {
+                    log(Level.TRACE) {
+                        this.message = "Ignoring {message} since it's not an error or the desired type"
+                        payload = mapOf("message" to message)
+                    }
+                    Loop.Continue
+                }
             }
         }
 
@@ -426,6 +444,7 @@ class PgConnection internal constructor(
                 message = "query supplied did not match a stored prepared statement"
                 payload = mapOf("query" to query)
             }
+            enableQueryRunning()
             return
         }
         val closeMessage = PgMessage.Close(
@@ -433,8 +452,9 @@ class PgConnection internal constructor(
             targetName = statement.statementName,
         )
         stream.writeManyToStream(closeMessage, PgMessage.Sync)
-        waitOrError(stream.errors, stream.closeStatement)
+        stream.waitForOrError<PgMessage.CommandComplete>()
         preparedStatements.remove(query)
+        enableQueryRunning()
     }
 
     /**
@@ -547,7 +567,7 @@ class PgConnection internal constructor(
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
 
-        waitOrError(stream.errors, stream.copyInResponse)
+        stream.waitForOrError<PgMessage.CopyInResponse>()
 
         val copyInJob = pool.launch {
             try {
@@ -557,6 +577,7 @@ class PgConnection internal constructor(
                 stream.writeToStream(PgMessage.CopyDone)
             } catch (ex: Throwable) {
                 if (stream.isConnected) {
+                    wasFailed.compareAndSet(expect = false, update = true)
                     stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
                 }
             }
@@ -565,27 +586,47 @@ class PgConnection internal constructor(
         var completeMessage: PgMessage.CommandComplete? = null
         val errors = mutableListOf<Throwable>()
         try {
-            selectLoop {
-                stream.errors.onReceive {
-                    if (copyInJob.isActive) {
-                        copyInJob.cancel()
+            stream.processMessageLoop { message ->
+                when (message) {
+                    is PgMessage.ErrorResponse -> {
+                        if (wasFailed.getAndSet(false)) {
+                            completeMessage = PgMessage.CommandComplete(
+                                rowCount = 0,
+                                message = "CopyFail Issued by client",
+                            )
+                            log(Level.WARN) {
+                                this.message = "CopyIn operation failed by client"
+                            }
+                            return@processMessageLoop Loop.Continue
+                        }
+                        if (copyInJob.isActive) {
+                            copyInJob.cancel()
+                        }
+                        copyInJob.join()
+                        val error = GeneralPostgresError(message)
+                        log(Level.ERROR) {
+                            this.message = "Error during copy in operation"
+                            cause = error
+                        }
+                        errors.add(error)
+                        Loop.Continue
                     }
-                    copyInJob.join()
-                    log(Level.ERROR) {
-                        message = "Error during copy in operation"
-                        cause = it
+                    is PgMessage.CommandComplete -> {
+                        completeMessage = message
+                        Loop.Continue
                     }
-                    errors.add(it)
-                    Loop.Continue
-                }
-                stream.commandComplete.onReceive {
-                    completeMessage = it
-                    Loop.Continue
-                }
-                stream.queryDone.onReceive {
-                    copyInJob.join()
-                    enableQueryRunning()
-                    Loop.Break
+                    is PgMessage.ReadyForQuery -> {
+                        copyInJob.join()
+                        enableQueryRunning()
+                        Loop.Break
+                    }
+                    else -> {
+                        log(Level.TRACE) {
+                            this.message = "Ignoring {message} since it's not an error or the desired type"
+                            payload = mapOf("message" to message)
+                        }
+                        Loop.Continue
+                    }
                 }
             }
         } catch (ex: Throwable) {
@@ -622,26 +663,30 @@ class PgConnection internal constructor(
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
 
-        waitOrError(stream.errors, stream.copyOutResponse)
+        stream.waitForOrError<PgMessage.CopyOutResponse>()
         return flow {
-            selectLoop {
-                stream.errors.onReceive {
-                    enableQueryRunning()
-                    throw it
-                }
-                stream.copyData.onReceive {
-                    emit(it.data)
-                    Loop.Continue
-                }
-                stream.copyDone.onReceive {
-                    Loop.Continue
-                }
-                stream.commandComplete.onReceive {
-                    Loop.Continue
-                }
-                stream.queryDone.onReceive {
-                    enableQueryRunning()
-                    Loop.Break
+            stream.processMessageLoop { message ->
+                when (message) {
+                    is PgMessage.ErrorResponse -> {
+                        enableQueryRunning()
+                        throw GeneralPostgresError(message)
+                    }
+                    is PgMessage.CopyData -> {
+                        emit(message.data)
+                        Loop.Continue
+                    }
+                    is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
+                    is PgMessage.ReadyForQuery -> {
+                        enableQueryRunning()
+                        Loop.Break
+                    }
+                    else -> {
+                        log(Level.TRACE) {
+                            this.message = "Ignoring {message} since it's not an error or the desired type"
+                            payload = mapOf("message" to message)
+                        }
+                        Loop.Continue
+                    }
                 }
             }
         }
@@ -737,7 +782,7 @@ class PgConnection internal constructor(
                     error("Could not initialize connection")
                 }
                 connection.typeRegistry.finalizeTypes(connection)
-                connection.canRunQuery.send(Unit)
+                connection.enableQueryRunning()
                 return connection
             } catch (ex: Throwable) {
                 try {

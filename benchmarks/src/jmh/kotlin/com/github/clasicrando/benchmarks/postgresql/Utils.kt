@@ -9,6 +9,7 @@ import com.github.jasync.sql.db.pool.ConnectionPool
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.Dispatchers
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 import org.apache.commons.dbcp2.DriverManagerConnectionFactory
@@ -116,7 +117,7 @@ suspend fun initializeConcurrentConnections(): PgConnectOptions {
         applicationName = "KdbcTests${UUID.generateUUID()}",
         logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
         poolOptions = PoolOptions(
-            maxConnections = 8,
+            maxConnections = 20,
             minConnections = 8,
         ),
     )

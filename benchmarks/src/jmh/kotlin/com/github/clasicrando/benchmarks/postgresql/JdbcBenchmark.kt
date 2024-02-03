@@ -1,7 +1,6 @@
 package com.github.clasicrando.benchmarks.postgresql
 
 import kotlinx.datetime.toKotlinLocalDateTime
-import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
@@ -38,7 +37,7 @@ open class JdbcBenchmark {
         if (id >= 5000) id = 1
     }
 
-    @Benchmark
+//    @Benchmark
     open fun queryData() {
         step()
         connection.prepareStatement(jdbcQuery).use { preparedStatement ->

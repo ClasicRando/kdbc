@@ -38,7 +38,7 @@ open class JasyncBenchmark {
         if (id >= 5000) id = 1
     }
 
-    @Benchmark
+//    @Benchmark
     open fun queryData() = runBlocking {
         step()
         val result = pool.sendPreparedStatement(jdbcQuery, listOf(id, id + 10)).await()

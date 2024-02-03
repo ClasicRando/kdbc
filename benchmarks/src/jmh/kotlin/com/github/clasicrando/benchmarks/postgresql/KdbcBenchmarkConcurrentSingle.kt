@@ -21,6 +21,7 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import java.util.concurrent.TimeUnit
 
@@ -48,7 +49,7 @@ open class KdbcBenchmarkConcurrentSingle {
     }
 
 //    @Benchmark
-    open fun queryData() = runBlocking(Dispatchers.IO) {
+    open fun queryData() = runBlocking {
         val result = (1..concurrencyLimit).map {
             val stepId = step()
             async {

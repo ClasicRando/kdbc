@@ -11,6 +11,7 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorCompletionService
@@ -79,15 +80,10 @@ open class JdbcBenchmarkThreadPoolSingle {
             }
         }
         var received = 0
-        var errors = false
-        while (received < taskCount && !errors) {
+        while (received < taskCount) {
             val future = completionService.take()
-            try {
-                future.get()
-                received++
-            } catch (ex: Throwable) {
-                errors = true
-            }
+            future.get()
+            received++
         }
     }
 

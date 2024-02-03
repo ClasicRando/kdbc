@@ -65,23 +65,38 @@ abstract class AbstractConnectionPool<C : Connection>(
     private suspend fun addNewConnection() {
         val connection = provider.create(this@AbstractConnectionPool)
         connectionIds[connection.connectionId] = connection
+        logger.atTrace {
+            message = "Created new connection. Current pool size = {count}. Max size = {max}"
+            payload = mapOf(
+                "count" to connectionIds.size,
+                "max" to poolOptions.maxConnections,
+            )
+        }
         connections.send(connection)
     }
 
     private val observerJob: Job = launch {
+        var initialConnection: C? = null
         try {
-            val connection = provider.create(this@AbstractConnectionPool)
-            val isValid = provider.validate(connection)
+            initialConnection = provider.create(this@AbstractConnectionPool)
+            val isValid = provider.validate(initialConnection)
             initialized.complete(isValid)
+            if (!isValid) {
+                return@launch
+            }
         } catch (ex: Throwable) {
             logger.atError {
                 message = "Could not create the initial connection needed to validate the pool"
                 cause = ex
             }
             initialized.completeExceptionally(ex)
+        } finally {
+            try {
+                initialConnection?.close()
+            } catch (ignored: Throwable) {}
         }
 
-        for (i in 1..poolOptions.minConnections) {
+        for (i in 2..poolOptions.minConnections) {
             connectionNeeded.send(Unit)
         }
 
@@ -157,7 +172,7 @@ abstract class AbstractConnectionPool<C : Connection>(
         }
     }
 
-    override val isExhausted: Boolean get() = connectionIds.size == poolOptions.maxConnections
+    override val isExhausted: Boolean get() = connectionIds.size >= poolOptions.maxConnections
 
     internal fun hasConnection(poolConnection: C): Boolean {
         return connectionIds.contains(poolConnection.connectionId)
