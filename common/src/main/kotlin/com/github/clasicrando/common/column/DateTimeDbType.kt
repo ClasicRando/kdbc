@@ -1,6 +1,9 @@
 package com.github.clasicrando.common.column
 
 import com.github.clasicrando.common.datetime.DateTime
+import io.ktor.utils.io.charsets.Charset
+import io.ktor.utils.io.core.BytePacketBuilder
+import io.ktor.utils.io.core.writeText
 import kotlin.reflect.KClass
 
 /**
@@ -10,6 +13,13 @@ import kotlin.reflect.KClass
  */
 object DateTimeDbType : DbType {
     override fun decode(type: ColumnData, value: String): Any = DateTime.fromString(value)
+
+    override fun encode(value: Any, charset: Charset, buffer: BytePacketBuilder) {
+        when (value) {
+            is DateTime -> buffer.writeText(value.toString(), charset = charset)
+            else -> columnEncodeError<DateTime>(value)
+        }
+    }
 
     override val encodeType: KClass<*> = DateTime::class
 }

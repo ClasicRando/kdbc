@@ -1,6 +1,7 @@
 package com.github.clasicrando.common.column
 
 import io.ktor.utils.io.charsets.Charset
+import io.ktor.utils.io.core.BytePacketBuilder
 import kotlin.reflect.KClass
 
 /**
@@ -9,10 +10,6 @@ import kotlin.reflect.KClass
  * kotlin type is encoded, so it can be sent to the database.
  */
 interface DbType {
-
-    /** Signifies that a type can be decoded from the bytes as a string (default = true) */
-    val supportsStringDecoding: Boolean get() = true
-
     /**
      * Decode the [bytes] supplied as the [type] specified by the database row description.
      *
@@ -26,9 +23,6 @@ interface DbType {
     /** Decode the string [value] supplied as the [type] specified by the database */
     fun decode(type: ColumnData, value: String): Any
 
-    /** Kotlin type mapped to the database type */
-    val encodeType: KClass<*>
-
     /**
      * Encode the provided [value] into a string. Must be in a format the database expects a string
      * literal to be in for the required type. For instance, a datetime type must be in a specific
@@ -37,5 +31,11 @@ interface DbType {
      * The default implementation simply calls the [Any.toString] method so custom types can simply
      * override that method to not require custom step within the corresponding [DbType].
      */
-    fun encode(value: Any): String = value.toString()
+    fun encode(value: Any, charset: Charset, buffer: BytePacketBuilder)
+
+    /** Kotlin type mapped to the database type */
+    val encodeType: KClass<*>
+
+    /** Signifies that a type can be decoded from the bytes as a string (default = true) */
+    val supportsStringDecoding: Boolean get() = true
 }

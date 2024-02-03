@@ -21,11 +21,13 @@ import com.github.clasicrando.postgresql.message.DescribeTarget
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.notification.PgNotification
 import com.github.clasicrando.postgresql.pool.PgPoolManager
+import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import com.github.clasicrando.postgresql.statement.PgPreparedStatement
 import com.github.clasicrando.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import io.ktor.utils.io.core.readBytes
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -60,7 +62,7 @@ class PgConnection internal constructor(
      * Type registry for connection. Used to decode data rows returned by the server. Defaults to a
      * new instance of [PgTypeRegistry]
      */
-    private val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
+    private val typeRegistry: PgTypeRegistry = PgTypeRegistry(connectOptions.charset),
     override val connectionId: UUID = UUID.generateUUID(),
 ) : Connection {
     private val _inTransaction: AtomicBoolean = atomic(false)
@@ -132,7 +134,11 @@ class PgConnection internal constructor(
         val fields: Array<Any?> = Array(dataRow.values.size) { i ->
             dataRow.values[i]?.let {
                 val columnType = resultSet.columnMapping[i]
-                typeRegistry.decode(columnType, it, connectOptions.charset)
+                typeRegistry.decode(
+                    type = columnType as PgRowFieldDescription,
+                    value = it,
+                    charset = connectOptions.charset,
+                )
             }
         }
         resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
@@ -387,14 +393,7 @@ class PgConnection internal constructor(
             val bindMessage = PgMessage.Bind(
                 portal = statement.statementName,
                 statementName = statement.statementName,
-                parameters = parameters.map {
-                    if (it == null) {
-                        return@map null
-                    }
-
-                    val encodedValue = typeRegistry.encode(it)
-                    encodedValue?.toByteArray(charset = connectOptions.charset)
-                },
+                parameters = parameters.map { typeRegistry.encode(it)?.readBytes() },
             )
             add(bindMessage)
             if (statement.metadata.isEmpty()) {

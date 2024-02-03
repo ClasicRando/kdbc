@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.column.ColumnData
 import io.ktor.utils.io.core.buildPacket
+import io.ktor.utils.io.core.readText
 import io.ktor.utils.io.core.writeFully
 import io.mockk.every
 import io.mockk.impl.annotations.RelaxedMockK
@@ -19,6 +20,8 @@ import kotlin.test.assertTrue
 class TestPgByteArrayDbType {
     @RelaxedMockK
     lateinit var columnData: ColumnData
+
+    private val charset = Charsets.UTF_8
 
     private val ints = IntArray(256) { it }
     private val expectedByteString =
@@ -63,7 +66,10 @@ class TestPgByteArrayDbType {
     fun `encode should return hex string when byte array`() {
         val bytes = ints.map { it.toByte() }.toByteArray()
 
-        val result = PgByteArrayDbType.encode(bytes)
+        val buffer = buildPacket {
+            PgByteArrayDbType.encode(bytes, charset, this)
+        }
+        val result = buffer.readText(charset = charset)
 
         assertEquals(expectedByteString, result)
     }
@@ -75,7 +81,10 @@ class TestPgByteArrayDbType {
         every { bytes.hasArray() } returns true
         every { bytes.array() } returns byteArray
 
-        val result = PgByteArrayDbType.encode(bytes)
+        val buffer = buildPacket {
+            PgByteArrayDbType.encode(bytes, charset, this)
+        }
+        val result = buffer.readText(charset = charset)
 
         assertEquals(expectedByteString, result)
     }
@@ -94,7 +103,10 @@ class TestPgByteArrayDbType {
             bytes
         }
 
-        val result = PgByteArrayDbType.encode(bytes)
+        val buffer = buildPacket {
+            PgByteArrayDbType.encode(bytes, charset, this)
+        }
+        val result = buffer.readText(charset = charset)
 
         assertEquals(expectedByteString, result)
     }
@@ -106,7 +118,10 @@ class TestPgByteArrayDbType {
             writeFully(byteArray)
         }
 
-        val result = PgByteArrayDbType.encode(bytes)
+        val buffer = buildPacket {
+            PgByteArrayDbType.encode(bytes, charset, this)
+        }
+        val result = buffer.readText(charset = charset)
 
         assertEquals(expectedByteString, result)
     }

@@ -6,6 +6,7 @@ import com.github.clasicrando.common.column.FloatDbType
 import com.github.clasicrando.common.column.IntDbType
 import com.github.clasicrando.common.column.StringDbType
 import com.github.clasicrando.common.datetime.DateTime
+import io.ktor.utils.io.core.buildPacket
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.junit5.MockKExtension
 import kotlinx.datetime.LocalDateTime
@@ -21,6 +22,8 @@ import kotlin.test.assertTrue
 class TestPgCompositeDbType {
     @RelaxedMockK
     lateinit var columnData: ColumnData
+
+    private val charset = Charsets.UTF_8
 
     data class CompositeType(
         val int: Int,
@@ -54,9 +57,11 @@ class TestPgCompositeDbType {
     @Test
     fun `encode should always fail`() {
         assertFailsWith<NotImplementedError> {
-            pgCompositeDbType<CompositeType>(
-                arrayOf(IntDbType, FloatDbType, StringDbType, DateTimeDbType)
-            ).encode("")
+            buildPacket {
+                pgCompositeDbType<CompositeType>(
+                    arrayOf(IntDbType, FloatDbType, StringDbType, DateTimeDbType)
+                ).encode("", charset, this)
+            }
         }
     }
 

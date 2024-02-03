@@ -3,9 +3,12 @@ package com.github.clasicrando.postgresql.column
 import com.github.clasicrando.common.column.ColumnData
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.columnEncodeError
+import io.ktor.utils.io.charsets.Charset
+import io.ktor.utils.io.core.BytePacketBuilder
 import io.ktor.utils.io.core.ByteReadPacket
 import io.ktor.utils.io.core.buildPacket
 import io.ktor.utils.io.core.readBytes
+import io.ktor.utils.io.core.writeText
 import java.nio.ByteBuffer
 import kotlin.reflect.KClass
 
@@ -102,9 +105,7 @@ object PgByteArrayDbType : DbType {
         }.readBytes()
     }
 
-    override val encodeType: KClass<*> = ByteArray::class
-
-    override fun encode(value: Any): String {
+    override fun encode(value: Any, charset: Charset, buffer: BytePacketBuilder) {
         val bytes = when {
             value is ByteArray -> value
             value is ByteBuffer && value.hasArray() -> value.array()
@@ -134,6 +135,8 @@ object PgByteArrayDbType : DbType {
             charIndex++
         }
 
-        return String(chars)
+        buffer.writeText(chars, charset = charset)
     }
+
+    override val encodeType: KClass<*> = ByteArray::class
 }

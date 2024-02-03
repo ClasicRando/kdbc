@@ -4,6 +4,7 @@ import com.github.clasicrando.common.column.ColumnData
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.columnDecodeError
 import io.ktor.utils.io.charsets.Charset
+import io.ktor.utils.io.core.BytePacketBuilder
 import kotlin.reflect.KClass
 
 /**
@@ -40,7 +41,7 @@ class PgArrayType(private val innerDbType: DbType) : DbType {
 
     override val encodeType: KClass<*> = List::class
 
-    override fun encode(value: Any): String {
+    override fun encode(value: Any, charset: Charset, buffer: BytePacketBuilder) {
         throw NotImplementedError("Array encoding is not handled in each type instance")
     }
 }

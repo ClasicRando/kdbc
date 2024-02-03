@@ -2,7 +2,6 @@ package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.column.BigDecimalDbType
-import com.github.clasicrando.common.column.ColumnData
 import com.github.clasicrando.common.column.DateTimeDbType
 import com.github.clasicrando.common.column.DateTimePeriodDbType
 import com.github.clasicrando.common.column.DbType
@@ -20,21 +19,28 @@ import com.github.clasicrando.common.column.UuidDbType
 import com.github.clasicrando.common.result.getInt
 import com.github.clasicrando.postgresql.array.PgArrayType
 import com.github.clasicrando.postgresql.connection.PgConnection
+import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import com.github.clasicrando.postgresql.type.PgCompositeDbType
 import com.github.clasicrando.postgresql.type.enumDbType
 import com.github.clasicrando.postgresql.type.pgCompositeDbType
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.utils.io.charsets.Charset
+import io.ktor.utils.io.core.BytePacketBuilder
+import io.ktor.utils.io.core.ByteReadPacket
+import io.ktor.utils.io.core.buildPacket
+import io.ktor.utils.io.core.readText
+import io.ktor.utils.io.core.writeText
 
 private val logger = KotlinLogging.logger {}
 
 private typealias DbTypeDefinition = Pair<DbType, Boolean>
 
 class PgTypeRegistry internal constructor(
+    private val charset: Charset,
     private val nonStandardTypesByOid: Map<Int, DbTypeDefinition> = Companion.nonStandardTypesByOid.toMap(),
     private val nonStandardTypesByName: Map<String, DbTypeDefinition> = Companion.nonStandardTypesByName.toMap(),
     private val enumTypes: Map<String, DbTypeDefinition> = Companion.enumTypes.toMap(),
-) : TypeRegistry {
+) : TypeRegistry<PgRowFieldDescription> {
     private var types = defaultTypes
     private var classToType = types.entries
         .asSequence()
@@ -45,7 +51,7 @@ class PgTypeRegistry internal constructor(
         .mapNotNull { it.value as? PgCompositeDbType<*> }
         .associateBy { it.encodeType }
 
-    override fun decode(type: ColumnData, value: ByteArray, charset: Charset): Any {
+    override fun decode(type: PgRowFieldDescription, value: ByteArray, charset: Charset): Any {
         return types.getOrDefault(type.dataType, StringDbType)
             .decode(type, value, charset)
     }
@@ -61,13 +67,17 @@ class PgTypeRegistry internal constructor(
         append(',')
     }
 
-    private fun encodeComposite(composite: Any, dbType: PgCompositeDbType<*>): String {
-        return buildString {
+    private fun encodeComposite(
+        composite: Any,
+        dbType: PgCompositeDbType<*>,
+        buffer: BytePacketBuilder,
+    ) {
+        val string = buildString {
             append('(')
             for ((property, type) in dbType.properties) {
                 prependCommaIfNeeded()
                 val propertyValue = property.getter.call(composite) ?: continue
-                val encodedValue = encode(propertyValue) ?: continue
+                val encodedValue = encode(propertyValue)?.readText(charset) ?: continue
                 when (type) {
                     is PgCompositeDbType<*>, is PgArrayType -> {
                         append('"')
@@ -89,10 +99,11 @@ class PgTypeRegistry internal constructor(
             }
             append(')')
         }
+        buffer.writeText(string, charset = charset)
     }
 
-    private fun encodeArray(array: Iterable<*>): String {
-        return array.joinToString(
+    private fun encodeArray(array: Iterable<*>, buffer: BytePacketBuilder) {
+        val string = array.joinToString(
             separator = ",",
             prefix = "{",
             postfix = "}",
@@ -101,7 +112,8 @@ class PgTypeRegistry internal constructor(
                 return@joinToString "NULL"
             }
 
-            val encodedValue = encode(item)!!
+            val encodedValue = encode(item)?.readText(charset)
+                ?: return@joinToString "NULL"
             if (needQuote(item)) {
                 val escapedValue = encodedValue.replace("\\", """\\""")
                     .replace("\"", """\"""")
@@ -110,6 +122,7 @@ class PgTypeRegistry internal constructor(
                 encodedValue
             }
         }
+        buffer.writeText(string, charset = charset)
     }
 
     private fun needQuote(value: Any): Boolean {
@@ -119,22 +132,24 @@ class PgTypeRegistry internal constructor(
         }
     }
 
-    override fun encode(value: Any?): String? {
+    override fun encode(value: Any?): ByteReadPacket? {
         if (value == null) {
             return null
         }
-        return when (value) {
-            is Array<*> -> encodeArray(value.asIterable())
-            is Iterable<*> -> encodeArray(value)
-            else -> {
-                val valueClass = value::class
-                compositeClassToType[valueClass]?.let {
-                    return encodeComposite(value, it)
+        return buildPacket {
+            when (value) {
+                is Array<*> -> encodeArray(value.asIterable(), this)
+                is Iterable<*> -> encodeArray(value, this)
+                else -> {
+                    val valueClass = value::class
+                    compositeClassToType[valueClass]?.let {
+                        encodeComposite(value, it, this)
+                    }
+                    classToType[valueClass]
+                        ?.value
+                        ?.encode(value, charset, this)
+                        ?: StringDbType.encode(value, charset, this)
                 }
-                classToType[valueClass]
-                    ?.value
-                    ?.encode(value)
-                    ?: StringDbType.encode(value)
             }
         }
     }

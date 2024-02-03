@@ -4,6 +4,8 @@ import com.github.clasicrando.common.column.ColumnData
 import com.github.clasicrando.common.column.DbType
 import com.github.clasicrando.common.column.columnDecodeError
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.utils.io.charsets.Charset
+import io.ktor.utils.io.core.BytePacketBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -61,7 +63,7 @@ class PgCompositeDbType<T : Any> @PublishedApi internal constructor(
 
     override val encodeType: KClass<*> = compositeType
 
-    override fun encode(value: Any): String {
+    override fun encode(value: Any, charset: Charset, buffer: BytePacketBuilder) {
         throw NotImplementedError("Composite encoding is not handled in each type instance")
     }
 }
