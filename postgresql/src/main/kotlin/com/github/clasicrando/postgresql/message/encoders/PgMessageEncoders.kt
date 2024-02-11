@@ -2,39 +2,27 @@ package com.github.clasicrando.postgresql.message.encoders
 
 import com.github.clasicrando.common.message.MessageEncoder
 import com.github.clasicrando.postgresql.message.PgMessage
-import io.ktor.utils.io.charsets.Charset
 
-internal class PgMessageEncoders(charset: Charset) {
-    private val startupEncoder = StartupEncoder(charset)
-    private val saslInitialResponseEncoder = SaslInitialResponseEncoder(charset)
-    private val saslResponseEncoder = SaslResponseEncoder(charset)
-    private val queryEncoder = QueryEncoder(charset)
-    private val parseEncoder = ParseEncoder(charset)
-    private val bindEncoder = BindEncoder(charset)
-    private val describeEncoder = DescribeEncoder(charset)
-    private val executeEncoder = ExecuteEncoder(charset)
-    private val closeEncoder = CloseEncoder(charset)
-    private val copyFailMessageEncoder = CopyFailEncoder(charset)
-
+internal class PgMessageEncoders {
     @Suppress("UNCHECKED_CAST")
     fun <T : PgMessage> encoderFor(message: T): MessageEncoder<T> {
         return when (message) {
-            is PgMessage.StartupMessage -> startupEncoder
+            is PgMessage.StartupMessage -> StartupEncoder
             is PgMessage.PasswordMessage -> PasswordEncoder
-            is PgMessage.SaslInitialResponse -> saslInitialResponseEncoder
-            is PgMessage.SaslResponse -> saslResponseEncoder
+            is PgMessage.SaslInitialResponse -> SaslInitialResponseEncoder
+            is PgMessage.SaslResponse -> SaslResponseEncoder
             is PgMessage.SslRequest -> SslMessageEncoder
-            is PgMessage.Query -> queryEncoder
+            is PgMessage.Query -> QueryEncoder
             is PgMessage.Terminate -> CodeOnlyMessageEncoder
-            is PgMessage.Parse -> parseEncoder
-            is PgMessage.Bind -> bindEncoder
-            is PgMessage.Describe -> describeEncoder
-            is PgMessage.Execute -> executeEncoder
+            is PgMessage.Parse -> ParseEncoder
+            is PgMessage.Bind -> BindEncoder
+            is PgMessage.Describe -> DescribeEncoder
+            is PgMessage.Execute -> ExecuteEncoder
             is PgMessage.Sync -> CodeOnlyMessageEncoder
-            is PgMessage.Close -> closeEncoder
+            is PgMessage.Close -> CloseEncoder
             is PgMessage.CopyData -> CopyDataEncoder
             is PgMessage.CopyDone -> CodeOnlyMessageEncoder
-            is PgMessage.CopyFail -> copyFailMessageEncoder
+            is PgMessage.CopyFail -> CopyFailEncoder
             else -> error("Message $message cannot be encoded")
         } as MessageEncoder<T>
     }

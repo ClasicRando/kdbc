@@ -7,6 +7,25 @@ interface Buffer {
     fun writeByte(byte: Byte)
 
     fun toByteArray(): ByteArray
+
+    fun release()
+}
+
+inline fun <B : Buffer> B.buildBytes(block: (B) -> Unit): ByteArray {
+    var cause: Throwable? = null
+    return try {
+        block(this)
+        this.toByteArray()
+    } catch (ex: Throwable) {
+        cause = ex
+        throw cause
+    } finally {
+        try {
+            this.release()
+        } catch (ex2: Throwable) {
+            cause?.addSuppressed(ex2)
+        }
+    }
 }
 
 fun Buffer.writeMany(vararg bytes: Byte) {

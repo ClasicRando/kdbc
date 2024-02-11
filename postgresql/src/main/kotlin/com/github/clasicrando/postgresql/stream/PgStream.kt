@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.stream
 
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.SslMode
+import com.github.clasicrando.common.message.MessageSendBuffer
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
@@ -23,8 +24,7 @@ import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
 import io.ktor.network.tls.TLSConfigBuilder
 import io.ktor.network.tls.tls
-import io.ktor.utils.io.core.BytePacketBuilder
-import io.ktor.utils.io.core.buildPacket
+import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -55,7 +55,7 @@ internal class PgStream(
      * Container for server message encoders. Used to send messages before they are sent to the
      * server.
      */
-    private val encoders: PgMessageEncoders = PgMessageEncoders(Charsets.UTF_8)
+    private val encoders: PgMessageEncoders = PgMessageEncoders()
     /**
      * Container for server message decoders. Used to parse messages sent from the database server.
      */
@@ -170,9 +170,9 @@ internal class PgStream(
 
     /** Write a single [message] to the [PgStream] using the appropriate derived encoder. */
     suspend inline fun writeToStream(message: PgMessage) {
-        writeMessage { builder ->
+        writeMessage { buffer ->
             val encoder = encoders.encoderFor(message)
-            encoder.encode(message, builder)
+            encoder.encode(message, buffer)
         }
     }
 
@@ -180,20 +180,20 @@ internal class PgStream(
     suspend inline fun writeManyToStream(
         crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
     ) {
-        writeMessage { builder ->
+        writeMessage { buffer ->
             for (message in sequence { messages() }) {
                 val encoder = encoders.encoderFor(message)
-                encoder.encode(message, builder)
+                encoder.encode(message, buffer)
             }
         }
     }
 
     /** Write multiple [messages] to the [PgStream] using the appropriate derived encoders. */
     suspend inline fun writeManyToStream(vararg messages: PgMessage) {
-        writeMessage { builder ->
+        writeMessage { buffer ->
             for (message in messages) {
                 val encoder = encoders.encoderFor(message)
-                encoder.encode(message, builder)
+                encoder.encode(message, buffer)
             }
         }
     }
@@ -208,11 +208,10 @@ internal class PgStream(
 
     val isConnected: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
 
-    private suspend inline fun writeMessage(block: (BytePacketBuilder) -> Unit) {
-        val packet = buildPacket(block)
-        sendChannel.writePacket(packet)
+    private suspend inline fun writeMessage(block: (MessageSendBuffer) -> Unit) {
+        val bytes = MessageSendBuffer.buildByteArray(block)
+        sendChannel.writeFully(bytes)
         sendChannel.flush()
-        packet.release()
     }
 
     override fun close() {

@@ -1,20 +1,20 @@
 package com.github.clasicrando.postgresql.statement
 
 import com.github.clasicrando.common.buffer.ArrayListBuffer
+import com.github.clasicrando.common.buffer.writeFully
 import com.github.clasicrando.common.buffer.writeLengthPrefixed
+import com.github.clasicrando.common.buffer.writeShort
+import com.github.clasicrando.common.message.MessageSendBuffer
 import com.github.clasicrando.postgresql.column.PgType
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.type.PgJson
-import io.ktor.utils.io.core.BytePacketBuilder
-import io.ktor.utils.io.core.writeFully
-import io.ktor.utils.io.core.writeShort
 
 class PgArguments internal constructor(
     private val typeRegistry: PgTypeRegistry,
     private val parameters: List<Any?>,
     private val statement: PgPreparedStatement,
 ) : ArrayListBuffer() {
-    fun writeToBuffer(buffer: BytePacketBuilder) {
+    fun writeToBuffer(buffer: MessageSendBuffer) {
         buffer.writeShort(parameters.size.toShort())
         for (parameterIndex in parameters.indices) {
             val parameter = parameters[parameterIndex]
@@ -28,7 +28,7 @@ class PgArguments internal constructor(
                 }
             }
             writeLengthPrefixed {
-                typeRegistry.encode(parameter, it)
+                typeRegistry.encode(parameter, this)
             }
         }
         buffer.writeFully(this.toByteArray())

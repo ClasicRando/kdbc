@@ -1,16 +1,16 @@
 package com.github.clasicrando.postgresql.message.encoders
 
+import com.github.clasicrando.common.buffer.writeLengthPrefixed
 import com.github.clasicrando.common.message.MessageEncoder
+import com.github.clasicrando.common.message.MessageSendBuffer
 import com.github.clasicrando.postgresql.message.PgMessage
-import io.ktor.utils.io.charsets.Charset
-import io.ktor.utils.io.core.BytePacketBuilder
 
-internal class DescribeEncoder(private val charset: Charset) : MessageEncoder<PgMessage.Describe> {
-    override fun encode(value: PgMessage.Describe, buffer: BytePacketBuilder) {
+internal object DescribeEncoder : MessageEncoder<PgMessage.Describe> {
+    override fun encode(value: PgMessage.Describe, buffer: MessageSendBuffer) {
         buffer.writeCode(value)
-        buffer.writeLengthPrefixed {
+        buffer.writeLengthPrefixed(includeLength = true) {
             writeByte(value.target.code)
-            writeCString(value.name, charset = charset)
+            writeCString(value.name)
         }
     }
 }
