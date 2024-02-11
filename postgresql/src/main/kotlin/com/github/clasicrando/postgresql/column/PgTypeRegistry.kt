@@ -254,6 +254,7 @@ internal class PgTypeRegistry {
             arrayTypeEncoder(jsonTypeEncoder, PgType.JsonArray),
             inetTypeEncoder,
             arrayTypeEncoder(inetTypeEncoder, PgType.InetArray),
+
             dateTypeEncoder,
             arrayTypeEncoder(dateTypeEncoder, PgType.DateArray),
             timeTypeEncoder,
@@ -262,7 +263,11 @@ internal class PgTypeRegistry {
             arrayTypeEncoder(
                 encoder = dateTimeTypeEncoder,
                 pgType = PgType.TimestamptzArray,
-                compatibleTypes = arrayOf(),
+            ),
+            localDateTimeTypeEncoder,
+            arrayTypeEncoder(
+                encoder = localDateTimeTypeEncoder,
+                pgType = PgType.TimestampArray,
             ),
             timeTzTypeEncoder,
             arrayTypeEncoder(timeTzTypeEncoder, PgType.TimetzArray),
@@ -271,7 +276,6 @@ internal class PgTypeRegistry {
         )
 
         private val stringArrayTypeDecoder = arrayTypeDecoder(stringTypeDecoder)
-        private val dateTimeArrayTypeDecoder = arrayTypeDecoder(dateTimeTypeDecoder)
         private val intArrayTypeDecoder = arrayTypeDecoder(intTypeDecoder)
 
         private val defaultDecoders = mapOf(
@@ -320,12 +324,12 @@ internal class PgTypeRegistry {
             PgType.DATE_ARRAY to arrayTypeDecoder(dateTypeDecoder),
             PgType.TIME to timeTypeDecoder,
             PgType.TIME_ARRAY to arrayTypeDecoder(timeTypeDecoder),
-            PgType.TIMESTAMP to dateTimeTypeDecoder,
-            PgType.TIMESTAMP_ARRAY to dateTimeArrayTypeDecoder,
+            PgType.TIMESTAMP to localDateTimeTypeDecoder,
+            PgType.TIMESTAMP_ARRAY to arrayTypeDecoder(localDateTimeTypeDecoder),
             PgType.TIMETZ to timeTzTypeDecoder,
             PgType.TIMETZ_ARRAY to arrayTypeDecoder(timeTzTypeDecoder),
             PgType.TIMESTAMPTZ to dateTimeTypeDecoder,
-            PgType.TIMESTAMPTZ_ARRAY to dateTimeArrayTypeDecoder,
+            PgType.TIMESTAMPTZ_ARRAY to arrayTypeDecoder(dateTimeTypeDecoder),
             PgType.INTERVAL to dateTimePeriodTypeDecoder,
             PgType.INTERVAL_ARRAY to arrayTypeDecoder(dateTimePeriodTypeDecoder),
         )
