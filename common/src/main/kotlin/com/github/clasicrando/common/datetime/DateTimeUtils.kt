@@ -6,7 +6,6 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
-import kotlinx.datetime.asTimeZone
 import kotlinx.datetime.toLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toLocalTime
@@ -71,12 +70,12 @@ fun LocalTime.Companion.tryFromString(value: String): Result<LocalTime> {
  * an [InvalidDateString] exception will be returns within the [Result]. If there is no timezone
  * information in the string, [TimeZone.UTC] is returned.
  */
-fun TimeZone.Companion.tryFromString(value: String): Result<TimeZone> {
+fun UtcOffset.Companion.tryFromString(value: String): Result<UtcOffset> {
     return kotlin.runCatching {
         val timeZoneStr = value.dropWhile { it != '+' }
-            .takeIf { it.isNotBlank() } ?: return@runCatching UTC
+            .takeIf { it.isNotBlank() } ?: return@runCatching UtcOffset(0)
         timeZoneStr.toIntOrNull()
-            ?.let { UtcOffset(hours = it).asTimeZone() }
+            ?.let { UtcOffset(hours = it) }
             ?: throw InvalidDateString(timeZoneStr, TimeZone::class)
     }
 }

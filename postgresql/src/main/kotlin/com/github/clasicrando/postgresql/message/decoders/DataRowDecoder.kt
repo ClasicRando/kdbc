@@ -12,8 +12,10 @@ internal object DataRowDecoder : MessageDecoder<PgMessage.DataRow> {
         val columnCount = packet.readShort()
         val row = Array(columnCount.toInt()) {
             val length = packet.readInt()
-            length.takeIf { it > 0 }
-                ?.let { packet.readBytes(n = it) }
+            if (length < 0) {
+                return@Array null
+            }
+            packet.readBytes(n = length)
         }
         return PgMessage.DataRow(row)
     }

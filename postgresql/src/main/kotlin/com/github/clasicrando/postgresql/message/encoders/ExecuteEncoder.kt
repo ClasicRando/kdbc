@@ -10,7 +10,7 @@ internal class ExecuteEncoder(private val charset: Charset) : MessageEncoder<PgM
     override fun encode(value: PgMessage.Execute, buffer: BytePacketBuilder) {
         buffer.writeCode(value)
         buffer.writeLengthPrefixed {
-            writeCString(value.portalName, charset)
+            writeCString(value.portalName ?: "", charset)
             writeInt(value.maxRowCount)
         }
     }

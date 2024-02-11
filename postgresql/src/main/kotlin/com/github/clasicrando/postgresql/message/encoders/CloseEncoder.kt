@@ -10,7 +10,7 @@ internal class CloseEncoder(private val charset: Charset) : MessageEncoder<PgMes
         buffer.writeCode(value)
         buffer.writeLengthPrefixed {
             writeByte(value.target.code)
-            writeCString(value.targetName, charset)
+            writeCString(value.targetName ?: "", charset)
         }
     }
 }

@@ -9,7 +9,6 @@ import com.github.jasync.sql.db.pool.ConnectionPool
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import io.github.oshai.kotlinlogging.Level
-import kotlinx.coroutines.Dispatchers
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 import org.apache.commons.dbcp2.DriverManagerConnectionFactory
@@ -17,8 +16,8 @@ import org.apache.commons.dbcp2.PoolableConnection
 import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
-import java.sql.Connection as JdbcConnection
 import java.sql.DriverManager
+import java.sql.Connection as JdbcConnection
 
 val jdbcQuerySingle = """
     SELECT

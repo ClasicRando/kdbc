@@ -10,7 +10,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlin.math.absoluteValue
 
 @Serializable(with = PgMoney.Companion::class)
-class PgMoney private constructor(internal val integer: Long) {
+class PgMoney internal constructor(internal val integer: Long) {
     constructor(strMoney: String): this(integerFromString(strMoney))
 
     private val strRep: String by lazy {
@@ -72,10 +72,10 @@ class PgMoney private constructor(internal val integer: Long) {
         private fun integerFromString(strMoney: String): Long {
             require(strMoney.matches(MONEY_REGEX)) {
                 """
-            String supplied to PgMoney does not match the required pattern
-            Pattern: '${MONEY_REGEX.pattern}'
-            Actual Value: $strMoney
-            """.trimIndent()
+                String supplied to PgMoney does not match the required pattern
+                Pattern: '${MONEY_REGEX.pattern}'
+                Actual Value: $strMoney
+                """.trimIndent()
             }
             return strMoney.filter(predicate = Char::isDigit)
                 .toLong() * if (strMoney.startsWith('-')) -1 else 1

@@ -5,7 +5,6 @@ import com.github.clasicrando.common.SslMode
 import com.github.clasicrando.common.pool.PoolOptions
 import com.github.clasicrando.postgresql.CertificateInput
 import io.github.oshai.kotlinlogging.Level
-import io.ktor.utils.io.charsets.Charset
 import kotlinx.io.files.Path
 import kotlin.time.Duration
 
@@ -19,7 +18,6 @@ data class PgConnectOptions(
     val database: String? = null,
     val logSettings: LogSettings = LogSettings.DEFAULT,
     val statementCacheCapacity: ULong = 100U,
-    val charset: Charset = Charsets.UTF_8,
     val extraFloatDigits: String = "2",
     val sslMode: SslMode = SslMode.DEFAULT,
     val sslRootCert: CertificateInput? = null,
@@ -33,12 +31,13 @@ data class PgConnectOptions(
     val properties: List<Pair<String, String>> = listOf(
         "user" to username,
         "database" to database,
-        "client_encoding" to charset.name(),
+        "client_encoding" to "UTF-8",
         "DateStyle" to "ISO",
         "intervalstyle" to "iso_8601",
         "TimeZone" to "UTC",
         "extra_float_digits" to extraFloatDigits,
         "search_path" to currentSchema,
+        "bytea_output" to "hex",
     ).mapNotNull { (key, value) ->
         value?.let { key to it }
     }
@@ -91,8 +90,6 @@ data class PgConnectOptions(
             append(logSettings)
             append(",statementCacheCapacity=")
             append(statementCacheCapacity)
-            append(",charset=")
-            append(charset)
             append(",extraFloatDigits=")
             append(extraFloatDigits)
             append(",sslMode=")

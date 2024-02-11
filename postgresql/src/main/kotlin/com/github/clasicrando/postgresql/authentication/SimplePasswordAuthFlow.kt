@@ -6,17 +6,17 @@ import com.github.clasicrando.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.Level
 
 /** Create a new simple password message, hashing the password if a [salt] provided */
-private fun PgStream.createSimplePasswordMessage(
+private fun createSimplePasswordMessage(
     username: String,
     password: String,
     salt: ByteArray?,
 ): PgMessage.PasswordMessage {
-    val passwordBytes = password.toByteArray(charset = this.connectOptions.charset)
+    val passwordBytes = password.toByteArray()
     val bytes = if (salt == null) {
         passwordBytes
     } else {
         PasswordHelper.encode(
-            username = username.toByteArray(charset = this.connectOptions.charset),
+            username = username.toByteArray(),
             password = passwordBytes,
             salt = salt,
         )

@@ -7,7 +7,6 @@ import com.github.clasicrando.common.result.getInt
 import com.github.clasicrando.common.result.getString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement

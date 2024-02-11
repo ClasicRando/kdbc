@@ -1,67 +1,75 @@
 package com.github.clasicrando.postgresql.array
 
-import com.github.clasicrando.common.column.ColumnData
 import com.github.clasicrando.common.column.ColumnDecodeError
-import com.github.clasicrando.common.column.DbType
-import com.github.clasicrando.common.column.IntDbType
-import com.github.clasicrando.common.column.LocalDateTimeDbType
-import com.github.clasicrando.common.column.StringDbType
-import io.mockk.every
-import io.mockk.mockk
+import com.github.clasicrando.postgresql.column.PgType
+import com.github.clasicrando.postgresql.column.PgValue
+import com.github.clasicrando.postgresql.column.arrayTypeDecoder
+import com.github.clasicrando.postgresql.column.intTypeDecoder
+import com.github.clasicrando.postgresql.column.localDateTimeTypeDecoder
+import com.github.clasicrando.postgresql.column.stringTypeDecoder
+import com.github.clasicrando.postgresql.row.PgColumnDescription
 import kotlinx.datetime.LocalDateTime
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.MethodSource
-import java.util.stream.Stream
 import kotlin.test.Test
-import kotlin.test.assertTrue
 
 class TestPgArrayType {
-    @ParameterizedTest
-    @MethodSource("decodeValues")
-    fun `decode should return decoded value when valid array literal`(
-        triple: Triple<String, DbType, List<Any>>,
-    ) {
-        val (literal, dbType, expected) = triple
-        val type = PgArrayType(dbType)
-        val columnType = mockk<ColumnData>()
+    private fun fieldDescription(pgType: PgType): PgColumnDescription {
+        return PgColumnDescription(
+            fieldName = "",
+            tableOid = 0,
+            columnAttribute = 0,
+            pgType = pgType,
+            dataTypeSize = 0,
+            typeModifier = 0,
+            formatCode = 0,
+        )
+    }
 
-        val result = type.decode(columnType, literal.toByteArray(), Charsets.UTF_8)
+    @Test
+    fun `decode should return decoded value when valid array literal 1`() {
+        val literal = "{1,2,3,4}"
+        val decoder = arrayTypeDecoder(intTypeDecoder)
+        val pgValue = PgValue.Text(literal, fieldDescription(PgType.Int4Array))
 
-        assertTrue(result is List<*>)
-        Assertions.assertIterableEquals(expected, result)
+        val result = decoder.decode(pgValue)
+
+        Assertions.assertIterableEquals(listOf(1, 2, 3, 4), result)
+    }
+
+    @Test
+    fun `decode should return decoded value when valid array literal 2`() {
+        val literal = "{Test,NULL,Also a test}"
+        val decoder = arrayTypeDecoder(stringTypeDecoder)
+        val pgValue = PgValue.Text(literal, fieldDescription(PgType.TextArray))
+
+        val result = decoder.decode(pgValue)
+
+        Assertions.assertIterableEquals(listOf("Test", null, "Also a test"), result)
+    }
+
+    @Test
+    fun `decode should return decoded value when valid array literal 3`() {
+        val literal = "{2023-01-01 22:02:59}"
+        val decoder = arrayTypeDecoder(localDateTimeTypeDecoder)
+        val pgValue = PgValue.Text(literal, fieldDescription(PgType.TimestampArray))
+
+        val result = decoder.decode(pgValue)
+
+        Assertions.assertIterableEquals(
+            listOf(LocalDateTime(2023, 1, 1, 22, 2, 59)),
+            result,
+        )
     }
 
     @Test
     fun `decode should throw a column decode error when literal is not wrapped by curl braces`() {
         val literal = "1,2,3,4"
-        val type = PgArrayType(IntDbType)
-        val columnType = mockk<ColumnData>()
-        every { columnType.dataType } returns 1
-        every { columnType.name } returns "Test"
+        val decoder = arrayTypeDecoder(intTypeDecoder)
+        val pgValue = PgValue.Text(literal, fieldDescription(PgType.Int4Array))
 
         assertThrows<ColumnDecodeError> {
-            type.decode(columnType, literal.toByteArray(), Charsets.UTF_8)
-        }
-    }
-
-    companion object {
-        @JvmStatic
-        fun decodeValues(): Stream<Triple<String, DbType, List<Any?>>> {
-            return Stream.of(
-                Triple("{1,2,3,4}", IntDbType, listOf(1, 2, 3, 4)),
-                Triple(
-                    "{Test,NULL,Also a test}",
-                    StringDbType,
-                    listOf("Test", null, "Also a test"),
-                ),
-                Triple(
-                    "{2023-01-01 22:02:59}",
-                    LocalDateTimeDbType,
-                    listOf(LocalDateTime(2023, 1, 1, 22, 2, 59)),
-                ),
-            )
+            decoder.decode(pgValue)
         }
     }
 }

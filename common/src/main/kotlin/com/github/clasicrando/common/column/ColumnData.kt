@@ -5,8 +5,10 @@ package com.github.clasicrando.common.column
  * result rows.
  */
 interface ColumnData {
+    /** Name of the field for this column */
+    val fieldName: String
     /** Database specific name of the type */
-    val name: String
+    val typeName: String
     /** ID associated with the type */
     val dataType: Int
     /** Number of bytes required for the type */

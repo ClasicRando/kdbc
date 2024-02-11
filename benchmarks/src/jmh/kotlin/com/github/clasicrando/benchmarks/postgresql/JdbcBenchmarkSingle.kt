@@ -1,7 +1,6 @@
 package com.github.clasicrando.benchmarks.postgresql
 
 import kotlinx.datetime.toKotlinLocalDateTime
-import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
@@ -14,7 +13,6 @@ import org.openjdk.jmh.annotations.Warmup
 import java.sql.Connection
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
-import kotlin.time.measureTimedValue
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)

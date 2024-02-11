@@ -1,7 +1,8 @@
 package com.github.clasicrando.postgresql.message
 
 import com.github.clasicrando.postgresql.copy.CopyFormat
-import com.github.clasicrando.postgresql.row.PgRowFieldDescription
+import com.github.clasicrando.postgresql.row.PgColumnDescription
+import com.github.clasicrando.postgresql.statement.PgArguments
 
 internal sealed class PgMessage(val code: Byte) {
     data class Authentication(
@@ -12,13 +13,13 @@ internal sealed class PgMessage(val code: Byte) {
         val secretKey: Int,
     ) : PgMessage(BACKEND_KEY_DATA_CODE) // B
     data class Bind(
-        val portal: String,
+        val portal: String?,
         val statementName: String,
-        val parameters: List<ByteArray?>,
+        val parameters: PgArguments,
     ) : PgMessage(BIND_CODE) // F
     data object BindComplete : PgMessage(BIND_COMPLETE_CODE) // B
     data class CancelRequest(val processId: Int, val secretKey: Int) : PgMessage(ZERO_CODE) // F
-    data class Close(val target: CloseTarget, val targetName: String) : PgMessage(CLOSE_CODE) // F
+    data class Close(val target: CloseTarget, val targetName: String?) : PgMessage(CLOSE_CODE) // F
     data object CloseComplete : PgMessage(CLOSE_COMPLETE_CODE) // B
     data class CommandComplete(
         val rowCount: Long,
@@ -46,7 +47,7 @@ internal sealed class PgMessage(val code: Byte) {
     data class Describe(val target: DescribeTarget, val name: String) : PgMessage(DESCRIBE_CODE) // F
     data object EmptyQueryResponse : PgMessage(EMPTY_QUERY_RESPONSE) // B
     data class ErrorResponse(val fields: Map<Char, String>) : PgMessage(ERROR_RESPONSE_CODE) // B
-    data class Execute(val portalName: String, val maxRowCount: Int) : PgMessage(EXECUTE_CODE) // F
+    data class Execute(val portalName: String?, val maxRowCount: Int) : PgMessage(EXECUTE_CODE) // F
     data object Flush : PgMessage(FLUSH_CODE) // F
     data class FunctionCall(
         val functionOid: Int,
@@ -87,7 +88,7 @@ internal sealed class PgMessage(val code: Byte) {
         val transactionStatus: TransactionStatus,
     ) : PgMessage(READY_FOR_QUERY_CODE) // B
     data class RowDescription(
-        val fields: List<PgRowFieldDescription>,
+        val fields: List<PgColumnDescription>,
     ) : PgMessage(ROW_DESCRIPTION_CODE) // B
     data class SaslInitialResponse(
         val mechanism: String,

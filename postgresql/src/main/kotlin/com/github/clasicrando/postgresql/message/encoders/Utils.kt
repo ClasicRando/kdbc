@@ -25,3 +25,13 @@ inline fun BytePacketBuilder.writeLengthPrefixed(block: BytePacketBuilder.() -> 
     writeInt(size + 4)
     writePacket(packet)
 }
+
+inline fun BytePacketBuilder.writeLengthPrefixedWithoutSelf(block: BytePacketBuilder.() -> Unit) {
+    val size: Int
+    val packet = buildPacket {
+        block()
+        size = this.size
+    }
+    writeInt(size)
+    writePacket(packet)
+}

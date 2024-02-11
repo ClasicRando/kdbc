@@ -4,7 +4,6 @@ import com.github.clasicrando.common.connection.Connection
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
-import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.selects.SelectBuilder
 import kotlinx.coroutines.selects.select
 
@@ -28,20 +27,6 @@ suspend inline fun selectLoop(crossinline block: SelectBuilder<Loop>.() -> Unit)
         when (loop) {
             is Loop.Continue -> continue
             is Loop.Break -> break
-        }
-    }
-}
-
-suspend inline fun waitOrError(
-    errorChannel: ReceiveChannel<Throwable>,
-    vararg otherChannels: ReceiveChannel<Any>,
-) {
-    select {
-        errorChannel.onReceive {
-            throw it
-        }
-        for (channel in otherChannels) {
-            channel.onReceive {}
         }
     }
 }

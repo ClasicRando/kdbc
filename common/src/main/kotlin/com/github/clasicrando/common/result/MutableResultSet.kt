@@ -13,7 +13,7 @@ class MutableResultSet(val columnMapping: List<ColumnData>) : ResultSet {
     /** [Map] of column name to column index. Used within other internal classes */
     val columnMap = columnMapping.withIndex()
         .associate { (i, value) ->
-            value.name to i
+            value.typeName to i
         }
 
     /** Add a new [row] to the end of this [ResultSet] */

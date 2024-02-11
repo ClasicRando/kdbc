@@ -1,7 +1,7 @@
 package com.github.clasicrando.postgresql.statement
 
 import com.github.clasicrando.common.statement.PreparedStatement
-import com.github.clasicrando.postgresql.row.PgRowFieldDescription
+import com.github.clasicrando.postgresql.row.PgColumnDescription
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 
@@ -11,7 +11,8 @@ internal class PgPreparedStatement(
 ) : PreparedStatement {
     override val paramCount = PARAM_COUNT_REGEX.findAll(query).count()
     override var prepared = false
-    var metadata: List<PgRowFieldDescription> = emptyList()
+    var parameterTypeOids: List<Int> = emptyList()
+    var resultMetadata: List<PgColumnDescription> = emptyList()
     val statementName = statementId.toString()
 
     override fun toString(): String {

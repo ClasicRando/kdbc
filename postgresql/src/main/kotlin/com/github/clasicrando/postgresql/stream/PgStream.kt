@@ -55,11 +55,11 @@ internal class PgStream(
      * Container for server message encoders. Used to send messages before they are sent to the
      * server.
      */
-    private val encoders: PgMessageEncoders = PgMessageEncoders(connectOptions.charset)
+    private val encoders: PgMessageEncoders = PgMessageEncoders(Charsets.UTF_8)
     /**
      * Container for server message decoders. Used to parse messages sent from the database server.
      */
-    private val decoders: PgMessageDecoders = PgMessageDecoders(connectOptions.charset)
+    private val decoders: PgMessageDecoders = PgMessageDecoders(Charsets.UTF_8)
     /** [Channel] used to store all server notifications that have not been processed */
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
     /** [ReceiveChannel] used to store all server notifications that have not been processed */
@@ -102,7 +102,7 @@ internal class PgStream(
         }
     }
 
-    suspend inline fun <reified T : PgMessage> waitForOrError(): T? {
+    suspend inline fun <reified T : PgMessage> waitForOrError(): Result<T> {
         while (isActive && isConnected) {
             when (val message = receiveNextServerMessage()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
@@ -110,7 +110,7 @@ internal class PgStream(
                 is PgMessage.ParameterStatus -> onParameterStatus(message)
                 is PgMessage.BackendKeyData -> onBackendKeyData(message)
                 is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
-                is T -> return message
+                is T -> return Result.success(message)
                 else -> {
                     log(Level.TRACE) {
                         this.message = "Ignoring {message} since it's not an error or the desired type"
@@ -119,7 +119,8 @@ internal class PgStream(
                 }
             }
         }
-        return null
+        val error = IllegalStateException("Unexpected exit waiting for PgMessage.RowDescription")
+        return Result.failure(error)
     }
 
     /**
@@ -169,17 +170,32 @@ internal class PgStream(
 
     /** Write a single [message] to the [PgStream] using the appropriate derived encoder. */
     suspend inline fun writeToStream(message: PgMessage) {
-        writeMessage(PgWriteMessage.Single(message))
+        writeMessage { builder ->
+            val encoder = encoders.encoderFor(message)
+            encoder.encode(message, builder)
+        }
     }
 
     /** Write multiple [messages] to the [PgStream] using the appropriate derived encoders. */
-    suspend inline fun writeManyToStream(messages: Iterable<PgMessage>) {
-        writeMessage(PgWriteMessage.Multiple(messages))
+    suspend inline fun writeManyToStream(
+        crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
+    ) {
+        writeMessage { builder ->
+            for (message in sequence { messages() }) {
+                val encoder = encoders.encoderFor(message)
+                encoder.encode(message, builder)
+            }
+        }
     }
 
     /** Write multiple [messages] to the [PgStream] using the appropriate derived encoders. */
     suspend inline fun writeManyToStream(vararg messages: PgMessage) {
-        writeManyToStream(messages.asIterable())
+        writeMessage { builder ->
+            for (message in messages) {
+                val encoder = encoders.encoderFor(message)
+                encoder.encode(message, builder)
+            }
+        }
     }
 
     /**
@@ -188,30 +204,15 @@ internal class PgStream(
      */
     private fun closeChannels(throwable: Throwable? = null) {
         notificationsChannel.close(throwable)
-//        messageWriterChannel.close(throwable)
     }
 
     val isConnected: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
 
-    private suspend inline fun writeMessage(message: PgWriteMessage) =
-        writeMessage { builder ->
-            when (message) {
-                is PgWriteMessage.Single -> {
-                    val encoder = encoders.encoderFor(message.message)
-                    encoder.encode(message.message, builder)
-                }
-                is PgWriteMessage.Multiple -> {
-                    for (msg in message.messages) {
-                        val encoder = encoders.encoderFor(msg)
-                        encoder.encode(msg, builder)
-                    }
-                }
-            }
-        }
-
     private suspend inline fun writeMessage(block: (BytePacketBuilder) -> Unit) {
-        sendChannel.writePacket(buildPacket(block))
+        val packet = buildPacket(block)
+        sendChannel.writePacket(packet)
         sendChannel.flush()
+        packet.release()
     }
 
     override fun close() {
@@ -371,7 +372,7 @@ internal class PgStream(
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()
             stream.waitForOrError<PgMessage.ReadyForQuery>()
-                ?: error("Exited wait without receiving the expected server message")
+                .getOrThrow()
             return stream
             /***
              * TODO

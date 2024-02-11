@@ -36,6 +36,7 @@ internal class PgMessageDecoders(charset: Charset) {
             PgMessage.COPY_DATA_CODE -> CopyDataDecoder.decode(contents)
             PgMessage.COPY_DONE -> PgMessage.CopyDone
             PgMessage.NOTIFICATION_RESPONSE_CODE -> notificationResponseDecoder.decode(contents)
+            PgMessage.PARAMETER_DESCRIPTION_CODE -> ParameterDescriptionDecoder.decode(contents)
             else -> {
                 logger.atTrace {
                     message = "Received message {format}"
