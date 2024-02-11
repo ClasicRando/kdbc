@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.writeFully
 import io.ktor.utils.io.core.buildPacket
 import io.ktor.utils.io.core.readBytes
 import kotlinx.io.readByteArray

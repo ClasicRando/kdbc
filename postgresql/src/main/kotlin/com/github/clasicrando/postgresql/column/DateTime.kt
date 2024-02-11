@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.writeLong
 import com.github.clasicrando.common.datetime.DateTime
 import com.github.clasicrando.common.datetime.tryFromString
 import kotlinx.datetime.LocalDateTime

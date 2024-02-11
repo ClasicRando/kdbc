@@ -116,7 +116,7 @@ suspend fun initializeConcurrentConnections(): PgConnectOptions {
         applicationName = "KdbcTests${UUID.generateUUID()}",
         logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
         poolOptions = PoolOptions(
-            maxConnections = 20,
+            maxConnections = 8,
             minConnections = 8,
         ),
     )

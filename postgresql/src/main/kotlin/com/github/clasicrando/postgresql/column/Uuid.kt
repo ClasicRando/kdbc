@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.writeFully
 import kotlinx.io.readByteArray
 import kotlinx.uuid.UUID
 import kotlinx.uuid.encodeToByteArray

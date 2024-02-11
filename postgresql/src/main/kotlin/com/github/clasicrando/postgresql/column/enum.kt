@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.writeText
 import com.github.clasicrando.common.column.columnDecodeError
 import kotlinx.io.readString
 

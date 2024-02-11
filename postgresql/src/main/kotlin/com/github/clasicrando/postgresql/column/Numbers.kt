@@ -1,5 +1,10 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.writeDouble
+import com.github.clasicrando.common.buffer.writeFloat
+import com.github.clasicrando.common.buffer.writeInt
+import com.github.clasicrando.common.buffer.writeLong
+import com.github.clasicrando.common.buffer.writeShort
 import kotlinx.io.readDouble
 import kotlinx.io.readFloat
 
