@@ -1,9 +1,8 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.column.columnDecodeError
+import com.github.clasicrando.postgresql.statement.PgArguments
 import com.github.clasicrando.postgresql.type.PgCompositeLiteralParser
-import io.ktor.utils.io.core.BytePacketBuilder
-import io.ktor.utils.io.core.writeInt
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.memberProperties
@@ -30,7 +29,7 @@ internal class PgCompositeTypeEncoder<T : Any>(
     private val properties = cls.memberProperties.filter { it.name in propertyNames }
         .map { it to typeRegistry.kindOf(it.returnType) }
 
-    override fun encode(value: T, buffer: BytePacketBuilder) {
+    override fun encode(value: T, buffer: PgArguments) {
         buffer.writeInt(properties.size)
         for ((property, propertyTypeOid) in properties) {
             buffer.writeInt(propertyTypeOid.oidOrUnknown())

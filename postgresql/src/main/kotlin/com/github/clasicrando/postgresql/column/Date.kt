@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.datetime.tryFromString
-import io.ktor.utils.io.core.writeInt
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus

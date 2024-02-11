@@ -1,7 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import io.ktor.utils.io.core.writeInt
-import io.ktor.utils.io.core.writeLong
 import kotlinx.datetime.DateTimePeriod
 
 private const val minutesPerHour = 60L

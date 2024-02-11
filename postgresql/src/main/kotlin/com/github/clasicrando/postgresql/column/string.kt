@@ -1,6 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import io.ktor.utils.io.core.writeText
 import kotlinx.io.readString
 
 val stringTypeEncoder = PgTypeEncoder<String>(

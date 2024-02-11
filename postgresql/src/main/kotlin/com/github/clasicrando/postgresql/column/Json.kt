@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.postgresql.type.PgJson
-import io.ktor.utils.io.streams.outputStream
 import kotlinx.io.asInputStream
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json

@@ -1,10 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import io.ktor.utils.io.core.writeDouble
-import io.ktor.utils.io.core.writeFloat
-import io.ktor.utils.io.core.writeInt
-import io.ktor.utils.io.core.writeLong
-import io.ktor.utils.io.core.writeShort
 import kotlinx.io.readDouble
 import kotlinx.io.readFloat
 

@@ -3,7 +3,6 @@ package com.github.clasicrando.postgresql.column
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgNumeric
 import com.github.clasicrando.postgresql.type.SIGN_NAN
-import io.ktor.utils.io.core.writeShort
 import java.math.BigDecimal
 
 internal val bigDecimalTypeEncoder = PgTypeEncoder<BigDecimal>(PgType.Numeric) { value, buffer ->

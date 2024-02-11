@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.column.columnDecodeError
-import io.ktor.utils.io.core.writeText
 import kotlinx.io.readString
 
 inline fun <reified E : Enum<E>> enumTypeEncoder(name: String): PgTypeEncoder<E> {

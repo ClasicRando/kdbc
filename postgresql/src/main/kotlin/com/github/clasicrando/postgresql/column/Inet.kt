@@ -2,7 +2,6 @@ package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgInet
-import io.ktor.utils.io.core.writeFully
 import kotlinx.io.readByteArray
 import java.net.Inet6Address
 

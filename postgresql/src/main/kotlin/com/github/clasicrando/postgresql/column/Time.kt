@@ -2,8 +2,6 @@ package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.datetime.tryFromString
 import com.github.clasicrando.postgresql.type.PgTimeTz
-import io.ktor.utils.io.core.writeInt
-import io.ktor.utils.io.core.writeLong
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import kotlin.time.DurationUnit

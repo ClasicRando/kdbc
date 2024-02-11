@@ -3,8 +3,7 @@ package com.github.clasicrando.postgresql.column
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.array.ArrayLiteralParser
 import com.github.clasicrando.postgresql.row.PgColumnDescription
-import io.ktor.utils.io.core.BytePacketBuilder
-import io.ktor.utils.io.core.writeInt
+import com.github.clasicrando.postgresql.statement.PgArguments
 import kotlinx.io.bytestring.encodeToByteString
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
@@ -29,7 +28,7 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
         }
     }
 
-    override fun encode(value: List<T>, buffer: BytePacketBuilder) {
+    override fun encode(value: List<T>, buffer: PgArguments) {
         buffer.writeInt(1)
         buffer.writeInt(0)
         buffer.writeInt(pgType.oidOrUnknown())

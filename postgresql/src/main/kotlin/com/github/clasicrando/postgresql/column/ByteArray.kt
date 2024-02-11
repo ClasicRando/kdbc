@@ -2,7 +2,6 @@ package com.github.clasicrando.postgresql.column
 
 import io.ktor.utils.io.core.buildPacket
 import io.ktor.utils.io.core.readBytes
-import io.ktor.utils.io.core.writeFully
 import kotlinx.io.readByteArray
 
 val byteArrayTypeEncoder = PgTypeEncoder<ByteArray>(PgType.Bytea) { value, buffer ->
