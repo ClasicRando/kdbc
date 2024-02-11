@@ -12,16 +12,11 @@ internal class BindEncoder(private val charset: Charset) : MessageEncoder<PgMess
         buffer.writeLengthPrefixed {
             writeCString(value.portal ?: "", charset)
             writeCString(value.statementName, charset)
-            val paramCount = value.parameters.paramCount
-            writeShort(paramCount.toShort())
-            for (i in 1..paramCount) {
-                writeShort(1)
-            }
+            writeShort(1)
+            writeShort(1)
             value.parameters.writeToBuffer(this)
-            writeShort(paramCount.toShort())
-            for (i in 1..paramCount) {
-                writeShort(1)
-            }
+            writeShort(1)
+            writeShort(1)
         }
     }
 }
