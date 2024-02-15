@@ -1,9 +1,9 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.readFully
 import com.github.clasicrando.common.buffer.writeFully
 import io.ktor.utils.io.core.buildPacket
 import io.ktor.utils.io.core.readBytes
-import kotlinx.io.readByteArray
 
 val byteArrayTypeEncoder = PgTypeEncoder<ByteArray>(PgType.Bytea) { value, buffer ->
     buffer.writeFully(value)
@@ -11,7 +11,7 @@ val byteArrayTypeEncoder = PgTypeEncoder<ByteArray>(PgType.Bytea) { value, buffe
 
 val byteArrayTypeDecoder = PgTypeDecoder { value ->
     when (value) {
-        is PgValue.Binary -> value.bytes.readByteArray()
+        is PgValue.Binary -> value.bytes.readFully()
         is PgValue.Text -> {
             if (value.text.startsWith(HEX_START)) {
                 decodeWithPrefix(value.text)

@@ -1,6 +1,6 @@
 package com.github.clasicrando.common.buffer
 
-abstract class ArrayListBuffer : Buffer {
+abstract class ArrayListWriteBuffer : WriteBuffer {
     @PublishedApi
     internal val innerBuffer = ArrayList<Byte>()
 
@@ -17,7 +17,7 @@ abstract class ArrayListBuffer : Buffer {
     }
 }
 
-inline fun <B : ArrayListBuffer> B.writeLengthPrefixed(
+inline fun <B : ArrayListWriteBuffer> B.writeLengthPrefixed(
     includeLength: Boolean = false,
     block: B.() -> Unit,
 ) {

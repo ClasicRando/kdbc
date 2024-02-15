@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.message
 
 import com.github.clasicrando.postgresql.copy.CopyFormat
 import com.github.clasicrando.postgresql.row.PgColumnDescription
+import com.github.clasicrando.postgresql.row.PgRowBuffer
 import com.github.clasicrando.postgresql.statement.PgArguments
 
 internal sealed class PgMessage(val code: Byte) {
@@ -43,7 +44,7 @@ internal sealed class PgMessage(val code: Byte) {
         val columnCount: Int,
         val columnFormats: Array<CopyFormat>,
     ) : PgMessage(COPY_BOTH_RESPONSE_CODE) // B
-    class DataRow(val values: Array<ByteArray?>) : PgMessage(DATA_ROW_CODE) // B
+    data class DataRow(val rowBuffer: PgRowBuffer) : PgMessage(DATA_ROW_CODE) // B
     data class Describe(val target: DescribeTarget, val name: String) : PgMessage(DESCRIBE_CODE) // F
     data object EmptyQueryResponse : PgMessage(EMPTY_QUERY_RESPONSE) // B
     data class ErrorResponse(val fields: Map<Char, String>) : PgMessage(ERROR_RESPONSE_CODE) // B

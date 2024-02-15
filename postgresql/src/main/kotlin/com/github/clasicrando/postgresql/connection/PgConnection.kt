@@ -23,6 +23,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.notification.PgNotification
 import com.github.clasicrando.postgresql.pool.PgPoolManager
 import com.github.clasicrando.postgresql.row.PgColumnDescription
+import com.github.clasicrando.postgresql.row.PgRowBuffer
 import com.github.clasicrando.postgresql.statement.PgArguments
 import com.github.clasicrando.postgresql.statement.PgPreparedStatement
 import com.github.clasicrando.postgresql.stream.PgStream
@@ -41,11 +42,8 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
-import kotlinx.io.asSource
-import kotlinx.io.buffered
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
-import java.io.ByteArrayInputStream
 
 private val logger = KotlinLogging.logger {}
 
@@ -133,21 +131,19 @@ class PgConnection internal constructor(
      */
     private suspend inline fun waitForQueryRunning() = canRunQuery.receive()
 
-    /** Utility method to add a new [dataRow] to the specified [resultSet] */
-    private fun addDataRow(resultSet: MutableResultSet, dataRow: PgMessage.DataRow) {
-        val fields: Array<Any?> = Array(dataRow.values.size) { i ->
-            dataRow.values[i]?.let {
-                val columnType = resultSet.columnMapping[i] as PgColumnDescription
-                val source = ByteArrayInputStream(it).asSource().buffered()
-                val value = when (columnType.formatCode) {
-                    0.toShort() -> PgValue.Text(source, columnType)
-                    1.toShort() -> PgValue.Binary(source, columnType)
-                    else -> error(
-                        "Invalid format code from row description. Got ${columnType.formatCode}"
-                    )
-                }
-                typeRegistry.decode(value)
+    /** Utility method to add a new row to the specified [resultSet] using the [rowBuffer] */
+    private fun addRow(resultSet: MutableResultSet, rowBuffer: PgRowBuffer) {
+        val fields: Array<Any?> = Array(rowBuffer.values.size) { i ->
+            val buffer = rowBuffer.values[i] ?: return@Array null
+            val columnType = resultSet.columnMapping[i] as PgColumnDescription
+            val value = when (columnType.formatCode) {
+                0.toShort() -> PgValue.Text(buffer, columnType)
+                1.toShort() -> PgValue.Binary(buffer, columnType)
+                else -> error(
+                    "Invalid format code from row description. Got ${columnType.formatCode}"
+                )
             }
+            typeRegistry.decode(value)
         }
         resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
     }
@@ -239,7 +235,7 @@ class PgConnection internal constructor(
                         Loop.Continue
                     }
                     is PgMessage.DataRow -> {
-                        addDataRow(result, message)
+                        addRow(result, message.rowBuffer)
                         Loop.Continue
                     }
                     is PgMessage.CommandComplete -> {
@@ -306,7 +302,7 @@ class PgConnection internal constructor(
                     Loop.Continue
                 }
                 is PgMessage.DataRow -> {
-                    addDataRow(result, message)
+                    addRow(result, message.rowBuffer)
                     Loop.Continue
                 }
                 is PgMessage.CommandComplete -> {

@@ -1,7 +1,7 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.readText
 import com.github.clasicrando.common.buffer.writeText
-import kotlinx.io.readString
 
 val stringTypeEncoder = PgTypeEncoder<String>(
     pgType = PgType.Text,
@@ -19,6 +19,6 @@ val stringTypeEncoder = PgTypeEncoder<String>(
 val stringTypeDecoder = PgTypeDecoder { value ->
     when (value) {
         is PgValue.Text -> value.text
-        is PgValue.Binary -> value.bytes.readString()
+        is PgValue.Binary -> value.bytes.readText()
     }
 }

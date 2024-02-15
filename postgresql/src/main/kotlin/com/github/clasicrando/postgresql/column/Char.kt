@@ -5,9 +5,6 @@ val charTypeEncoder = PgTypeEncoder<Char>(PgType.Char) { value, buffer ->
 }
 
 val charTypeDecoder = PgTypeDecoder { value ->
-    if (value.bytes.request(1)) {
-        value.bytes.readByte().toInt().toChar()
-    } else {
-        0.toChar()
-    }
+    runCatching { value.bytes.readByte().toInt().toChar() }
+        .getOrElse { 0.toChar() }
 }

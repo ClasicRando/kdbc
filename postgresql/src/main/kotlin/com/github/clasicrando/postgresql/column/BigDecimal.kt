@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.readShort
 import com.github.clasicrando.common.buffer.writeShort
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgNumeric

@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.inputStream
 import com.github.clasicrando.common.buffer.outputStream
 import com.github.clasicrando.postgresql.type.PgJson
 import kotlinx.io.asInputStream
@@ -26,7 +27,7 @@ val jsonTypeDecoder = PgTypeDecoder<PgJson> { value ->
                     "Unsupported JSONB format version $version. Only version 1 is supported"
                 }
             }
-            Json.decodeFromStream(value.bytes.asInputStream())
+            Json.decodeFromStream(value.bytes.inputStream())
         }
         is PgValue.Text -> Json.decodeFromString(value.text)
     }

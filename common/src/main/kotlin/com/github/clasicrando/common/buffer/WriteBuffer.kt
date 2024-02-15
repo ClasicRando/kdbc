@@ -3,15 +3,13 @@ package com.github.clasicrando.common.buffer
 import java.io.OutputStream
 import java.nio.charset.Charset
 
-interface Buffer {
+interface WriteBuffer {
     fun writeByte(byte: Byte)
-
     fun toByteArray(): ByteArray
-
     fun release()
 }
 
-inline fun <B : Buffer> B.buildBytes(block: (B) -> Unit): ByteArray {
+inline fun <B : WriteBuffer> B.buildBytes(block: (B) -> Unit): ByteArray {
     var cause: Throwable? = null
     return try {
         block(this)
@@ -28,20 +26,20 @@ inline fun <B : Buffer> B.buildBytes(block: (B) -> Unit): ByteArray {
     }
 }
 
-fun Buffer.writeMany(vararg bytes: Byte) {
+fun WriteBuffer.writeMany(vararg bytes: Byte) {
     for (i in bytes.indices) {
         writeByte(bytes[i])
     }
 }
 
-fun Buffer.writeShort(short: Short) {
+fun WriteBuffer.writeShort(short: Short) {
     this.writeMany(
         (short.toInt() ushr 8 and 0xff).toByte(),
         (short.toInt() and 0xff).toByte(),
     )
 }
 
-fun Buffer.writeInt(int: Int) {
+fun WriteBuffer.writeInt(int: Int) {
     this.writeMany(
         (int ushr 24 and 0xff).toByte(),
         (int ushr 16 and 0xff).toByte(),
@@ -50,7 +48,7 @@ fun Buffer.writeInt(int: Int) {
     )
 }
 
-fun Buffer.writeLong(long: Long) {
+fun WriteBuffer.writeLong(long: Long) {
     this.writeMany(
         (long ushr 56 and 0xffL).toByte(),
         (long ushr 48 and 0xffL).toByte(),
@@ -63,25 +61,25 @@ fun Buffer.writeLong(long: Long) {
     )
 }
 
-fun Buffer.writeFloat(float: Float) {
+fun WriteBuffer.writeFloat(float: Float) {
     this.writeInt(float.toBits())
 }
 
-fun Buffer.writeDouble(double: Double) {
+fun WriteBuffer.writeDouble(double: Double) {
     this.writeLong(double.toBits())
 }
 
-fun Buffer.writeFully(byteArray: ByteArray, offset: Int = 0, length: Int = byteArray.size) {
+fun WriteBuffer.writeFully(byteArray: ByteArray, offset: Int = 0, length: Int = byteArray.size) {
     for (i in offset..<(offset + length)) {
         this.writeByte(byteArray[i])
     }
 }
 
-fun Buffer.writeText(text: String, charset: Charset = Charsets.UTF_8) {
+fun WriteBuffer.writeText(text: String, charset: Charset = Charsets.UTF_8) {
     this.writeFully(text.toByteArray(charset = charset))
 }
 
-fun Buffer.outputStream(): OutputStream = object : OutputStream() {
+fun WriteBuffer.outputStream(): OutputStream = object : OutputStream() {
     override fun write(b: Int) {
         this@outputStream.writeByte(b.toByte())
     }
