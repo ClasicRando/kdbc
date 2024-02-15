@@ -5,11 +5,9 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import io.ktor.utils.io.charsets.Charset
 import io.ktor.utils.io.core.ByteReadPacket
 
-internal class CommandCompleteDecoder(
-    private val charset: Charset,
-) : MessageDecoder<PgMessage.CommandComplete> {
+internal object CommandCompleteDecoder : MessageDecoder<PgMessage.CommandComplete> {
     override fun decode(packet: ByteReadPacket): PgMessage.CommandComplete {
-        val message = packet.readCString(charset = charset)
+        val message = packet.readCString()
         val words = message.split(" ")
         val rowCount = when {
             words.size <= 1 -> 0

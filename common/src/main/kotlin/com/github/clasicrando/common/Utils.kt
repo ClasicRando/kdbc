@@ -7,7 +7,7 @@ import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.selects.SelectBuilder
 import kotlinx.coroutines.selects.select
 
-val Byte.Companion.ZERO: Byte get() = 0
+const val zeroByte: Byte = 0
 
 inline fun <T> Result<T>.mapError(block: (Throwable) -> Throwable): Result<T> {
     if (isSuccess) {
@@ -44,7 +44,7 @@ inline fun KLogger.connectionLogger(
 }
 
 fun ByteArray.splitAsCString(): List<String> {
-    return this.splitBy(Byte.ZERO)
+    return this.splitBy(zeroByte)
         .map { chunk ->
             chunk.map { it.toInt().toChar() }
                 .joinToString(separator = "")

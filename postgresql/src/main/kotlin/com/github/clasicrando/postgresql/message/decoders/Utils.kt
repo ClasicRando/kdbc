@@ -1,13 +1,14 @@
 package com.github.clasicrando.postgresql.message.decoders
 
-import com.github.clasicrando.postgresql.message.PgMessage.Companion.ZERO_CODE
 import io.ktor.utils.io.charsets.Charset
 import io.ktor.utils.io.core.ByteReadPacket
 
-fun ByteReadPacket.readCString(charset: Charset): String {
+const val zero: Byte = 0
+
+fun ByteReadPacket.readCString(charset: Charset = Charsets.UTF_8): String {
     val temp = generateSequence {
         val byte = this@readCString.readByte()
-        byte.takeIf { it != ZERO_CODE }
+        byte.takeIf { it != zero }
     }.toList().toByteArray()
     return temp.toString(charset = charset)
 }

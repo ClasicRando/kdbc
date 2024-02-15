@@ -4,19 +4,16 @@ import com.github.clasicrando.common.message.MessageDecoder
 import com.github.clasicrando.postgresql.column.PgType
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.row.PgColumnDescription
-import io.ktor.utils.io.charsets.Charset
 import io.ktor.utils.io.core.ByteReadPacket
 import io.ktor.utils.io.core.readInt
 import io.ktor.utils.io.core.readShort
 
-internal class RowDescriptionDecoder(
-    private val charset: Charset,
-) : MessageDecoder<PgMessage.RowDescription> {
+internal object RowDescriptionDecoder : MessageDecoder<PgMessage.RowDescription> {
     override fun decode(packet: ByteReadPacket): PgMessage.RowDescription {
         val columnsCount = packet.readShort()
         val descriptions = (0..<columnsCount).map {
             PgColumnDescription(
-                fieldName = packet.readCString(charset),
+                fieldName = packet.readCString(),
                 tableOid = packet.readInt(),
                 columnAttribute = packet.readShort(),
                 pgType = PgType.fromOid(packet.readInt()),

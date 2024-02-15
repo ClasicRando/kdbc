@@ -59,7 +59,7 @@ internal class PgStream(
     /**
      * Container for server message decoders. Used to parse messages sent from the database server.
      */
-    private val decoders: PgMessageDecoders = PgMessageDecoders(Charsets.UTF_8)
+    private val decoders: PgMessageDecoders = PgMessageDecoders()
     /** [Channel] used to store all server notifications that have not been processed */
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
     /** [ReceiveChannel] used to store all server notifications that have not been processed */
