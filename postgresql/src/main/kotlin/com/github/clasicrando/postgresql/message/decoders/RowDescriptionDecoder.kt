@@ -1,26 +1,28 @@
 package com.github.clasicrando.postgresql.message.decoders
 
+import com.github.clasicrando.common.buffer.ReadBuffer
+import com.github.clasicrando.common.buffer.readInt
+import com.github.clasicrando.common.buffer.readShort
 import com.github.clasicrando.common.message.MessageDecoder
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.column.PgType
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.row.PgColumnDescription
-import io.ktor.utils.io.core.ByteReadPacket
-import io.ktor.utils.io.core.readInt
-import io.ktor.utils.io.core.readShort
 
 internal object RowDescriptionDecoder : MessageDecoder<PgMessage.RowDescription> {
-    override fun decode(packet: ByteReadPacket): PgMessage.RowDescription {
-        val columnsCount = packet.readShort()
-        val descriptions = (0..<columnsCount).map {
-            PgColumnDescription(
-                fieldName = packet.readCString(),
-                tableOid = packet.readInt(),
-                columnAttribute = packet.readShort(),
-                pgType = PgType.fromOid(packet.readInt()),
-                dataTypeSize = packet.readShort(),
-                typeModifier = packet.readInt(),
-                formatCode = packet.readShort(),
-            )
+    override fun decode(buffer: ReadBuffer): PgMessage.RowDescription {
+        val descriptions = buffer.use { buf ->
+            List(buf.readShort().toInt()) {
+                PgColumnDescription(
+                    fieldName = buf.readCString(),
+                    tableOid = buf.readInt(),
+                    columnAttribute = buf.readShort(),
+                    pgType = PgType.fromOid(buf.readInt()),
+                    dataTypeSize = buf.readShort(),
+                    typeModifier = buf.readInt(),
+                    formatCode = buf.readShort(),
+                )
+            }
         }
         return PgMessage.RowDescription(descriptions)
     }

@@ -10,7 +10,7 @@ interface WriteBuffer : AutoRelease {
     fun toByteArray(): ByteArray
 }
 
-inline fun <B : WriteBuffer> B.buildBytes(block: (B) -> Unit): ByteArray {
+inline fun <B : WriteBuffer> B.buildBytes(crossinline block: (B) -> Unit): ByteArray {
     return this.use {
         block(it)
         it.toByteArray()

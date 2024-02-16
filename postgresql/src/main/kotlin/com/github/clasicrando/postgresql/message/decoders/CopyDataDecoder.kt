@@ -1,12 +1,13 @@
 package com.github.clasicrando.postgresql.message.decoders
 
+import com.github.clasicrando.common.buffer.ReadBuffer
+import com.github.clasicrando.common.buffer.readFully
 import com.github.clasicrando.common.message.MessageDecoder
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.message.PgMessage
-import io.ktor.utils.io.core.ByteReadPacket
-import io.ktor.utils.io.core.readBytes
 
 internal object CopyDataDecoder : MessageDecoder<PgMessage.CopyData> {
-    override fun decode(packet: ByteReadPacket): PgMessage.CopyData {
-        return PgMessage.CopyData(packet.readBytes())
+    override fun decode(buffer: ReadBuffer): PgMessage.CopyData {
+        return PgMessage.CopyData(buffer.use { it.readFully() })
     }
 }

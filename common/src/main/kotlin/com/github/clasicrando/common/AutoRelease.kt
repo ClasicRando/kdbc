@@ -4,7 +4,7 @@ interface AutoRelease {
     fun release()
 }
 
-inline fun <A : AutoRelease, R> A.use(block: (A) -> R): R {
+inline fun <A : AutoRelease, R> A.use(crossinline block: (A) -> R): R {
     var cause: Throwable? = null
     return try {
         block(this)

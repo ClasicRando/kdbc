@@ -1,19 +1,22 @@
 package com.github.clasicrando.postgresql.message.decoders
 
+import com.github.clasicrando.common.buffer.ReadBuffer
+import com.github.clasicrando.common.buffer.readShort
 import com.github.clasicrando.common.message.MessageDecoder
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.copy.CopyFormat
 import com.github.clasicrando.postgresql.message.PgMessage
-import io.ktor.utils.io.core.ByteReadPacket
-import io.ktor.utils.io.core.readShort
 
 internal object CopyOutResponseDecoder : MessageDecoder<PgMessage.CopyOutResponse> {
-    override fun decode(packet: ByteReadPacket): PgMessage.CopyOutResponse {
-        val copyFormat = CopyFormat.fromByte(packet.readByte())
-        val columnCount = packet.readShort().toInt()
-        val columnFormats = Array(columnCount) {
-            CopyFormat.fromByte(packet.readByte())
-        }
+    override fun decode(buffer: ReadBuffer): PgMessage.CopyOutResponse {
+        return buffer.use { buf ->
+            val copyFormat = CopyFormat.fromByte(buf.readByte())
+            val columnCount = buf.readShort().toInt()
+            val columnFormats = Array(columnCount) {
+                CopyFormat.fromByte(buf.readByte())
+            }
 
-        return PgMessage.CopyOutResponse(copyFormat, columnCount, columnFormats)
+            PgMessage.CopyOutResponse(copyFormat, columnCount, columnFormats)
+        }
     }
 }

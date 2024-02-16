@@ -33,6 +33,7 @@ internal class PgMessageDecoders {
                     message = "Received message {format}"
                     payload = mapOf("format" to rawMessage.format)
                 }
+                rawMessage.contents.release()
                 PgMessage.NoData
             }
         }

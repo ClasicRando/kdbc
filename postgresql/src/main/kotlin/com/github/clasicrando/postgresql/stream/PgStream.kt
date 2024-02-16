@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.stream
 
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.SslMode
+import com.github.clasicrando.common.buffer.ArrayReadBuffer
 import com.github.clasicrando.common.message.MessageSendBuffer
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.authentication.Authentication
@@ -24,6 +25,7 @@ import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
 import io.ktor.network.tls.TLSConfigBuilder
 import io.ktor.network.tls.tls
+import io.ktor.utils.io.readFully
 import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -76,11 +78,12 @@ internal class PgStream(
     internal suspend fun receiveNextServerMessage(): PgMessage {
         val format = receiveChannel.readByte()
         val size = receiveChannel.readInt()
-        val packet = receiveChannel.readPacket(size - 4)
+        val array = ByteArray(size - 4)
+        receiveChannel.readFully(array)
         val rawMessage = RawMessage(
             format = format,
             size = size.toUInt(),
-            contents = packet,
+            contents = object : ArrayReadBuffer(array) {},
         )
         return decoders.decode(rawMessage)
     }
@@ -208,7 +211,7 @@ internal class PgStream(
 
     val isConnected: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
 
-    private suspend inline fun writeMessage(block: (MessageSendBuffer) -> Unit) {
+    private suspend inline fun writeMessage(crossinline block: (MessageSendBuffer) -> Unit) {
         val bytes = MessageSendBuffer.buildByteArray(block)
         sendChannel.writeFully(bytes)
         sendChannel.flush()
