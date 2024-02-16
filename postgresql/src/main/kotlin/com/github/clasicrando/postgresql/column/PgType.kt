@@ -23,8 +23,8 @@ sealed class PgType(val oid: Int?) {
     data object JsonArray : PgType(JSON_ARRAY)
     data object Point : PgType(POINT)
     data object PointArray : PgType(POINT_ARRAY)
-    data object Lseg : PgType(LSEG)
-    data object LsegArray : PgType(LSEG_ARRAY)
+    data object LineSegment : PgType(LSEG)
+    data object LineSegmentArray : PgType(LSEG_ARRAY)
     data object Path : PgType(PATH)
     data object PathArray : PgType(PATH_ARRAY)
     data object Box : PgType(BOX)
@@ -230,8 +230,8 @@ sealed class PgType(val oid: Int?) {
                 JSON_ARRAY -> JsonArray
                 POINT -> Point
                 POINT_ARRAY -> PointArray
-                LSEG -> Lseg
-                LSEG_ARRAY -> LsegArray
+                LSEG -> LineSegment
+                LSEG_ARRAY -> LineSegmentArray
                 PATH -> Path
                 PATH_ARRAY -> PathArray
                 BOX -> Box

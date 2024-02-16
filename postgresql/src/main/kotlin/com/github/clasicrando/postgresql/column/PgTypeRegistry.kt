@@ -14,6 +14,7 @@ internal val typeRegistryLogger = KotlinLogging.logger {}
 internal class PgTypeRegistry {
     private val encoders: MutableMap<KType, PgTypeEncoder<*>> = ConcurrentHashMap(defaultEncoders.associateBy { it.encodeType })
     private val decoders: MutableMap<Int, PgTypeDecoder<*>> = ConcurrentHashMap(defaultDecoders)
+    private var hasPostGisTypes = false
 
     fun decode(value: PgValue): Any {
         val oid = value.typeData.dataType
@@ -47,6 +48,19 @@ internal class PgTypeRegistry {
             return PgType.Unknown
         }
         return kindOf(value::class.createType())
+    }
+
+    fun includePostGisTypes() {
+        if (hasPostGisTypes) {
+            return
+        }
+        for (encoder in postGisEncoders) {
+            encoders[encoder.encodeType] = encoder
+        }
+        for ((oid, decoder) in postGisDecoders) {
+            decoders[oid] = decoder
+        }
+        hasPostGisTypes = true
     }
 
     @PublishedApi
@@ -275,6 +289,23 @@ internal class PgTypeRegistry {
             arrayTypeEncoder(dateTimePeriodTypeEncoder, PgType.IntervalArray),
         )
 
+        private val postGisEncoders: List<PgTypeEncoder<*>> = listOf(
+            boxTypeEncoder,
+            arrayTypeEncoder(boxTypeEncoder, PgType.BoxArray),
+            circleTypeEncoder,
+            arrayTypeEncoder(circleTypeEncoder, PgType.CircleArray),
+            lineTypeEncoder,
+            arrayTypeEncoder(lineTypeEncoder, PgType.LineArray),
+            lineSegmentTypeEncoder,
+            arrayTypeEncoder(lineSegmentTypeEncoder, PgType.LineSegmentArray),
+            pathTypeEncoder,
+            arrayTypeEncoder(pathTypeEncoder, PgType.PathArray),
+            pointTypeEncoder,
+            arrayTypeEncoder(pointTypeEncoder, PgType.PointArray),
+            polygonTypeEncoder,
+            arrayTypeEncoder(polygonTypeEncoder, PgType.PolygonArray),
+        )
+
         private val stringArrayTypeDecoder = arrayTypeDecoder(stringTypeDecoder)
         private val intArrayTypeDecoder = arrayTypeDecoder(intTypeDecoder)
 
@@ -332,6 +363,23 @@ internal class PgTypeRegistry {
             PgType.TIMESTAMPTZ_ARRAY to arrayTypeDecoder(dateTimeTypeDecoder),
             PgType.INTERVAL to dateTimePeriodTypeDecoder,
             PgType.INTERVAL_ARRAY to arrayTypeDecoder(dateTimePeriodTypeDecoder),
+        )
+
+        private val postGisDecoders: Map<Int, PgTypeDecoder<*>> = mapOf(
+            PgType.BOX to boxTypeDecoder,
+            PgType.BOX_ARRAY to arrayTypeDecoder(boxTypeDecoder),
+            PgType.CIRCLE to circleTypeDecoder,
+            PgType.CIRCLE_ARRAY to arrayTypeDecoder(circleTypeDecoder),
+            PgType.LINE to lineTypeDecoder,
+            PgType.LINE_ARRAY to arrayTypeDecoder(lineTypeDecoder),
+            PgType.LSEG to lineSegmentTypeDecoder,
+            PgType.LSEG_ARRAY to arrayTypeDecoder(lineSegmentTypeDecoder),
+            PgType.PATH to pathTypeDecoder,
+            PgType.PATH_ARRAY to arrayTypeDecoder(pathTypeDecoder),
+            PgType.POINT to pointTypeDecoder,
+            PgType.POINT_ARRAY to arrayTypeDecoder(pointTypeDecoder),
+            PgType.POLYGON to polygonTypeDecoder,
+            PgType.POLYGON_ARRAY to arrayTypeDecoder(polygonTypeDecoder),
         )
 
         private val pgTypeByOid =

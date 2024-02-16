@@ -341,6 +341,11 @@ class PgConnection internal constructor(
         return collectResult()
     }
 
+    /**
+     * Prepare the specified [statement] by requesting the server parse and describe the prepared
+     * statement. The messages received from the server are then handled to populate data within
+     * the [statement].
+     */
     private suspend fun executeStatementPrepare(
         query: String,
         parameterTypes: List<Int>,
@@ -397,6 +402,16 @@ class PgConnection internal constructor(
         throw error
     }
 
+    /**
+     * Fetch a [PgPreparedStatement] from the cache for the provided [query], returning the
+     * statement. If a statement does not already exist for the [query] then a new statement is
+     * created in a non-prepared state. If the statement has not already been prepared then
+     * [executePreparedStatement] is called to populate the [PgPreparedStatement] with the required
+     * data.
+     *
+     * This will fail if the number of [parameters] does not match the number of parameters
+     * required by the query.
+     */
     private suspend fun prepareStatement(
         query: String,
         parameters: List<Any?>,
@@ -404,21 +419,21 @@ class PgConnection internal constructor(
         val statement = preparedStatements.getOrPut(query) {
             PgPreparedStatement(query)
         }
-        val parameterTypes = parameters.map {
-            typeRegistry.kindOf(it).oidOrUnknown()
-        }
 
-        require(statement.paramCount == parameterTypes.size) {
+        require(statement.paramCount == parameters.size) {
             """
             Query does not have the correct number of parameters.
             
             ${query.replaceIndent("            ")}
             
-            Expected ${statement.paramCount}, got ${parameterTypes.size}
+            Expected ${statement.paramCount}, got ${parameters.size}
             """.trimIndent()
         }
 
         if (!statement.prepared) {
+            val parameterTypes = parameters.map {
+                typeRegistry.kindOf(it).oidOrUnknown()
+            }
             executeStatementPrepare(query, parameterTypes, statement)
         }
 
@@ -426,18 +441,13 @@ class PgConnection internal constructor(
     }
 
     /**
-     * Send all required messages to the server for prepared statement execution.
+     * Send all required messages to the server for prepared [statement] execution.
      *
-     * To start, the cache is checked or pushed to for the supplied [query]. After that, all
-     * messages to send are as follows:
-     * - If the query has not already been prepared, [PgMessage.Parse] is sent
-     * - [PgMessage.Bind] with statement name + current parameters
+     * - [PgMessage.Bind] with statement name + current [parameters]
      * - If the statement has not received metadata, [PgMessage.Describe] is sent
      * - [PgMessage.Execute] with the statement name
      * - [PgMessage.Close] with the statement name
      * - If [sendSync] is true, [PgMessage.Sync] is sent
-     *
-     * TODO don't send a close message if the cache is not full, also add logic to remove old items from cache
      */
     private suspend fun executePreparedStatement(
         statement: PgPreparedStatement,
@@ -818,6 +828,11 @@ class PgConnection internal constructor(
         sendQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
     }
 
+    /** Update the type registry to allow for encoding and decoding PostGIS types */
+    fun includePostGisTypes() {
+        typeRegistry.includePostGisTypes()
+    }
+
     companion object {
         private const val STATEMENT_TEMPLATE = "Sending {query}"
 
@@ -832,10 +847,6 @@ class PgConnection internal constructor(
         /**
          * Create a new [PgConnection] instance using the supplied [connectOptions], [stream] and
          * [pool] (the pool that owns this connection).
-         *
-         * As a final step to preparing the connection for user interaction, the [typeRegistry] is
-         * updated with any custom types required using the [PgTypeRegistry.finalizeTypes] method.
-         * This may fail and will also cause the connection to be closed and an exception thrown.
          */
         internal suspend fun connect(
             connectOptions: PgConnectOptions,

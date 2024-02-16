@@ -24,3 +24,9 @@ fun columnDecodeError(kType: KType, type: ColumnData): Nothing {
 inline fun <reified T> columnDecodeError(type: ColumnData): Nothing {
     throw ColumnDecodeError(type.dataType, type.typeName, type.fieldName, typeOf<T>())
 }
+
+inline fun <reified T> checkOrColumnDecodeError(check: Boolean, type: ColumnData) {
+    if (!check) {
+        columnDecodeError<T>(type)
+    }
+}
