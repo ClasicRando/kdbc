@@ -18,6 +18,7 @@ data class PgConnectOptions(
     val database: String? = null,
     val logSettings: LogSettings = LogSettings.DEFAULT,
     val statementCacheCapacity: ULong = 100U,
+    val useExtendedProtocolForSimpleQueries: Boolean = true,
     val extraFloatDigits: String = "2",
     val sslMode: SslMode = SslMode.DEFAULT,
     val sslRootCert: CertificateInput? = null,

@@ -1,12 +1,9 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.postgresql.row.PgColumnDescription
-import io.mockk.junit5.MockKExtension
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.Test
 
-@ExtendWith(MockKExtension::class)
 class TestPgByteArrayDbType {
     private val fieldDescription = PgColumnDescription(
         fieldName = "",

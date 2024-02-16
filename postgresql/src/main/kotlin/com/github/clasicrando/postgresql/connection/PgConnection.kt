@@ -133,17 +133,19 @@ class PgConnection internal constructor(
 
     /** Utility method to add a new row to the specified [resultSet] using the [rowBuffer] */
     private fun addRow(resultSet: MutableResultSet, rowBuffer: PgRowBuffer) {
-        val fields: Array<Any?> = Array(rowBuffer.values.size) { i ->
-            val buffer = rowBuffer.values[i] ?: return@Array null
-            val columnType = resultSet.columnMapping[i] as PgColumnDescription
-            val value = when (columnType.formatCode) {
-                0.toShort() -> PgValue.Text(buffer, columnType)
-                1.toShort() -> PgValue.Binary(buffer, columnType)
-                else -> error(
-                    "Invalid format code from row description. Got ${columnType.formatCode}"
-                )
+        val fields: Array<Any?> = rowBuffer.use {
+            Array(it.values.size) { i ->
+                val buffer = it.values[i] ?: return@Array null
+                val columnType = resultSet.columnMapping[i] as PgColumnDescription
+                val value = when (columnType.formatCode) {
+                    0.toShort() -> PgValue.Text(buffer, columnType)
+                    1.toShort() -> PgValue.Binary(buffer, columnType)
+                    else -> error(
+                        "Invalid format code from row description. Got ${columnType.formatCode}"
+                    )
+                }
+                typeRegistry.decode(value)
             }
-            typeRegistry.decode(value)
         }
         resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
     }
@@ -326,6 +328,9 @@ class PgConnection internal constructor(
     }
 
     override suspend fun sendQuery(query: String): Iterable<QueryResult> {
+        if (connectOptions.useExtendedProtocolForSimpleQueries && !query.contains(';')) {
+            return sendPreparedStatement(query, emptyList())
+        }
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()

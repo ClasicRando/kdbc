@@ -1,17 +1,16 @@
-package com.github.clasicrando.postgresql.array
+package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.column.ColumnDecodeError
-import com.github.clasicrando.postgresql.column.PgType
-import com.github.clasicrando.postgresql.column.PgValue
-import com.github.clasicrando.postgresql.column.arrayTypeDecoder
-import com.github.clasicrando.postgresql.column.intTypeDecoder
-import com.github.clasicrando.postgresql.column.localDateTimeTypeDecoder
-import com.github.clasicrando.postgresql.column.stringTypeDecoder
+import com.github.clasicrando.common.connection.use
+import com.github.clasicrando.common.result.getAs
+import com.github.clasicrando.postgresql.PgConnectionHelper
 import com.github.clasicrando.postgresql.row.PgColumnDescription
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class TestPgArrayType {
     private fun fieldDescription(pgType: PgType): PgColumnDescription {
@@ -71,5 +70,37 @@ class TestPgArrayType {
         assertThrows<ColumnDecodeError> {
             decoder.decode(pgValue)
         }
+    }
+
+    @Test
+    fun `decode should return intarray when simple querying postgresql int array`(): Unit = runBlocking {
+        val expectedResult = listOf(1, 2, 3, 4)
+        val query = "SELECT ARRAY[1,2,3,4]::int[]"
+
+        val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+            it.sendQuery(query).toList()
+        }
+
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].rowsAffected)
+        val rows = result[0].rows.toList()
+        assertEquals(1, rows.size)
+        Assertions.assertIterableEquals(expectedResult, rows.map { it.getAs<List<Int>>(0) }.first())
+    }
+
+    @Test
+    fun `decode should return intarray when extended querying postgresql int array`(): Unit = runBlocking {
+        val expectedResult = listOf(1, 2, 3, 4)
+        val query = "SELECT ARRAY[$1,$2,$3,$4]::int[]"
+
+        val result = PgConnectionHelper.defaultConnection().use {
+            it.sendPreparedStatement(query, expectedResult).toList()
+        }
+
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].rowsAffected)
+        val rows = result[0].rows.toList()
+        assertEquals(1, rows.size)
+        Assertions.assertIterableEquals(expectedResult, rows.map { it.getAs<List<Int>>(0) }.first())
     }
 }

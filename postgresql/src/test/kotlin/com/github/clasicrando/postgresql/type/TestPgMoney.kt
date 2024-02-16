@@ -3,7 +3,6 @@ package com.github.clasicrando.postgresql.type
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
@@ -74,7 +73,6 @@ class TestPgMoney {
     }
 
     @Test
-    @EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
     fun `PgMoney should construct when executing query returning a money field`() = runBlocking {
         PgConnectionHelper.defaultConnection().use {
             val result = it.sendQuery("SELECT 71.68::money").first()

@@ -10,12 +10,10 @@ import com.github.clasicrando.postgresql.copy.CopyStatement
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-@EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
 class TestCopySpec {
 
     @Test
@@ -94,7 +92,7 @@ class TestCopySpec {
             CREATE TABLE public.copy_out_test(id int not null, text_field text not null);
             INSERT INTO public.copy_out_test(id, text_field)
             SELECT t.t, t.t || ' Value'
-            FROM generate_series(1, 1000000) t
+            FROM generate_series(1, $ROW_COUNT) t
         """
 
         @JvmStatic

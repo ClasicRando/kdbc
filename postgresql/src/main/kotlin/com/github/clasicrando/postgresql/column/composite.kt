@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.ReadBufferSlice
 import com.github.clasicrando.common.buffer.readInt
 import com.github.clasicrando.common.buffer.writeInt
 import com.github.clasicrando.common.column.columnDecodeError
@@ -83,10 +84,12 @@ internal class PgCompositeTypeDecoder<T : Any>(
 
     private fun decodeAsBinary(value: PgValue.Binary): T {
         val length = value.bytes.readInt()
-        val attributes = Array(length) { i ->
-            val typeOid = innerTypes.getOrNull(i) ?: columnDecodeError(type, value.typeData)
+        val attributes = Array(length) {
+            val typeOid = PgType.fromOid(value.bytes.readInt())
             val fieldDescription = dummyTypedFieldDescription(typeOid.oidOrUnknown())
-            val innerValue = PgValue.Binary(value.bytes, fieldDescription)
+            val attributeLength = value.bytes.readInt()
+            val slice = (value.bytes as ReadBufferSlice).subSlice(attributeLength)
+            val innerValue = PgValue.Binary(slice, fieldDescription)
             typeRegistry.decode(innerValue)
         }
         return try {

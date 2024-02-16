@@ -1,12 +1,12 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.ReadBufferSlice
 import com.github.clasicrando.common.buffer.readInt
 import com.github.clasicrando.common.buffer.writeInt
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.array.ArrayLiteralParser
 import com.github.clasicrando.postgresql.row.PgColumnDescription
 import com.github.clasicrando.postgresql.statement.PgArguments
-import kotlinx.io.bytestring.encodeToByteString
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
@@ -74,7 +74,7 @@ inline fun <reified T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
             if (dimensions == 0) {
                 return@PgTypeDecoder listOf()
             }
-            require(dimensions == -1) {
+            require(dimensions == 1) {
                 "Attempted to decode an array of $dimensions dimensions. Only 1-dimensional " +
                         "arrays are supported"
             }
@@ -84,13 +84,16 @@ inline fun <reified T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
             val elementTypeOid = value.bytes.readInt()
             val length = value.bytes.readInt()
             val lowerBound = value.bytes.readInt()
-            require(lowerBound == -1) {
-                "Attempted"
+            require(lowerBound == 1) {
+                "Attempted to read an array with a first dimension other than 1"
             }
 
-            (0..length).map {
-                val fieldDescription = dummyTypedFieldDescription(elementTypeOid)
-                decoder.decode(PgValue.Binary(value.bytes, fieldDescription))
+            val fieldDescription = dummyTypedFieldDescription(elementTypeOid)
+            List(length) {
+                // Read length value but don't use it since a ReadBufferSlice cannot be constructed
+                val elementLength = value.bytes.readInt()
+                val slice = value.bytes.subSlice(elementLength)
+                decoder.decode(PgValue.Binary(slice, fieldDescription))
             }
         }
         is PgValue.Text -> {
@@ -103,7 +106,6 @@ inline fun <reified T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
                     when {
                         it == null -> null
                         else -> {
-                            it.encodeToByteString()
                             val innerValue = PgValue.Text(it, dummyFieldDescription)
                             decoder.decode(innerValue)
                         }

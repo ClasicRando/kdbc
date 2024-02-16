@@ -9,12 +9,10 @@ import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-@EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
 class TestPipelineQuerySpec {
     @Test
     fun `pipelineQueries should return multiple results with auto commit`(): Unit = runBlocking {
