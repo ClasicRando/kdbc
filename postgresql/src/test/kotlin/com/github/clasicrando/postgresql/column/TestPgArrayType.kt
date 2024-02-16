@@ -72,14 +72,19 @@ class TestPgArrayType {
         }
     }
 
-    @Test
-    fun `decode should return intarray when simple querying postgresql int array`(): Unit = runBlocking {
+    private suspend inline fun `decode should return intarray when querying postgresql int array`(
+        isPrepared: Boolean,
+    ) {
         val expectedResult = listOf(1, 2, 3, 4)
         val query = "SELECT ARRAY[1,2,3,4]::int[]"
 
         val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
-            it.sendQuery(query).toList()
-        }
+            if (isPrepared) {
+                it.sendPreparedStatement(query, emptyList())
+            } else {
+                it.sendQuery(query)
+            }
+        }.toList()
 
         assertEquals(1, result.size)
         assertEquals(1, result[0].rowsAffected)
@@ -89,18 +94,12 @@ class TestPgArrayType {
     }
 
     @Test
+    fun `decode should return intarray when simple querying postgresql int array`(): Unit = runBlocking {
+        `decode should return intarray when querying postgresql int array`(isPrepared = false)
+    }
+
+    @Test
     fun `decode should return intarray when extended querying postgresql int array`(): Unit = runBlocking {
-        val expectedResult = listOf(1, 2, 3, 4)
-        val query = "SELECT ARRAY[$1,$2,$3,$4]::int[]"
-
-        val result = PgConnectionHelper.defaultConnection().use {
-            it.sendPreparedStatement(query, expectedResult).toList()
-        }
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        Assertions.assertIterableEquals(expectedResult, rows.map { it.getAs<List<Int>>(0) }.first())
+        `decode should return intarray when querying postgresql int array`(isPrepared = true)
     }
 }

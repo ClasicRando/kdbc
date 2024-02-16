@@ -1,8 +1,13 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.connection.use
+import com.github.clasicrando.common.result.getAs
+import com.github.clasicrando.postgresql.PgConnectionHelper
 import com.github.clasicrando.postgresql.row.PgColumnDescription
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class TestPgByteArrayDbType {
     private val fieldDescription = PgColumnDescription(
@@ -44,5 +49,36 @@ class TestPgByteArrayDbType {
         val result = byteArrayTypeDecoder.decode(pgValue)
 
         Assertions.assertArrayEquals(bytes, result)
+    }
+
+    private suspend inline fun `decode should return bytearray when querying postgresql bytea`(
+        isPrepared: Boolean
+    ) {
+        val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
+        val query = "SELECT decode('4f5a90', 'hex');"
+
+        val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+            if (isPrepared) {
+                it.sendPreparedStatement(query, emptyList())
+            } else {
+                it.sendQuery(query)
+            }
+        }.toList()
+
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].rowsAffected)
+        val rows = result[0].rows.toList()
+        assertEquals(1, rows.size)
+        Assertions.assertArrayEquals(expectedResult, rows.map { it.getAs<ByteArray>(0) }.first())
+    }
+
+    @Test
+    fun `decode should return bytearray when simple querying postgresql bytea`(): Unit = runBlocking {
+        `decode should return bytearray when querying postgresql bytea`(isPrepared = false)
+    }
+
+    @Test
+    fun `decode should return bytearray when extended querying postgresql bytea`(): Unit = runBlocking {
+        `decode should return bytearray when querying postgresql bytea`(isPrepared = true)
     }
 }
