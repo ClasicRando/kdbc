@@ -12,6 +12,7 @@ import com.github.clasicrando.common.result.ArrayDataRow
 import com.github.clasicrando.common.result.MutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.selectLoop
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.column.PgValue

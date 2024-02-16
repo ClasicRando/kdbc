@@ -1,5 +1,6 @@
 package com.github.clasicrando.common.result
 
+import com.github.clasicrando.common.AutoRelease
 import com.github.clasicrando.common.column.ColumnData
 
 /**
@@ -7,7 +8,7 @@ import com.github.clasicrando.common.column.ColumnData
  * [ResultSet] is not strictly enforced. It just must conform to a structure that is [Iterable],
  * yielding [DataRow] instances.
  */
-interface ResultSet : Iterable<DataRow> {
+interface ResultSet : Iterable<DataRow>, AutoRelease {
     /** Number of columns found within each [DataRow] entry */
     val columnCount: Int
 
@@ -26,4 +27,6 @@ val ResultSet.Companion.EMPTY_RESULT get() = object : ResultSet {
     }
 
     override fun iterator(): Iterator<DataRow> = rows.iterator()
+
+    override fun release() {}
 }

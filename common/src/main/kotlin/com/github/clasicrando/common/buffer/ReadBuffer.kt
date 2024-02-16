@@ -1,14 +1,14 @@
 package com.github.clasicrando.common.buffer
 
+import com.github.clasicrando.common.AutoRelease
 import io.ktor.utils.io.core.ByteReadPacket
 import io.ktor.utils.io.core.readBytes
 import java.io.InputStream
 import java.nio.charset.Charset
 
-interface ReadBuffer {
+interface ReadBuffer : AutoRelease {
     val remaining: Long
     fun readByte(): Byte
-    fun release()
 }
 
 fun ByteReadPacket.asReadBuffer(): ArrayReadBuffer = object : ArrayReadBuffer(this.readBytes()) {}

@@ -2,7 +2,7 @@ package com.github.clasicrando.common.buffer
 
 abstract class ArrayListWriteBuffer : WriteBuffer {
     @PublishedApi
-    internal val innerBuffer = ArrayList<Byte>()
+    internal var innerBuffer = ArrayList<Byte>()
 
     override fun writeByte(byte: Byte) {
         innerBuffer.add(byte)
@@ -13,7 +13,9 @@ abstract class ArrayListWriteBuffer : WriteBuffer {
     }
 
     override fun release() {
-        innerBuffer.clear()
+        val temp = innerBuffer
+        innerBuffer = ArrayList()
+        temp.clear()
     }
 }
 

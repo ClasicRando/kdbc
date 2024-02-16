@@ -1,28 +1,19 @@
 package com.github.clasicrando.common.buffer
 
+import com.github.clasicrando.common.AutoRelease
+import com.github.clasicrando.common.use
 import java.io.OutputStream
 import java.nio.charset.Charset
 
-interface WriteBuffer {
+interface WriteBuffer : AutoRelease {
     fun writeByte(byte: Byte)
     fun toByteArray(): ByteArray
-    fun release()
 }
 
 inline fun <B : WriteBuffer> B.buildBytes(block: (B) -> Unit): ByteArray {
-    var cause: Throwable? = null
-    return try {
-        block(this)
-        this.toByteArray()
-    } catch (ex: Throwable) {
-        cause = ex
-        throw cause
-    } finally {
-        try {
-            this.release()
-        } catch (ex2: Throwable) {
-            cause?.addSuppressed(ex2)
-        }
+    return this.use {
+        block(it)
+        it.toByteArray()
     }
 }
 
