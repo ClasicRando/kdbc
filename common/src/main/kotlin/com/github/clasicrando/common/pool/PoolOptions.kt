@@ -42,9 +42,9 @@ data class PoolOptions(
     val idleTime: Duration = 1.toDuration(DurationUnit.MINUTES),
     /**
      * Dispatcher that will run all the coroutines attached the pool or other object/coroutines
-     * attached to the pool. Defaults to [Dispatchers.IO]
+     * attached to the pool. Defaults to [Dispatchers.Default]
      */
-    val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    val coroutineDispatcher: CoroutineDispatcher = Dispatchers.Default,
     /** Optional parent scope that holds the [ConnectionPool]s scope */
     val parentScope: CoroutineScope? = null,
 ) {

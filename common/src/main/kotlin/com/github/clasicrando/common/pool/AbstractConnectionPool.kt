@@ -46,10 +46,9 @@ abstract class AbstractConnectionPool<C : Connection>(
     private val connectionIds: MutableMap<UUID, C> = AtomicMutableMap()
     private val connectionNeeded = Channel<Unit>(capacity = Channel.BUFFERED)
 
-    final override val coroutineContext: CoroutineContext
-        get() = SupervisorJob(
-            parent = poolOptions.parentScope?.coroutineContext?.job,
-        ) + poolOptions.coroutineDispatcher
+    final override val coroutineContext: CoroutineContext = SupervisorJob(
+        parent = poolOptions.parentScope?.coroutineContext?.job,
+    ) + poolOptions.coroutineDispatcher
 
     final override val selectorManager = SelectorManager(dispatcher = coroutineContext)
 
