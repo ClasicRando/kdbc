@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.message.decoders
 
 import com.github.clasicrando.common.message.MessageDecoder
-import com.github.clasicrando.common.zeroByte
 import com.github.clasicrando.postgresql.message.PgMessage.Companion.ZERO_CODE
 import io.ktor.utils.io.core.ByteReadPacket
 

@@ -4,7 +4,6 @@ import com.github.clasicrando.common.buffer.readFully
 import com.github.clasicrando.common.buffer.writeFully
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgInet
-import kotlinx.io.readByteArray
 import java.net.Inet6Address
 
 private const val PGSQL_AF_INET: Byte = 2
