@@ -331,9 +331,6 @@ class PgConnection internal constructor(
     override suspend fun sendQuery(
         query: String,
     ): Iterable<QueryResult> = withContext(pool.coroutineContext) {
-        if (connectOptions.useExtendedProtocolForSimpleQueries && !query.contains(';')) {
-            return@withContext sendPreparedStatement(query, emptyList())
-        }
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
