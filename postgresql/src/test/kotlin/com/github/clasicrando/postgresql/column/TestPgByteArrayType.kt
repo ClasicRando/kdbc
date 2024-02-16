@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgByteArrayDbType {
+class TestPgByteArrayType {
     private val fieldDescription = PgColumnDescription(
         fieldName = "",
         tableOid = 0,
