@@ -1,12 +1,12 @@
 package com.github.clasicrando.postgresql.row
 
-import com.github.clasicrando.common.buffer.ArrayListReadBuffer
+import com.github.clasicrando.common.buffer.ArrayReadBuffer
 import com.github.clasicrando.common.buffer.ReadBuffer
 import com.github.clasicrando.common.buffer.ReadBufferSlice
 import com.github.clasicrando.common.buffer.readInt
 import com.github.clasicrando.common.buffer.readShort
 
-internal class PgRowBuffer(private val innerBuffer: ArrayListReadBuffer) {
+internal class PgRowBuffer(private val innerBuffer: ArrayReadBuffer) {
     val values: Array<ReadBuffer?> = run {
         val count = innerBuffer.readShort()
         var offset = 2

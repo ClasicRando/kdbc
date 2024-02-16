@@ -1,7 +1,7 @@
 package com.github.clasicrando.common.buffer
 
 class ReadBufferSlice(
-    private var otherBuffer: ArrayListReadBuffer?,
+    private var otherBuffer: ArrayReadBuffer?,
     private var offset: Int,
     private var length: Int,
 ) : ReadBuffer {

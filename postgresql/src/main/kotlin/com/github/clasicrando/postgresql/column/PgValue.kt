@@ -1,6 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.ArrayListReadBuffer
+import com.github.clasicrando.common.buffer.ArrayReadBuffer
 import com.github.clasicrando.common.buffer.ReadBuffer
 import com.github.clasicrando.common.buffer.readText
 import com.github.clasicrando.postgresql.row.PgColumnDescription
@@ -13,7 +13,7 @@ sealed class PgValue(val bytes: ReadBuffer, val typeData: PgColumnDescription) {
     ) : PgValue(
         bytes = innerBytes
             ?: innerText!!.toByteArray()
-                .let { object : ArrayListReadBuffer(it) {} },
+                .let { object : ArrayReadBuffer(it) {} },
         typeData = typeData,
     ) {
         constructor(bytes: ReadBuffer, typeData: PgColumnDescription) : this(null, bytes, typeData)

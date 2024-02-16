@@ -1,14 +1,8 @@
 package com.github.clasicrando.common.buffer
 
-abstract class ArrayListReadBuffer(bytes: ByteArray) : ReadBuffer {
+abstract class ArrayReadBuffer(bytes: ByteArray) : ReadBuffer {
     private var position: Int = 0
-    private val innerBuffer = ArrayList<Byte>(bytes.size)
-
-    init {
-        for (i in bytes.indices) {
-            innerBuffer.add(bytes[i])
-        }
-    }
+    private var innerBuffer = bytes
 
     fun skip(byteCount: Int) {
         position += byteCount
@@ -26,6 +20,6 @@ abstract class ArrayListReadBuffer(bytes: ByteArray) : ReadBuffer {
 
     override fun release() {
         position = 0
-        innerBuffer.clear()
+        innerBuffer = ByteArray(0)
     }
 }

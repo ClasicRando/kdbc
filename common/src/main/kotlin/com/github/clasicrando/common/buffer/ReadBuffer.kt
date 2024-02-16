@@ -11,7 +11,7 @@ interface ReadBuffer {
     fun release()
 }
 
-fun ByteReadPacket.asReadBuffer(): ArrayListReadBuffer = object : ArrayListReadBuffer(this.readBytes()) {}
+fun ByteReadPacket.asReadBuffer(): ArrayReadBuffer = object : ArrayReadBuffer(this.readBytes()) {}
 
 fun ReadBuffer.readShort(): Short {
     val result = this.readByte().toInt() and 0xff shl 8 or (this.readByte().toInt() and 0xff)
