@@ -6,6 +6,7 @@ import com.github.clasicrando.postgresql.statement.PgArguments
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KType
+import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 
 @PublishedApi
@@ -15,6 +16,12 @@ internal class PgTypeRegistry {
     private val encoders: MutableMap<KType, PgTypeEncoder<*>> = ConcurrentHashMap(defaultEncoders.associateBy { it.encodeType })
     private val decoders: MutableMap<Int, PgTypeDecoder<*>> = ConcurrentHashMap(defaultDecoders)
     private var hasPostGisTypes = false
+    private val emptyOrNullOnlyArrayEncoder = arrayTypeEncoder(
+        encoder = PgTypeEncoder<Any>(PgType.Unknown) { _, buffer ->
+            buffer.writeByte(-1)
+        },
+        pgType = PgType.Unknown,
+    )
 
     fun decode(value: PgValue): Any {
         val oid = value.typeData.dataType
@@ -28,7 +35,24 @@ internal class PgTypeRegistry {
             buffer.writeByte(-1)
             return
         }
-        return encodeInternal(value, buffer)
+        return when (value) {
+            is List<*> -> encodeList(value, buffer)
+            else -> encodeInternal(value, buffer)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> encodeList(value: List<T>, buffer: PgArguments) {
+        if (value.isEmpty() || value.firstNotNullOfOrNull { it } == null) {
+            emptyOrNullOnlyArrayEncoder.encode(value, buffer)
+            return
+        }
+        val elementType = value[0]!!::class.createType(nullable = true)
+        val typeParameter = KTypeProjection.invariant(elementType)
+        val type = List::class.createType(arguments = listOf(typeParameter))
+        val encoder = encoders[type]
+            ?: error("Could not find encoder when looking up type = $type")
+        (encoder as PgTypeEncoder<List<T>>).encode(value, buffer)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -39,15 +63,30 @@ internal class PgTypeRegistry {
         (encoder as PgTypeEncoder<T>).encode(value, buffer)
     }
 
-    fun kindOf(type: KType): PgType {
+    internal fun kindOf(type: KType): PgType {
         return encoders[type]?.pgType ?: error("Could not find type Oid looking up type = $type")
     }
 
-    fun kindOf(value: Any?): PgType {
-        if (value == null) {
-            return PgType.Unknown
+    private fun <T> kindOf(value: List<T>): PgType {
+        if (value.isEmpty() || value.firstNotNullOfOrNull { it } == null) {
+            return PgType.Unspecified
         }
-        return kindOf(value::class.createType())
+        val elementType = value[0]!!::class.createType(nullable = true)
+        val typeParameter = KTypeProjection.invariant(elementType)
+        val type = List::class.createType(arguments = listOf(typeParameter))
+        return kindOf(type)
+    }
+
+    fun kindOf(value: Any?): PgType {
+        return try {
+            when (value) {
+                null -> PgType.Unspecified
+                is List<*> -> kindOf(value)
+                else -> kindOf(value::class.createType())
+            }
+        } catch (ex: Throwable) {
+            PgType.Unspecified
+        }
     }
 
     fun includePostGisTypes() {

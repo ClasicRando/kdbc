@@ -72,7 +72,23 @@ class TestPgArrayType {
         }
     }
 
-    private suspend inline fun `decode should return intarray when querying postgresql int array`(
+    @Test
+    fun `encode should accept int list when querying postgresql`() = runBlocking {
+        val values = listOf(1, 2, 3, 4)
+        val query = "SELECT x FROM UNNEST($1) x"
+
+        val result = PgConnectionHelper.defaultConnection().use {
+            it.sendPreparedStatement(query, listOf(values))
+        }.toList()
+
+        assertEquals(1, result.size)
+        assertEquals(4, result[0].rowsAffected)
+        val rows = result[0].rows.toList()
+        assertEquals(4, rows.size)
+        Assertions.assertIterableEquals(values, rows.map { it.getAs<Int>(0) })
+    }
+
+    private suspend inline fun `decode should return int list when querying postgresql int array`(
         isPrepared: Boolean,
     ) {
         val expectedResult = listOf(1, 2, 3, 4)
@@ -94,12 +110,12 @@ class TestPgArrayType {
     }
 
     @Test
-    fun `decode should return intarray when simple querying postgresql int array`(): Unit = runBlocking {
-        `decode should return intarray when querying postgresql int array`(isPrepared = false)
+    fun `decode should return int list when simple querying postgresql int array`(): Unit = runBlocking {
+        `decode should return int list when querying postgresql int array`(isPrepared = false)
     }
 
     @Test
-    fun `decode should return intarray when extended querying postgresql int array`(): Unit = runBlocking {
-        `decode should return intarray when querying postgresql int array`(isPrepared = true)
+    fun `decode should return int list when extended querying postgresql int array`(): Unit = runBlocking {
+        `decode should return int list when querying postgresql int array`(isPrepared = true)
     }
 }

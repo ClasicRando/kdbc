@@ -6,6 +6,7 @@ import com.github.clasicrando.common.buffer.writeLengthPrefixed
 import com.github.clasicrando.common.buffer.writeShort
 import com.github.clasicrando.common.message.MessageSendBuffer
 import com.github.clasicrando.postgresql.column.PgType
+import com.github.clasicrando.postgresql.column.PgTypeEncoder
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.type.PgJson
 
@@ -32,5 +33,15 @@ class PgArguments internal constructor(
             }
         }
         buffer.writeFully(this.toByteArray())
+    }
+
+    fun <T : Any> encode(encoder: PgTypeEncoder<T>, item: T?) {
+        writeLengthPrefixed {
+            if (item == null) {
+                writeByte(-1)
+                return@writeLengthPrefixed
+            }
+            encoder.encode(item, this)
+        }
     }
 }

@@ -13,8 +13,8 @@ inline fun <reified T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
     encoder: E,
     pgType: PgType,
     compatibleTypes: Array<PgType>? = null,
-): PgTypeEncoder<List<T>> {
-    return PgArrayTypeEncoder(encoder, pgType, compatibleTypes)
+): PgTypeEncoder<List<T?>> {
+    return PgArrayTypeEncoder(encoder, pgType, compatibleTypes, typeOf<List<T?>>())
 }
 
 @PublishedApi
@@ -22,24 +22,25 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
     private val encoder: E,
     override var pgType: PgType,
     override val compatibleTypes: Array<PgType>?,
-) : PgTypeEncoder<List<T>> {
+    override val encodeType: KType,
+) : PgTypeEncoder<List<T?>> {
     init {
         require(encoder !is PgArrayTypeEncoder<*, *>) {
             "Multi dimensional arrays are not supported"
         }
     }
 
-    override fun encode(value: List<T>, buffer: PgArguments) {
+    // https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1272
+    override fun encode(value: List<T?>, buffer: PgArguments) {
         buffer.writeInt(1)
         buffer.writeInt(0)
-        buffer.writeInt(pgType.oidOrUnknown())
+        buffer.writeInt(encoder.pgType.oidOrUnknown())
         buffer.writeInt(value.size)
+        buffer.writeInt(1)
         for (item in value) {
-            encoder.encode(item, buffer)
+            buffer.encode(encoder, item)
         }
     }
-
-    override val encodeType: KType = typeOf<List<T>>()
 }
 
 @PublishedApi
@@ -68,6 +69,7 @@ inline fun <reified T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
     decoder : D,
 ): PgTypeDecoder<List<T?>> = PgTypeDecoder { value ->
     when (value) {
+        // https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1549
         is PgValue.Binary -> {
             val dimensions = value.bytes.readInt()
             if (dimensions == 0) {

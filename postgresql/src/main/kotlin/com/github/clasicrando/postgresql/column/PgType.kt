@@ -95,6 +95,7 @@ sealed class PgType(val oid: Int?) {
     data object Xml : PgType(MONEY)
     data object XmlArray : PgType(MONEY_ARRAY)
     data object Void : PgType(VOID)
+    data object Unspecified : PgType(0)
     class ByOid(oid: Int?) : PgType(oid) {
         override fun toString(): String {
             return "PgType.ByOid(oid=$oid)"
