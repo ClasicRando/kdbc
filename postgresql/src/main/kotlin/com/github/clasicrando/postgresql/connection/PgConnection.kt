@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.Loop
-import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.connectionLogger
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
@@ -103,7 +102,8 @@ class PgConnection internal constructor(
      *
      * TODO implement a cap to the cache so we don't hold too many prepared statements
      */
-    private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
+    private val preparedStatements: MutableMap<String, PgPreparedStatement> = mutableMapOf()
+    private var nextStatementId = 1u
     private val wasFailed = atomic(false)
 
     /**
@@ -423,7 +423,7 @@ class PgConnection internal constructor(
         parameters: List<Any?>,
     ): PgPreparedStatement {
         val statement = preparedStatements.getOrPut(query) {
-            PgPreparedStatement(query)
+            PgPreparedStatement(query, nextStatementId++)
         }
 
         require(statement.paramCount == parameters.size) {

@@ -1,8 +1,8 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.ArrayWriteBuffer
 import com.github.clasicrando.common.result.getInt
 import com.github.clasicrando.postgresql.connection.PgConnection
-import com.github.clasicrando.postgresql.statement.PgArguments
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KType
@@ -30,7 +30,7 @@ internal class PgTypeRegistry {
             ?: error("Could not find decoder when looking up oid = $oid")
     }
 
-    fun encode(value: Any?, buffer: PgArguments) {
+    fun encode(value: Any?, buffer: ArrayWriteBuffer) {
         if (value == null) {
             buffer.writeByte(-1)
             return
@@ -42,7 +42,7 @@ internal class PgTypeRegistry {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> encodeList(value: List<T>, buffer: PgArguments) {
+    private fun <T> encodeList(value: List<T>, buffer: ArrayWriteBuffer) {
         if (value.isEmpty() || value.firstNotNullOfOrNull { it } == null) {
             emptyOrNullOnlyArrayEncoder.encode(value, buffer)
             return
@@ -56,7 +56,7 @@ internal class PgTypeRegistry {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T : Any> encodeInternal(value: T, buffer: PgArguments) {
+    private fun <T : Any> encodeInternal(value: T, buffer: ArrayWriteBuffer) {
         val type = value::class.createType()
         val encoder = encoders[type]
             ?: error("Could not find encoder when looking up type = $type")

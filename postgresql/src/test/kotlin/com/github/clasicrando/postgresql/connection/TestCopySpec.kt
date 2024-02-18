@@ -10,12 +10,13 @@ import com.github.clasicrando.postgresql.copy.CopyStatement
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+@EnabledIfEnvironmentVariable(named = "PG_COPY_TEST", matches = "true")
 class TestCopySpec {
-
     @Test
     fun `copyIn should copy all rows`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {

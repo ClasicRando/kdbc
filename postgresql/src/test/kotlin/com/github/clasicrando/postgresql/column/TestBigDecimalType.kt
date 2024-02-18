@@ -12,7 +12,7 @@ class TestBigDecimalType {
     @Test
     fun `encode should accept BiDecimal when querying postgresql`() = runBlocking {
         val value = BigDecimal("2548.52489")
-        val query = "SELECT $1;"
+        val query = "SELECT $1 numeric_col;"
 
         val result = PgConnectionHelper.defaultConnection().use {
             it.sendPreparedStatement(query, listOf(value))
@@ -22,12 +22,10 @@ class TestBigDecimalType {
         assertEquals(1, result[0].rowsAffected)
         val rows = result[0].rows.toList()
         assertEquals(1, rows.size)
-        assertEquals(value, rows.map { it.getAs<BigDecimal>(0) }.first())
+        assertEquals(value, rows.map { it.getAs<BigDecimal>("numeric_col") }.first())
     }
 
-    private suspend inline fun `decode should return int list when querying postgresql int array`(
-        isPrepared: Boolean,
-    ) {
+    private suspend fun decodeTest(isPrepared: Boolean) {
         val number = "2548.52489"
         val expectedResult = BigDecimal(number)
         val query = "SELECT $number;"
@@ -48,12 +46,12 @@ class TestBigDecimalType {
     }
 
     @Test
-    fun `decode should return int list when simple querying postgresql int array`(): Unit = runBlocking {
-        `decode should return int list when querying postgresql int array`(isPrepared = false)
+    fun `decode should return BigDecimal when simple querying postgresql numeric`(): Unit = runBlocking {
+        decodeTest(isPrepared = false)
     }
 
     @Test
-    fun `decode should return int list when extended querying postgresql int array`(): Unit = runBlocking {
-        `decode should return int list when querying postgresql int array`(isPrepared = true)
+    fun `decode should return BigDecimal when extended querying postgresql numeric`(): Unit = runBlocking {
+        decodeTest(isPrepared = true)
     }
 }

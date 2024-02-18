@@ -6,6 +6,7 @@ import java.io.OutputStream
 import java.nio.charset.Charset
 
 interface WriteBuffer : AutoRelease {
+    val bytesWritten: Int
     fun writeByte(byte: Byte)
     fun toByteArray(): ByteArray
 }

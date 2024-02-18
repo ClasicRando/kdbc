@@ -51,11 +51,28 @@ class TestPgByteArrayType {
         Assertions.assertArrayEquals(bytes, result)
     }
 
-    private suspend inline fun `decode should return bytearray when querying postgresql bytea`(
-        isPrepared: Boolean
-    ) {
+    @Test
+    fun `encode should accept ByteArray when querying postgresql`() = runBlocking {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
-        val query = "SELECT decode('4f5a90', 'hex');"
+        val query = "SELECT $1 bytea_col;"
+
+        val result = PgConnectionHelper.defaultConnection().use {
+            it.sendPreparedStatement(query, listOf(expectedResult))
+        }.toList()
+
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].rowsAffected)
+        val rows = result[0].rows.toList()
+        assertEquals(1, rows.size)
+        Assertions.assertArrayEquals(
+            expectedResult,
+            rows.map { it.getAs<ByteArray>("bytea_col") }.first(),
+        )
+    }
+
+    private suspend fun decodeTest(isPrepared: Boolean) {
+        val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
+        val query = "SELECT decode('4f5a90', 'hex') bytea_col;"
 
         val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
             if (isPrepared) {
@@ -69,16 +86,19 @@ class TestPgByteArrayType {
         assertEquals(1, result[0].rowsAffected)
         val rows = result[0].rows.toList()
         assertEquals(1, rows.size)
-        Assertions.assertArrayEquals(expectedResult, rows.map { it.getAs<ByteArray>(0) }.first())
+        Assertions.assertArrayEquals(
+            expectedResult,
+            rows.map { it.getAs<ByteArray>("bytea_col") }.first(),
+        )
     }
 
     @Test
     fun `decode should return bytearray when simple querying postgresql bytea`(): Unit = runBlocking {
-        `decode should return bytearray when querying postgresql bytea`(isPrepared = false)
+        decodeTest(isPrepared = false)
     }
 
     @Test
     fun `decode should return bytearray when extended querying postgresql bytea`(): Unit = runBlocking {
-        `decode should return bytearray when querying postgresql bytea`(isPrepared = true)
+        decodeTest(isPrepared = true)
     }
 }

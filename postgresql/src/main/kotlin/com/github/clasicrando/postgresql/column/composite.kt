@@ -1,10 +1,10 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.ReadBufferSlice
+import com.github.clasicrando.common.buffer.ArrayWriteBuffer
 import com.github.clasicrando.common.buffer.readInt
 import com.github.clasicrando.common.buffer.writeInt
+import com.github.clasicrando.common.buffer.writeLengthPrefixed
 import com.github.clasicrando.common.column.columnDecodeError
-import com.github.clasicrando.postgresql.statement.PgArguments
 import com.github.clasicrando.postgresql.type.PgCompositeLiteralParser
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
@@ -32,11 +32,13 @@ internal class PgCompositeTypeEncoder<T : Any>(
     private val properties = cls.memberProperties.filter { it.name in propertyNames }
         .map { it to typeRegistry.kindOf(it.returnType) }
 
-    override fun encode(value: T, buffer: PgArguments) {
+    override fun encode(value: T, buffer: ArrayWriteBuffer) {
         buffer.writeInt(properties.size)
         for ((property, propertyTypeOid) in properties) {
             buffer.writeInt(propertyTypeOid.oidOrUnknown())
-            typeRegistry.encode(property.get(value), buffer)
+            buffer.writeLengthPrefixed {
+                typeRegistry.encode(property.get(value), this)
+            }
         }
     }
 }
@@ -88,7 +90,7 @@ internal class PgCompositeTypeDecoder<T : Any>(
             val typeOid = PgType.fromOid(value.bytes.readInt())
             val fieldDescription = dummyTypedFieldDescription(typeOid.oidOrUnknown())
             val attributeLength = value.bytes.readInt()
-            val slice = (value.bytes as ReadBufferSlice).subSlice(attributeLength)
+            val slice = value.bytes.subSlice(attributeLength)
             val innerValue = PgValue.Binary(slice, fieldDescription)
             typeRegistry.decode(innerValue)
         }

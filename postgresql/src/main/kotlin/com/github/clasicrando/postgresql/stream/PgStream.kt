@@ -26,7 +26,6 @@ import io.ktor.network.sockets.isClosed
 import io.ktor.network.tls.TLSConfigBuilder
 import io.ktor.network.tls.tls
 import io.ktor.utils.io.readFully
-import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -173,7 +172,7 @@ internal class PgStream(
 
     /** Write a single [message] to the [PgStream] using the appropriate derived encoder. */
     suspend inline fun writeToStream(message: PgMessage) {
-        writeMessage { buffer ->
+        writeBuffer { buffer ->
             val encoder = encoders.encoderFor(message)
             encoder.encode(message, buffer)
         }
@@ -183,7 +182,7 @@ internal class PgStream(
     suspend inline fun writeManyToStream(
         crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
     ) {
-        writeMessage { buffer ->
+        writeBuffer { buffer ->
             for (message in sequence { messages() }) {
                 val encoder = encoders.encoderFor(message)
                 encoder.encode(message, buffer)
@@ -193,7 +192,7 @@ internal class PgStream(
 
     /** Write multiple [messages] to the [PgStream] using the appropriate derived encoders. */
     suspend inline fun writeManyToStream(vararg messages: PgMessage) {
-        writeMessage { buffer ->
+        writeBuffer { buffer ->
             for (message in messages) {
                 val encoder = encoders.encoderFor(message)
                 encoder.encode(message, buffer)
@@ -211,10 +210,15 @@ internal class PgStream(
 
     val isConnected: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
 
-    private suspend inline fun writeMessage(crossinline block: (MessageSendBuffer) -> Unit) {
-        val bytes = MessageSendBuffer.buildByteArray(block)
-        sendChannel.writeFully(bytes)
-        sendChannel.flush()
+    private suspend inline fun writeBuffer(crossinline block: (MessageSendBuffer) -> Unit) {
+        try {
+            MessageSendBuffer.useBuffer {
+                block(this)
+                this.copyToByteWriteChannel(sendChannel)
+            }
+        } finally {
+            sendChannel.flush()
+        }
     }
 
     override fun close() {
@@ -273,7 +277,7 @@ internal class PgStream(
     }
 
     private suspend fun requestUpgrade(): Boolean {
-        writeMessage { builder ->
+        writeBuffer { builder ->
             SslMessageEncoder.encode(PgMessage.SslRequest, builder)
         }
         return when (val response = receiveChannel.readByte()) {
