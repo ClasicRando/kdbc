@@ -39,6 +39,7 @@ data class PgConnectOptions(
         "extra_float_digits" to extraFloatDigits,
         "search_path" to currentSchema,
         "bytea_output" to "hex",
+        "application_name" to applicationName,
     ).mapNotNull { (key, value) ->
         value?.let { key to it }
     }
