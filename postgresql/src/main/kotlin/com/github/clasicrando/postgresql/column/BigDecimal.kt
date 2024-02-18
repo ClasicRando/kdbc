@@ -1,12 +1,11 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.readShort
 import com.github.clasicrando.common.buffer.writeShort
-import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgNumeric
 import com.github.clasicrando.postgresql.type.SIGN_NAN
 import java.math.BigDecimal
 
+// https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1068
 internal val bigDecimalTypeEncoder = PgTypeEncoder<BigDecimal>(PgType.Numeric) { value, buffer ->
     when (val numeric = PgNumeric.fromBigDecimal(value)) {
         PgNumeric.NAN -> {
@@ -18,7 +17,7 @@ internal val bigDecimalTypeEncoder = PgTypeEncoder<BigDecimal>(PgType.Numeric) {
         is PgNumeric.Number -> {
             buffer.writeShort(numeric.digits.size.toShort())
             buffer.writeShort(numeric.weight)
-            buffer.writeShort(numeric.sign.value)
+            buffer.writeShort(numeric.sign)
             buffer.writeShort(numeric.scale)
             for (digit in numeric.digits) {
                 buffer.writeShort(digit)
@@ -29,28 +28,7 @@ internal val bigDecimalTypeEncoder = PgTypeEncoder<BigDecimal>(PgType.Numeric) {
 
 internal val bigDecimalTypeDecoder = PgTypeDecoder { value ->
     when (value) {
-        is PgValue.Binary -> {
-            val numDigits = value.bytes.readShort()
-            val weight = value.bytes.readShort()
-            val sign = value.bytes.readShort()
-            val scale = value.bytes.readShort()
-
-            val numeric = if (sign == SIGN_NAN) {
-                PgNumeric.NAN
-            } else {
-                val digits = ShortArray(numDigits.toInt()) { value.bytes.readShort() }
-                PgNumeric.Number(
-                    sign = PgNumeric.PgNumericSign
-                        .entries
-                        .firstOrNull { it.value == sign }
-                        ?: columnDecodeError<BigDecimal>(value.typeData),
-                    scale = scale,
-                    weight = weight,
-                    digits = digits,
-                )
-            }
-            numeric.toBigDecimal()
-        }
+        is PgValue.Binary -> PgNumeric.fromBytes(value.bytes).toBigDecimal()
         is PgValue.Text -> BigDecimal(value.text)
     }
 }
