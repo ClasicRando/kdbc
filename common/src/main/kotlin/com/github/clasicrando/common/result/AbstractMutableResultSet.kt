@@ -6,9 +6,14 @@ import com.github.clasicrando.common.column.ColumnData
  * Default implementation of a [ResultSet] where [DataRow] instances can be added to the
  * [ResultSet] to allow for packing of result rows as they are received. This implementation is
  * therefore backed by a [MutableList] with a [columnMapping] [List] to provide column metadata.
+ *
+ * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
+ * consistent processing of data.
  */
-class MutableResultSet(val columnMapping: List<ColumnData>) : ResultSet {
-    private var backingList: MutableList<DataRow> = ArrayList()
+abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
+    val columnMapping: List<C>,
+) : ResultSet {
+    private var backingList: MutableList<R> = ArrayList()
 
     /** [Map] of column name to column index. Used within other internal classes */
     val columnMap = columnMapping.withIndex()
@@ -17,7 +22,7 @@ class MutableResultSet(val columnMapping: List<ColumnData>) : ResultSet {
         }
 
     /** Add a new [row] to the end of this [ResultSet] */
-    fun addRow(row: DataRow) {
+    fun addRow(row: R) {
         backingList.add(row)
     }
 
@@ -33,8 +38,9 @@ class MutableResultSet(val columnMapping: List<ColumnData>) : ResultSet {
     override fun iterator(): Iterator<DataRow> = backingList.iterator()
 
     override fun release() {
-        val temp = backingList
-        backingList = ArrayList()
-        temp.clear()
+        for (item in backingList) {
+            item.release()
+        }
+        backingList.clear()
     }
 }

@@ -7,14 +7,11 @@ import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
 import com.github.clasicrando.common.pool.ConnectionPool
 import com.github.clasicrando.common.quoteIdentifier
 import com.github.clasicrando.common.reduceToSingleOrNull
-import com.github.clasicrando.common.result.ArrayDataRow
-import com.github.clasicrando.common.result.MutableResultSet
+import com.github.clasicrando.common.result.AbstractMutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.selectLoop
-import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
-import com.github.clasicrando.postgresql.column.PgValue
 import com.github.clasicrando.postgresql.copy.CopyStatement
 import com.github.clasicrando.postgresql.copy.CopyType
 import com.github.clasicrando.postgresql.message.CloseTarget
@@ -22,8 +19,7 @@ import com.github.clasicrando.postgresql.message.DescribeTarget
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.notification.PgNotification
 import com.github.clasicrando.postgresql.pool.PgPoolManager
-import com.github.clasicrando.postgresql.row.PgColumnDescription
-import com.github.clasicrando.postgresql.row.PgRowBuffer
+import com.github.clasicrando.postgresql.row.PgResultSet
 import com.github.clasicrando.postgresql.statement.PgArguments
 import com.github.clasicrando.postgresql.statement.PgPreparedStatement
 import com.github.clasicrando.postgresql.stream.PgStream
@@ -133,24 +129,24 @@ class PgConnection internal constructor(
      */
     private suspend inline fun waitForQueryRunning() = canRunQuery.receive()
 
-    /** Utility method to add a new row to the specified [resultSet] using the [rowBuffer] */
-    private fun addRow(resultSet: MutableResultSet, rowBuffer: PgRowBuffer) {
-        val fields: Array<Any?> = rowBuffer.use {
-            Array(it.values.size) { i ->
-                val buffer = it.values[i] ?: return@Array null
-                val columnType = resultSet.columnMapping[i] as PgColumnDescription
-                val value = when (columnType.formatCode) {
-                    0.toShort() -> PgValue.Text(buffer, columnType)
-                    1.toShort() -> PgValue.Binary(buffer, columnType)
-                    else -> error(
-                        "Invalid format code from row description. Got ${columnType.formatCode}"
-                    )
-                }
-                typeRegistry.decode(value)
-            }
-        }
-        resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
-    }
+//    /** Utility method to add a new row to the specified [resultSet] using the [rowBuffer] */
+//    private fun addRow(resultSet: MutableResultSet, rowBuffer: PgRowBuffer) {
+//        val fields: Array<Any?> = rowBuffer.use {
+//            Array(it.values.size) { i ->
+//                val buffer = it.values[i] ?: return@Array null
+//                val columnType = resultSet.columnMapping[i] as PgColumnDescription
+//                val value = when (columnType.formatCode) {
+//                    0.toShort() -> PgValue.Text(buffer, columnType)
+//                    1.toShort() -> PgValue.Binary(buffer, columnType)
+//                    else -> error(
+//                        "Invalid format code from row description. Got ${columnType.formatCode}"
+//                    )
+//                }
+//                typeRegistry.decode(value)
+//            }
+//        }
+//        resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
+//    }
 
     override val isConnected: Boolean get() = stream.isConnected
 
@@ -231,7 +227,7 @@ class PgConnection internal constructor(
     ): Flow<QueryResult> = flow {
         val errors = mutableListOf<Throwable>()
         for ((i, preparedStatement) in statements.withIndex()) {
-            val result = MutableResultSet(preparedStatement.resultMetadata)
+            val result = PgResultSet(typeRegistry, preparedStatement.resultMetadata)
             stream.processMessageLoop {message ->
                 when (message) {
                     is PgMessage.ErrorResponse -> {
@@ -239,7 +235,7 @@ class PgConnection internal constructor(
                         Loop.Continue
                     }
                     is PgMessage.DataRow -> {
-                        addRow(result, message.rowBuffer)
+                        result.addRow(message.rowBuffer)
                         Loop.Continue
                     }
                     is PgMessage.CommandComplete -> {
@@ -278,8 +274,8 @@ class PgConnection internal constructor(
      *
      * Within the [select], it received any sent:
      * - error -> packing into error collection
-     * - row description -> updating the [statement] if any and creating a new [MutableResultSet]
-     * - data row -> pack the row into the current [MutableResultSet]
+     * - row description -> updating the [statement] if any and creating a new [AbstractMutableResultSet]
+     * - data row -> pack the row into the current [AbstractMutableResultSet]
      * - command complete -> emitting a new [QueryResult] from the [flow]
      * - query done -> enabling others to query against this connection and exiting the
      * [selectLoop]
@@ -292,7 +288,7 @@ class PgConnection internal constructor(
         statement: PgPreparedStatement? = null,
     ): Iterable<QueryResult> {
         val errors = mutableListOf<Throwable>()
-        var result = MutableResultSet(statement?.resultMetadata ?: listOf())
+        var result = PgResultSet(typeRegistry, statement?.resultMetadata ?: listOf())
         val results = mutableListOf<QueryResult>()
         stream.processMessageLoop { message ->
             when (message) {
@@ -302,11 +298,11 @@ class PgConnection internal constructor(
                 }
                 is PgMessage.RowDescription -> {
                     statement?.resultMetadata = message.fields
-                    result = MutableResultSet(message.fields)
+                    result = PgResultSet(typeRegistry, message.fields)
                     Loop.Continue
                 }
                 is PgMessage.DataRow -> {
-                    addRow(result, message.rowBuffer)
+                    result.addRow(message.rowBuffer)
                     Loop.Continue
                 }
                 is PgMessage.CommandComplete -> {

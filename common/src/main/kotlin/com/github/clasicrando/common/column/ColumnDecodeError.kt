@@ -9,20 +9,21 @@ class ColumnDecodeError(
     typeName: String,
     columnName: String,
     decodeType: KType,
+    reason: String,
 ) : Throwable(
     "Could not decode bytes into desired type. Input: $dataType($typeName), " +
             "Column: '$columnName', " +
-            "Desired Output: $decodeType"
+            "Desired Output: $decodeType" + if (reason.isNotBlank()) ", Reason: $reason" else ""
 )
 
 /** Throw a [ColumnDecodeError] for the [kType] with the [type] */
-fun columnDecodeError(kType: KType, type: ColumnData): Nothing {
-    throw ColumnDecodeError(type.dataType, type.typeName, type.fieldName, kType)
+fun columnDecodeError(kType: KType, type: ColumnData, reason: String = ""): Nothing {
+    throw ColumnDecodeError(type.dataType, type.typeName, type.fieldName, kType, reason)
 }
 
 /** Throw a [ColumnDecodeError] for the type [T] with the [type] */
-inline fun <reified T> columnDecodeError(type: ColumnData): Nothing {
-    throw ColumnDecodeError(type.dataType, type.typeName, type.fieldName, typeOf<T>())
+inline fun <reified T> columnDecodeError(type: ColumnData, reason: String = ""): Nothing {
+    throw ColumnDecodeError(type.dataType, type.typeName, type.fieldName, typeOf<T>(), reason)
 }
 
 inline fun <reified T> checkOrColumnDecodeError(check: Boolean, type: ColumnData) {

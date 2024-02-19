@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.connection.use
-import com.github.clasicrando.common.result.getAs
 import com.github.clasicrando.common.result.getBoolean
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -23,7 +22,7 @@ class TestBooleanType {
         assertEquals(1, result[0].rowsAffected)
         val rows = result[0].rows.toList()
         assertEquals(1, rows.size)
-        assertEquals(value, rows.map { it.getAs<Boolean>("bool_col") }.first())
+        assertEquals(value, rows.map { it.getBoolean("bool_col") }.first())
     }
 
     private suspend fun decodeTest(value: Boolean, isPrepared: Boolean) {

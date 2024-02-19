@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
-import com.github.clasicrando.common.result.getInt
 import com.github.clasicrando.postgresql.connection.PgConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.concurrent.ConcurrentHashMap

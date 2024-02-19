@@ -2,9 +2,6 @@ package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.connection.useCatching
-import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.common.result.getLong
-import com.github.clasicrando.common.result.getString
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.flow.toList

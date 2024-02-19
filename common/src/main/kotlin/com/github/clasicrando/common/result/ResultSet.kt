@@ -7,6 +7,9 @@ import com.github.clasicrando.common.column.ColumnData
  * Collection of data as the data resulting from a query. The underlining structure of the
  * [ResultSet] is not strictly enforced. It just must conform to a structure that is [Iterable],
  * yielding [DataRow] instances.
+ *
+ * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
+ * consistent processing of data.
  */
 interface ResultSet : Iterable<DataRow>, AutoRelease {
     /** Number of columns found within each [DataRow] entry */
