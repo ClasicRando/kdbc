@@ -1,8 +1,6 @@
 package com.github.clasicrando.postgresql.statement
 
-import com.github.clasicrando.common.buffer.writeLengthPrefixed
-import com.github.clasicrando.common.buffer.writeShort
-import com.github.clasicrando.common.message.MessageSendBuffer
+import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.postgresql.column.PgType
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.type.PgJson
@@ -12,7 +10,7 @@ class PgArguments internal constructor(
     private val parameters: List<Any?>,
     private val statement: PgPreparedStatement,
 ) {
-    fun writeToBuffer(buffer: MessageSendBuffer) {
+    fun writeToBuffer(buffer: ByteWriteBuffer) {
         buffer.writeShort(parameters.size.toShort())
         for (parameterIndex in parameters.indices) {
             val parameter = parameters[parameterIndex]

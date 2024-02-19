@@ -1,7 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.writeDouble
-import com.github.clasicrando.common.buffer.writeInt
 import com.github.clasicrando.postgresql.type.PgBox
 import com.github.clasicrando.postgresql.type.PgCircle
 import com.github.clasicrando.postgresql.type.PgLine

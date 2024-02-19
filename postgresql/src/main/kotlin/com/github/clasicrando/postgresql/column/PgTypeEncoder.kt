@@ -1,11 +1,11 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.ArrayWriteBuffer
+import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 interface PgTypeEncoder<in T : Any> {
-    fun encode(value: T, buffer: ArrayWriteBuffer)
+    fun encode(value: T, buffer: ByteWriteBuffer)
 
     val encodeType: KType
 
@@ -17,9 +17,9 @@ interface PgTypeEncoder<in T : Any> {
 inline fun <reified T : Any> PgTypeEncoder(
     pgType: PgType,
     compatibleTypes: Array<PgType>? = null,
-    crossinline block: (value: T, buffer: ArrayWriteBuffer) -> Unit,
+    crossinline block: (value: T, buffer: ByteWriteBuffer) -> Unit,
 ): PgTypeEncoder<T> = object : PgTypeEncoder<T> {
-    override fun encode(value: T, buffer: ArrayWriteBuffer) {
+    override fun encode(value: T, buffer: ByteWriteBuffer) {
         block(value, buffer)
     }
 

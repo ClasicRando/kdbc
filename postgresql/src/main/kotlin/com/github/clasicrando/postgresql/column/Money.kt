@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.buffer.readLong
-import com.github.clasicrando.common.buffer.writeLong
 import com.github.clasicrando.postgresql.type.PgMoney
 
 val moneyTypeEncoder = PgTypeEncoder<PgMoney>(PgType.Money) { value, buffer ->

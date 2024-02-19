@@ -1,6 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.writeShort
 import com.github.clasicrando.postgresql.type.PgNumeric
 import com.github.clasicrando.postgresql.type.SIGN_NAN
 import java.math.BigDecimal

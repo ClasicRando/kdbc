@@ -1,9 +1,7 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.ArrayWriteBuffer
+import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.buffer.readInt
-import com.github.clasicrando.common.buffer.writeInt
-import com.github.clasicrando.common.buffer.writeLengthPrefixed
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.array.ArrayLiteralParser
 import com.github.clasicrando.postgresql.row.PgColumnDescription
@@ -32,7 +30,7 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
     }
 
     // https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1272
-    override fun encode(value: List<T?>, buffer: ArrayWriteBuffer) {
+    override fun encode(value: List<T?>, buffer: ByteWriteBuffer) {
         buffer.writeInt(1)
         buffer.writeInt(0)
         buffer.writeInt(encoder.pgType.oidOrUnknown())

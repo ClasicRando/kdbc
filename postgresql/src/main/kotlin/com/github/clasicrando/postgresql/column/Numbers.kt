@@ -5,11 +5,6 @@ import com.github.clasicrando.common.buffer.readFloat
 import com.github.clasicrando.common.buffer.readInt
 import com.github.clasicrando.common.buffer.readLong
 import com.github.clasicrando.common.buffer.readShort
-import com.github.clasicrando.common.buffer.writeDouble
-import com.github.clasicrando.common.buffer.writeFloat
-import com.github.clasicrando.common.buffer.writeInt
-import com.github.clasicrando.common.buffer.writeLong
-import com.github.clasicrando.common.buffer.writeShort
 
 val shortTypeEncoder = PgTypeEncoder<Short>(PgType.Int2) { value, buffer ->
     buffer.writeShort(value)

@@ -1,68 +1,52 @@
 package com.github.clasicrando.common.buffer
 
 import com.github.clasicrando.common.AutoRelease
-import com.github.clasicrando.common.use
 import java.io.OutputStream
 import java.nio.charset.Charset
 
 interface WriteBuffer : AutoRelease {
-    val bytesWritten: Int
     fun writeByte(byte: Byte)
-    fun toByteArray(): ByteArray
-}
 
-inline fun <B : WriteBuffer> B.buildBytes(crossinline block: (B) -> Unit): ByteArray {
-    return this.use {
-        block(it)
-        it.toByteArray()
+    fun writeShort(short: Short) {
+        this.writeByte((short.toInt() ushr 8 and 0xff).toByte())
+        this.writeByte((short.toInt() and 0xff).toByte())
+    }
+
+    fun writeInt(int: Int) {
+        this.writeByte((int ushr 24 and 0xff).toByte())
+        this.writeByte((int ushr 16 and 0xff).toByte())
+        this.writeByte((int ushr 8 and 0xff).toByte())
+        this.writeByte((int and 0xff).toByte())
+    }
+
+    fun writeLong(long: Long) {
+        this.writeByte((long ushr 56 and 0xffL).toByte())
+        this.writeByte((long ushr 48 and 0xffL).toByte())
+        this.writeByte((long ushr 40 and 0xffL).toByte())
+        this.writeByte((long ushr 32 and 0xffL).toByte())
+        this.writeByte((long ushr 24 and 0xffL).toByte())
+        this.writeByte((long ushr 16 and 0xffL).toByte())
+        this.writeByte((long ushr 8 and 0xffL).toByte())
+        this.writeByte((long and 0xffL).toByte())
+    }
+
+    fun writeFloat(float: Float) {
+        this.writeInt(float.toBits())
+    }
+
+    fun writeDouble(double: Double) {
+        this.writeLong(double.toBits())
+    }
+
+    fun writeFully(byteArray: ByteArray, offset: Int, length: Int) {
+        for (i in offset..<(offset + length)) {
+            this.writeByte(byteArray[i])
+        }
     }
 }
 
-fun WriteBuffer.writeMany(vararg bytes: Byte) {
-    for (i in bytes.indices) {
-        writeByte(bytes[i])
-    }
-}
-
-fun WriteBuffer.writeShort(short: Short) {
-    this.writeMany(
-        (short.toInt() ushr 8 and 0xff).toByte(),
-        (short.toInt() and 0xff).toByte(),
-    )
-}
-
-fun WriteBuffer.writeInt(int: Int) {
-    this.writeMany(
-        (int ushr 24 and 0xff).toByte(),
-        (int ushr 16 and 0xff).toByte(),
-        (int ushr 8 and 0xff).toByte(),
-        (int and 0xff).toByte(),
-    )
-}
-
-fun WriteBuffer.writeLong(long: Long) {
-    this.writeMany(
-        (long ushr 56 and 0xffL).toByte(),
-        (long ushr 48 and 0xffL).toByte(),
-        (long ushr 40 and 0xffL).toByte(),
-        (long ushr 32 and 0xffL).toByte(),
-        (long ushr 24 and 0xffL).toByte(),
-        (long ushr 16 and 0xffL).toByte(),
-        (long ushr 8 and 0xffL).toByte(),
-        (long and 0xffL).toByte(),
-    )
-}
-
-fun WriteBuffer.writeFloat(float: Float) {
-    this.writeInt(float.toBits())
-}
-
-fun WriteBuffer.writeDouble(double: Double) {
-    this.writeLong(double.toBits())
-}
-
-fun WriteBuffer.writeFully(byteArray: ByteArray, offset: Int = 0, length: Int = byteArray.size) {
-    for (i in offset..<(offset + length)) {
+fun WriteBuffer.writeFully(byteArray: ByteArray) {
+    for (i in byteArray.indices) {
         this.writeByte(byteArray[i])
     }
 }

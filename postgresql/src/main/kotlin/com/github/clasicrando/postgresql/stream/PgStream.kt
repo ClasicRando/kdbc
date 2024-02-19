@@ -49,6 +49,7 @@ internal class PgStream(
     private val pgStreamId: UUID = UUID.generateUUID()
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
+    private val messageSendBuffer = MessageSendBuffer()
 
     override val coroutineContext: CoroutineContext get() = Job(parent = scope.coroutineContext.job)
 
@@ -212,16 +213,17 @@ internal class PgStream(
 
     private suspend inline fun writeBuffer(crossinline block: (MessageSendBuffer) -> Unit) {
         try {
-            MessageSendBuffer.useBuffer {
-                block(this)
-                this.copyToByteWriteChannel(sendChannel)
-            }
+            messageSendBuffer.release()
+            block(messageSendBuffer)
+            messageSendBuffer.copyToByteWriteChannel(sendChannel)
         } finally {
             sendChannel.flush()
+            messageSendBuffer.release()
         }
     }
 
     override fun close() {
+        messageSendBuffer.release()
         closeChannels()
         if (connection.socket.isActive) {
             connection.socket.close()
