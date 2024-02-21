@@ -1,6 +1,7 @@
 package com.github.clasicrando.common.connection
 
 import com.github.clasicrando.common.result.QueryResult
+import com.github.clasicrando.common.result.StatementResult
 import kotlinx.uuid.UUID
 
 /**
@@ -59,13 +60,13 @@ interface Connection {
     /**
      * Send a raw query with no parameters, returning an [Iterable] of zero or more [QueryResult]s
      */
-    suspend fun sendQuery(query: String): Iterable<QueryResult>
+    suspend fun sendQuery(query: String): StatementResult
 
     /**
      * Send a prepared statement with [parameters], returning an [Iterable] of zero or more
      * [QueryResult]s
      */
-    suspend fun sendPreparedStatement(query: String, parameters: List<Any?>): Iterable<QueryResult>
+    suspend fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult
 
     /**
      * Manually release a prepared statement for the provided [query]. This will not error if the

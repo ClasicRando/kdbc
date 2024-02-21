@@ -1,6 +1,6 @@
 package com.github.clasicrando.common.buffer
 
-abstract class ArrayReadBuffer(bytes: ByteArray) : ReadBuffer {
+class ArrayReadBuffer(bytes: ByteArray) : ReadBuffer {
     var position: Int = 0
         private set
     private var innerBuffer = bytes

@@ -53,7 +53,7 @@ abstract class AbstractConnectionPool<C : Connection>(
     final override val selectorManager = SelectorManager(dispatcher = coroutineContext)
 
     private val initialized = CompletableDeferred<Boolean>(
-        parent = selectorManager.coroutineContext.job,
+        parent = coroutineContext.job,
     )
 
     /**

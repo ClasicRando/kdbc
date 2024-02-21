@@ -13,7 +13,7 @@ import com.github.clasicrando.common.column.ColumnData
 abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
     val columnMapping: List<C>,
 ) : ResultSet {
-    private var backingList: MutableList<R> = ArrayList()
+    private var backingList: MutableList<R>? = ArrayList()
 
     /** [Map] of column name to column index. Used within other internal classes */
     val columnMap = columnMapping.withIndex()
@@ -23,7 +23,7 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
 
     /** Add a new [row] to the end of this [ResultSet] */
     fun addRow(row: R) {
-        backingList.add(row)
+        backingList?.add(row)
     }
 
     override val columnCount: Int get() = columnMapping.size
@@ -35,12 +35,15 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
         return columnMapping[index]
     }
 
-    override fun iterator(): Iterator<DataRow> = backingList.iterator()
+    override fun iterator(): Iterator<DataRow> = backingList?.iterator()
+        ?: error("Attempted to iterate on a closed/released ResultSet")
 
     override fun release() {
-        for (item in backingList) {
-            item.release()
+        backingList?.let {
+            for (item in it) {
+                item.release()
+            }
         }
-        backingList.clear()
+        backingList = null
     }
 }

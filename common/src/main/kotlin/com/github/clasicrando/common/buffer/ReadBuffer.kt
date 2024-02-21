@@ -1,8 +1,6 @@
 package com.github.clasicrando.common.buffer
 
 import com.github.clasicrando.common.AutoRelease
-import io.ktor.utils.io.core.ByteReadPacket
-import io.ktor.utils.io.core.readBytes
 import java.io.InputStream
 import java.nio.charset.Charset
 
@@ -10,8 +8,6 @@ interface ReadBuffer : AutoRelease {
     val remaining: Long
     fun readByte(): Byte
 }
-
-fun ByteReadPacket.asReadBuffer(): ArrayReadBuffer = object : ArrayReadBuffer(this.readBytes()) {}
 
 fun ReadBuffer.readShort(): Short {
     val result = this.readByte().toInt() and 0xff shl 8 or (this.readByte().toInt() and 0xff)

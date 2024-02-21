@@ -83,7 +83,7 @@ internal class PgStream(
         val rawMessage = RawMessage(
             format = format,
             size = size.toUInt(),
-            contents = object : ArrayReadBuffer(array) {},
+            contents = ArrayReadBuffer(array),
         )
         return decoders.decode(rawMessage)
     }

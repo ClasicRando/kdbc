@@ -9,6 +9,7 @@ import com.github.clasicrando.common.quoteIdentifier
 import com.github.clasicrando.common.reduceToSingleOrNull
 import com.github.clasicrando.common.result.AbstractMutableResultSet
 import com.github.clasicrando.common.result.QueryResult
+import com.github.clasicrando.common.result.StatementResult
 import com.github.clasicrando.common.selectLoop
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
@@ -286,10 +287,10 @@ class PgConnection internal constructor(
      */
     private suspend fun collectResult(
         statement: PgPreparedStatement? = null,
-    ): Iterable<QueryResult> {
+    ): StatementResult {
         val errors = mutableListOf<Throwable>()
         var result = PgResultSet(typeRegistry, statement?.resultMetadata ?: listOf())
-        val results = mutableListOf<QueryResult>()
+        val results = StatementResult.Builder()
         stream.processMessageLoop { message ->
             when (message) {
                 is PgMessage.ErrorResponse -> {
@@ -306,7 +307,7 @@ class PgConnection internal constructor(
                     Loop.Continue
                 }
                 is PgMessage.CommandComplete -> {
-                    results.add(QueryResult(message.rowCount, message.message, result))
+                    results.addQueryResult(QueryResult(message.rowCount, message.message, result))
                     Loop.Continue
                 }
                 is PgMessage.ReadyForQuery -> {
@@ -317,7 +318,7 @@ class PgConnection internal constructor(
             }
         }
 
-        val error = errors.reduceToSingleOrNull() ?: return results
+        val error = errors.reduceToSingleOrNull() ?: return results.build()
         log(Level.ERROR) {
             message = "Error during single query execution"
             cause = error
@@ -327,7 +328,7 @@ class PgConnection internal constructor(
 
     override suspend fun sendQuery(
         query: String,
-    ): Iterable<QueryResult> = withContext(pool.coroutineContext) {
+    ): StatementResult = withContext(pool.coroutineContext) {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
@@ -486,7 +487,7 @@ class PgConnection internal constructor(
     override suspend fun sendPreparedStatement(
         query: String,
         parameters: List<Any?>,
-    ): Iterable<QueryResult> = withContext(pool.coroutineContext) {
+    ): StatementResult = withContext(pool.coroutineContext) {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
