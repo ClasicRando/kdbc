@@ -3,7 +3,6 @@ package com.github.clasicrando.common.stream
 import java.nio.channels.CompletionHandler
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 class SuspendCompletionHandler<T : Any>(
     private val continuation: Continuation<Result<T>>,

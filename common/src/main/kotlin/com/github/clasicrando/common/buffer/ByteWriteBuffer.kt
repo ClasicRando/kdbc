@@ -1,7 +1,6 @@
 package com.github.clasicrando.common.buffer
 
 import com.github.clasicrando.common.stream.AsyncStream
-import io.ktor.utils.io.ByteWriteChannel
 import java.nio.ByteBuffer
 
 abstract class ByteWriteBuffer : WriteBuffer {
@@ -31,6 +30,14 @@ abstract class ByteWriteBuffer : WriteBuffer {
 
     override fun release() {
         innerBuffer.clear()
+    }
+
+    fun writeToArray(): ByteArray {
+        innerBuffer.flip()
+        val array = ByteArray(innerBuffer.remaining())
+        innerBuffer.put(array)
+        innerBuffer.clear()
+        return array
     }
 
     suspend fun writeToAsyncStream(stream: AsyncStream) {

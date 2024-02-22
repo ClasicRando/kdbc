@@ -1,9 +1,8 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.buffer.readFully
 import com.github.clasicrando.common.buffer.writeFully
-import io.ktor.utils.io.core.buildPacket
-import io.ktor.utils.io.core.readBytes
 
 val byteArrayTypeEncoder = PgTypeEncoder<ByteArray>(PgType.Bytea) { value, buffer ->
     buffer.writeFully(value)
@@ -57,32 +56,32 @@ private fun String.getOrThrow(index: Int): Char {
 }
 
 private fun decodeWithoutPrefix(value: String): ByteArray {
-    return buildPacket {
-        val maxIndex = value.length - 1
-        var index = 0
+    val buffer = object : ByteWriteBuffer() {}
+    val maxIndex = value.length - 1
+    var index = 0
 
-        while (index <= maxIndex) {
-            val currentChar = value[index]
-            index++
+    while (index <= maxIndex) {
+        val currentChar = value[index]
+        index++
 
-            if (currentChar != '\\') {
-                writeByte(currentChar.code.toByte())
-                continue
-            }
-
-            val nextChar = value.getOrThrow(index)
-            index++
-
-            if (nextChar == '\\') {
-                writeByte('\\'.code.toByte())
-                continue
-            }
-
-            val secondDigit = value.getOrThrow(index)
-            index++
-            val thirdDigit = value.getOrThrow(index)
-            index++
-            writeByte("0$nextChar$secondDigit$thirdDigit".toInt(8).toByte())
+        if (currentChar != '\\') {
+            buffer.writeByte(currentChar.code.toByte())
+            continue
         }
-    }.readBytes()
+
+        val nextChar = value.getOrThrow(index)
+        index++
+
+        if (nextChar == '\\') {
+            buffer.writeByte('\\'.code.toByte())
+            continue
+        }
+
+        val secondDigit = value.getOrThrow(index)
+        index++
+        val thirdDigit = value.getOrThrow(index)
+        index++
+        buffer.writeByte("0$nextChar$secondDigit$thirdDigit".toInt(8).toByte())
+    }
+    return buffer.writeToArray()
 }

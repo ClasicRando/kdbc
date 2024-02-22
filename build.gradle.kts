@@ -47,8 +47,6 @@ subprojects {
         implementation("org.slf4j:slf4j-api:$slf4jVersion")
         // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$kotlinxCoroutinesVersion")
-        implementation("io.ktor:ktor-network:$ktorVersion")
-        implementation("io.ktor:ktor-network-tls:$ktorVersion")
         implementation(kotlin("reflect", version = kotlinVersion))
         // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
         api("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
