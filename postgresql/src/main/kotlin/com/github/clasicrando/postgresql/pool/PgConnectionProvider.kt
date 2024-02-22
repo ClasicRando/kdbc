@@ -13,7 +13,7 @@ internal class PgConnectionProvider(
         var stream: PgStream? = null
         try {
             stream = PgStream.connect(
-                selectorManager = pool.selectorManager,
+                scope = pool,
                 connectOptions = connectOptions,
             )
             return PgConnection.connect(

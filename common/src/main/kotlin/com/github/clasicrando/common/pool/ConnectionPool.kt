@@ -1,7 +1,6 @@
 package com.github.clasicrando.common.pool
 
 import com.github.clasicrando.common.connection.Connection
-import io.ktor.network.selector.SelectorManager
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -9,7 +8,6 @@ import kotlinx.coroutines.CoroutineScope
  * connections no longer needed.
  */
 interface ConnectionPool<C : Connection> : CoroutineScope {
-    val selectorManager: SelectorManager
     /**
      * Flag indicating if the pool of connections is exhausted (number of connections is use has
      * reached the cap on [PoolOptions.maxConnections]

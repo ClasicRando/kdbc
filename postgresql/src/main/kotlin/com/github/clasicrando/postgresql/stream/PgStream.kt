@@ -1,9 +1,9 @@
 package com.github.clasicrando.postgresql.stream
 
 import com.github.clasicrando.common.Loop
-import com.github.clasicrando.common.SslMode
-import com.github.clasicrando.common.buffer.ArrayReadBuffer
 import com.github.clasicrando.common.message.MessageSendBuffer
+import com.github.clasicrando.common.stream.AsyncStream
+import com.github.clasicrando.common.stream.Nio2AsyncStream
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
@@ -12,7 +12,6 @@ import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.decoders.PgMessageDecoders
 import com.github.clasicrando.postgresql.message.encoders.PgMessageEncoders
-import com.github.clasicrando.postgresql.message.encoders.SslMessageEncoder
 import com.github.clasicrando.postgresql.notification.PgNotification
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -22,10 +21,8 @@ import io.ktor.network.sockets.Connection
 import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.connection
-import io.ktor.network.sockets.isClosed
 import io.ktor.network.tls.TLSConfigBuilder
 import io.ktor.network.tls.tls
-import io.ktor.utils.io.readFully
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -35,17 +32,16 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
+import java.net.InetSocketAddress
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
 
 internal class PgStream(
     private val scope: CoroutineScope,
-    private var connection: Connection,
+    private var connection: AsyncStream,
     internal val connectOptions: PgConnectOptions,
 ): CoroutineScope, AutoCloseable {
-    private val receiveChannel get() = connection.input
-    private val sendChannel get() = connection.output
     private val pgStreamId: UUID = UUID.generateUUID()
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
@@ -76,14 +72,13 @@ internal class PgStream(
     }
 
     internal suspend fun receiveNextServerMessage(): PgMessage {
-        val format = receiveChannel.readByte()
-        val size = receiveChannel.readInt()
-        val array = ByteArray(size - 4)
-        receiveChannel.readFully(array)
+        val format = connection.readByte().getOrThrow()
+        val size = connection.readInt().getOrThrow()
+        val array = connection.readBuffer(size - 4).getOrThrow()
         val rawMessage = RawMessage(
             format = format,
             size = size.toUInt(),
-            contents = ArrayReadBuffer(array),
+            contents = array,
         )
         return decoders.decode(rawMessage)
     }
@@ -209,15 +204,14 @@ internal class PgStream(
         notificationsChannel.close(throwable)
     }
 
-    val isConnected: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
+    val isConnected: Boolean get() = connection.isConnected
 
     private suspend inline fun writeBuffer(crossinline block: (MessageSendBuffer) -> Unit) {
         try {
             messageSendBuffer.release()
             block(messageSendBuffer)
-            messageSendBuffer.copyToByteWriteChannel(sendChannel)
+            messageSendBuffer.writeToAsyncStream(connection)
         } finally {
-            sendChannel.flush()
             messageSendBuffer.release()
         }
     }
@@ -225,8 +219,8 @@ internal class PgStream(
     override fun close() {
         messageSendBuffer.release()
         closeChannels()
-        if (connection.socket.isActive) {
-            connection.socket.close()
+        if (connection.isConnected) {
+            connection.release()
         }
     }
 
@@ -278,83 +272,52 @@ internal class PgStream(
         }
     }
 
-    private suspend fun requestUpgrade(): Boolean {
-        writeBuffer { builder ->
-            SslMessageEncoder.encode(PgMessage.SslRequest, builder)
-        }
-        return when (val response = receiveChannel.readByte()) {
-            'S'.code.toByte() -> true
-            'N'.code.toByte() -> false
-            else -> {
-                val responseChar = response.toInt().toChar()
-                error("Invalid response byte after SSL request. Byte = '$responseChar'")
-            }
-        }
-    }
+//    private suspend fun requestUpgrade(): Boolean {
+//        writeBuffer { builder ->
+//            SslMessageEncoder.encode(PgMessage.SslRequest, builder)
+//        }
+//        return when (val response = receiveChannel.readByte()) {
+//            'S'.code.toByte() -> true
+//            'N'.code.toByte() -> false
+//            else -> {
+//                val responseChar = response.toInt().toChar()
+//                error("Invalid response byte after SSL request. Byte = '$responseChar'")
+//            }
+//        }
+//    }
 
-    @Suppress("BlockingMethodInNonBlockingContext", "UNUSED")
-    private suspend fun upgradeIfNeeded(
-        selectorManager: SelectorManager,
-        connectOptions: PgConnectOptions,
-    ) {
-        when (connectOptions.sslMode) {
-            SslMode.Disable, SslMode.Allow -> return
-            SslMode.Prefer -> {
-                if (!requestUpgrade()) {
-                    logger.atWarn {
-                        message = TLS_REJECT_WARNING
-                    }
-                    return
-                }
-            }
-            SslMode.Require, SslMode.VerifyCa, SslMode.VerifyFull -> {
-                check(requestUpgrade()) {
-                    "TLS connection required by client but server does not accept TSL connection"
-                }
-            }
-        }
-        connection.socket.close()
-        val newConnection = createConnection(
-            selectorManager = selectorManager,
-            connectOptions = connectOptions,
-        )
-        connection = newConnection
-    }
+//    @Suppress("BlockingMethodInNonBlockingContext", "UNUSED")
+//    private suspend fun upgradeIfNeeded(
+//        selectorManager: SelectorManager,
+//        connectOptions: PgConnectOptions,
+//    ) {
+//        when (connectOptions.sslMode) {
+//            SslMode.Disable, SslMode.Allow -> return
+//            SslMode.Prefer -> {
+//                if (!requestUpgrade()) {
+//                    logger.atWarn {
+//                        message = TLS_REJECT_WARNING
+//                    }
+//                    return
+//                }
+//            }
+//            SslMode.Require, SslMode.VerifyCa, SslMode.VerifyFull -> {
+//                check(requestUpgrade()) {
+//                    "TLS connection required by client but server does not accept TSL connection"
+//                }
+//            }
+//        }
+//        connection.socket.close()
+//        val newConnection = createConnection(
+//            selectorManager = selectorManager,
+//            connectOptions = connectOptions,
+//        )
+//        connection = newConnection
+//    }
 
     companion object {
         private const val TLS_REJECT_WARNING = "Preferred SSL mode was rejected by server. " +
                 "Continuing with non TLS connection"
-
-        @Suppress("BlockingMethodInNonBlockingContext")
-        private suspend fun createConnection(
-            selectorManager: SelectorManager,
-            connectOptions: PgConnectOptions,
-            tlsConfig: (TLSConfigBuilder.() -> Unit)? = null,
-        ): Connection {
-            var socket: Socket? = null
-            try {
-                socket = withTimeout(connectOptions.connectionTimeout.toLong()) {
-                    aSocket(selectorManager)
-                        .tcp()
-                        .connect(connectOptions.host, connectOptions.port.toInt()) {
-                            keepAlive = true
-                        }
-                }
-
-                tlsConfig?.let {
-                    return socket.tls(selectorManager.coroutineContext, block = it).connection()
-                }
-                return socket.connection()
-            } catch (ex: Throwable) {
-                if (socket?.isActive == true) {
-                    socket.close()
-                }
-                if (selectorManager.isActive) {
-                    selectorManager.close()
-                }
-                throw ex
-            }
-        }
 
         /**
          * Create a new TCP connection with the Postgresql database targeted by the
@@ -368,14 +331,13 @@ internal class PgStream(
          * [PgStream] object is closed and an exception is thrown.
          */
         internal suspend fun connect(
-            selectorManager: SelectorManager,
+            scope: CoroutineScope,
             connectOptions: PgConnectOptions,
         ): PgStream {
-            val socket = createConnection(
-                selectorManager = selectorManager,
-                connectOptions = connectOptions,
-            )
-            val stream = PgStream(selectorManager, socket, connectOptions)
+            val address = InetSocketAddress(connectOptions.host, connectOptions.port.toInt())
+            val socket = Nio2AsyncStream(address)
+            socket.connect().getOrThrow()
+            val stream = PgStream(scope, socket, connectOptions)
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()

@@ -1,5 +1,6 @@
 package com.github.clasicrando.common.buffer
 
+import com.github.clasicrando.common.stream.AsyncStream
 import io.ktor.utils.io.ByteWriteChannel
 import java.nio.ByteBuffer
 
@@ -32,9 +33,9 @@ abstract class ByteWriteBuffer : WriteBuffer {
         innerBuffer.clear()
     }
 
-    suspend fun copyToByteWriteChannel(byteWriteChannel: ByteWriteChannel) {
+    suspend fun writeToAsyncStream(stream: AsyncStream) {
         innerBuffer.flip()
-        byteWriteChannel.writeFully(innerBuffer)
+        stream.writeBuffer(this)
     }
 
     inline fun writeLengthPrefixed(
