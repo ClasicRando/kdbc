@@ -1,8 +1,6 @@
 package com.github.clasicrando.common.pool
 
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -40,11 +38,6 @@ data class PoolOptions(
      * This currently has no impact on the pool but will be used in future versions.
      */
     val idleTime: Duration = 1.toDuration(DurationUnit.MINUTES),
-    /**
-     * Dispatcher that will run all the coroutines attached the pool or other object/coroutines
-     * attached to the pool. Defaults to [Dispatchers.Default]
-     */
-    val coroutineDispatcher: CoroutineDispatcher = Dispatchers.Default,
     /** Optional parent scope that holds the [ConnectionPool]s scope */
     val parentScope: CoroutineScope? = null,
 ) {

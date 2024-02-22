@@ -30,16 +30,13 @@ import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.withContext
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 
@@ -229,7 +226,7 @@ class PgConnection internal constructor(
         val errors = mutableListOf<Throwable>()
         for ((i, preparedStatement) in statements.withIndex()) {
             val result = PgResultSet(typeRegistry, preparedStatement.resultMetadata)
-            stream.processMessageLoop {message ->
+            stream.processMessageLoop { message ->
                 when (message) {
                     is PgMessage.ErrorResponse -> {
                         errors.add(GeneralPostgresError(message))
@@ -328,7 +325,7 @@ class PgConnection internal constructor(
 
     override suspend fun sendQuery(
         query: String,
-    ): StatementResult = withContext(pool.coroutineContext) {
+    ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
@@ -341,7 +338,7 @@ class PgConnection internal constructor(
         }
         stream.writeToStream(PgMessage.Query(query))
 
-        collectResult()
+        return collectResult()
     }
 
     /**
@@ -487,7 +484,7 @@ class PgConnection internal constructor(
     override suspend fun sendPreparedStatement(
         query: String,
         parameters: List<Any?>,
-    ): StatementResult = withContext(pool.coroutineContext) {
+    ): StatementResult  {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
@@ -498,12 +495,12 @@ class PgConnection internal constructor(
             throw ex
         }
         executePreparedStatement(statement, parameters)
-        collectResult(statement = statement)
+        return collectResult(statement = statement)
     }
 
     override suspend fun releasePreparedStatement(
         query: String,
-    ): Unit = withContext(pool.coroutineContext) {
+    ) {
         waitForQueryRunning()
 
         val statement = preparedStatements[query]
@@ -513,7 +510,7 @@ class PgConnection internal constructor(
                 payload = mapOf("query" to query)
             }
             enableQueryRunning()
-            return@withContext
+            return
         }
         val closeMessage = PgMessage.Close(
             target = CloseTarget.PreparedStatement,
@@ -550,7 +547,7 @@ class PgConnection internal constructor(
         }
     }
 
-    override suspend fun close(): Unit = withContext(pool.coroutineContext) {
+    override suspend fun close() {
         pool.giveBack(this@PgConnection)
     }
 
@@ -602,7 +599,7 @@ class PgConnection internal constructor(
     suspend fun pipelineQueries(
         syncAll: Boolean = true,
         queries: Array<out Pair<String, List<Any?>>>,
-    ): Flow<QueryResult> = withContext(pool.coroutineContext) {
+    ): Flow<QueryResult> {
         waitForQueryRunning()
         val statements = try {
             Array(queries.size) { i ->
@@ -620,7 +617,7 @@ class PgConnection internal constructor(
                 sendSync = syncAll || i == queries.size - 1,
             )
         }
-        collectResults(syncAll, statements)
+        return collectResults(syncAll, statements)
     }
 
     /**
@@ -637,7 +634,7 @@ class PgConnection internal constructor(
     suspend fun copyIn(
         copyInStatement: CopyStatement,
         data: Flow<ByteArray>,
-    ): QueryResult = withContext(pool.coroutineContext) {
+    ): QueryResult {
         checkConnected()
         waitForQueryRunning()
 
@@ -652,17 +649,15 @@ class PgConnection internal constructor(
             .onFailure { enableQueryRunning() }
             .getOrThrow()
 
-        val copyInJob = pool.launch {
-            try {
-                data.collect {
-                    stream.writeToStream(PgMessage.CopyData(it))
-                }
-                stream.writeToStream(PgMessage.CopyDone)
-            } catch (ex: Throwable) {
-                if (stream.isConnected) {
-                    wasFailed.compareAndSet(expect = false, update = true)
-                    stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
-                }
+        try {
+            data.collect {
+                stream.writeToStream(PgMessage.CopyData(it))
+            }
+            stream.writeToStream(PgMessage.CopyDone)
+        } catch (ex: Throwable) {
+            if (stream.isConnected) {
+                wasFailed.compareAndSet(expect = false, update = true)
+                stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
             }
         }
 
@@ -682,10 +677,6 @@ class PgConnection internal constructor(
                             }
                             return@processMessageLoop Loop.Continue
                         }
-                        if (copyInJob.isActive) {
-                            copyInJob.cancel()
-                        }
-                        copyInJob.join()
                         val error = GeneralPostgresError(message)
                         log(Level.ERROR) {
                             this.message = "Error during copy in operation"
@@ -699,7 +690,6 @@ class PgConnection internal constructor(
                         Loop.Continue
                     }
                     is PgMessage.ReadyForQuery -> {
-                        copyInJob.join()
                         enableQueryRunning()
                         Loop.Break
                     }
@@ -713,7 +703,6 @@ class PgConnection internal constructor(
                 }
             }
         } catch (ex: Throwable) {
-            copyInJob.cancelAndJoin()
             errors.add(ex)
         }
 
@@ -722,7 +711,7 @@ class PgConnection internal constructor(
             throw error
         }
 
-        QueryResult(
+        return QueryResult(
             rowsAffected = completeMessage?.rowCount ?: 0,
             message= completeMessage?.message ?: "Default copy in complete message",
         )
@@ -737,7 +726,7 @@ class PgConnection internal constructor(
      */
     suspend fun copyOut(
         copyOutStatement: CopyStatement,
-    ): Flow<ByteArray> = withContext(pool.coroutineContext) {
+    ): Flow<ByteArray> {
         checkConnected()
         waitForQueryRunning()
 
@@ -751,7 +740,7 @@ class PgConnection internal constructor(
         stream.waitForOrError<PgMessage.CopyOutResponse>()
             .onFailure { enableQueryRunning() }
             .getOrThrow()
-        flow {
+        return flow {
             stream.processMessageLoop { message ->
                 when (message) {
                     is PgMessage.ErrorResponse -> {
