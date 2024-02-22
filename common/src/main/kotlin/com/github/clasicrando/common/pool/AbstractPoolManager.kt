@@ -15,7 +15,7 @@ abstract class AbstractPoolManager<O : Any, C : Connection> : PoolManager<O, C> 
     override suspend fun createConnection(connectOptions: O): C {
         return connectionPools.getOrPut(connectOptions) {
             val pool = createPool(connectOptions)
-            val isValid = pool.waitForValidation()
+            val isValid = pool.initialize()
             if (!isValid) {
                 throw CouldNotInitializeConnection(connectOptions.toString())
             }

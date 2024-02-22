@@ -29,7 +29,7 @@ interface ConnectionPool<C : Connection> : CoroutineScope {
      */
     suspend fun giveBack(connection: C): Boolean
     /** */
-    suspend fun waitForValidation(): Boolean
+    suspend fun initialize(): Boolean
     /** Close the connection pool and all connections that are associated with the pool */
     suspend fun close()
 }
