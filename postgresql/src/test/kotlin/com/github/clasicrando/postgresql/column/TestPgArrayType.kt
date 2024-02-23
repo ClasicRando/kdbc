@@ -4,7 +4,6 @@ import com.github.clasicrando.common.column.ColumnDecodeError
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.result.getAs
 import com.github.clasicrando.postgresql.PgConnectionHelper
-import com.github.clasicrando.postgresql.row.PgColumnDescription
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import org.junit.jupiter.api.Assertions

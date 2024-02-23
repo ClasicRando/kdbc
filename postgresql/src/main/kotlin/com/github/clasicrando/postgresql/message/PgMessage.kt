@@ -1,8 +1,8 @@
 package com.github.clasicrando.postgresql.message
 
 import com.github.clasicrando.postgresql.copy.CopyFormat
-import com.github.clasicrando.postgresql.row.PgColumnDescription
-import com.github.clasicrando.postgresql.row.PgRowBuffer
+import com.github.clasicrando.postgresql.column.PgColumnDescription
+import com.github.clasicrando.postgresql.result.PgRowBuffer
 import com.github.clasicrando.postgresql.statement.PgArguments
 
 internal sealed class PgMessage(val code: Byte) {

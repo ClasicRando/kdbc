@@ -3,7 +3,6 @@ package com.github.clasicrando.postgresql.column
 import com.github.clasicrando.common.buffer.ReadBuffer
 import com.github.clasicrando.common.buffer.ReadBufferSlice
 import com.github.clasicrando.common.buffer.readText
-import com.github.clasicrando.postgresql.row.PgColumnDescription
 
 sealed class PgValue(val typeData: PgColumnDescription) {
     class Text @PublishedApi internal constructor(

@@ -1,7 +1,7 @@
 package com.github.clasicrando.postgresql.statement
 
 import com.github.clasicrando.common.statement.PreparedStatement
-import com.github.clasicrando.postgresql.row.PgColumnDescription
+import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 internal class PgPreparedStatement(
     override val query: String,

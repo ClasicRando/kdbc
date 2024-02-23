@@ -2,7 +2,7 @@ package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.buffer.ReadBuffer
 import com.github.clasicrando.common.buffer.readDouble
-import com.github.clasicrando.postgresql.row.PgColumnDescription
+import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 data class PgCircle(val center: PgPoint, val radius: Double) {
     companion object {

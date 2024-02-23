@@ -1,6 +1,7 @@
-package com.github.clasicrando.postgresql.row
+package com.github.clasicrando.postgresql.result
 
 import com.github.clasicrando.common.result.AbstractMutableResultSet
+import com.github.clasicrando.postgresql.column.PgColumnDescription
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 
 internal class PgResultSet(

@@ -4,7 +4,6 @@ import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.buffer.readInt
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.array.ArrayLiteralParser
-import com.github.clasicrando.postgresql.row.PgColumnDescription
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 

@@ -1,4 +1,4 @@
-package com.github.clasicrando.postgresql.row
+package com.github.clasicrando.postgresql.result
 
 import com.github.clasicrando.common.AutoRelease
 import com.github.clasicrando.common.buffer.ArrayReadBuffer

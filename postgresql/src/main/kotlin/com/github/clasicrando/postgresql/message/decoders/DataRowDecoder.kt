@@ -4,7 +4,7 @@ import com.github.clasicrando.common.buffer.ArrayReadBuffer
 import com.github.clasicrando.common.buffer.ReadBuffer
 import com.github.clasicrando.common.message.MessageDecoder
 import com.github.clasicrando.postgresql.message.PgMessage
-import com.github.clasicrando.postgresql.row.PgRowBuffer
+import com.github.clasicrando.postgresql.result.PgRowBuffer
 
 internal object DataRowDecoder : MessageDecoder<PgMessage.DataRow> {
     override fun decode(buffer: ReadBuffer): PgMessage.DataRow {

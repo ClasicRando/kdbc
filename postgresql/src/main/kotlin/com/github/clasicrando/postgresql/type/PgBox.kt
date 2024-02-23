@@ -2,7 +2,7 @@ package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.buffer.ReadBuffer
 import com.github.clasicrando.common.column.checkOrColumnDecodeError
-import com.github.clasicrando.postgresql.row.PgColumnDescription
+import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 data class PgBox(val high: PgPoint, val low: PgPoint) {
     companion object {

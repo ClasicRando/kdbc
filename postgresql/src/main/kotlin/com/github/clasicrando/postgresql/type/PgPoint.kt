@@ -3,7 +3,7 @@ package com.github.clasicrando.postgresql.type
 import com.github.clasicrando.common.buffer.ReadBuffer
 import com.github.clasicrando.common.buffer.readDouble
 import com.github.clasicrando.common.column.checkOrColumnDecodeError
-import com.github.clasicrando.postgresql.row.PgColumnDescription
+import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 data class PgPoint(val x: Double, val y: Double) {
     companion object {

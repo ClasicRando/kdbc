@@ -2,7 +2,7 @@ package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.buffer.ReadBuffer
 import com.github.clasicrando.common.buffer.readInt
-import com.github.clasicrando.postgresql.row.PgColumnDescription
+import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) {
     companion object {

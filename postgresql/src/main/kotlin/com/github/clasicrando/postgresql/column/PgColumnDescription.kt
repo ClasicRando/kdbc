@@ -1,7 +1,6 @@
-package com.github.clasicrando.postgresql.row
+package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.column.ColumnData
-import com.github.clasicrando.postgresql.column.PgType
 
 data class PgColumnDescription(
     override val fieldName: String,
