@@ -35,7 +35,7 @@ abstract class ByteWriteBuffer : WriteBuffer {
     fun writeToArray(): ByteArray {
         innerBuffer.flip()
         val array = ByteArray(innerBuffer.remaining())
-        innerBuffer.put(array)
+        innerBuffer.get(array)
         innerBuffer.clear()
         return array
     }

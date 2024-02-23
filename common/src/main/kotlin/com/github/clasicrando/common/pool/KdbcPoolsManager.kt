@@ -1,21 +1,22 @@
 package com.github.clasicrando.common.pool
 
+import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connection.Connection
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlin.reflect.KClass
+
+typealias PoolManagerClass = KClass<out PoolManager<*, *>>
 
 object KdbcPoolsManager {
-    private val lock = Mutex()
-    private val poolManagers = mutableListOf<PoolManager<*, *>>()
+    private val poolManagers: MutableMap<PoolManagerClass, PoolManager<*, *>> = AtomicMutableMap()
 
-    suspend fun <O : Any, C : Connection> addPoolManager(
+    fun <O : Any, C : Connection> addPoolManager(
         poolManager: PoolManager<O, C>
-    ): Unit = lock.withLock {
-        poolManagers.add(poolManager)
+    ) {
+        poolManagers[poolManager::class] = poolManager
     }
 
-    suspend fun closeAllPools(): Unit = lock.withLock {
-        for (poolManager in poolManagers) {
+    suspend fun closeAllPools() {
+        for ((_, poolManager) in poolManagers) {
             poolManager.closeAllPools()
         }
     }
