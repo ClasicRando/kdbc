@@ -1,13 +1,13 @@
 package com.github.clasicrando.postgresql.result
 
 import com.github.clasicrando.common.column.checkOrColumnDecodeError
-import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.common.datetime.DateTime
 import com.github.clasicrando.common.result.DataRow
 import com.github.clasicrando.common.result.getAs
 import com.github.clasicrando.postgresql.column.PgType
 import com.github.clasicrando.postgresql.column.PgValue
 import com.github.clasicrando.postgresql.column.booleanTypeDecoder
+import com.github.clasicrando.postgresql.column.charTypeDecoder
 import com.github.clasicrando.postgresql.column.dateTimeTypeDecoder
 import com.github.clasicrando.postgresql.column.dateTypeDecoder
 import com.github.clasicrando.postgresql.column.doubleTypeDecoder
@@ -79,10 +79,8 @@ internal class PgDataRow(
     override fun getByte(index: Int): Byte? {
         checkIndex(index)
         val pgValue = getPgValue(index) ?: return null
-        columnDecodeError<Byte>(
-            type = pgValue.typeData,
-            reason = "Cannot fetch a Byte value since Postgresql does not have a tinyint type",
-        )
+        checkPgValue<Short>(pgValue, PgType.Char)
+        return charTypeDecoder.decode(pgValue)
     }
 
     override fun getShort(index: Int): Short? {
