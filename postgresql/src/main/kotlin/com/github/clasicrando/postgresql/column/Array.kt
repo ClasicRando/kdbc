@@ -15,6 +15,15 @@ inline fun <reified T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
     return PgArrayTypeEncoder(encoder, pgType, compatibleTypes, typeOf<List<T?>>())
 }
 
+fun <T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
+    encoder: E,
+    pgType: PgType,
+    arrayType: KType,
+    compatibleTypes: Array<PgType>? = null,
+): PgTypeEncoder<List<T?>> {
+    return PgArrayTypeEncoder(encoder, pgType, compatibleTypes, arrayType)
+}
+
 @PublishedApi
 internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
     private val encoder: E,
@@ -36,11 +45,11 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
         buffer.writeInt(value.size)
         buffer.writeInt(1)
         for (item in value) {
+            if (item == null) {
+                buffer.writeByte(-1)
+                continue
+            }
             buffer.writeLengthPrefixed {
-                if (item == null) {
-                    writeByte(-1)
-                    return@writeLengthPrefixed
-                }
                 encoder.encode(item, this)
             }
         }
@@ -70,7 +79,14 @@ internal fun dummyTypedFieldDescription(typeOid: Int) = PgColumnDescription(
 )
 
 inline fun <reified T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
+    decoder: D,
+): PgTypeDecoder<List<T?>> {
+    return arrayTypeDecoder(decoder, typeOf<List<T?>>())
+}
+
+fun <T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
     decoder : D,
+    arrayType: KType,
 ): PgTypeDecoder<List<T?>> = PgTypeDecoder { value ->
     when (value) {
         // https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1549
@@ -103,7 +119,7 @@ inline fun <reified T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
         }
         is PgValue.Text -> {
             if (!value.text.startsWith('{') || !value.text.endsWith('}')) {
-                columnDecodeError<List<T>>(value.typeData)
+                columnDecodeError(arrayType, value.typeData)
             }
 
             ArrayLiteralParser.parse(value.text)

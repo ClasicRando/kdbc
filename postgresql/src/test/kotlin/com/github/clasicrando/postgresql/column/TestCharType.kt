@@ -65,12 +65,10 @@ class TestCharType {
             PgConnectionHelper.defaultConnection().use { connection ->
                 connection.sendQuery("""
                     DROP TABLE IF EXISTS public.char_test;
-                    CREATE TABLE public.char_test(
-                        char_field "char" not null
-                    );
+                    CREATE TABLE public.char_test(char_field "char" not null);
                     INSERT INTO public.char_test(char_field)
                     VALUES${bytes.joinToString(separator = ",") { "(CAST($it as \"char\"))" }};
-                """.trimIndent())
+                """.trimIndent()).release()
             }
         }
     }

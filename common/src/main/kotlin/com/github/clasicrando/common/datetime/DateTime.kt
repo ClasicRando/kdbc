@@ -1,6 +1,8 @@
 package com.github.clasicrando.common.datetime
 
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
 
@@ -11,6 +13,9 @@ import kotlinx.datetime.UtcOffset
  * database types that store a [datetime] and the [offset] offset.
  */
 data class DateTime(val datetime: LocalDateTime, val offset: UtcOffset) {
+    constructor(date: LocalDate, time: LocalTime, offset: UtcOffset)
+            : this(LocalDateTime(date, time), offset)
+
     override fun toString(): String {
         return "$datetime$offset"
     }

@@ -34,8 +34,13 @@ internal class PgCompositeTypeEncoder<T : Any>(
         buffer.writeInt(properties.size)
         for ((property, propertyTypeOid) in properties) {
             buffer.writeInt(propertyTypeOid.oidOrUnknown())
+            val propertyValue = property.get(value)
+            if (propertyValue == null) {
+                buffer.writeInt(-1)
+                continue
+            }
             buffer.writeLengthPrefixed {
-                typeRegistry.encode(property.get(value), this)
+                typeRegistry.encode(propertyValue, this)
             }
         }
     }
@@ -82,6 +87,7 @@ internal class PgCompositeTypeDecoder<T : Any>(
         }
     }
 
+    // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L481
     private fun decodeAsBinary(value: PgValue.Binary): T {
         val length = value.bytes.readInt()
         val attributes = Array(length) {

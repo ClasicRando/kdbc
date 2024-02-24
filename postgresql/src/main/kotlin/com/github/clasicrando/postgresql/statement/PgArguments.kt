@@ -14,6 +14,10 @@ class PgArguments internal constructor(
         buffer.writeShort(parameters.size.toShort())
         for (parameterIndex in parameters.indices) {
             val parameter = parameters[parameterIndex]
+            if (parameter == null) {
+                buffer.writeInt(-1)
+                continue
+            }
             if (parameter is PgJson) {
                 statement.parameterTypeOids.getOrNull(parameterIndex)?.let { oid ->
                     if (oid == PgType.JSON || oid == PgType.JSON_ARRAY) {

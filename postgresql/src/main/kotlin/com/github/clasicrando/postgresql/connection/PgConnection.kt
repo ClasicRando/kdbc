@@ -13,6 +13,10 @@ import com.github.clasicrando.common.result.StatementResult
 import com.github.clasicrando.common.selectLoop
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
+import com.github.clasicrando.postgresql.column.compositeTypeDecoder
+import com.github.clasicrando.postgresql.column.compositeTypeEncoder
+import com.github.clasicrando.postgresql.column.enumTypeDecoder
+import com.github.clasicrando.postgresql.column.enumTypeEncoder
 import com.github.clasicrando.postgresql.copy.CopyStatement
 import com.github.clasicrando.postgresql.copy.CopyType
 import com.github.clasicrando.postgresql.message.CloseTarget
@@ -39,6 +43,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.selects.select
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -59,7 +64,7 @@ class PgConnection internal constructor(
      * Type registry for connection. Used to decode data rows returned by the server. Defaults to a
      * new instance of [PgTypeRegistry]
      */
-    private val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
+    @PublishedApi internal val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
     override val connectionId: UUID = UUID.generateUUID(),
 ) : Connection {
     private val _inTransaction: AtomicBoolean = atomic(false)
@@ -472,10 +477,7 @@ class PgConnection internal constructor(
                 yield(PgMessage.Sync)
             }
         }
-        logger.connectionLogger(
-            this@PgConnection,
-            connectOptions.logSettings.statementLevel,
-        ) {
+        log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to statement.query)
         }
@@ -830,6 +832,22 @@ class PgConnection internal constructor(
     /** Update the type registry to allow for encoding and decoding PostGIS types */
     fun includePostGisTypes() {
         typeRegistry.includePostGisTypes()
+    }
+
+    suspend inline fun <reified E : Enum<E>> registerEnumType(type: String) {
+        typeRegistry.registerEnumType(
+            this,
+            enumTypeEncoder<E>(type),
+            typeOf<List<E?>>(),
+            enumTypeDecoder<E>(),
+            type,
+        )
+    }
+
+    suspend inline fun <reified T : Any> registerCompositeType(type: String) {
+        val encoder = compositeTypeEncoder<T>(type, typeRegistry)
+        val decoder = compositeTypeDecoder<T>(typeRegistry)
+        typeRegistry.registerCompositeType(this, encoder, decoder, type, typeOf<List<T?>>())
     }
 
     companion object {

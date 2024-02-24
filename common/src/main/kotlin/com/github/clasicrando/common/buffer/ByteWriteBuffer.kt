@@ -25,7 +25,7 @@ abstract class ByteWriteBuffer : WriteBuffer {
     }
 
     override fun writeFully(byteArray: ByteArray, offset: Int, length: Int) {
-        innerBuffer.put(byteArray)
+        innerBuffer.put(byteArray, offset, length)
     }
 
     override fun release() {

@@ -1,6 +1,7 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.connection.PgConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.concurrent.ConcurrentHashMap
@@ -11,14 +12,13 @@ import kotlin.reflect.full.createType
 @PublishedApi
 internal val typeRegistryLogger = KotlinLogging.logger {}
 
+@PublishedApi
 internal class PgTypeRegistry {
     private val encoders: MutableMap<KType, PgTypeEncoder<*>> = ConcurrentHashMap(defaultEncoders.associateBy { it.encodeType })
     private val decoders: MutableMap<Int, PgTypeDecoder<*>> = ConcurrentHashMap(defaultDecoders)
     private var hasPostGisTypes = false
     private val emptyOrNullOnlyArrayEncoder = arrayTypeEncoder(
-        encoder = PgTypeEncoder<Any>(PgType.Unknown) { _, buffer ->
-            buffer.writeByte(-1)
-        },
+        encoder = PgTypeEncoder<Any>(PgType.Unknown) { _, _ -> },
         pgType = PgType.Unknown,
     )
 
@@ -29,11 +29,7 @@ internal class PgTypeRegistry {
             ?: error("Could not find decoder when looking up oid = $oid")
     }
 
-    fun encode(value: Any?, buffer: ByteWriteBuffer) {
-        if (value == null) {
-            buffer.writeByte(-1)
-            return
-        }
+    fun encode(value: Any, buffer: ByteWriteBuffer) {
         return when (value) {
             is List<*> -> encodeList(value, buffer)
             else -> encodeInternal(value, buffer)
@@ -105,7 +101,7 @@ internal class PgTypeRegistry {
     internal fun checkAgainstExistingType(type: KType, oid: Int) {
         if (encoders.containsKey(type) || decoders.containsKey(oid)) {
             typeRegistryLogger.atWarn {
-                message = "Replacing default type definition for type = {type}"
+                message = "Replacing type definition for type = {type}"
                 payload = mapOf("type" to type)
             }
         }
@@ -177,6 +173,7 @@ internal class PgTypeRegistry {
             message = "Adding column decoder for type {name} ({oid})"
             payload = mapOf("oid" to verifiedOid)
         }
+        encoder.pgType = PgType.ByName(type, verifiedOid)
         checkAgainstExistingType(encoder.encodeType, verifiedOid)
         addTypeToCaches(verifiedOid, encoder, decoder)
 
@@ -189,18 +186,20 @@ internal class PgTypeRegistry {
         val arrayTypeEncoder = arrayTypeEncoder(encoder, PgType.ByName("_$type", arrayOid))
         checkAgainstExistingType(arrayTypeEncoder.encodeType, arrayOid)
         addTypeToCaches(
-            oid = verifiedOid,
+            oid = arrayOid,
             encoder = arrayTypeEncoder,
             decoder = arrayTypeDecoder(decoder),
         )
     }
 
-    suspend inline fun <reified E : Enum<E>, reified D : Enum<D>> PgConnection.registerEnumType(
+    suspend fun <E : Enum<E>, D : Enum<D>> registerEnumType(
+        connection: PgConnection,
         encoder: PgTypeEncoder<E>,
+        enumType: KType,
         decoder: PgTypeDecoder<D>,
         type: String,
     ) {
-        val verifiedOid = checkEnumDbTypeByName(type, this)
+        val verifiedOid = checkEnumDbTypeByName(type, connection)
             ?: error("Could not verify the enum type name '$type' in the database")
         typeRegistryLogger.atTrace {
             message = "Adding column decoder for enum type {name} ({oid})"
@@ -209,58 +208,60 @@ internal class PgTypeRegistry {
         checkAgainstExistingType(encoder.encodeType, verifiedOid)
         addTypeToCaches(verifiedOid, encoder, decoder)
 
-        val arrayOid = checkArrayDbTypeByOid(verifiedOid, this)
+        val arrayOid = checkArrayDbTypeByOid(verifiedOid, connection)
             ?: error("Could not verify the array type for element oid = $verifiedOid")
         typeRegistryLogger.atTrace {
             message = "Adding array column decoder for enum type {name} ({oid})"
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
-        val arrayTypeEncoder = arrayTypeEncoder(encoder, PgType.ByName("_$type", arrayOid))
+        val arrayTypeEncoder = arrayTypeEncoder(
+            encoder = encoder,
+            pgType = PgType.ByName("_$type", arrayOid),
+            arrayType = enumType,
+        )
         checkAgainstExistingType(arrayTypeEncoder.encodeType, arrayOid)
         addTypeToCaches(
             oid = arrayOid,
             encoder = arrayTypeEncoder,
-            decoder = arrayTypeDecoder(decoder),
+            decoder = arrayTypeDecoder(decoder, enumType),
         )
     }
 
-    suspend inline fun <reified E : Enum<E>> PgConnection.registerEnumType(type: String) {
-        registerEnumType(enumTypeEncoder<E>(type), enumTypeDecoder<E>(), type)
-    }
-
-    suspend inline fun <reified E : Any, reified D : Any> PgConnection.registerCompositeType(
+    @PublishedApi
+    internal suspend fun <E : Any, D : Any> registerCompositeType(
+        connection: PgConnection,
         encoder: PgTypeEncoder<E>,
         decoder: PgTypeDecoder<D>,
         type: String,
+        arrayType: KType,
     ) {
-        val verifiedOid = checkCompositeDbTypeByName(type, this)
+        val verifiedOid = checkCompositeDbTypeByName(type, connection)
             ?: error("Could not verify the composite type name '$type' in the database")
         typeRegistryLogger.atTrace {
             message = "Adding column decoder for composite type {name} ({oid})"
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
+        encoder.pgType = PgType.ByName(type, verifiedOid)
         checkAgainstExistingType(encoder.encodeType, verifiedOid)
         addTypeToCaches(verifiedOid, encoder, decoder)
 
-        val arrayOid = checkArrayDbTypeByOid(verifiedOid, this)
+        val arrayOid = checkArrayDbTypeByOid(verifiedOid, connection)
             ?: error("Could not verify the array type for element oid = $verifiedOid")
         typeRegistryLogger.atTrace {
             message = "Adding array column decoder for composite type {name} ({oid})"
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
-        val arrayTypeEncoder = arrayTypeEncoder(encoder, PgType.ByName("_$type", arrayOid))
+        val arrayTypeEncoder = arrayTypeEncoder(
+            encoder = encoder,
+            pgType = PgType.ByName("_$type", arrayOid),
+            arrayType = arrayType,
+        )
         checkAgainstExistingType(arrayTypeEncoder.encodeType, arrayOid)
         addTypeToCaches(
-            oid = verifiedOid,
+            oid = arrayOid,
             encoder = arrayTypeEncoder,
-            decoder = arrayTypeDecoder(decoder),
+            decoder = arrayTypeDecoder(decoder, arrayType),
         )
-    }
-
-    suspend inline fun <reified T : Any> PgConnection.registerCompositeType(type: String) {
-        val encoder = compositeTypeEncoder<T>(type, this@PgTypeRegistry)
-        val decoder = compositeTypeDecoder<T>(this@PgTypeRegistry)
-        registerCompositeType(encoder, decoder, type)
     }
 
     companion object {
@@ -559,10 +560,14 @@ internal class PgTypeRegistry {
             }
 
             val parameters = listOf(typeName, schema)
-            val result = connection.sendPreparedStatement(pgCompositeTypeByName, parameters)
-                .firstOrNull()
-                ?: error("Found no results when executing a check for composite db type by name")
-            val oid = result.rows.firstOrNull()?.getInt(0)
+            val oid = connection.sendPreparedStatement(pgCompositeTypeByName, parameters).use {
+                val result = it.firstOrNull() ?: error(
+                    "Found no results when executing a check for composite db type by name"
+                )
+                result.use { queryResult ->
+                    queryResult.rows.firstOrNull()?.getInt(0)
+                }
+            }
             if (oid == null) {
                 typeRegistryLogger.atWarn {
                     message = "Could not find composite type for name = {name}"

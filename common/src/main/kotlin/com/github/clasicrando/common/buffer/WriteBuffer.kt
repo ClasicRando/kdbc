@@ -46,9 +46,7 @@ interface WriteBuffer : AutoRelease {
 }
 
 fun WriteBuffer.writeFully(byteArray: ByteArray) {
-    for (i in byteArray.indices) {
-        this.writeByte(byteArray[i])
-    }
+    this.writeFully(byteArray, 0, byteArray.size)
 }
 
 fun WriteBuffer.writeText(text: String, charset: Charset = Charsets.UTF_8) {
