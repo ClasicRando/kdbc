@@ -66,12 +66,8 @@ internal class PgStream(
     internal suspend fun receiveNextServerMessage(): PgMessage {
         val format = connection.readByte().getOrThrow()
         val size = connection.readInt().getOrThrow()
-        val array = connection.readBuffer(size - 4).getOrThrow()
-        val rawMessage = RawMessage(
-            format = format,
-            size = size.toUInt(),
-            contents = array,
-        )
+        val buffer = connection.readBuffer(size - 4).getOrThrow()
+        val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
         return decoders.decode(rawMessage)
     }
 

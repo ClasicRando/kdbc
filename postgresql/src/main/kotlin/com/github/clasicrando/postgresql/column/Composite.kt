@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
-import com.github.clasicrando.common.buffer.readInt
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgCompositeLiteralParser
 import kotlin.reflect.KClass
@@ -94,7 +93,8 @@ internal class PgCompositeTypeDecoder<T : Any>(
             val typeOid = PgType.fromOid(value.bytes.readInt())
             val fieldDescription = dummyTypedFieldDescription(typeOid.oidOrUnknown())
             val attributeLength = value.bytes.readInt()
-            val slice = value.bytes.subSlice(attributeLength)
+            val slice = value.bytes.slice(attributeLength)
+            value.bytes.skip(attributeLength)
             val innerValue = PgValue.Binary(slice, fieldDescription)
             typeRegistry.decode(innerValue)
         }

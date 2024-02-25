@@ -1,13 +1,10 @@
 package com.github.clasicrando.postgresql.result
 
 import com.github.clasicrando.common.AutoRelease
-import com.github.clasicrando.common.buffer.ArrayReadBuffer
-import com.github.clasicrando.common.buffer.ReadBufferSlice
-import com.github.clasicrando.common.buffer.readInt
-import com.github.clasicrando.common.buffer.readShort
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 
-internal class PgRowBuffer(private val innerBuffer: ArrayReadBuffer) : AutoRelease {
-    val values: Array<ReadBufferSlice?> = run {
+internal class PgRowBuffer(private val innerBuffer: ByteReadBuffer) : AutoRelease {
+    val values: Array<ByteReadBuffer?> = run {
         val count = innerBuffer.readShort()
         Array(count.toInt()) {
             val length = innerBuffer.readInt()

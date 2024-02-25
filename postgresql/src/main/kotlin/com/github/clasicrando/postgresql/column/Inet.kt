@@ -1,7 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.readFully
-import com.github.clasicrando.common.buffer.writeFully
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgInet
 import java.net.Inet6Address
@@ -38,7 +36,7 @@ val inetTypeEncoder = PgTypeEncoder<PgInet>(PgType.Inet) { value, buffer ->
 
 val inetTypeDecoder = PgTypeDecoder { value ->
     val bytes = when (value) {
-        is PgValue.Binary -> value.bytes.readFully()
+        is PgValue.Binary -> value.bytes.readBytes()
         is PgValue.Text -> return@PgTypeDecoder PgInet.parse(value.text)
     }
     check(bytes.size >= 8) { "Inet value must be at least 8 bytes. Found ${bytes.size}" }

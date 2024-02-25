@@ -1,13 +1,12 @@
 package com.github.clasicrando.postgresql.type
 
-import com.github.clasicrando.common.buffer.ReadBuffer
-import com.github.clasicrando.common.buffer.readInt
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 data class PgPath(val isClosed: Boolean, val points: List<PgPoint>) {
     companion object {
         // https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1526
-        internal fun fromBytes(readBuffer: ReadBuffer): PgPath {
+        internal fun fromBytes(readBuffer: ByteReadBuffer): PgPath {
             val isClosed = readBuffer.readByte()
             val size = readBuffer.readInt()
             return PgPath(

@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.type
 
-import com.github.clasicrando.common.buffer.ReadBuffer
-import com.github.clasicrando.common.buffer.readInt
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) {
@@ -33,7 +32,7 @@ data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) {
         }
 
         // https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L3510
-        internal fun fromBytes(readBuffer: ReadBuffer): PgPolygon {
+        internal fun fromBytes(readBuffer: ByteReadBuffer): PgPolygon {
             val size = readBuffer.readInt()
             val points = (1..size).map { PgPoint.fromBytes(readBuffer) }
             return PgPolygon(boundBox = makeBoundBox(points), points = points)

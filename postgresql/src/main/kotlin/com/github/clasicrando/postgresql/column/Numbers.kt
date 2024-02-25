@@ -1,11 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.readDouble
-import com.github.clasicrando.common.buffer.readFloat
-import com.github.clasicrando.common.buffer.readInt
-import com.github.clasicrando.common.buffer.readLong
-import com.github.clasicrando.common.buffer.readShort
-
 val shortTypeEncoder = PgTypeEncoder<Short>(PgType.Int2) { value, buffer ->
     buffer.writeShort(value)
 }

@@ -77,8 +77,8 @@ class TestPgArrayType {
         val query = "SELECT x array_values FROM UNNEST($1) x"
 
         val result = PgConnectionHelper.defaultConnection().use {
-            it.sendPreparedStatement(query, listOf(values))
-        }.toList()
+            it.sendPreparedStatement(query, listOf(values)).toList()
+        }
 
         assertEquals(1, result.size)
         assertEquals(4, result[0].rowsAffected)
@@ -93,11 +93,11 @@ class TestPgArrayType {
 
         val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
             if (isPrepared) {
-                it.sendPreparedStatement(query, emptyList())
+                it.sendPreparedStatement(query, emptyList()).toList()
             } else {
-                it.sendQuery(query)
+                it.sendQuery(query).toList()
             }
-        }.toList()
+        }
 
         assertEquals(1, result.size)
         assertEquals(1, result[0].rowsAffected)

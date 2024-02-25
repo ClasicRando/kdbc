@@ -1,12 +1,10 @@
 package com.github.clasicrando.postgresql.type
 
-import com.github.clasicrando.common.buffer.ReadBuffer
-import com.github.clasicrando.common.buffer.readShort
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.math.max
 import kotlin.math.pow
-
 
 internal const val SIGN_NAN: Short = 0xC0
 internal const val SIGN_POSITIVE: Short = 0x0000
@@ -261,7 +259,7 @@ internal sealed class PgNumeric {
         }
 
         // https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1153
-        internal fun fromBytes(buffer: ReadBuffer): PgNumeric {
+        internal fun fromBytes(buffer: ByteReadBuffer): PgNumeric {
             val numDigits = buffer.readShort()
             val weight = buffer.readShort()
             val sign = buffer.readShort()

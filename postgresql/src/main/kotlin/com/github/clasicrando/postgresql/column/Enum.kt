@@ -1,7 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.readText
-import com.github.clasicrando.common.buffer.writeText
 import com.github.clasicrando.common.column.columnDecodeError
 
 inline fun <reified E : Enum<E>> enumTypeEncoder(name: String): PgTypeEncoder<E> {

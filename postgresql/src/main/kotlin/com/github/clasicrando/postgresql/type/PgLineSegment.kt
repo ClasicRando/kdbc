@@ -1,13 +1,13 @@
 package com.github.clasicrando.postgresql.type
 
-import com.github.clasicrando.common.buffer.ReadBuffer
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.column.checkOrColumnDecodeError
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 data class PgLineSegment(val point1: PgPoint, val point2: PgPoint) {
     companion object {
         // https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2111
-        internal fun fromBytes(readBuffer: ReadBuffer): PgLineSegment {
+        internal fun fromBytes(readBuffer: ByteReadBuffer): PgLineSegment {
             return PgLineSegment(
                 point1 = PgPoint.fromBytes(readBuffer),
                 point2 = PgPoint.fromBytes(readBuffer),

@@ -1,8 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
-import com.github.clasicrando.common.buffer.readFully
-import com.github.clasicrando.common.buffer.writeFully
 
 val byteArrayTypeEncoder = PgTypeEncoder<ByteArray>(PgType.Bytea) { value, buffer ->
     buffer.writeFully(value)
@@ -10,7 +8,7 @@ val byteArrayTypeEncoder = PgTypeEncoder<ByteArray>(PgType.Bytea) { value, buffe
 
 val byteArrayTypeDecoder = PgTypeDecoder { value ->
     when (value) {
-        is PgValue.Binary -> value.bytes.readFully()
+        is PgValue.Binary -> value.bytes.readBytes()
         is PgValue.Text -> {
             if (value.text.startsWith(HEX_START)) {
                 decodeWithPrefix(value.text)

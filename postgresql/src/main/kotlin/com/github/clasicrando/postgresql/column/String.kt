@@ -1,8 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.readText
-import com.github.clasicrando.common.buffer.writeText
-
 val stringTypeEncoder = PgTypeEncoder<String>(
     pgType = PgType.Text,
     compatibleTypes = arrayOf(

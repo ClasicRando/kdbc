@@ -1,13 +1,12 @@
 package com.github.clasicrando.postgresql.type
 
-import com.github.clasicrando.common.buffer.ReadBuffer
-import com.github.clasicrando.common.buffer.readDouble
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 data class PgCircle(val center: PgPoint, val radius: Double) {
     companion object {
         // https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4727
-        internal fun fromBytes(readBuffer: ReadBuffer): PgCircle {
+        internal fun fromBytes(readBuffer: ByteReadBuffer): PgCircle {
             return PgCircle(
                 center = PgPoint.fromBytes(readBuffer),
                 radius = readBuffer.readDouble(),

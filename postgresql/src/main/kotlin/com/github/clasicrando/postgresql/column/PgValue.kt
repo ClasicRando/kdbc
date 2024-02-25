@@ -1,15 +1,13 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.buffer.ReadBuffer
-import com.github.clasicrando.common.buffer.ReadBufferSlice
-import com.github.clasicrando.common.buffer.readText
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 
 sealed class PgValue(val typeData: PgColumnDescription) {
     class Text @PublishedApi internal constructor(
         val text: String,
         typeData: PgColumnDescription,
     ) : PgValue(typeData) {
-        constructor(bytes: ReadBuffer, typeData: PgColumnDescription)
+        constructor(bytes: ByteReadBuffer, typeData: PgColumnDescription)
                 : this(bytes.readText(), typeData)
 
         override fun toString(): String {
@@ -17,7 +15,7 @@ sealed class PgValue(val typeData: PgColumnDescription) {
         }
     }
     class Binary @PublishedApi internal constructor(
-        val bytes: ReadBufferSlice,
+        val bytes: ByteReadBuffer,
         typeData: PgColumnDescription,
     ) : PgValue(typeData) {
         override fun toString(): String {

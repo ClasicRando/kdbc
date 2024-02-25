@@ -1,9 +1,6 @@
 package com.github.clasicrando.postgresql.message.decoders
 
-import com.github.clasicrando.common.buffer.ReadBuffer
-import com.github.clasicrando.common.buffer.readBytes
-import com.github.clasicrando.common.buffer.readFully
-import com.github.clasicrando.common.buffer.readInt
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.message.MessageDecoder
 import com.github.clasicrando.common.splitAsCString
 import com.github.clasicrando.common.use
@@ -11,7 +8,7 @@ import com.github.clasicrando.postgresql.authentication.Authentication
 import com.github.clasicrando.postgresql.message.PgMessage
 
 internal object AuthenticationMessageDecoder : MessageDecoder<PgMessage.Authentication> {
-    private fun decodeAuth(buffer: ReadBuffer): Authentication {
+    private fun decodeAuth(buffer: ByteReadBuffer): Authentication {
         return when (val method = buffer.readInt()) {
             0 -> Authentication.Ok
             // Kerberos Auth does not appear to still be supported or the docs cannot be found
@@ -21,14 +18,14 @@ internal object AuthenticationMessageDecoder : MessageDecoder<PgMessage.Authenti
 //            7 -> Authentication.Gss
 //            8 -> Authentication.KerberosV5
             10 -> {
-                val bytes = buffer.readFully()
+                val bytes = buffer.readBytes()
                 Authentication.Sasl(bytes.splitAsCString())
             }
             11 -> Authentication.SaslContinue(
-                String(bytes = buffer.readFully())
+                String(bytes = buffer.readBytes())
             )
             12 -> Authentication.SaslFinal(
-                saslData = String(bytes = buffer.readFully())
+                saslData = String(bytes = buffer.readBytes())
             )
             else -> {
                 error("Unknown authentication method: $method")
@@ -36,7 +33,7 @@ internal object AuthenticationMessageDecoder : MessageDecoder<PgMessage.Authenti
         }
     }
 
-    override fun decode(buffer: ReadBuffer): PgMessage.Authentication {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.Authentication {
         val auth: Authentication = buffer.use { decodeAuth(it) }
         return PgMessage.Authentication(auth)
     }

@@ -1,31 +1,54 @@
 package com.github.clasicrando.common.buffer
 
+import com.github.clasicrando.common.AutoRelease
 import com.github.clasicrando.common.stream.AsyncStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 
-abstract class ByteWriteBuffer : WriteBuffer {
+abstract class ByteWriteBuffer : AutoRelease {
     // TODO remove direct dependency on java with kotlinx.io once the library matures
     @PublishedApi
     internal var innerBuffer = ByteBuffer.allocateDirect(2048)
 
-    override fun writeByte(byte: Byte) {
+    fun writeByte(byte: Byte) {
         innerBuffer.put(byte)
     }
 
-    override fun writeShort(short: Short) {
+    fun writeShort(short: Short) {
         innerBuffer.putShort(short)
     }
 
-    override fun writeInt(int: Int) {
+    fun writeInt(int: Int) {
         innerBuffer.putInt(int)
     }
 
-    override fun writeLong(long: Long) {
+    fun writeLong(long: Long) {
         innerBuffer.putLong(long)
     }
 
-    override fun writeFully(byteArray: ByteArray, offset: Int, length: Int) {
+    fun writeFloat(float: Float) {
+        innerBuffer.putFloat(float)
+    }
+
+    fun writeDouble(double: Double) {
+        innerBuffer.putDouble(double)
+    }
+
+    fun writeFully(byteArray: ByteArray, offset: Int, length: Int) {
         innerBuffer.put(byteArray, offset, length)
+    }
+
+    fun writeFully(byteArray: ByteArray) {
+        innerBuffer.put(byteArray, 0, byteArray.size)
+    }
+
+    fun writeText(content: String) {
+        writeFully(content.toByteArray())
+    }
+
+    fun writeCString(content: String) {
+        writeFully(content.toByteArray(charset = Charsets.UTF_8))
+        writeByte(0)
     }
 
     override fun release() {
@@ -56,8 +79,15 @@ abstract class ByteWriteBuffer : WriteBuffer {
         innerBuffer.putInt(startIndex, length)
     }
 
-    fun writeCString(content: String) {
-        writeFully(content.toByteArray(charset = Charsets.UTF_8))
-        writeByte(0)
+    fun outputStream(): OutputStream = object : OutputStream() {
+        override fun write(b: Int) {
+            this@ByteWriteBuffer.writeByte(b.toByte())
+        }
+
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            this@ByteWriteBuffer.writeFully(byteArray = b, offset = off, length = len)
+        }
+
+        override fun close() {}
     }
 }

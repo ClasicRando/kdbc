@@ -1,7 +1,6 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
-import com.github.clasicrando.common.buffer.readInt
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.array.ArrayLiteralParser
 import kotlin.reflect.KType
@@ -113,7 +112,8 @@ fun <T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
             List(length) {
                 // Read length value but don't use it since a ReadBufferSlice cannot be constructed
                 val elementLength = value.bytes.readInt()
-                val slice = value.bytes.subSlice(elementLength)
+                val slice = value.bytes.slice(elementLength)
+                value.bytes.skip(elementLength)
                 decoder.decode(PgValue.Binary(slice, fieldDescription))
             }
         }

@@ -1,14 +1,13 @@
 package com.github.clasicrando.postgresql.message.decoders
 
-import com.github.clasicrando.common.buffer.ReadBuffer
-import com.github.clasicrando.common.buffer.readShort
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.message.MessageDecoder
 import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.copy.CopyFormat
 import com.github.clasicrando.postgresql.message.PgMessage
 
 internal object CopyInResponseDecoder : MessageDecoder<PgMessage.CopyInResponse> {
-    override fun decode(buffer: ReadBuffer): PgMessage.CopyInResponse {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.CopyInResponse {
         return buffer.use { buf ->
             val copyFormat = CopyFormat.fromByte(buf.readByte())
             val columnCount = buf.readShort().toInt()

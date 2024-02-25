@@ -1,6 +1,6 @@
 package com.github.clasicrando.common.stream
 
-import com.github.clasicrando.common.buffer.ArrayReadBuffer
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.InetSocketAddress
@@ -132,11 +132,11 @@ class Nio2AsyncStream(private val address: InetSocketAddress) : AsyncStream {
         return Result.success(intRead.getInt())
     }
 
-    override suspend fun readBuffer(size: Int): Result<ArrayReadBuffer> {
+    override suspend fun readBuffer(size: Int): Result<ByteReadBuffer> {
         val bytes = ByteArray(size)
         if (readBuffer.remaining() >= size) {
             readBuffer.get(bytes)
-            return Result.success(ArrayReadBuffer(bytes))
+            return Result.success(ByteReadBuffer(bytes))
         }
         val available = readBuffer.remaining()
         readBuffer.get(bytes, 0, available)
@@ -147,7 +147,7 @@ class Nio2AsyncStream(private val address: InetSocketAddress) : AsyncStream {
         }
 
         readBuffer.get(bytes, available, bytes.size - available)
-        return Result.success(ArrayReadBuffer(bytes))
+        return Result.success(ByteReadBuffer(bytes))
     }
 
     override fun release() {
