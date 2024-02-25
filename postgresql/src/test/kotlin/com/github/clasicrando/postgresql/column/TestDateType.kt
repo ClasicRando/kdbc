@@ -17,11 +17,9 @@ class TestDateType {
 
         PgConnectionHelper.defaultConnection().use { conn ->
             conn.sendPreparedStatement(query, listOf(localDate)).use { results ->
-                val result = results.toList()
-
-                assertEquals(1, result.size)
-                assertEquals(1, result[0].rowsAffected)
-                val rows = result[0].rows.toList()
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
                 assertEquals(1, rows.size)
                 assertEquals(localDate, rows.map { it.getLocalDate("date_col") }.first())
             }
@@ -38,11 +36,9 @@ class TestDateType {
             } else {
                 conn.sendQuery(query)
             }.use { results ->
-                val result = results.toList()
-
-                assertEquals(1, result.size)
-                assertEquals(1, result[0].rowsAffected)
-                val rows = result[0].rows.toList()
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
                 assertEquals(1, rows.size)
                 assertEquals(localDate, rows.map { it.getLocalDate(0)!! }.first())
             }

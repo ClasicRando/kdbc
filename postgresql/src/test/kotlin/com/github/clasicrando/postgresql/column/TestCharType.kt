@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.result.getByte
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
@@ -17,33 +18,33 @@ class TestCharType {
     fun `encode should accept Byte when querying postgresql`(value: Byte) = runBlocking {
         val query = "SELECT $1 char_col;"
 
-        val result = PgConnectionHelper.defaultConnection().use {
-            it.sendPreparedStatement(query, listOf(value))
-        }.toList()
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        assertEquals(value, rows.map { it.getByte("char_col") }.first())
+        PgConnectionHelper.defaultConnection().use { conn ->
+            conn.sendPreparedStatement(query, listOf(value)).use { results ->
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(1, rows.size)
+                assertEquals(value, rows.map { it.getByte("char_col") }.first())
+            }
+        }
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT char_field FROM char_test ORDER BY char_field;"
 
-        val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             if (isPrepared) {
-                it.sendPreparedStatement(query, emptyList())
+                conn.sendPreparedStatement(query, emptyList())
             } else {
-                it.sendQuery(query)
+                conn.sendQuery(query)
+            }.use { results ->
+                assertEquals(1, results.size)
+                assertEquals(3, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(3, rows.size)
+                Assertions.assertArrayEquals(bytes, rows.map { it.getByte(0)!! }.toByteArray())
             }
-        }.toList()
-
-        assertEquals(1, result.size)
-        assertEquals(3, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(3, rows.size)
-        Assertions.assertArrayEquals(bytes, rows.map { it.getByte(0)!! }.toByteArray())
+        }
     }
 
     @Test

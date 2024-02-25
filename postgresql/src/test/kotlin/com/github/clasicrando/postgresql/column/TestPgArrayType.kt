@@ -3,6 +3,7 @@ package com.github.clasicrando.postgresql.column
 import com.github.clasicrando.common.column.ColumnDecodeError
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.result.getAs
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
@@ -76,34 +77,34 @@ class TestPgArrayType {
         val values = listOf(1, 2, 3, 4)
         val query = "SELECT x array_values FROM UNNEST($1) x"
 
-        val result = PgConnectionHelper.defaultConnection().use {
-            it.sendPreparedStatement(query, listOf(values)).toList()
+        PgConnectionHelper.defaultConnection().use { conn ->
+            conn.sendPreparedStatement(query, listOf(values)).use { results ->
+                assertEquals(1, results.size)
+                assertEquals(4, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(4, rows.size)
+                Assertions.assertIterableEquals(values, rows.map { it.getAs<Int>("array_values") })
+            }
         }
-
-        assertEquals(1, result.size)
-        assertEquals(4, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(4, rows.size)
-        Assertions.assertIterableEquals(values, rows.map { it.getAs<Int>("array_values") })
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val expectedResult = listOf(1, 2, 3, 4)
         val query = "SELECT ARRAY[1,2,3,4]::int[]"
 
-        val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             if (isPrepared) {
-                it.sendPreparedStatement(query, emptyList()).toList()
+                conn.sendPreparedStatement(query, emptyList())
             } else {
-                it.sendQuery(query).toList()
+                conn.sendQuery(query)
+            }.use { results ->
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(1, rows.size)
+                Assertions.assertIterableEquals(expectedResult, rows.map { it.getAs<List<Int>>(0) }.first())
             }
         }
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        Assertions.assertIterableEquals(expectedResult, rows.map { it.getAs<List<Int>>(0) }.first())
     }
 
     @Test

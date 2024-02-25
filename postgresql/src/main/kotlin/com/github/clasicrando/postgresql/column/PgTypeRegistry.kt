@@ -117,81 +117,6 @@ internal class PgTypeRegistry {
         decoders[oid] = decoder
     }
 
-    /**
-     * Register a new decoder with the specified [type] as it's type oid. You should prefer the
-     * other [registerType] method that accepts a type name since a non-standard type's oid
-     * might vary between database instances.
-     *
-     * Note, if you provide a type oid that belongs to a built-in type, this new type definition
-     * will override the default and possibly cause the decoding and encoding of values to fail
-     */
-    suspend inline fun <reified E : Any, reified D : Any> PgConnection.registerType(
-        type: Int,
-        encoder: PgTypeEncoder<E>,
-        decoder: PgTypeDecoder<D>,
-    ) {
-        val verifiedOid = checkDbTypeByOid(type, this)
-            ?: error("Could not verify the type name '$type' in the database")
-        typeRegistryLogger.atTrace {
-            message = "Adding column decoder for type {name} ({oid})"
-            payload = mapOf("oid" to verifiedOid)
-        }
-        checkAgainstExistingType(encoder.encodeType, verifiedOid)
-        addTypeToCaches(verifiedOid, encoder, decoder)
-
-        val arrayOid = checkArrayDbTypeByOid(verifiedOid, this)
-            ?: error("Could not verify the array type for element oid = $verifiedOid")
-        typeRegistryLogger.atTrace {
-            message = "Adding array column decoder for type {name} ({oid})"
-            payload = mapOf("oid" to verifiedOid)
-        }
-        val arrayTypeEncoder = arrayTypeEncoder(encoder, PgType.ByOid(arrayOid))
-        checkAgainstExistingType(arrayTypeEncoder.encodeType, arrayOid)
-        addTypeToCaches(
-            oid = verifiedOid,
-            encoder = arrayTypeEncoder,
-            decoder = arrayTypeDecoder(decoder),
-        )
-    }
-
-    /**
-     * Register a new decoder with the specified [type] name. You should prefer this method over
-     * the other [registerType] method since it allows the connection cache the oid on
-     * startup and always match your database instance.
-     *
-     * Note, if you provide a type oid that belongs to a built-in type, this new type definition
-     * will override the default and possibly cause the decoding and encoding of values to fail
-     */
-    suspend inline fun <reified E : Any, reified D : Any> PgConnection.registerType(
-        type: String,
-        encoder: PgTypeEncoder<E>,
-        decoder: PgTypeDecoder<D>,
-    ) {
-        val verifiedOid = checkDbTypeByName(type, this)
-            ?: error("Could not verify the type name '$type' in the database")
-        typeRegistryLogger.atTrace {
-            message = "Adding column decoder for type {name} ({oid})"
-            payload = mapOf("oid" to verifiedOid)
-        }
-        encoder.pgType = PgType.ByName(type, verifiedOid)
-        checkAgainstExistingType(encoder.encodeType, verifiedOid)
-        addTypeToCaches(verifiedOid, encoder, decoder)
-
-        val arrayOid = checkArrayDbTypeByOid(verifiedOid, this)
-            ?: error("Could not verify the array type for element oid = $verifiedOid")
-        typeRegistryLogger.atTrace {
-            message = "Adding array column decoder for type {name} ({oid})"
-            payload = mapOf("oid" to verifiedOid)
-        }
-        val arrayTypeEncoder = arrayTypeEncoder(encoder, PgType.ByName("_$type", arrayOid))
-        checkAgainstExistingType(arrayTypeEncoder.encodeType, arrayOid)
-        addTypeToCaches(
-            oid = arrayOid,
-            encoder = arrayTypeEncoder,
-            decoder = arrayTypeDecoder(decoder),
-        )
-    }
-
     suspend fun <E : Enum<E>, D : Enum<D>> registerEnumType(
         connection: PgConnection,
         encoder: PgTypeEncoder<E>,
@@ -421,21 +346,6 @@ internal class PgTypeRegistry {
             PgType.POLYGON_ARRAY to arrayTypeDecoder(polygonTypeDecoder),
         )
 
-        private val pgTypeByOid =
-            """
-            select null
-            from pg_type
-            where oid = $1
-            """.trimIndent()
-        private val pgTypeByName =
-            """
-            select t.oid
-            from pg_type t
-            join pg_namespace n on t.typnamespace = n.oid
-            where
-                t.typname = $1
-                and n.nspname = coalesce(nullif($2,''), 'public')
-            """.trimIndent()
         private val pgEnumTypeByName =
             """
             select t.oid
@@ -464,58 +374,24 @@ internal class PgTypeRegistry {
             """.trimIndent()
 
         @PublishedApi
-        internal suspend fun checkDbTypeByOid(oid: Int, connection: PgConnection): Int? {
-            val result = connection.sendPreparedStatement(pgTypeByOid, listOf(oid))
-                .firstOrNull()
-                ?: error("Found no results when executing a check for db type by oid")
-            if (result.rowsAffected == 0L) {
-                typeRegistryLogger.atWarn {
-                    message = "Could not find type for oid = {oid}"
-                    payload = mapOf("oid" to oid)
-                }
-                return null
-            }
-            return oid
-        }
-
-        @PublishedApi
         internal suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgConnection): Int? {
-            val result = connection.sendPreparedStatement(pgArrayTypeByInnerOid, listOf(oid))
-                .firstOrNull()
-                ?: error("Found no results when executing a check for array db type by oid")
-            if (result.rowsAffected == 0L) {
+            val arrayOid = connection.sendPreparedStatement(
+                query = pgArrayTypeByInnerOid,
+                parameters = listOf(oid)
+            ).use {
+                val result = it.firstOrNull()
+                    ?: error("Found no results when executing a check for array db type by oid")
+                result.rows.firstOrNull()?.getInt(0)
+            }
+
+            if (arrayOid == null) {
                 typeRegistryLogger.atWarn {
                     message = "Could not find array type for oid = {oid}"
                     payload = mapOf("oid" to oid)
                 }
                 return null
             }
-            return result.rows.firstOrNull()?.getInt(0)
-        }
-
-        @PublishedApi
-        internal suspend fun checkDbTypeByName(name: String, connection: PgConnection): Int? {
-            var schema: String? = null
-            var typeName = name
-            val schemaQualifierIndex = name.indexOf('.')
-            if (schemaQualifierIndex > -1) {
-                schema = name.substring(0, schemaQualifierIndex)
-                typeName = name.substring(schemaQualifierIndex + 1)
-            }
-
-            val result = connection.sendPreparedStatement(
-                pgTypeByName,
-                listOf(typeName, schema),
-            ).firstOrNull() ?: error("Found no results when executing a check for db type by name")
-            val oid = result.rows.firstOrNull()?.getInt(0)
-            if (oid == null) {
-                typeRegistryLogger.atWarn {
-                    message = "Could not find type for name = {name}"
-                    payload = mapOf("name" to name)
-                }
-                return null
-            }
-            return oid
+            return arrayOid
         }
 
         @PublishedApi
@@ -532,10 +408,11 @@ internal class PgTypeRegistry {
             }
 
             val parameters = listOf(typeName, schema)
-            val result = connection.sendPreparedStatement(pgEnumTypeByName, parameters)
-                .firstOrNull()
-                ?: error("Found no results when executing a check for enum db type by name")
-            val oid = result.rows.firstOrNull()?.getInt(0)
+            val oid = connection.sendPreparedStatement(pgEnumTypeByName, parameters).use {
+                val result = it.firstOrNull()
+                    ?: error("Found no results when executing a check for enum db type by name")
+                result.rows.firstOrNull()?.getInt(0)
+            }
             if (oid == null) {
                 typeRegistryLogger.atWarn {
                     message = "Could not find enum type for name = {name}"
@@ -564,9 +441,7 @@ internal class PgTypeRegistry {
                 val result = it.firstOrNull() ?: error(
                     "Found no results when executing a check for composite db type by name"
                 )
-                result.use { queryResult ->
-                    queryResult.rows.firstOrNull()?.getInt(0)
-                }
+                result.rows.firstOrNull()?.getInt(0)
             }
             if (oid == null) {
                 typeRegistryLogger.atWarn {

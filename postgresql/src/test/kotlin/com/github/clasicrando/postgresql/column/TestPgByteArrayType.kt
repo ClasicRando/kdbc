@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.result.getAs
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
@@ -55,40 +56,40 @@ class TestPgByteArrayType {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
         val query = "SELECT $1 bytea_col;"
 
-        val result = PgConnectionHelper.defaultConnection().use {
-            it.sendPreparedStatement(query, listOf(expectedResult))
-        }.toList()
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        Assertions.assertArrayEquals(
-            expectedResult,
-            rows.map { it.getAs<ByteArray>("bytea_col") }.first(),
-        )
+        PgConnectionHelper.defaultConnection().use { conn ->
+            conn.sendPreparedStatement(query, listOf(expectedResult)).use { results ->
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(1, rows.size)
+                Assertions.assertArrayEquals(
+                    expectedResult,
+                    rows.map { it.getAs<ByteArray>("bytea_col") }.first(),
+                )
+            }
+        }
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
         val query = "SELECT decode('4f5a90', 'hex') bytea_col;"
 
-        val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             if (isPrepared) {
-                it.sendPreparedStatement(query, emptyList())
+                conn.sendPreparedStatement(query, emptyList())
             } else {
-                it.sendQuery(query)
+                conn.sendQuery(query)
+            }.use { results ->
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(1, rows.size)
+                Assertions.assertArrayEquals(
+                    expectedResult,
+                    rows.map { it.getAs<ByteArray>("bytea_col") }.first(),
+                )
             }
-        }.toList()
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        Assertions.assertArrayEquals(
-            expectedResult,
-            rows.map { it.getAs<ByteArray>("bytea_col") }.first(),
-        )
+        }
     }
 
     @Test

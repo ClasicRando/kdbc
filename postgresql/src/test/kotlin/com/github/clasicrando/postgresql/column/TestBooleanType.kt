@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.result.getBoolean
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.params.ParameterizedTest
@@ -14,33 +15,33 @@ class TestBooleanType {
     fun `encode should accept Boolean when querying postgresql`(value: Boolean) = runBlocking {
         val query = "SELECT $1 bool_col;"
 
-        val result = PgConnectionHelper.defaultConnection().use {
-            it.sendPreparedStatement(query, listOf(value))
-        }.toList()
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        assertEquals(value, rows.map { it.getBoolean("bool_col") }.first())
+        PgConnectionHelper.defaultConnection().use { conn ->
+            conn.sendPreparedStatement(query, listOf(value)).use { results ->
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(1, rows.size)
+                assertEquals(value, rows.map { it.getBoolean("bool_col") }.first())
+            }
+        }
     }
 
     private suspend fun decodeTest(value: Boolean, isPrepared: Boolean) {
         val query = "SELECT $value;"
 
-        val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             if (isPrepared) {
-                it.sendPreparedStatement(query, emptyList())
+                conn.sendPreparedStatement(query, emptyList())
             } else {
-                it.sendQuery(query)
+                conn.sendQuery(query)
+            }.use { results ->
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(1, rows.size)
+                assertEquals(value, rows.map { it.getBoolean(0) }.first())
             }
-        }.toList()
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        assertEquals(value, rows.map { it.getBoolean(0) }.first())
+        }
     }
 
     @ParameterizedTest

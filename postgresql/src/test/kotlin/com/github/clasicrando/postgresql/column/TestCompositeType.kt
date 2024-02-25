@@ -3,6 +3,7 @@ package com.github.clasicrando.postgresql.column
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.datetime.DateTime
 import com.github.clasicrando.common.result.getAs
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
@@ -19,35 +20,35 @@ class TestCompositeType {
     fun `encode should accept CompositeTest when querying postgresql`() = runBlocking {
         val query = "SELECT $1 composite_col;"
 
-        val result = PgConnectionHelper.defaultConnection().use {
-            it.registerCompositeType<CompositeType>("composite_type")
-            it.sendPreparedStatement(query, listOf(type))
-        }.toList()
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        assertEquals(type, rows.map { it.getAs<CompositeType>("composite_col") }.first())
+        PgConnectionHelper.defaultConnection().use { conn ->
+            conn.registerCompositeType<CompositeType>("composite_type")
+            conn.sendPreparedStatement(query, listOf(type)).use { results ->
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(1, rows.size)
+                assertEquals(type, rows.map { it.getAs<CompositeType>("composite_col") }.first())
+            }
+        }
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT row(1,'Composite Type','2024-02-25T05:25:51Z')::composite_type;"
 
-        val result = PgConnectionHelper.defaultConnectionWithForcedSimple().use {
-            it.registerCompositeType<CompositeType>("composite_type")
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+            conn.registerCompositeType<CompositeType>("composite_type")
             if (isPrepared) {
-                it.sendPreparedStatement(query, emptyList())
+                conn.sendPreparedStatement(query, emptyList())
             } else {
-                it.sendQuery(query)
+                conn.sendQuery(query)
+            }.use { results ->
+                assertEquals(1, results.size)
+                assertEquals(1, results[0].rowsAffected)
+                val rows = results[0].rows.toList()
+                assertEquals(1, rows.size)
+                assertEquals(type, rows.map { it.getAs<CompositeType>(0)!! }.first())
             }
-        }.toList()
-
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].rowsAffected)
-        val rows = result[0].rows.toList()
-        assertEquals(1, rows.size)
-        assertEquals(type, rows.map { it.getAs<CompositeType>(0)!! }.first())
+        }
     }
 
     @Test
