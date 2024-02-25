@@ -5,7 +5,7 @@ import com.github.clasicrando.common.stream.AsyncStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
 
-abstract class ByteWriteBuffer : AutoRelease {
+class ByteWriteBuffer : AutoRelease {
     // TODO remove direct dependency on java with kotlinx.io once the library matures
     @PublishedApi
     internal var innerBuffer = ByteBuffer.allocateDirect(2048)

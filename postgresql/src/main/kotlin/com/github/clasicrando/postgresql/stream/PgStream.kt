@@ -1,7 +1,7 @@
 package com.github.clasicrando.postgresql.stream
 
 import com.github.clasicrando.common.Loop
-import com.github.clasicrando.common.message.MessageSendBuffer
+import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.stream.AsyncStream
 import com.github.clasicrando.common.stream.Nio2AsyncStream
 import com.github.clasicrando.postgresql.GeneralPostgresError
@@ -37,7 +37,7 @@ internal class PgStream(
     private val pgStreamId: UUID = UUID.generateUUID()
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
-    private val messageSendBuffer = MessageSendBuffer()
+    private val messageSendBuffer = ByteWriteBuffer()
 
     override val coroutineContext: CoroutineContext get() = Job(parent = scope.coroutineContext.job)
 
@@ -194,7 +194,7 @@ internal class PgStream(
 
     val isConnected: Boolean get() = connection.isConnected
 
-    private suspend inline fun writeBuffer(crossinline block: (MessageSendBuffer) -> Unit) {
+    private suspend inline fun writeBuffer(crossinline block: (ByteWriteBuffer) -> Unit) {
         try {
             messageSendBuffer.release()
             block(messageSendBuffer)

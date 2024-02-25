@@ -54,7 +54,7 @@ private fun String.getOrThrow(index: Int): Char {
 }
 
 private fun decodeWithoutPrefix(value: String): ByteArray {
-    val buffer = object : ByteWriteBuffer() {}
+    val buffer = ByteWriteBuffer()
     val maxIndex = value.length - 1
     var index = 0
 
