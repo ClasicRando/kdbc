@@ -21,6 +21,7 @@ import com.github.clasicrando.postgresql.column.timeTypeDecoder
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.UtcOffset
 
 internal class PgDataRow(
     private val rowBuffer: PgRowBuffer,
@@ -154,6 +155,10 @@ internal class PgDataRow(
         val pgValue = getPgValue(index) ?: return null
         checkPgValue<DateTime>(pgValue, PgType.Timestamptz)
         return dateTimeTypeDecoder.decode(pgValue)
+    }
+
+    override fun getDateTime(index: Int, offset: UtcOffset): DateTime? {
+        return getDateTime(index)?.withOffset(offset)
     }
 
     override fun getString(index: Int): String? {

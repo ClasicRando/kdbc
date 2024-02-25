@@ -6,6 +6,7 @@ import com.github.clasicrando.common.datetime.DateTime
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.UtcOffset
 
 /**
  * Representation of a [ResultSet] row. Allows for fetching of each field's value by index or
@@ -156,7 +157,18 @@ interface DataRow : AutoRelease {
      * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
      * type, or the decode operation failed
      */
-    fun getDateTime(index: Int): DateTime?
+    fun getDateTime(index: Int): DateTime? = getDateTime(index, UtcOffset(seconds = 0))
+
+    /**
+     * Get the value stored within the field at the [index] specified, performing a non-safe cast to
+     * [DateTime].
+     *
+     * @throws IllegalArgumentException if the index is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getDateTime(index: Int, offset: UtcOffset): DateTime?
 
     /**
      * Get the value stored within the field at the [index] specified, performing a non-safe cast to
@@ -255,7 +267,17 @@ fun DataRow.getLocalDateTime(column: String): LocalDateTime? {
  * Get the value stored within the field of [column] specified, performing a non-safe cast to
  * [DateTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
  */
-fun DataRow.getDateTime(column: String): DateTime? = getDateTime(indexFromColumn(column))
+fun DataRow.getDateTime(column: String): DateTime? {
+    return getDateTime(indexFromColumn(column), UtcOffset(seconds = 0))
+}
+
+/**
+ * Get the value stored within the field of [column] specified, performing a non-safe cast to
+ * [DateTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ */
+fun DataRow.getDateTime(column: String, offset: UtcOffset): DateTime? {
+    return getDateTime(indexFromColumn(column), offset)
+}
 
 /**
  * Get the value stored within the field of [column] specified, performing a non-safe cast to

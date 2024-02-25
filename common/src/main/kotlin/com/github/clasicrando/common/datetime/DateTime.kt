@@ -5,6 +5,9 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
+import kotlinx.datetime.asTimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Type storing a [LocalDateTime] as well the corresponding [TimeZone] to clarify the UTC offset of
@@ -15,6 +18,12 @@ import kotlinx.datetime.UtcOffset
 data class DateTime(val datetime: LocalDateTime, val offset: UtcOffset) {
     constructor(date: LocalDate, time: LocalTime, offset: UtcOffset)
             : this(LocalDateTime(date, time), offset)
+
+    fun withOffset(offset: UtcOffset): DateTime {
+        val newDateTime = datetime.toInstant(this.offset)
+            .toLocalDateTime(offset.asTimeZone())
+        return DateTime(newDateTime, offset)
+    }
 
     override fun toString(): String {
         return "$datetime$offset"

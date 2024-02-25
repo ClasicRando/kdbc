@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 
 class TestDateType {
     @Test
-    fun `encode should accept CompositeTest when querying postgresql`() = runBlocking {
+    fun `encode should accept LocalDate when querying postgresql`() = runBlocking {
         val localDate = LocalDate(year = 2024, monthNumber = 2, dayOfMonth = 25)
         val query = "SELECT $1 date_col;"
 
@@ -46,12 +46,12 @@ class TestDateType {
     }
 
     @Test
-    fun `decode should return CompositeType when simple querying postgresql composite`(): Unit = runBlocking {
+    fun `decode should return LocalDate when simple querying postgresql date`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
-    fun `decode should return CompositeType when extended querying postgresql composite`(): Unit = runBlocking {
+    fun `decode should return LocalDate when extended querying postgresql date`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }
 }
