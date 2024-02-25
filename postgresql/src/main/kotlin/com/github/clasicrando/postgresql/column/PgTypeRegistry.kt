@@ -4,10 +4,13 @@ import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.connection.PgConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.datetime.DateTimePeriod
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KType
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
+import kotlin.reflect.full.isSubtypeOf
+import kotlin.reflect.typeOf
 
 @PublishedApi
 internal val typeRegistryLogger = KotlinLogging.logger {}
@@ -17,10 +20,6 @@ internal class PgTypeRegistry {
     private val encoders: MutableMap<KType, PgTypeEncoder<*>> = ConcurrentHashMap(defaultEncoders.associateBy { it.encodeType })
     private val decoders: MutableMap<Int, PgTypeDecoder<*>> = ConcurrentHashMap(defaultDecoders)
     private var hasPostGisTypes = false
-    private val emptyOrNullOnlyArrayEncoder = arrayTypeEncoder(
-        encoder = PgTypeEncoder<Any>(PgType.Unknown) { _, _ -> },
-        pgType = PgType.Unknown,
-    )
 
     fun decode(value: PgValue): Any {
         val oid = value.typeData.dataType
@@ -31,6 +30,7 @@ internal class PgTypeRegistry {
 
     fun encode(value: Any, buffer: ByteWriteBuffer) {
         return when (value) {
+            is DateTimePeriod -> dateTimePeriodTypeEncoder.encode(value, buffer)
             is List<*> -> encodeList(value, buffer)
             else -> encodeInternal(value, buffer)
         }
@@ -43,6 +43,10 @@ internal class PgTypeRegistry {
             return
         }
         val elementType = value[0]!!::class.createType(nullable = true)
+        if (value[0] is DateTimePeriod) {
+            dateTimePeriodArrayTypeEncoder.encode(value as List<DateTimePeriod>, buffer)
+            return
+        }
         val typeParameter = KTypeProjection.invariant(elementType)
         val type = List::class.createType(arguments = listOf(typeParameter))
         val encoder = encoders[type]
@@ -59,7 +63,16 @@ internal class PgTypeRegistry {
     }
 
     internal fun kindOf(type: KType): PgType {
-        return encoders[type]?.pgType ?: error("Could not find type Oid looking up type = $type")
+        val pgType = encoders[type]?.pgType
+        if (pgType != null) {
+            return pgType
+        }
+        return when {
+            !type.isSubtypeOf(dateTimePeriodType) -> {
+                error("Could not find type Oid looking up type = $type")
+            }
+            else -> dateTimePeriodTypeEncoder.pgType
+        }
     }
 
     private fun <T> kindOf(value: List<T>): PgType {
@@ -67,6 +80,9 @@ internal class PgTypeRegistry {
             return PgType.Unspecified
         }
         val elementType = value[0]!!::class.createType(nullable = true)
+        if (elementType.isSubtypeOf(dateTimePeriodType)) {
+            return dateTimePeriodArrayTypeEncoder.pgType
+        }
         val typeParameter = KTypeProjection.invariant(elementType)
         val type = List::class.createType(arguments = listOf(typeParameter))
         return kindOf(type)
@@ -190,6 +206,17 @@ internal class PgTypeRegistry {
     }
 
     companion object {
+        private val dateTimePeriodType = typeOf<DateTimePeriod>()
+        private val dateTimePeriodArrayTypeEncoder = arrayTypeEncoder(
+            encoder = dateTimePeriodTypeEncoder,
+            pgType = PgType.IntervalArray,
+        )
+
+        private val emptyOrNullOnlyArrayEncoder = arrayTypeEncoder(
+            encoder = PgTypeEncoder<Any>(PgType.Unknown) { _, _ -> },
+            pgType = PgType.Unknown,
+        )
+
         private val defaultEncoders: List<PgTypeEncoder<*>> = listOf(
             booleanTypeEncoder,
             arrayTypeEncoder(booleanTypeEncoder, PgType.BoolArray),
@@ -232,7 +259,6 @@ internal class PgTypeRegistry {
             arrayTypeEncoder(jsonTypeEncoder, PgType.JsonArray),
             inetTypeEncoder,
             arrayTypeEncoder(inetTypeEncoder, PgType.InetArray),
-
             dateTypeEncoder,
             arrayTypeEncoder(dateTypeEncoder, PgType.DateArray),
             timeTypeEncoder,
@@ -249,8 +275,6 @@ internal class PgTypeRegistry {
             ),
             timeTzTypeEncoder,
             arrayTypeEncoder(timeTzTypeEncoder, PgType.TimetzArray),
-            dateTimePeriodTypeEncoder,
-            arrayTypeEncoder(dateTimePeriodTypeEncoder, PgType.IntervalArray),
         )
 
         private val postGisEncoders: List<PgTypeEncoder<*>> = listOf(
