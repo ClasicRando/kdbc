@@ -157,7 +157,7 @@ interface DataRow : AutoRelease {
      * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
      * type, or the decode operation failed
      */
-    fun getDateTime(index: Int): DateTime? = getDateTime(index, UtcOffset(seconds = 0))
+    fun getDateTime(index: Int): DateTime?
 
     /**
      * Get the value stored within the field at the [index] specified, performing a non-safe cast to
