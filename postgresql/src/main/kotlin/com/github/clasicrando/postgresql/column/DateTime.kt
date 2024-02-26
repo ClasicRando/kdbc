@@ -19,6 +19,7 @@ private val postgresEpochInstant = LocalDateTime(
     second = 0,
 ).toInstant(UtcOffset.ZERO)
 
+// https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L814
 val dateTimeTypeEncoder = PgTypeEncoder<DateTime>(PgType.Timestamptz) { value, buffer ->
     val durationSinceEpoch = value.datetime.toInstant(value.offset) - postgresEpochInstant
     buffer.writeLong(durationSinceEpoch.inWholeMicroseconds)
@@ -26,15 +27,18 @@ val dateTimeTypeEncoder = PgTypeEncoder<DateTime>(PgType.Timestamptz) { value, b
 
 val dateTimeTypeDecoder = PgTypeDecoder { value ->
     when (value) {
+        // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L848
         is PgValue.Binary -> {
             val microSeconds = value.bytes.readLong()
             val instant = postgresEpochInstant + microSeconds.toDuration(DurationUnit.MICROSECONDS)
             DateTime(datetime = instant.toLocalDateTime(TimeZone.UTC), offset = UtcOffset.ZERO)
         }
+        // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L786
         is PgValue.Text -> DateTime.fromString(value.text)
     }
 }
 
+// https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L259
 val localDateTimeTypeEncoder = PgTypeEncoder<LocalDateTime>(PgType.Timestamp) { value, buffer ->
     val durationSinceEpoch = value.toInstant(UtcOffset.ZERO) - postgresEpochInstant
     buffer.writeLong(durationSinceEpoch.inWholeMicroseconds)
@@ -42,11 +46,13 @@ val localDateTimeTypeEncoder = PgTypeEncoder<LocalDateTime>(PgType.Timestamp) { 
 
 val localDateTimeTypeDecoder = PgTypeDecoder { value ->
     when (value) {
+        // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L292
         is PgValue.Binary -> {
             val microSeconds = value.bytes.readLong()
             val instant = postgresEpochInstant + microSeconds.toDuration(DurationUnit.MICROSECONDS)
             instant.toLocalDateTime(TimeZone.UTC)
         }
+        // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L233
         is PgValue.Text -> LocalDateTime.tryFromString(value.text).getOrThrow()
     }
 }

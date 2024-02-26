@@ -14,6 +14,7 @@ private fun DateTimePeriod.inWholeMicroSeconds(): Long {
             this.nanoseconds / nanoSecondsPerMicroSeconds
 }
 
+// https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L1007
 val dateTimePeriodTypeEncoder = PgTypeEncoder<DateTimePeriod>(PgType.Interval) { value, buffer ->
     buffer.writeLong(value.inWholeMicroSeconds())
     buffer.writeInt(value.days)
@@ -22,12 +23,14 @@ val dateTimePeriodTypeEncoder = PgTypeEncoder<DateTimePeriod>(PgType.Interval) {
 
 val dateTimePeriodTypeDecoder = PgTypeDecoder { value ->
     when (value) {
+        // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L1032
         is PgValue.Binary -> {
             val microSeconds = value.bytes.readLong()
             val days = value.bytes.readInt()
             val months = value.bytes.readInt()
             DateTimePeriod(months = months, days = days, nanoseconds = microSeconds * 1000)
         }
+        // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L983
         is PgValue.Text -> DateTimePeriod.parse(value.text)
     }
 }

@@ -147,6 +147,7 @@ internal class PgTypeRegistry {
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
         checkAgainstExistingType(encoder.encodeType, verifiedOid)
+        encoder.pgType = PgType.ByName(type, verifiedOid)
         addTypeToCaches(verifiedOid, encoder, decoder)
 
         val arrayOid = checkArrayDbTypeByOid(verifiedOid, connection)
