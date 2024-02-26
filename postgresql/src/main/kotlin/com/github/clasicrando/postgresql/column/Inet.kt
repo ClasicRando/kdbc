@@ -3,15 +3,20 @@ package com.github.clasicrando.postgresql.column
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgInet
 import java.net.Inet6Address
+import kotlin.reflect.typeOf
 
 private const val PGSQL_AF_INET: Byte = 2
 private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()
 
-val inetTypeEncoder = PgTypeEncoder<PgInet>(PgType.Inet) { value, buffer ->
+// https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L250
+val inetTypeEncoder = PgTypeEncoder<PgInet>(
+    pgType = PgType.Inet,
+    encodeTypes = listOf(typeOf<PgInet.Ipv4>(), typeOf<PgInet.Ipv6>()),
+) { value, buffer ->
     when (val javaInetAddress = value.toInetAddress()) {
         is Inet6Address -> {
             buffer.writeByte(PGSQL_AF_INET6)
-            buffer.writeByte(value.prefix)
+            buffer.writeByte(value.prefix.toByte())
             buffer.writeByte(0)
             buffer.writeByte(16)
             val address = javaInetAddress.address
@@ -22,7 +27,7 @@ val inetTypeEncoder = PgTypeEncoder<PgInet>(PgType.Inet) { value, buffer ->
         }
         else -> {
             buffer.writeByte(PGSQL_AF_INET)
-            buffer.writeByte(value.prefix)
+            buffer.writeByte(value.prefix.toByte())
             buffer.writeByte(0)
             buffer.writeByte(4)
             val address = javaInetAddress.address
@@ -34,6 +39,7 @@ val inetTypeEncoder = PgTypeEncoder<PgInet>(PgType.Inet) { value, buffer ->
     }
 }
 
+// // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L270
 val inetTypeDecoder = PgTypeDecoder { value ->
     val bytes = when (value) {
         is PgValue.Binary -> value.bytes.readBytes()
@@ -41,7 +47,7 @@ val inetTypeDecoder = PgTypeDecoder { value ->
     }
     check(bytes.size >= 8) { "Inet value must be at least 8 bytes. Found ${bytes.size}" }
     val family = bytes[0]
-    val prefix = bytes[1]
+    val prefix = bytes[1].toUByte()
     val length = bytes[3]
 
     when {

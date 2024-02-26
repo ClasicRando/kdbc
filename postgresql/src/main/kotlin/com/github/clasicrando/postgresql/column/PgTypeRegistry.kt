@@ -17,7 +17,15 @@ internal val typeRegistryLogger = KotlinLogging.logger {}
 
 @PublishedApi
 internal class PgTypeRegistry {
-    private val encoders: MutableMap<KType, PgTypeEncoder<*>> = ConcurrentHashMap(defaultEncoders.associateBy { it.encodeType })
+    private val encoders: MutableMap<KType, PgTypeEncoder<*>> = ConcurrentHashMap(
+        buildMap {
+            for (encoder in defaultEncoders) {
+                for (type in encoder.encodeTypes) {
+                    this[type] = encoder
+                }
+            }
+        }
+    )
     private val decoders: MutableMap<Int, PgTypeDecoder<*>> = ConcurrentHashMap(defaultDecoders)
     private var hasPostGisTypes = false
 
@@ -68,10 +76,8 @@ internal class PgTypeRegistry {
             return pgType
         }
         return when {
-            !type.isSubtypeOf(dateTimePeriodType) -> {
-                error("Could not find type Oid looking up type = $type")
-            }
-            else -> dateTimePeriodTypeEncoder.pgType
+            type.isSubtypeOf(dateTimePeriodType) -> dateTimePeriodTypeEncoder.pgType
+            else -> error("Could not find type Oid looking up type = $type")
         }
     }
 
@@ -105,7 +111,9 @@ internal class PgTypeRegistry {
             return
         }
         for (encoder in postGisEncoders) {
-            encoders[encoder.encodeType] = encoder
+            for (type in encoder.encodeTypes) {
+                encoders[type] = encoder
+            }
         }
         for ((oid, decoder) in postGisDecoders) {
             decoders[oid] = decoder
@@ -114,11 +122,13 @@ internal class PgTypeRegistry {
     }
 
     @PublishedApi
-    internal fun checkAgainstExistingType(type: KType, oid: Int) {
-        if (encoders.containsKey(type) || decoders.containsKey(oid)) {
-            typeRegistryLogger.atWarn {
-                message = "Replacing type definition for type = {type}"
-                payload = mapOf("type" to type)
+    internal fun checkAgainstExistingType(types: List<KType>, oid: Int) {
+        for (type in types) {
+            if (encoders.containsKey(type) || decoders.containsKey(oid)) {
+                typeRegistryLogger.atWarn {
+                    message = "Replacing type definition for type = {type}"
+                    payload = mapOf("type" to type)
+                }
             }
         }
     }
@@ -129,7 +139,9 @@ internal class PgTypeRegistry {
         encoder: PgTypeEncoder<E>,
         decoder: PgTypeDecoder<D>,
     ) {
-        encoders[encoder.encodeType] = encoder
+        for (type in encoder.encodeTypes) {
+            encoders[type] = encoder
+        }
         decoders[oid] = decoder
     }
 
@@ -146,7 +158,7 @@ internal class PgTypeRegistry {
             message = "Adding column decoder for enum type {name} ({oid})"
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
-        checkAgainstExistingType(encoder.encodeType, verifiedOid)
+        checkAgainstExistingType(encoder.encodeTypes, verifiedOid)
         encoder.pgType = PgType.ByName(type, verifiedOid)
         addTypeToCaches(verifiedOid, encoder, decoder)
 
@@ -161,7 +173,7 @@ internal class PgTypeRegistry {
             pgType = PgType.ByName("_$type", arrayOid),
             arrayType = enumType,
         )
-        checkAgainstExistingType(arrayTypeEncoder.encodeType, arrayOid)
+        checkAgainstExistingType(arrayTypeEncoder.encodeTypes, arrayOid)
         addTypeToCaches(
             oid = arrayOid,
             encoder = arrayTypeEncoder,
@@ -184,7 +196,7 @@ internal class PgTypeRegistry {
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
         encoder.pgType = PgType.ByName(type, verifiedOid)
-        checkAgainstExistingType(encoder.encodeType, verifiedOid)
+        checkAgainstExistingType(encoder.encodeTypes, verifiedOid)
         addTypeToCaches(verifiedOid, encoder, decoder)
 
         val arrayOid = checkArrayDbTypeByOid(verifiedOid, connection)
@@ -198,7 +210,7 @@ internal class PgTypeRegistry {
             pgType = PgType.ByName("_$type", arrayOid),
             arrayType = arrayType,
         )
-        checkAgainstExistingType(arrayTypeEncoder.encodeType, arrayOid)
+        checkAgainstExistingType(arrayTypeEncoder.encodeTypes, arrayOid)
         addTypeToCaches(
             oid = arrayOid,
             encoder = arrayTypeEncoder,
@@ -297,6 +309,7 @@ internal class PgTypeRegistry {
 
         private val stringArrayTypeDecoder = arrayTypeDecoder(stringTypeDecoder)
         private val intArrayTypeDecoder = arrayTypeDecoder(intTypeDecoder)
+        private val inetArrayTypeDecoder = arrayTypeDecoder(inetTypeDecoder)
 
         private val defaultDecoders = mapOf(
             PgType.VOID to PgTypeDecoder {},
@@ -339,7 +352,9 @@ internal class PgTypeRegistry {
             PgType.XML to stringTypeDecoder,
             PgType.XML_ARRAY to stringArrayTypeDecoder,
             PgType.INET to inetTypeDecoder,
-            PgType.INET_ARRAY to arrayTypeDecoder(inetTypeDecoder),
+            PgType.INET_ARRAY to inetArrayTypeDecoder,
+            PgType.CIDR to inetTypeDecoder,
+            PgType.CIDR_ARRAY to inetArrayTypeDecoder,
             PgType.DATE to dateTypeDecoder,
             PgType.DATE_ARRAY to arrayTypeDecoder(dateTypeDecoder),
             PgType.TIME to timeTypeDecoder,

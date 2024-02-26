@@ -12,14 +12,19 @@ import kotlin.reflect.typeOf
 @PublishedApi
 internal inline fun <reified T : Any> compositeTypeEncoder(name: String, typeRegistry: PgTypeRegistry): PgTypeEncoder<T> {
     require(T::class.isData) { "Only data classes are available as composites" }
-    return PgCompositeTypeEncoder(typeRegistry, T::class, typeOf<T>(), PgType.ByName(name))
+    return PgCompositeTypeEncoder(
+        typeRegistry = typeRegistry,
+        cls = T::class,
+        encodeTypes = listOf(typeOf<T>()),
+        pgType = PgType.ByName(name),
+    )
 }
 
 @PublishedApi
 internal class PgCompositeTypeEncoder<T : Any>(
     private val typeRegistry: PgTypeRegistry,
     cls : KClass<T>,
-    override val encodeType: KType,
+    override val encodeTypes: List<KType>,
     override var pgType: PgType
 ) : PgTypeEncoder<T> {
     private val propertyNames = cls.primaryConstructor

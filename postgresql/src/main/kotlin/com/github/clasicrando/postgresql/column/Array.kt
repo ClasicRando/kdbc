@@ -11,7 +11,12 @@ inline fun <reified T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
     pgType: PgType,
     compatibleTypes: Array<PgType>? = null,
 ): PgTypeEncoder<List<T?>> {
-    return PgArrayTypeEncoder(encoder, pgType, compatibleTypes, typeOf<List<T?>>())
+    return PgArrayTypeEncoder(
+        encoder = encoder,
+        pgType = pgType,
+        compatibleTypes = compatibleTypes,
+        encodeTypes = listOf(typeOf<List<T?>>()),
+    )
 }
 
 fun <T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
@@ -20,7 +25,12 @@ fun <T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
     arrayType: KType,
     compatibleTypes: Array<PgType>? = null,
 ): PgTypeEncoder<List<T?>> {
-    return PgArrayTypeEncoder(encoder, pgType, compatibleTypes, arrayType)
+    return PgArrayTypeEncoder(
+        encoder = encoder,
+        pgType = pgType,
+        compatibleTypes = compatibleTypes,
+        encodeTypes = listOf(arrayType),
+    )
 }
 
 @PublishedApi
@@ -28,7 +38,7 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
     private val encoder: E,
     override var pgType: PgType,
     override val compatibleTypes: Array<PgType>?,
-    override val encodeType: KType,
+    override val encodeTypes: List<KType>,
 ) : PgTypeEncoder<List<T?>> {
     init {
         require(encoder !is PgArrayTypeEncoder<*, *>) {
