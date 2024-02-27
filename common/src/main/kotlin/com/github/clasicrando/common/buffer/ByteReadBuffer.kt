@@ -93,6 +93,9 @@ class ByteReadBuffer(
         override fun close() {}
 
         override fun read(): Int {
+            if (remaining == 0) {
+                return -1
+            }
             return this@ByteReadBuffer.readByte().toInt()
         }
     }

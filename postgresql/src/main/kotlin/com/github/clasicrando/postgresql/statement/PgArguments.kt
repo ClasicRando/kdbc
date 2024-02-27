@@ -18,16 +18,16 @@ class PgArguments internal constructor(
                 buffer.writeInt(-1)
                 continue
             }
-            if (parameter is PgJson) {
-                statement.parameterTypeOids.getOrNull(parameterIndex)?.let { oid ->
-                    if (oid == PgType.JSON || oid == PgType.JSON_ARRAY) {
-                        buffer.writeByte(' '.code.toByte())
-                    } else {
-                        buffer.writeByte(1)
+            buffer.writeLengthPrefixed {
+                if (parameter is PgJson) {
+                    statement.parameterTypeOids.getOrNull(parameterIndex)?.let { oid ->
+                        if (oid == PgType.JSON || oid == PgType.JSON_ARRAY) {
+                            buffer.writeByte(' '.code.toByte())
+                        } else {
+                            buffer.writeByte(1)
+                        }
                     }
                 }
-            }
-            buffer.writeLengthPrefixed {
                 typeRegistry.encode(parameter, this)
             }
         }
