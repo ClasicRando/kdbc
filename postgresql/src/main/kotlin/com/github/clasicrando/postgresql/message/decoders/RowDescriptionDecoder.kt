@@ -3,9 +3,9 @@ package com.github.clasicrando.postgresql.message.decoders
 import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.message.MessageDecoder
 import com.github.clasicrando.common.use
+import com.github.clasicrando.postgresql.column.PgColumnDescription
 import com.github.clasicrando.postgresql.column.PgType
 import com.github.clasicrando.postgresql.message.PgMessage
-import com.github.clasicrando.postgresql.column.PgColumnDescription
 
 internal object RowDescriptionDecoder : MessageDecoder<PgMessage.RowDescription> {
     override fun decode(buffer: ByteReadBuffer): PgMessage.RowDescription {

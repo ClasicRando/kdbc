@@ -5,10 +5,14 @@ import com.github.clasicrando.common.stream.AsyncStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
 
-class ByteWriteBuffer : AutoRelease {
+class ByteWriteBuffer(capacity: Int = 2048) : AutoRelease {
     // TODO remove direct dependency on java with kotlinx.io once the library matures
     @PublishedApi
-    internal var innerBuffer = ByteBuffer.allocateDirect(2048)
+    internal var innerBuffer = ByteBuffer.allocateDirect(capacity)
+
+    val position: Int get() = innerBuffer.position()
+
+    val remaining: Int get() = innerBuffer.remaining()
 
     fun writeByte(byte: Byte) {
         innerBuffer.put(byte)

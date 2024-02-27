@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.selects.select
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
@@ -652,9 +653,7 @@ class PgConnection internal constructor(
             .getOrThrow()
 
         try {
-            data.collect {
-                stream.writeToStream(PgMessage.CopyData(it))
-            }
+            stream.writeManySized(data.map { PgMessage.CopyData(it) })
             stream.writeToStream(PgMessage.CopyDone)
         } catch (ex: Throwable) {
             if (stream.isConnected) {

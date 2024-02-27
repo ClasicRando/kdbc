@@ -1,7 +1,8 @@
 package com.github.clasicrando.postgresql.message
 
-import com.github.clasicrando.postgresql.copy.CopyFormat
+import com.github.clasicrando.common.message.SizedMessage
 import com.github.clasicrando.postgresql.column.PgColumnDescription
+import com.github.clasicrando.postgresql.copy.CopyFormat
 import com.github.clasicrando.postgresql.result.PgRowBuffer
 import com.github.clasicrando.postgresql.statement.PgArguments
 
@@ -26,7 +27,9 @@ internal sealed class PgMessage(val code: Byte) {
         val rowCount: Long,
         val message: String,
     ) : PgMessage(COMMAND_COMPLETE_CODE) // B
-    class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE) // F & B
+    class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage { // F & B
+        override val size: Int = 5 + data.size
+    }
     data object CopyDone : PgMessage(COPY_DONE) // F & B
     data class CopyFail(val message: String) : PgMessage(COPY_FAIL) // F
     class CopyInResponse(

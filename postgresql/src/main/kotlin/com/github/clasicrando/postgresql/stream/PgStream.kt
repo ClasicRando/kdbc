@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.stream
 
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
+import com.github.clasicrando.common.message.SizedMessage
 import com.github.clasicrando.common.stream.AsyncStream
 import com.github.clasicrando.common.stream.Nio2AsyncStream
 import com.github.clasicrando.postgresql.GeneralPostgresError
@@ -20,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.uuid.UUID
@@ -37,7 +39,7 @@ internal class PgStream(
     private val pgStreamId: UUID = UUID.generateUUID()
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
-    private val messageSendBuffer = ByteWriteBuffer()
+    private val messageSendBuffer = ByteWriteBuffer(MESSAGE_BUFFER_SIZE)
 
     override val coroutineContext: CoroutineContext get() = Job(parent = scope.coroutineContext.job)
 
@@ -204,6 +206,29 @@ internal class PgStream(
         }
     }
 
+    suspend fun <M> writeManySized(flow: Flow<M>)
+    where
+        M : SizedMessage,
+        M : PgMessage
+    {
+        try {
+            messageSendBuffer.release()
+            flow.collect {
+                if (messageSendBuffer.remaining < it.size) {
+                    messageSendBuffer.writeToAsyncStream(connection)
+                    messageSendBuffer.release()
+                }
+                val encoder = encoders.encoderFor(it)
+                encoder.encode(it, messageSendBuffer)
+            }
+            if (messageSendBuffer.position > 0) {
+                messageSendBuffer.writeToAsyncStream(connection)
+            }
+        } finally {
+            messageSendBuffer.release()
+        }
+    }
+
     override fun close() {
         messageSendBuffer.release()
         closeChannels()
@@ -304,6 +329,7 @@ internal class PgStream(
 //    }
 
     companion object {
+        private const val MESSAGE_BUFFER_SIZE = 2048
         private const val TLS_REJECT_WARNING = "Preferred SSL mode was rejected by server. " +
                 "Continuing with non TLS connection"
 
