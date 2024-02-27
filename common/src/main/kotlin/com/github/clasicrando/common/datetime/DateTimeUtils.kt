@@ -56,7 +56,9 @@ fun LocalDateTime.Companion.tryFromString(value: String): Result<LocalDateTime> 
  */
 fun LocalTime.Companion.tryFromString(value: String): Result<LocalTime> {
     return kotlin.runCatching {
-        value.toLocalTime()
+        value.takeWhile { it != '+' && it != 'Z' }
+            .trim()
+            .toLocalTime()
     }.mapError { t ->
         when (t) {
             is IllegalArgumentException -> InvalidDateString(value, LocalTime::class)
