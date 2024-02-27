@@ -9,6 +9,6 @@ val moneyTypeEncoder = PgTypeEncoder<PgMoney>(PgType.Money) { value, buffer ->
 val moneyTypeDecoder = PgTypeDecoder { value ->
     when (value) {
         is PgValue.Binary -> PgMoney(value.bytes.readLong())
-        is PgValue.Text -> PgMoney(value.text)
+        is PgValue.Text -> PgMoney.fromString(value.text)
     }
 }

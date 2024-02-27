@@ -7,11 +7,21 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import java.math.BigDecimal
+import java.math.RoundingMode
 import kotlin.math.absoluteValue
 
 @Serializable(with = PgMoney.Companion::class)
 class PgMoney internal constructor(internal val integer: Long) {
-    constructor(strMoney: String): this(integerFromString(strMoney))
+    constructor(double: Double): this(BigDecimal.valueOf(double))
+    constructor(decimal: BigDecimal): this(
+        decimal.setScale(2, RoundingMode.UP).unscaledValue().toLong()
+    ) {
+        require(decimal.scale() <= 2) {
+            "Money values cannot be constructed from Double values with more than 2 values after" +
+                    " the decimal place. Otherwise, precision would be lost"
+        }
+    }
 
     private val strRep: String by lazy {
         buildString {
@@ -53,7 +63,17 @@ class PgMoney internal constructor(internal val integer: Long) {
         return PgMoney(this.integer - other.integer)
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (other !is PgMoney) {
+            return false
+        }
+        return other.integer == this.integer
+    }
+
     override fun toString(): String = strRep
+    override fun hashCode(): Int {
+        return integer.hashCode()
+    }
 
     companion object : KSerializer<PgMoney> {
         private val MONEY_REGEX = Regex("^-?\\$?\\d+(.\\d{1,2})?$")
@@ -63,13 +83,13 @@ class PgMoney internal constructor(internal val integer: Long) {
             PrimitiveKind.STRING,
         )
 
-        override fun deserialize(decoder: Decoder): PgMoney = PgMoney(decoder.decodeString())
+        override fun deserialize(decoder: Decoder): PgMoney = fromString(decoder.decodeString())
 
         override fun serialize(encoder: Encoder, value: PgMoney) {
             encoder.encodeString(value.strRep)
         }
 
-        private fun integerFromString(strMoney: String): Long {
+        fun fromString(strMoney: String): PgMoney {
             require(strMoney.matches(MONEY_REGEX)) {
                 """
                 String supplied to PgMoney does not match the required pattern
@@ -77,8 +97,8 @@ class PgMoney internal constructor(internal val integer: Long) {
                 Actual Value: $strMoney
                 """.trimIndent()
             }
-            return strMoney.filter(predicate = Char::isDigit)
-                .toLong() * if (strMoney.startsWith('-')) -1 else 1
+            val long = BigDecimal(strMoney.replace("$", ""))
+            return PgMoney(long)
         }
     }
 }

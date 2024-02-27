@@ -55,13 +55,13 @@ class TestJsonType {
 
     @ParameterizedTest
     @ValueSource(booleans = [true, false])
-    fun `decode should return EnumType when simple querying postgresql custom enum`(value: Boolean): Unit = runBlocking {
+    fun `decode should return PgJson when simple querying postgresql json`(value: Boolean): Unit = runBlocking {
         decodeTest(isJsonB = value, isPrepared = false)
     }
 
     @ParameterizedTest
     @ValueSource(booleans = [true, false])
-    fun `decode should return EnumType when extended querying postgresql custom enum`(value: Boolean): Unit = runBlocking {
+    fun `decode should return PgJson when extended querying postgresql json`(value: Boolean): Unit = runBlocking {
         decodeTest(isJsonB = value, isPrepared = true)
     }
 
