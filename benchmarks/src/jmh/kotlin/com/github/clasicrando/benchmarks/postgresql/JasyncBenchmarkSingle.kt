@@ -2,9 +2,11 @@ package com.github.clasicrando.benchmarks.postgresql
 
 import com.github.jasync.sql.db.pool.ConnectionPool
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.toKotlinLocalDateTime
+import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
@@ -38,7 +40,7 @@ open class JasyncBenchmarkSingle {
     }
 
 //    @Benchmark
-    open fun queryData() = runBlocking {
+    open fun queryData() = runBlocking(Dispatchers.IO) {
         step()
         val result = pool.sendPreparedStatement(jdbcQuerySingle, listOf(id)).await()
         val row = result.rows.first()

@@ -80,6 +80,12 @@ private const val missingEnvironmentVariableMessage = "To run benchmarks the env
 private val connectionString = System.getenv("JDBC_PG_CONNECTION_STRING")
     ?: throw IllegalStateException(missingEnvironmentVariableMessage)
 
+private const val missingLocalEnvironmentVariableMessage = "To run benchmarks the " +
+        "environment variable JDBC_PG_CONNECTION_STRING must be available"
+
+private val localConnectionString = System.getenv("JDBC_LOCAL_PG_CONNECTION_STRING")
+    ?: throw IllegalStateException(missingEnvironmentVariableMessage)
+
 fun getJdbcConnection(): JdbcConnection = DriverManager.getConnection(connectionString)
 
 fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
@@ -89,6 +95,17 @@ fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     poolableConnectionFactory.pool = connectionPool
     return PoolingDataSource(connectionPool)
 }
+
+private val defaultLocalConnectOptions = PgConnectOptions(
+    host = "127.0.0.1",
+    port = 5432U,
+    username = "postgres",
+    password = System.getenv("PG_LOCAL_BENCHMARK_PASSWORD")
+        ?: error("To run benchmarks the environment variable PG_LOCAL_BENCHMARK_PASSWORD must be available"),
+    database = "test",
+    applicationName = "KdbcTests",
+    logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
+)
 
 private val defaultConnectOptions = PgConnectOptions(
     host = "192.168.0.12",
@@ -116,7 +133,7 @@ suspend fun initializeConcurrentConnections(): PgConnectOptions {
         applicationName = "KdbcTests${UUID.generateUUID()}",
         logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
         poolOptions = PoolOptions(
-            maxConnections = 8,
+            maxConnections = 10,
             minConnections = 8,
         ),
     )

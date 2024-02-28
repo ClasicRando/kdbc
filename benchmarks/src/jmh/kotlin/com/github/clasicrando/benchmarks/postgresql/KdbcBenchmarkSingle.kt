@@ -2,11 +2,9 @@ package com.github.clasicrando.benchmarks.postgresql
 
 import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.pool.KdbcPoolsManager
-import com.github.clasicrando.common.result.getDateTime
-import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.common.result.getString
-import kotlinx.coroutines.Dispatchers
+import com.github.clasicrando.common.use
 import kotlinx.coroutines.runBlocking
+import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
@@ -40,26 +38,28 @@ open class KdbcBenchmarkSingle {
     }
 
 //    @Benchmark
-    open fun queryData(): Unit = runBlocking(Dispatchers.IO) {
+    open fun queryData(): Unit = runBlocking {
         step()
         val result = connection.sendPreparedStatement(kdbcQuerySingle, listOf(id)).firstOrNull()
             ?: throw Exception("No records returned from $kdbcQuerySingle, id = $id")
-        result.rows.map { row ->
-            PostDataClass(
-                row.getInt(0)!!,
-                row.getString(1)!!,
-                row.getDateTime(2)!!.datetime,
-                row.getDateTime(3)!!.datetime,
-                row.getInt(4),
-                row.getInt(5),
-                row.getInt(6),
-                row.getInt(7),
-                row.getInt(8),
-                row.getInt(9),
-                row.getInt(10),
-                row.getInt(11),
-                row.getInt(12),
-            )
+        result.use {
+            it.rows.map { row ->
+                PostDataClass(
+                    row.getInt(0)!!,
+                    row.getString(1)!!,
+                    row.getLocalDateTime(2)!!,
+                    row.getLocalDateTime(3)!!,
+                    row.getInt(4),
+                    row.getInt(5),
+                    row.getInt(6),
+                    row.getInt(7),
+                    row.getInt(8),
+                    row.getInt(9),
+                    row.getInt(10),
+                    row.getInt(11),
+                    row.getInt(12),
+                )
+            }
         }
     }
 

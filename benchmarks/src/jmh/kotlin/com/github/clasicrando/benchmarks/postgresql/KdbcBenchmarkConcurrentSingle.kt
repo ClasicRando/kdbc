@@ -2,14 +2,13 @@ package com.github.clasicrando.benchmarks.postgresql
 
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.pool.KdbcPoolsManager
-import com.github.clasicrando.common.result.getDateTime
-import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.common.result.getString
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.connection.PgConnection
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
@@ -45,20 +44,18 @@ open class KdbcBenchmarkConcurrentSingle {
         return id
     }
 
-//    @Benchmark
-    open fun queryData() = runBlocking {
-        val result = (1..concurrencyLimit).map {
-            val stepId = step()
-            async {
-                PgConnection.connect(connectOptions = options).use {
-                    val result = it.sendPreparedStatement(kdbcQuerySingle, listOf(stepId)).firstOrNull()
-                        ?: throw Exception("No records returned from $kdbcQuerySingle, id = $stepId")
-                    result.rows.map { row ->
+    private suspend fun executeQuery(stepId: Int): List<PostDataClass> {
+        return PgConnection.connect(connectOptions = options).use { conn ->
+            conn.sendPreparedStatement(kdbcQuerySingle, listOf(stepId)).use {
+                val result = it.firstOrNull()
+                    ?: throw Exception("No records returned from $kdbcQuerySingle, id = $stepId")
+                result.use { qr ->
+                    qr.rows.map { row ->
                         PostDataClass(
                             row.getInt(0)!!,
                             row.getString(1)!!,
-                            row.getDateTime(2)!!.datetime,
-                            row.getDateTime(3)!!.datetime,
+                            row.getLocalDateTime(2)!!,
+                            row.getLocalDateTime(3)!!,
                             row.getInt(4),
                             row.getInt(5),
                             row.getInt(6),
@@ -73,7 +70,15 @@ open class KdbcBenchmarkConcurrentSingle {
                 }
             }
         }
-        result.awaitAll()
+    }
+
+//    @Benchmark
+    open fun queryData() = runBlocking {
+        val results = List(concurrencyLimit) {
+            val stepId = step()
+            async { executeQuery(stepId) }
+        }
+        results.awaitAll()
     }
 
     @TearDown
