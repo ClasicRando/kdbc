@@ -551,7 +551,9 @@ class PgConnection internal constructor(
     }
 
     override suspend fun close() {
-        pool.giveBack(this@PgConnection)
+        if (!pool.giveBack(this@PgConnection)) {
+            dispose()
+        }
     }
 
     /**

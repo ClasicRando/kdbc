@@ -4,6 +4,7 @@ import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connection.Connection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -123,6 +124,7 @@ abstract class AbstractConnectionPool<C : Connection>(
         return connectionIds.contains(poolConnection.connectionId)
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     override suspend fun giveBack(connection: C): Boolean {
         if (!hasConnection(connection)) {
             return false
@@ -143,8 +145,8 @@ abstract class AbstractConnectionPool<C : Connection>(
                 result.isClosed -> error("Connection channel for pool is closed")
             }
         }
-        connections.send(connection)
-        return true
+
+        return connections.trySend(connection).isSuccess
     }
 
     override suspend fun initialize(): Boolean {
