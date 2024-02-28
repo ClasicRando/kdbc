@@ -4,6 +4,16 @@ import com.github.clasicrando.common.AutoRelease
 import java.io.InputStream
 import java.nio.charset.Charset
 
+/**
+ * Buffer containing a fixed size [ByteArray] where reads against the buffer are always read
+ * forward. The data contained within this buffer is not always readable if this instance is a
+ * slice over the original buffer. This is done using a size and offset property that are
+ * originally set to the [ByteArray.size] property of the backing buffer and 0, respectively. If
+ * the instance is constructed using the [slice] method, the new slice's size is the length
+ * requested and the offset is calculated current [position] and the pre-slice buffer's offset. The
+ * [position] property keeps track of the relative position within the buffer and reads against the
+ * buffer increments the [position] value based the number of bytes requested.
+ */
 class ByteReadBuffer(
     private var innerBuffer: ByteArray,
     private val offset: Int = 0,
@@ -11,24 +21,50 @@ class ByteReadBuffer(
 ) : AutoRelease {
     private var position: Int = 0
 
+    /** Move cursor forward the exact amount specified by [byteCount] */
     fun skip(byteCount: Int) {
         position += byteCount
     }
 
+    /**
+     * Create a sub slice of this [ByteReadBuffer], starting at the current position and having a
+     * size as the specified [length].
+     *
+     * This creates a new instance of [ByteReadBuffer] referencing the same underling [ByteArray]
+     * with an offset of the relative current cursor position of this [ByteReadBuffer] and a
+     * [length] as required.
+     *
+     * @throws IllegalArgumentException if the [length] is greater than the number of bytes
+     * [remaining] in the buffer
+     */
     fun slice(length: Int): ByteReadBuffer {
         require(length <= remaining) {
-            "Cannot slice a buffer with a length ($length) that is more than the remaining bytes ($remaining)"
+            "Cannot slice a buffer with a length ($length) that is more than the remaining " +
+                    "bytes ($remaining)"
         }
-        val slice = ByteReadBuffer(innerBuffer, position + offset, length)
-        return slice
+        return ByteReadBuffer(innerBuffer, position + offset, length)
     }
 
+    /** Number of bytes remaining as readable within the buffer */
     val remaining: Int get() = size - position
 
+    /**
+     * Read the next available [Byte] within the buffer.
+     *
+     * @throws IllegalStateException if the buffer has been exhausted
+     */
     fun readByte(): Byte {
+        check(position < size && offset + position < innerBuffer.size) {
+            "Attempted to read past the current buffer's size"
+        }
         return innerBuffer[offset + position++]
     }
 
+    /**
+     * Read the next available [Short] within the buffer (requires 2 bytes).
+     *
+     * @throws IllegalStateException if the buffer has been exhausted
+     */
     fun readShort(): Short {
         val result = (
             this.readByte().toInt() and 0xff shl 8
@@ -36,6 +72,11 @@ class ByteReadBuffer(
         return result.toShort()
     }
 
+    /**
+     * Read the next available [Int] within the buffer (requires 4 bytes).
+     *
+     * @throws IllegalStateException if the buffer has been exhausted
+     */
     fun readInt(): Int {
         val result = (
             (this.readByte().toInt() and 0xff shl 24)
@@ -45,6 +86,11 @@ class ByteReadBuffer(
         return result
     }
 
+    /**
+     * Read the next available [Long] within the buffer (requires 8 bytes).
+     *
+     * @throws IllegalStateException if the buffer has been exhausted
+     */
     fun readLong(): Long {
         val result = (
             (this.readByte().toLong() and 0xffL shl 56)
@@ -58,14 +104,29 @@ class ByteReadBuffer(
         return result
     }
 
+    /**
+     * Read the next available [Float] within the buffer (requires 4 bytes).
+     *
+     * @throws IllegalStateException if the buffer has been exhausted
+     */
     fun readFloat(): Float {
         return Float.fromBits(this.readInt())
     }
 
+    /**
+     * Read the next available [Double] within the buffer (requires 8 bytes).
+     *
+     * @throws IllegalStateException if the buffer has been exhausted
+     */
     fun readDouble(): Double {
         return Double.fromBits(this.readLong())
     }
 
+    /**
+     * Attempt to read an exact number of bytes specified by [length] into a [ByteArray].
+     *
+     * @throws IllegalStateException if the [remaining] cannot satisfy the required number of bytes
+     */
     fun readBytes(length: Int): ByteArray {
         require(remaining >= length) {
             "Cannot read $length bytes since there are only $remaining remaining in the buffer"
@@ -73,22 +134,38 @@ class ByteReadBuffer(
         return ByteArray(length) { this.readByte() }
     }
 
+    /** Read all remaining bytes into a [ByteArray]. This can result in an empty array. */
     fun readBytes(): ByteArray {
         return ByteArray(remaining) { this.readByte() }
     }
 
+    /**
+     * Read all remaining bytes using [readBytes] and decode those bytes using the specified
+     * [charset]. By default, the bytes are read using [Charsets.UTF_8].
+     */
     fun readText(charset: Charset = Charsets.UTF_8): String {
         return String(this.readBytes(), charset = charset)
     }
 
+    /**
+     * Read bytes until 0 is returned from [readByte] indicating the end of a CString (null
+     * terminated char array). These bytes are then converted to a [String] using the specified
+     * [charset]. By default, the bytes are read using [Charsets.UTF_8].
+     *
+     * @throws IllegalStateException if the buffer has been exhausted before finding a zero byte
+     * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
+     */
     fun readCString(charset: Charset = Charsets.UTF_8): String {
-        val temp = generateSequence {
-            val byte = this@ByteReadBuffer.readByte()
-            byte.takeIf { it != ZERO_BYTE }
-        }.toList().toByteArray()
-        return temp.toString(charset = charset)
+        return generateSequence { this@ByteReadBuffer.readByte().takeIf { it != ZERO_BYTE } }
+            .toList()
+            .toByteArray()
+            .toString(charset = charset)
     }
 
+    /**
+     * Create a wrapper [InputStream] for this buffer. Calls the [readByte] method when the
+     * [InputStream.read] method is called.
+     */
     fun inputStream(): InputStream = object : InputStream() {
         override fun close() {}
 
@@ -100,6 +177,10 @@ class ByteReadBuffer(
         }
     }
 
+    /**
+     * Reset the buffer's position to 0 and set the inner buffer to an empty [ByteArray]. This
+     * leaves the buffer in an unusable state
+     */
     override fun release() {
         position = 0
         innerBuffer = ByteArray(0)
