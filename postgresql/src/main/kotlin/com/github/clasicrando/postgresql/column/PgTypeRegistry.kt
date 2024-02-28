@@ -1,11 +1,11 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.connection.PgConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.DateTimePeriod
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KType
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
@@ -17,7 +17,7 @@ internal val typeRegistryLogger = KotlinLogging.logger {}
 
 @PublishedApi
 internal class PgTypeRegistry {
-    private val encoders: MutableMap<KType, PgTypeEncoder<*>> = ConcurrentHashMap(
+    private val encoders: MutableMap<KType, PgTypeEncoder<*>> = AtomicMutableMap(
         buildMap {
             for (encoder in defaultEncoders) {
                 for (type in encoder.encodeTypes) {
@@ -26,7 +26,7 @@ internal class PgTypeRegistry {
             }
         }
     )
-    private val decoders: MutableMap<Int, PgTypeDecoder<*>> = ConcurrentHashMap(defaultDecoders)
+    private val decoders: MutableMap<Int, PgTypeDecoder<*>> = AtomicMutableMap(defaultDecoders)
     private var hasPostGisTypes = false
 
     fun decode(value: PgValue): Any {
