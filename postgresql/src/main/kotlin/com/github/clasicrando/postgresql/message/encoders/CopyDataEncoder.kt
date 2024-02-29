@@ -8,7 +8,7 @@ internal object CopyDataEncoder : MessageEncoder<PgMessage.CopyData> {
     override fun encode(value: PgMessage.CopyData, buffer: ByteWriteBuffer) {
         buffer.writeCode(value)
         buffer.writeLengthPrefixed(includeLength = true) {
-            writeFully(value.data)
+            writeBytes(value.data)
         }
     }
 }

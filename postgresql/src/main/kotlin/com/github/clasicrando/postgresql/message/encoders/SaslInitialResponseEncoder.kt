@@ -10,7 +10,7 @@ internal object SaslInitialResponseEncoder : MessageEncoder<PgMessage.SaslInitia
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.mechanism)
             writeInt(value.saslData.length)
-            writeFully(value.saslData.toByteArray(charset = Charsets.UTF_8))
+            writeBytes(value.saslData.toByteArray(charset = Charsets.UTF_8))
         }
     }
 }

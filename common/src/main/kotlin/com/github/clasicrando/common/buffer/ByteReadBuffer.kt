@@ -48,22 +48,26 @@ class ByteReadBuffer(
     /** Number of bytes remaining as readable within the buffer */
     val remaining: Int get() = size - position
 
+    private fun checkExhausted() {
+        if (position >= size || offset + position >= innerBuffer.size) {
+            throw BufferExhausted()
+        }
+    }
+
     /**
      * Read the next available [Byte] within the buffer.
      *
-     * @throws IllegalStateException if the buffer has been exhausted
+     * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readByte(): Byte {
-        check(position < size && offset + position < innerBuffer.size) {
-            "Attempted to read past the current buffer's size"
-        }
+        checkExhausted()
         return innerBuffer[offset + position++]
     }
 
     /**
      * Read the next available [Short] within the buffer (requires 2 bytes).
      *
-     * @throws IllegalStateException if the buffer has been exhausted
+     * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readShort(): Short {
         val result = (
@@ -75,7 +79,7 @@ class ByteReadBuffer(
     /**
      * Read the next available [Int] within the buffer (requires 4 bytes).
      *
-     * @throws IllegalStateException if the buffer has been exhausted
+     * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readInt(): Int {
         val result = (
@@ -89,7 +93,7 @@ class ByteReadBuffer(
     /**
      * Read the next available [Long] within the buffer (requires 8 bytes).
      *
-     * @throws IllegalStateException if the buffer has been exhausted
+     * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readLong(): Long {
         val result = (
@@ -107,7 +111,7 @@ class ByteReadBuffer(
     /**
      * Read the next available [Float] within the buffer (requires 4 bytes).
      *
-     * @throws IllegalStateException if the buffer has been exhausted
+     * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readFloat(): Float {
         return Float.fromBits(this.readInt())
@@ -116,7 +120,7 @@ class ByteReadBuffer(
     /**
      * Read the next available [Double] within the buffer (requires 8 bytes).
      *
-     * @throws IllegalStateException if the buffer has been exhausted
+     * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readDouble(): Double {
         return Double.fromBits(this.readLong())
@@ -125,11 +129,11 @@ class ByteReadBuffer(
     /**
      * Attempt to read an exact number of bytes specified by [length] into a [ByteArray].
      *
-     * @throws IllegalStateException if the [remaining] cannot satisfy the required number of bytes
+     * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
     fun readBytes(length: Int): ByteArray {
-        require(remaining >= length) {
-            "Cannot read $length bytes since there are only $remaining remaining in the buffer"
+        if (remaining < length) {
+            throw BufferExhausted()
         }
         return ByteArray(length) { this.readByte() }
     }
@@ -142,6 +146,8 @@ class ByteReadBuffer(
     /**
      * Read all remaining bytes using [readBytes] and decode those bytes using the specified
      * [charset]. By default, the bytes are read using [Charsets.UTF_8].
+     *
+     * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
     fun readText(charset: Charset = Charsets.UTF_8): String {
         return String(this.readBytes(), charset = charset)
@@ -152,7 +158,7 @@ class ByteReadBuffer(
      * terminated char array). These bytes are then converted to a [String] using the specified
      * [charset]. By default, the bytes are read using [Charsets.UTF_8].
      *
-     * @throws IllegalStateException if the buffer has been exhausted before finding a zero byte
+     * @throws BufferExhausted if the buffer has been exhausted before finding a zero byte
      * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
      */
     fun readCString(charset: Charset = Charsets.UTF_8): String {

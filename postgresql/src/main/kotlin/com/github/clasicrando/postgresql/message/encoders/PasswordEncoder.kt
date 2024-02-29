@@ -8,7 +8,7 @@ internal object PasswordEncoder : MessageEncoder<PgMessage.PasswordMessage> {
     override fun encode(value: PgMessage.PasswordMessage, buffer: ByteWriteBuffer) {
         buffer.writeCode(value)
         buffer.writeLengthPrefixed(includeLength = true) {
-            writeFully(value.password)
+            writeBytes(value.password)
             writeByte(0)
         }
     }

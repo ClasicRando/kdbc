@@ -23,7 +23,7 @@ val inetTypeEncoder = PgTypeEncoder<PgInet>(
             check(address.size == 16) {
                 "Inet address must be 16 bytes. Found ${address.size} bytes"
             }
-            buffer.writeFully(address)
+            buffer.writeBytes(address)
         }
         else -> {
             buffer.writeByte(PGSQL_AF_INET)
@@ -34,7 +34,7 @@ val inetTypeEncoder = PgTypeEncoder<PgInet>(
             check(address.size == 4) {
                 "Inet address must be 4 bytes. Found ${address.size} bytes"
             }
-            buffer.writeFully(address)
+            buffer.writeBytes(address)
         }
     }
 }

@@ -3,7 +3,7 @@ package com.github.clasicrando.postgresql.column
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
 
 val byteArrayTypeEncoder = PgTypeEncoder<ByteArray>(PgType.Bytea) { value, buffer ->
-    buffer.writeFully(value)
+    buffer.writeBytes(value)
 }
 
 val byteArrayTypeDecoder = PgTypeDecoder { value ->

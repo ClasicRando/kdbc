@@ -4,7 +4,7 @@ import kotlinx.uuid.UUID
 import kotlinx.uuid.encodeToByteArray
 
 val uuidTypeEncoder = PgTypeEncoder<UUID>(PgType.Uuid) { value, buffer ->
-    buffer.writeFully(value.encodeToByteArray())
+    buffer.writeBytes(value.encodeToByteArray())
 }
 
 val uuidTypeDecoder = PgTypeDecoder { value ->

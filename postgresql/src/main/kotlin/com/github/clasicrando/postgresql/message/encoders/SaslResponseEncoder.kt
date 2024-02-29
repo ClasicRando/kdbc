@@ -8,7 +8,7 @@ internal object SaslResponseEncoder : MessageEncoder<PgMessage.SaslResponse> {
     override fun encode(value: PgMessage.SaslResponse, buffer: ByteWriteBuffer) {
         buffer.writeCode(value)
         buffer.writeLengthPrefixed(includeLength = true) {
-            writeFully(value.saslData.toByteArray(charset = Charsets.UTF_8))
+            writeBytes(value.saslData.toByteArray(charset = Charsets.UTF_8))
         }
     }
 }
