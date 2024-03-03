@@ -859,7 +859,7 @@ class PgConnection internal constructor(
          * the supplied [PgConnectOptions].
          */
         suspend fun connect(connectOptions: PgConnectOptions): PgConnection {
-            return PgPoolManager.createConnection(connectOptions)
+            return PgPoolManager.acquireConnection(connectOptions)
         }
 
         /**

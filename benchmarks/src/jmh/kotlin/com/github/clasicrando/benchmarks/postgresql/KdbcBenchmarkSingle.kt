@@ -1,7 +1,6 @@
 package com.github.clasicrando.benchmarks.postgresql
 
 import com.github.clasicrando.common.connection.Connection
-import com.github.clasicrando.common.pool.KdbcPoolsManager
 import com.github.clasicrando.common.use
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
@@ -72,6 +71,5 @@ open class KdbcBenchmarkSingle {
                 ex.printStackTrace()
             }
         }
-        KdbcPoolsManager.closeAllPools()
     }
 }

@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-class TestAbstractConnectionPool {
+class TestAbstractDefaultConnectionPool {
     @Test
     fun `isExhausted should be true when maxConnections = 0`(): Unit = runBlocking {
         val factory = mockk<ConnectionProvider<Connection>>()
@@ -160,7 +160,7 @@ class TestAbstractConnectionPool {
             val result = it.giveBack(acquiredConnection)
 
             assertTrue(result)
-            assertTrue((it as AbstractConnectionPool).hasConnection(acquiredConnection))
+            assertTrue((it as AbstractDefaultConnectionPool).hasConnection(acquiredConnection))
 
             assertDoesNotThrow { it.acquire() }
         }
@@ -256,6 +256,6 @@ private suspend inline fun <R, C : Connection> ConnectionPool<C>.use(
 internal class TestConnectionPoolImpl(
     poolOptions: PoolOptions,
     provider: ConnectionProvider<Connection>,
-) : AbstractConnectionPool<Connection>(poolOptions, provider) {
+) : AbstractDefaultConnectionPool<Connection>(poolOptions, provider) {
     override suspend fun disposeConnection(connection: Connection) = Unit
 }

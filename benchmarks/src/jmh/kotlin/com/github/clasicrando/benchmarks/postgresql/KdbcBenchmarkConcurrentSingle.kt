@@ -1,7 +1,6 @@
 package com.github.clasicrando.benchmarks.postgresql
 
 import com.github.clasicrando.common.connection.use
-import com.github.clasicrando.common.pool.KdbcPoolsManager
 import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.connection.PgConnection
@@ -17,7 +16,6 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 import java.util.concurrent.TimeUnit
 
@@ -79,10 +77,5 @@ open class KdbcBenchmarkConcurrentSingle {
             async { executeQuery(stepId) }
         }
         results.awaitAll()
-    }
-
-    @TearDown
-    fun destroy() = runBlocking {
-        KdbcPoolsManager.closeAllPools()
     }
 }
