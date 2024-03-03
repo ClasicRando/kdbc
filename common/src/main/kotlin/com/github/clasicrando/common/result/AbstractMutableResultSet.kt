@@ -38,6 +38,10 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
     override fun iterator(): Iterator<DataRow> = backingList?.iterator()
         ?: error("Attempted to iterate on a closed/released ResultSet")
 
+    /**
+     * Remove all elements of the backing [MutableList] of this [ResultSet]. If the list is still
+     * populated, each row will be released as well.
+     */
     override fun release() {
         backingList?.let {
             for (item in it) {

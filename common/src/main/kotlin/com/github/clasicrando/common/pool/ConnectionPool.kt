@@ -1,7 +1,6 @@
 package com.github.clasicrando.common.pool
 
 import com.github.clasicrando.common.connection.Connection
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 
 /**

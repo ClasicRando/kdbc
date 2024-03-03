@@ -11,7 +11,8 @@ package com.github.clasicrando.common
  */
 interface AutoRelease {
     /**
-     * Release/cleanup resources that back this type.
+     * Release/cleanup resources that back this type. It is not an error to call this method
+     * multiple times.
      *
      * This method does not prescribe if the type is fully releasing resources such that the
      * instance should not be used anymore (e.g. closing a physical TCP connection) or simply

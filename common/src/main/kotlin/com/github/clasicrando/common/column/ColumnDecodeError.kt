@@ -11,7 +11,7 @@ class ColumnDecodeError(
     decodeType: KType,
     reason: String,
 ) : Throwable(
-    "Could not decode bytes into desired type. Input: $dataType($typeName), " +
+    "Could not decode bytes into desired type. Actual Type: $typeName($dataType), " +
             "Column: '$columnName', " +
             "Desired Output: $decodeType" + if (reason.isNotBlank()) ", Reason: $reason" else ""
 )
@@ -26,8 +26,13 @@ inline fun <reified T> columnDecodeError(type: ColumnData, reason: String = ""):
     throw ColumnDecodeError(type.dataType, type.typeName, type.fieldName, typeOf<T>(), reason)
 }
 
-inline fun <reified T> checkOrColumnDecodeError(check: Boolean, type: ColumnData) {
+/** Evaluate the [check] parameter and if it's false throw a [ColumnDecodeError] */
+inline fun <reified T> checkOrColumnDecodeError(
+    check: Boolean,
+    type: ColumnData,
+    reason: String = "",
+) {
     if (!check) {
-        columnDecodeError<T>(type)
+        columnDecodeError<T>(type, reason)
     }
 }

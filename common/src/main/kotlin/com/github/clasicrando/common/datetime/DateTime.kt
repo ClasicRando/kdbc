@@ -19,6 +19,10 @@ data class DateTime(val datetime: LocalDateTime, val offset: UtcOffset) {
     constructor(date: LocalDate, time: LocalTime, offset: UtcOffset)
             : this(LocalDateTime(date, time), offset)
 
+    /**
+     * Return a new [DateTime] instance with the same absolute timestamp value, but with the new
+     * [offset] applied to the [datetime] and the new [offset] stored in the result.
+     */
     fun withOffset(offset: UtcOffset): DateTime {
         val newDateTime = datetime.toInstant(this.offset)
             .toLocalDateTime(offset.asTimeZone())
