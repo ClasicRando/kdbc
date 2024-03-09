@@ -10,7 +10,6 @@ import com.github.clasicrando.common.reduceToSingleOrNull
 import com.github.clasicrando.common.result.AbstractMutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.result.StatementResult
-import com.github.clasicrando.common.selectLoop
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.column.compositeTypeDecoder
@@ -70,6 +69,8 @@ class PgConnection internal constructor(
 ) : Connection {
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
+
+    override val connectionIdAsString: String by lazy { connectionId.toString() }
 
     /**
      * [Channel] that when containing a single item, signifies the connection is ready for a new
@@ -282,7 +283,7 @@ class PgConnection internal constructor(
      * - data row -> pack the row into the current [AbstractMutableResultSet]
      * - command complete -> emitting a new [QueryResult] from the [flow]
      * - query done -> enabling others to query against this connection and exiting the
-     * [selectLoop]
+     * selectLoop
      *
      * After the query collection the collection of errors is checked and aggregated into one
      * [Throwable] (if any) and thrown. Otherwise, the [flow] exits with all [QueryResult]s

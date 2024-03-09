@@ -40,8 +40,8 @@ data class DateTime(val datetime: LocalDateTime, val offset: UtcOffset) {
          */
         fun fromString(value: String): DateTime {
             return DateTime(
-                datetime = LocalDateTime.tryFromString(value).getOrThrow(),
-                offset = UtcOffset.tryFromString(value).getOrThrow(),
+                datetime = LocalDateTime.tryFromString(value),
+                offset = UtcOffset.tryFromString(value),
             )
         }
     }

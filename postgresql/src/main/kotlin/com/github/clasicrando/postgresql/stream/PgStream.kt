@@ -66,9 +66,9 @@ internal class PgStream(
     }
 
     internal suspend fun receiveNextServerMessage(): PgMessage {
-        val format = connection.readByte().getOrThrow()
-        val size = connection.readInt().getOrThrow()
-        val buffer = connection.readBuffer(size - 4).getOrThrow()
+        val format = connection.readByte()
+        val size = connection.readInt()
+        val buffer = connection.readBuffer(size - 4)
         val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
         return decoders.decode(rawMessage)
     }
@@ -82,7 +82,7 @@ internal class PgStream(
                 is PgMessage.BackendKeyData -> onBackendKeyData(message)
                 else -> {
                     when (process(message)) {
-                        Loop.Continue -> continue
+                        Loop.Continue, Loop.Noop -> continue
                         Loop.Break -> break
                     }
                 }
@@ -350,7 +350,7 @@ internal class PgStream(
         ): PgStream {
             val address = InetSocketAddress(connectOptions.host, connectOptions.port.toInt())
             val socket = Nio2AsyncStream(address)
-            socket.connect().getOrThrow()
+            socket.connect()
             val stream = PgStream(scope, socket, connectOptions)
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)

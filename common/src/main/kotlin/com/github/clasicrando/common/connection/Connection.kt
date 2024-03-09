@@ -29,11 +29,18 @@ interface Connection {
      * [begin] is called and reverts to false if [commit] or [rollback] is called.
      */
     val inTransaction: Boolean
+
     /**
      * Unique identifier for the connection, utilized for logging to signify log messages as coming
      * from the same connection. Defaults to an auto-generated UUID.
      */
     val connectionId: UUID
+
+    /**
+     * String version of [connectionId] that can be cached to avoid repeated call to
+     * [UUID.toString] for logging.
+     */
+    val connectionIdAsString: String
 
     /**
      * Method called to close the connection and free any resources that are held by the
@@ -46,11 +53,13 @@ interface Connection {
      * already within a transaction.
      */
     suspend fun begin()
+
     /**
      * Commit the current transaction. This will fail if the [Connection] was not within a
      * transaction
      */
     suspend fun commit()
+
     /**
      * Rollback the current transaction. This will fail if the [Connection] was not within a
      * transaction

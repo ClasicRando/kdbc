@@ -10,6 +10,11 @@ import kotlin.coroutines.suspendCoroutine
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * [AsyncStream] implementation for an JVM NIO2 [AsynchronousSocketChannel]. Each method is
+ * implemented by using the socket's callback API and [suspendCoroutine] to suspend until the
+ * callback is executed to resume the coroutine.
+ */
 class Nio2AsyncStream(private val address: InetSocketAddress) : AsyncStream {
     private val socket = AsynchronousSocketChannel.open()
     private val readBuffer = ByteBuffer.allocateDirect(4096)
@@ -17,73 +22,45 @@ class Nio2AsyncStream(private val address: InetSocketAddress) : AsyncStream {
 
     override val isConnected: Boolean get() = socket.isOpen
 
-    override suspend fun connect(): Result<Unit> {
-        val result = suspendCoroutine { continuation ->
+    override suspend fun connect() {
+        suspendCoroutine { continuation ->
             socket.connect(
                 address,
                 null,
                 SuspendVoidCompletionHandler(continuation),
             )
-        }.onFailure {
-            logger.atTrace {
-                message = "Error attempting connection to {address}"
-                payload = mapOf("address" to address)
-                cause = it
-            }
         }
-        if (result.isSuccess) {
-            logger.atTrace {
-                message = "Successfully connected to {address}"
-                payload = mapOf("address" to address)
-            }
+        logger.atTrace {
+            message = "Successfully connected to {address}"
+            payload = mapOf("address" to address)
         }
-        return result
     }
 
-    override suspend fun writeBuffer(buffer: ByteWriteBuffer): Result<Unit> {
+    override suspend fun writeBuffer(buffer: ByteWriteBuffer) {
         while (buffer.innerBuffer.hasRemaining()) {
-            val result = suspendCoroutine { continuation ->
+            val bytes = suspendCoroutine { continuation ->
                 socket.write(
                     buffer.innerBuffer,
                     null,
                     SuspendCompletionHandler(continuation),
                 )
             }
-            when {
-                result.isFailure -> {
-                    val error = result.exceptionOrNull()!!
-                    logger.atTrace {
-                        message = "Error writing bytes to {address}"
-                        payload = mapOf("address" to address)
-                        cause = error
-                    }
-                    return Result.failure(error)
-                }
-                else -> {
-                    val bytes = result.getOrNull()!!
-                    logger.atTrace {
-                        message = "Wrote {count} bytes to {address}"
-                        payload = mapOf("count" to bytes, "address" to address)
-                    }
-                }
+            logger.atTrace {
+                message = "Wrote {count} bytes to {address}"
+                payload = mapOf("count" to bytes, "address" to address)
             }
         }
-        return Result.success(Unit)
     }
 
-    private suspend fun readIntoBuffer(min: Int): Result<Unit> {
+    private suspend fun readIntoBuffer(min: Int) {
         readBuffer.clear()
         while (true) {
-            val result = suspendCoroutine { continuation ->
+            val bytesRead = suspendCoroutine { continuation ->
                 socket.read(readBuffer, null, SuspendCompletionHandler(continuation))
-            }
-            val bytesRead = when {
-                result.isFailure -> return Result.failure(result.exceptionOrNull()!!)
-                else -> result.getOrNull()!!
             }
             if (bytesRead == -1) {
                 logger.trace { "Unexpectedly reached end of stream" }
-                return Result.failure(EndOfStream())
+                throw EndOfStream()
             }
             logger.atTrace {
                 message = "Received {count} bytes from {address}"
@@ -91,28 +68,25 @@ class Nio2AsyncStream(private val address: InetSocketAddress) : AsyncStream {
             }
             if (readBuffer.position() >= min) {
                 readBuffer.flip()
-                return Result.success(Unit)
+                return
             }
             if (!readBuffer.hasRemaining()) {
-                return Result.failure(FullBuffer())
+                throw FullBuffer()
             }
         }
     }
 
-    override suspend fun readByte(): Result<Byte> {
+    override suspend fun readByte(): Byte {
         if (readBuffer.remaining() >= 1) {
-            return Result.success(readBuffer.get())
+            return readBuffer.get()
         }
-        val readResult = readIntoBuffer(1)
-        if (readResult.isFailure) {
-            return Result.failure(readResult.exceptionOrNull()!!)
-        }
-        return Result.success(readBuffer.get())
+        readIntoBuffer(1)
+        return readBuffer.get()
     }
 
-    override suspend fun readInt(): Result<Int> {
+    override suspend fun readInt(): Int {
         if (readBuffer.remaining() >= 4) {
-            return Result.success(readBuffer.getInt())
+            return readBuffer.getInt()
         }
         val available = readBuffer.remaining()
         val intRead = ByteBuffer.allocate(4)
@@ -120,34 +94,28 @@ class Nio2AsyncStream(private val address: InetSocketAddress) : AsyncStream {
             intRead.put(readBuffer.get())
         }
 
-        val readResult = readIntoBuffer(4 - available)
-        if (readResult.isFailure) {
-            return Result.failure(readResult.exceptionOrNull()!!)
-        }
+        readIntoBuffer(4 - available)
 
         while (intRead.hasRemaining()) {
             intRead.put(readBuffer.get())
         }
         intRead.flip()
-        return Result.success(intRead.getInt())
+        return intRead.getInt()
     }
 
-    override suspend fun readBuffer(size: Int): Result<ByteReadBuffer> {
-        val bytes = ByteArray(size)
-        if (readBuffer.remaining() >= size) {
+    override suspend fun readBuffer(count: Int): ByteReadBuffer {
+        val bytes = ByteArray(count)
+        if (readBuffer.remaining() >= count) {
             readBuffer.get(bytes)
-            return Result.success(ByteReadBuffer(bytes))
+            return ByteReadBuffer(bytes)
         }
         val available = readBuffer.remaining()
         readBuffer.get(bytes, 0, available)
 
-        val readResult = readIntoBuffer(size - available)
-        if (readResult.isFailure) {
-            return Result.failure(readResult.exceptionOrNull()!!)
-        }
+        readIntoBuffer(count - available)
 
         readBuffer.get(bytes, available, bytes.size - available)
-        return Result.success(ByteReadBuffer(bytes))
+        return ByteReadBuffer(bytes)
     }
 
     override fun release() {

@@ -31,8 +31,8 @@ data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
 
         fun fromString(value: String): PgTimeTz {
             return PgTimeTz(
-                time = LocalTime.tryFromString(value).getOrThrow(),
-                offset = UtcOffset.tryFromString(value).getOrThrow(),
+                time = LocalTime.tryFromString(value),
+                offset = UtcOffset.tryFromString(value),
             )
         }
     }

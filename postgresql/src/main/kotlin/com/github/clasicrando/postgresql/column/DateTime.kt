@@ -53,6 +53,6 @@ val localDateTimeTypeDecoder = PgTypeDecoder { value ->
             instant.toLocalDateTime(TimeZone.UTC)
         }
         // https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L233
-        is PgValue.Text -> LocalDateTime.tryFromString(value.text).getOrThrow()
+        is PgValue.Text -> LocalDateTime.tryFromString(value.text)
     }
 }
