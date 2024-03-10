@@ -13,10 +13,14 @@ import java.nio.charset.Charset
  * each write since the underling resource is reset when [release] is called rather than cleaned
  * up.
  */
-class ByteWriteBuffer(capacity: Int = 2048) : AutoRelease {
+class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRelease {
     // TODO remove direct dependency on java with kotlinx.io once the library matures
     @PublishedApi
-    internal var innerBuffer = ByteBuffer.allocateDirect(capacity)
+    internal var innerBuffer = if (isDirect) {
+        ByteBuffer.allocateDirect(capacity)
+    } else {
+        ByteBuffer.allocate(capacity)
+    }
 
     /**
      * Position within the internal buffer. This signifies how many bytes have been written to the
