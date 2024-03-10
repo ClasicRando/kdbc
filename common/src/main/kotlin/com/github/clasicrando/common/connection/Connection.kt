@@ -1,8 +1,10 @@
 package com.github.clasicrando.common.connection
 
+import com.github.clasicrando.common.UniqueResourceId
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.result.StatementResult
-import kotlinx.uuid.UUID
+
+private const val RESOURCE_TYPE = "Connection"
 
 /**
  * A connection/session with a database. Each database vendor will provide these required
@@ -17,7 +19,9 @@ import kotlinx.uuid.UUID
  * [Connection] for a long period of time (e.g. outside the scope of a single method) you should
  * find a way to always close the [Connection].
  */
-interface Connection {
+interface Connection : UniqueResourceId {
+    override val resourceType: String get() = RESOURCE_TYPE
+
     /**
      * Returns true if the underlining connection is still active and false if the connection has
      * been closed or a fatal error has occurred causing the connection to be aborted
@@ -29,18 +33,6 @@ interface Connection {
      * [begin] is called and reverts to false if [commit] or [rollback] is called.
      */
     val inTransaction: Boolean
-
-    /**
-     * Unique identifier for the connection, utilized for logging to signify log messages as coming
-     * from the same connection. Defaults to an auto-generated UUID.
-     */
-    val connectionId: UUID
-
-    /**
-     * String version of [connectionId] that can be cached to avoid repeated call to
-     * [UUID.toString] for logging.
-     */
-    val connectionIdAsString: String
 
     /**
      * Method called to close the connection and free any resources that are held by the

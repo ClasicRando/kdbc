@@ -1,6 +1,5 @@
 package com.github.clasicrando.common
 
-import com.github.clasicrando.common.connection.Connection
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
@@ -20,18 +19,21 @@ sealed interface Loop {
 
 /**
  * [KLogger] extension method to log at the specified [level] using the event builder set up using
- * the [block] within the context of the [connection] provided. This makes each event include the
- * [Connection.connectionId] in each event as a key value pair.
+ * the [block] within the context of the [resource] provided. This makes each event include the
+ * [resourceId][UniqueResourceId.resourceId] in each event as a key value pair.
  */
-inline fun KLogger.connectionLogger(
-    connection: Connection,
+inline fun KLogger.resourceLogger(
+    resource: UniqueResourceId,
     level: Level,
     crossinline block: KLoggingEventBuilder.() -> Unit,
 ) {
-    val connectionId = "connectionId" to connection.connectionId.toString()
+    val autoPayload = mapOf(
+        "resourceId" to resource.resourceIdAsString,
+        "resourceType" to resource.resourceType,
+    )
     at(level) {
         block()
-        payload = payload?.plus(connectionId) ?: mapOf(connectionId)
+        payload = payload?.plus(autoPayload) ?: autoPayload
     }
 }
 

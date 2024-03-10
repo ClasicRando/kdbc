@@ -1,8 +1,9 @@
 package com.github.clasicrando.postgresql.connection
 
+import com.github.clasicrando.common.DefaultUniqueResourceId
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.connection.Connection
-import com.github.clasicrando.common.connectionLogger
+import com.github.clasicrando.common.resourceLogger
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
 import com.github.clasicrando.common.pool.ConnectionPool
 import com.github.clasicrando.common.quoteIdentifier
@@ -41,8 +42,6 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.selects.select
-import kotlinx.uuid.UUID
-import kotlinx.uuid.generateUUID
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -65,12 +64,9 @@ class PgConnection internal constructor(
      * new instance of [PgTypeRegistry]
      */
     @PublishedApi internal val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
-    override val connectionId: UUID = UUID.generateUUID(),
-) : Connection {
+) : Connection, DefaultUniqueResourceId() {
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
-
-    override val connectionIdAsString: String by lazy { connectionId.toString() }
 
     /**
      * [Channel] that when containing a single item, signifies the connection is ready for a new
@@ -112,7 +108,7 @@ class PgConnection internal constructor(
      * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
     private inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
-        logger.connectionLogger(this, level, block)
+        logger.resourceLogger(this, level, block)
     }
 
     /**
@@ -336,7 +332,7 @@ class PgConnection internal constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
-        logger.connectionLogger(
+        logger.resourceLogger(
             this@PgConnection,
             connectOptions.logSettings.statementLevel,
         ) {
@@ -521,9 +517,12 @@ class PgConnection internal constructor(
             targetName = statement.statementName,
         )
         stream.writeManyToStream(closeMessage, PgMessage.Sync)
-        stream.waitForOrError<PgMessage.CommandComplete>()
-            .onFailure { enableQueryRunning() }
-            .getOrThrow()
+        try {
+            stream.waitForOrError<PgMessage.CommandComplete>()
+        } catch (ex: Throwable) {
+            enableQueryRunning()
+            throw ex
+        }
         preparedStatements.remove(query)
         enableQueryRunning()
     }
@@ -651,9 +650,12 @@ class PgConnection internal constructor(
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
 
-        stream.waitForOrError<PgMessage.CopyInResponse>()
-            .onFailure { enableQueryRunning() }
-            .getOrThrow()
+        try {
+            stream.waitForOrError<PgMessage.CopyInResponse>()
+        } catch (ex: Throwable) {
+            enableQueryRunning()
+            throw ex
+        }
 
         try {
             stream.writeManySized(data.map { PgMessage.CopyData(it) })
@@ -741,9 +743,12 @@ class PgConnection internal constructor(
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
 
-        stream.waitForOrError<PgMessage.CopyOutResponse>()
-            .onFailure { enableQueryRunning() }
-            .getOrThrow()
+        try {
+            stream.waitForOrError<PgMessage.CopyOutResponse>()
+        } catch (ex: Throwable) {
+            enableQueryRunning()
+            throw ex
+        }
         return flow {
             stream.processMessageLoop { message ->
                 when (message) {

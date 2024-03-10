@@ -1,12 +1,19 @@
 package com.github.clasicrando.postgresql.stream
 
+import com.github.clasicrando.common.DefaultUniqueResourceId
+import com.github.clasicrando.common.ExitOfProcessingLoop
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.message.SizedMessage
+import com.github.clasicrando.common.resourceLogger
 import com.github.clasicrando.common.stream.AsyncStream
 import com.github.clasicrando.common.stream.Nio2AsyncStream
+import com.github.clasicrando.common.stream.StreamConnectError
+import com.github.clasicrando.common.stream.StreamReadError
+import com.github.clasicrando.common.stream.StreamWriteError
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.authentication.Authentication
+import com.github.clasicrando.postgresql.authentication.PgAuthenticationError
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
 import com.github.clasicrando.postgresql.authentication.simplePasswordAuthFlow
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
@@ -24,22 +31,22 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
-import kotlinx.uuid.UUID
-import kotlinx.uuid.generateUUID
 import java.net.InetSocketAddress
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
+private const val RESOURCE_TYPE = "PgStream"
 
 internal class PgStream(
     private val scope: CoroutineScope,
     private var connection: AsyncStream,
     internal val connectOptions: PgConnectOptions,
-): CoroutineScope, AutoCloseable {
-    private val pgStreamId: UUID = UUID.generateUUID()
+) : DefaultUniqueResourceId(), CoroutineScope, AutoCloseable {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     private val messageSendBuffer = ByteWriteBuffer(MESSAGE_BUFFER_SIZE)
+
+    override val resourceType: String = RESOURCE_TYPE
 
     override val coroutineContext: CoroutineContext get() = Job(parent = scope.coroutineContext.job)
 
@@ -58,11 +65,7 @@ internal class PgStream(
     val notifications: ReceiveChannel<PgNotification> = notificationsChannel
 
     internal inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
-        val connectionId = "connectionId" to pgStreamId.toString()
-        logger.at(level) {
-            block()
-            payload = payload?.plus(connectionId) ?: mapOf(connectionId)
-        }
+        logger.resourceLogger(this, level, block)
     }
 
     internal suspend fun receiveNextServerMessage(): PgMessage {
@@ -90,7 +93,7 @@ internal class PgStream(
         }
     }
 
-    suspend inline fun <reified T : PgMessage> waitForOrError(): Result<T> {
+    suspend inline fun <reified T : PgMessage> waitForOrError(): T {
         while (isActive && isConnected) {
             when (val message = receiveNextServerMessage()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
@@ -98,7 +101,7 @@ internal class PgStream(
                 is PgMessage.ParameterStatus -> onParameterStatus(message)
                 is PgMessage.BackendKeyData -> onBackendKeyData(message)
                 is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
-                is T -> return Result.success(message)
+                is T -> return message
                 else -> {
                     log(Level.TRACE) {
                         this.message = "Ignoring {message} since it's not an error or the desired type"
@@ -107,8 +110,7 @@ internal class PgStream(
                 }
             }
         }
-        val error = IllegalStateException("Unexpected exit waiting for PgMessage.RowDescription")
-        return Result.failure(error)
+        throw ExitOfProcessingLoop(T::class.qualifiedName!!)
     }
 
     /**
@@ -247,41 +249,36 @@ internal class PgStream(
      * be disposed.
      */
     private suspend fun handleAuthFlow() {
-        val isAuthenticated: Boolean
         val message = receiveNextServerMessage()
         if (message is PgMessage.ErrorResponse) {
             throw GeneralPostgresError(message)
         }
         if (message !is PgMessage.Authentication) {
-            error("Server sent non-auth message that was not an error. Closing connection")
+            throw PgAuthenticationError(
+                "Server sent non-auth message that was not an error. Closing connection"
+            )
         }
         when (val auth = message.authentication) {
             Authentication.Ok -> {
                 log(Level.TRACE) {
                     this.message = "Successfully logged in to database"
                 }
-                isAuthenticated = true
             }
             Authentication.CleartextPassword -> {
-                isAuthenticated = this.simplePasswordAuthFlow(
+                this.simplePasswordAuthFlow(
                     connectOptions.username,
-                    connectOptions.password ?: error("Password must be provided"),
+                    connectOptions.password ?: throw PgAuthenticationError("Missing Password"),
                 )
             }
             is Authentication.Md5Password -> {
-                isAuthenticated = this.simplePasswordAuthFlow(
+                this.simplePasswordAuthFlow(
                     connectOptions.username,
-                    connectOptions.password ?: error("Password must be provided"),
+                    connectOptions.password ?: throw PgAuthenticationError("Missing Password"),
                     auth.salt,
                 )
             }
-            is Authentication.Sasl -> {
-                isAuthenticated = this.saslAuthFlow(auth)
-            }
+            is Authentication.Sasl -> this.saslAuthFlow(auth)
             else -> error("Auth request type cannot be handled. $auth")
-        }
-        if (!isAuthenticated) {
-            error("Not authenticated")
         }
     }
 
@@ -343,6 +340,15 @@ internal class PgStream(
          * The method waits for a [PgMessage.ReadyForQuery] server response. In the case that the
          * server rejects the connection (by sending a [PgMessage.ErrorResponse]) the new
          * [PgStream] object is closed and an exception is thrown.
+         *
+         * @throws PgAuthenticationError if the authentication fails
+         * @throws StreamConnectError if the underling [AsyncStream] fails to connect
+         * @throws StreamReadError if any authentication message or the final ready for query
+         * message fails
+         * @throws StreamWriteError if the startup message or any authentication message written to
+         * the stream fails
+         * @throws ExitOfProcessingLoop if waiting for [PgMessage.ReadyForQuery] or error after
+         * authentication exits the processing loop unexpectedly
          */
         internal suspend fun connect(
             scope: CoroutineScope,
@@ -356,7 +362,6 @@ internal class PgStream(
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()
             stream.waitForOrError<PgMessage.ReadyForQuery>()
-                .getOrThrow()
             return stream
             /***
              * TODO

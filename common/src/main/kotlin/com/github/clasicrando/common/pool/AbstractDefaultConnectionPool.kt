@@ -41,11 +41,11 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
 
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,
-     * add the [Connection.connectionId] to the [connectionIds] set and return the new connection
+     * add the [Connection.resourceId] to the [connectionIds] set and return the new connection
      */
     private suspend fun createNewConnection(): C {
         val connection = provider.create(this@AbstractDefaultConnectionPool)
-        connectionIds[connection.connectionId] = connection
+        connectionIds[connection.resourceId] = connection
         logger.atTrace {
             message = "Created new connection. Current pool size = {count}. Max size = {max}"
             payload = mapOf(
@@ -64,14 +64,14 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
 
     /**
      * Invalidate a [connection] from the pool by moving the [Connection] out of the pool's
-     * resources and references. This means, removing the [Connection.connectionId] out of the
+     * resources and references. This means, removing the [Connection.resourceId] out of the
      * [connectionIds] set, removing the reference to the pool in the [Connection] and closing the
      * actual [Connection]. This action will only fail if the [logger] fails to log.
      */
     private suspend fun invalidateConnection(connection: C) {
         var connectionId: UUID? = null
         try {
-            connectionId = connection.connectionId
+            connectionId = connection.resourceId
             connectionIds.remove(connectionId)
             logger.atTrace {
                 message = "Invalidating connection id = {id}"
@@ -139,7 +139,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
 
     /** Checks the [connectionIds] lookup table for the [poolConnection]'s ID */
     internal fun hasConnection(poolConnection: C): Boolean {
-        return connectionIds.contains(poolConnection.connectionId)
+        return connectionIds.contains(poolConnection.resourceId)
     }
 
     override suspend fun giveBack(connection: C): Boolean {

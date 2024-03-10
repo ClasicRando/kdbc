@@ -62,6 +62,7 @@ subprojects {
 
     kotlin {
         jvmToolchain(11)
+        compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
     }
 
     tasks.test {

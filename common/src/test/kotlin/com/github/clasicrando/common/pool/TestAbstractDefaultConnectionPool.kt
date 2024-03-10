@@ -29,7 +29,7 @@ class TestAbstractDefaultConnectionPool {
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
             val connection = mockk<Connection>(relaxed = true)
-            every { connection.connectionId } returns connectionId
+            every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(maxConnections = 0, minConnections = 0)
@@ -48,7 +48,7 @@ class TestAbstractDefaultConnectionPool {
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
             val connection = mockk<Connection>(relaxed = true)
-            every { connection.connectionId } returns connectionId
+            every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(maxConnections = 1, minConnections = 0)
@@ -69,7 +69,7 @@ class TestAbstractDefaultConnectionPool {
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
             val connection = mockk<Connection>(relaxed = true)
-            every { connection.connectionId } returns connectionId
+            every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(
@@ -92,7 +92,7 @@ class TestAbstractDefaultConnectionPool {
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
             val connection = mockk<Connection>(relaxed = true)
-            every { connection.connectionId } returns connectionId
+            every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(maxConnections = 1, minConnections = 0)
@@ -101,7 +101,7 @@ class TestAbstractDefaultConnectionPool {
             provider = factory,
         ).use {
             val heldConnection = it.acquire()
-            val expectedId = heldConnection.connectionId
+            val expectedId = heldConnection.resourceId
             launch {
                 delay(2_000)
                 it.giveBack(heldConnection)
@@ -110,7 +110,7 @@ class TestAbstractDefaultConnectionPool {
                 it.acquire()
             }
 
-            assertEquals(expectedId, result.connectionId)
+            assertEquals(expectedId, result.resourceId)
         }
     }
 
@@ -121,7 +121,7 @@ class TestAbstractDefaultConnectionPool {
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
             val connection = mockk<Connection>(relaxed = true)
-            every { connection.connectionId } returns connectionId
+            every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(
@@ -144,7 +144,7 @@ class TestAbstractDefaultConnectionPool {
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
             val connection = mockk<Connection>(relaxed = true)
-            every { connection.connectionId } returns connectionId
+            every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(
@@ -173,7 +173,7 @@ class TestAbstractDefaultConnectionPool {
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
             val connection = mockk<Connection>(relaxed = true)
-            every { connection.connectionId } returns connectionId
+            every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(
@@ -197,7 +197,7 @@ class TestAbstractDefaultConnectionPool {
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
             val connection = mockk<Connection>(relaxed = true)
-            every { connection.connectionId } returns connectionId
+            every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(
