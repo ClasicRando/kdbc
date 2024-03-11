@@ -1,30 +1,30 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.postgresql.type.PgNumeric
-import com.github.clasicrando.postgresql.type.SIGN_NAN
 import java.math.BigDecimal
 
-// https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1068
+/**
+ * Implementation of a [PgTypeEncoder] for the [BigDecimal] type. This maps to the `numeric` type
+ * in a postgresql database. Numeric types are constructed using the internal type [PgNumeric] and
+ * encoded to the buffer using [PgNumeric.encodeToBuffer]. To get a [PgNumeric],
+ * [PgNumeric.fromBigDecimal] is called to convert the [BigDecimal] value to [PgNumeric].
+ */
 internal val bigDecimalTypeEncoder = PgTypeEncoder<BigDecimal>(PgType.Numeric) { value, buffer ->
-    when (val numeric = PgNumeric.fromBigDecimal(value)) {
-        PgNumeric.NAN -> {
-            buffer.writeShort(0)
-            buffer.writeShort(0)
-            buffer.writeShort(SIGN_NAN)
-            buffer.writeShort(0)
-        }
-        is PgNumeric.Number -> {
-            buffer.writeShort(numeric.digits.size.toShort())
-            buffer.writeShort(numeric.weight)
-            buffer.writeShort(numeric.sign)
-            buffer.writeShort(numeric.scale)
-            for (digit in numeric.digits) {
-                buffer.writeShort(digit)
-            }
-        }
-    }
+    PgNumeric.fromBigDecimal(value)
+        .encodeToBuffer(buffer)
 }
 
+/**
+ * Implementation of a [PgTypeDecoder] for the [BigDecimal] type. This maps to the `numeric` type
+ * in a postgresql database.
+ *
+ * ### Binary
+ * When supplied in the binary format, [PgNumeric.fromBytes] is used to get a [PgNumeric] which can
+ * be converted to a [BigDecimal] using [PgNumeric.toBigDecimal].
+ *
+ * ### Text
+ * When supplied in text format, a [BigDecimal] can be constructed directly from the [String].
+ */
 internal val bigDecimalTypeDecoder = PgTypeDecoder { value ->
     when (value) {
         is PgValue.Binary -> PgNumeric.fromBytes(value.bytes).toBigDecimal()

@@ -1,6 +1,7 @@
 package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.buffer.ByteReadBuffer
+import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.math.max
@@ -10,14 +11,70 @@ internal const val SIGN_NAN: Short = 0xC0
 internal const val SIGN_POSITIVE: Short = 0x0000
 internal const val SIGN_NEGATIVE: Short = 0x4000
 
+/**
+ * Type that directly maps to the `numeric` type in a postgresql database. A `numeric` value can be
+ * either [NAN] or an actual number with specific properties describing the storage of the number.
+ * This type is useful as an intermediary that can be easily written to the arguments buffer and
+ * read from a row buffer. It also includes utility methods to convert to and from [BigDecimal]
+ * which is the type that most applications will use to represent large decimal numbers.
+ *
+ * TODO convert to use a multiplatform type instead of java.math.BigDecimal
+ */
 internal sealed class PgNumeric {
+    /** Any numeric value that is NAN. A special number in the postgresql */
     data object NAN : PgNumeric()
+
+    /**
+     * Type that reflects the internal storage and transit format of a postgresql numeric type.
+     *
+     * @param sign Sign of the number. 1 of 3 values: 0x0000 -> positive, 0x4000 -> negative, 0xC0
+     * -> NAN (not representable by [BigDecimal] but implemented for mapping to postgres type)
+     * @param digits Base 10_000 values that represent the number
+     * @param weight Represents the number of digits before the decimal point plus 1. [weight] can
+     * be less than zero.
+     * @param scale Represents the number of digits after the decimal point. This must always be
+     * greater than 0.
+     */
     class Number(
         val sign: Short,
         val digits: ShortArray,
         val weight: Short,
         val scale: Short,
     ) : PgNumeric()
+
+    /**
+     * Encode this [PgNumeric] into the argument [buffer] in the following format and order:
+     *
+     * 1. [Short] - number of digits within the number
+     * 2. [Short] - weight of the number
+     * 3. [Short] - sign of the number
+     * 4. [Short] - scale of the number
+     * 5. Dynamic - all digits encoded as [Short] values (base 10_000), count must match the first
+     * number encoded
+     *
+     * For [PgNumeric.NAN], all values are 0 (with no digits) expect for the sign which is 0xC0.
+     *
+     * [pg source code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1068)
+     */
+    internal fun encodeToBuffer(buffer: ByteWriteBuffer) {
+        when (this) {
+            NAN -> {
+                buffer.writeShort(0)
+                buffer.writeShort(0)
+                buffer.writeShort(SIGN_NAN)
+                buffer.writeShort(0)
+            }
+            is Number -> {
+                buffer.writeShort(this.digits.size.toShort())
+                buffer.writeShort(this.weight)
+                buffer.writeShort(this.sign)
+                buffer.writeShort(this.scale)
+                for (digit in this.digits) {
+                    buffer.writeShort(digit)
+                }
+            }
+        }
+    }
 
     /**
      * !!Disclaimer!!
@@ -258,7 +315,21 @@ internal sealed class PgNumeric {
             return BI_TEN_POWERS.getOrElse(exponent) { BigInteger.TEN.pow(exponent) }
         }
 
-        // https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1153
+        /**
+         * Decode a [PgNumeric] from the [buffer] supplied. Reads:
+         *
+         * 1. [Short] - the number of digits to follow later
+         * 2. [Short] - the weight of the number
+         * 3. [Short] - the sign of the number
+         * 4. [Short] - scale of the number
+         * 5. Dynamic - all digits encoded as [Short] values (base 10_000), count must match the
+         * first number decoded
+         *
+         * Depending on the third [Short] read (the sign value), the number is either read as a
+         * [NAN] or all the values are packed into a [Number].
+         *
+         * [pg source code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1153)
+         */
         internal fun fromBytes(buffer: ByteReadBuffer): PgNumeric {
             val numDigits = buffer.readShort()
             val weight = buffer.readShort()

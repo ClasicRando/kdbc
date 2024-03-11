@@ -44,10 +44,10 @@ internal fun <T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
 }
 
 /**
- * Implementation of [PgTypeEncoder] for a [List] of [T]. This requires an [encoder] of the [List]
- * item type to allow for encoding of the items into the argument buffer. The 1 limitation of the
- * array encoder is that it does not allow for multidimensional arrays (i.e. [encoder] is a
- * [PgArrayTypeEncoder]).
+ * Implementation of [PgTypeEncoder] for a [List] of [T]. This maps to an array type in a
+ * postgresql database and requires an [encoder] of the [List] item type to allow for encoding of
+ * the items into the argument buffer. The 1 limitation of the array encoder is that it does not
+ * allow for multidimensional arrays (i.e. [encoder] is a [PgArrayTypeEncoder]).
  */
 @PublishedApi
 internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
@@ -70,8 +70,9 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
      *  4. The number of items in the [List]
      *  5. The lower bound of the array (always 1)
      *  5. Each item encoded into the [buffer] (length prefixed if not null)
+     *
+     *  [pg source code](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1272)
      */
-    // https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1272
     override fun encode(value: List<T?>, buffer: ByteWriteBuffer) {
         buffer.writeInt(1)
         buffer.writeInt(0)
@@ -150,6 +151,9 @@ private const val ARRAY_LITERAL_CHECK_MESSAGE =
  * all the items in text format, push each [String] item into a [PgValue.Text] and decode into the
  * resulting [List].
  *
+ * [pg source code binary](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1549)
+ * [pg source code text](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1017)
+ *
  * @throws columnDecodeError if the decode operation fails (reason supplied in [Exception])
  */
 @PublishedApi
@@ -158,7 +162,6 @@ internal fun <T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
     arrayType: KType,
 ): PgTypeDecoder<List<T?>> = PgTypeDecoder { value ->
     when (value) {
-        // https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1549
         is PgValue.Binary -> {
             val dimensions = value.bytes.readInt()
             if (dimensions == 0) {
