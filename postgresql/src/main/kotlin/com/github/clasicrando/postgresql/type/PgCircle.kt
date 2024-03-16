@@ -1,11 +1,21 @@
 package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.buffer.ByteReadBuffer
+import com.github.clasicrando.common.column.ColumnDecodeError
+import com.github.clasicrando.common.column.checkOrColumnDecodeError
+import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 
-data class PgCircle(val center: PgPoint, val radius: Double) {
+data class PgCircle(val center: PgPoint, val radius: Double) : PgGeometryType {
+    override val postGisLiteral: String get() = "<${center.postGisLiteral},$radius>"
+
     companion object {
-        // https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4727
+        /**
+         * Decode [PgLine] from [readBuffer]. Extracts a [PgPoint] using [PgPoint.fromBytes], then
+         * reads a [Double] to get the [radius].
+         *
+         * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4727)
+         */
         internal fun fromBytes(readBuffer: ByteReadBuffer): PgCircle {
             return PgCircle(
                 center = PgPoint.fromBytes(readBuffer),
@@ -13,13 +23,30 @@ data class PgCircle(val center: PgPoint, val radius: Double) {
             )
         }
 
-        // https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4681
+        /**
+         * Decode [PgLine] from [value]. The expected format is '<(x,y),r>' so the point component
+         * is extracted and passed to [PgPoint.fromStr]
+         *
+         * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4681)
+         *
+         * @throws ColumnDecodeError if the circle section cannot be found, the parsing to
+         * [PgPoint] fails or the radius component is not a [Double]
+         */
         internal fun fromStr(value: String, type: PgColumnDescription): PgCircle {
             val data = value.substring(1..(value.length - 2))
             val mid = value.indexOf("),")
+            checkOrColumnDecodeError<PgCircle>(
+                check = mid >= 0,
+                type = type,
+            ) { "Cannot find the index where the point component ends for circle = '$value'" }
             return PgCircle(
                 center = PgPoint.fromStr(data.substring(0..<mid), type),
-                radius = data.substring(mid + 1).toDouble()
+                radius = data.substring(mid + 1)
+                    .toDoubleOrNull()
+                    ?: columnDecodeError<PgCircle>(
+                        type = type,
+                        reason = "Cannot convert radius in '$value' to a Double value",
+                    )
             )
         }
     }

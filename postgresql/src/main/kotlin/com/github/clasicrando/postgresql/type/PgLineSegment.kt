@@ -1,12 +1,21 @@
 package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.buffer.ByteReadBuffer
+import com.github.clasicrando.common.column.ColumnDecodeError
 import com.github.clasicrando.common.column.checkOrColumnDecodeError
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 
-data class PgLineSegment(val point1: PgPoint, val point2: PgPoint) {
+data class PgLineSegment(val point1: PgPoint, val point2: PgPoint) : PgGeometryType {
+    override val postGisLiteral: String
+        get() = "(${point1.postGisLiteral},${point2.postGisLiteral})"
+
     companion object {
-        // https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2111
+        /**
+         * Decode [PgLineSegment] from [readBuffer]. Extracts 2 [PgPoint] instances using
+         * [PgPoint.fromBytes] to create a new [PgLineSegment].
+         *
+         * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2111)
+         */
         internal fun fromBytes(readBuffer: ByteReadBuffer): PgLineSegment {
             return PgLineSegment(
                 point1 = PgPoint.fromBytes(readBuffer),
@@ -14,15 +23,25 @@ data class PgLineSegment(val point1: PgPoint, val point2: PgPoint) {
             )
         }
 
-        // https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2081
+        /**
+         * Decode [PgLineSegment] from [value]. Extracts 2 [PgPoint] values the 2 points that
+         * define the bounds of the line segment. The format of the string literal is
+         * '({point1},{point2})' so we split by the comma that separates the 2 points and pass
+         * each point to [PgPoint.fromStr].
+         *
+         * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2081)
+         *
+         * @throws ColumnDecodeError if 2 points cannot be found or parsed from the components of
+         * the line segment
+         */
         internal fun fromStr(value: String, type: PgColumnDescription): PgLineSegment {
-            val points = value.substring(1..(value.length - 2))
-            val mid = value.indexOf("),(")
-            checkOrColumnDecodeError<PgLineSegment>(mid >= 0, type)
-            return PgLineSegment(
-                point1 = PgPoint.fromStr(points.substring(0..mid), type),
-                point2 = PgPoint.fromStr(points.substring((mid + 2)..<points.length), type),
-            )
+            val pointsStr = value.substring(1, value.length - 1)
+            val points = extractPoints(pointsStr).map { PgPoint.fromStr(it, type) }
+                .toList()
+            checkOrColumnDecodeError<PgLineSegment>(points.size == 2, type) {
+                "Number of points found must be 2. Found ${points.size}"
+            }
+            return PgLineSegment(point1 = points[0], point2 = points[1])
         }
     }
 }

@@ -38,6 +38,17 @@ inline fun <reified T> checkOrColumnDecodeError(
 }
 
 /** Evaluate the [check] parameter and if it's false throw a [ColumnDecodeError] */
+inline fun <reified T> checkOrColumnDecodeError(
+    check: Boolean,
+    type: ColumnData,
+    reason: () -> String,
+) {
+    if (!check) {
+        columnDecodeError<T>(type, reason())
+    }
+}
+
+/** Evaluate the [check] parameter and if it's false throw a [ColumnDecodeError] */
 inline fun checkOrColumnDecodeError(
     check: Boolean,
     kType: KType,
