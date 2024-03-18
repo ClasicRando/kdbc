@@ -76,7 +76,7 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
     override fun encode(value: List<T?>, buffer: ByteWriteBuffer) {
         buffer.writeInt(1)
         buffer.writeInt(0)
-        buffer.writeInt(encoder.pgType.oidOrUnknown())
+        buffer.writeInt(encoder.pgType.oid)
         buffer.writeInt(value.size)
         buffer.writeInt(1)
         for (item in value) {

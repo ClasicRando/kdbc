@@ -75,7 +75,7 @@ internal class PgCompositeTypeEncoder<T : Any>(
     override fun encode(value: T, buffer: ByteWriteBuffer) {
         buffer.writeInt(properties.size)
         for ((property, propertyTypeOid) in properties) {
-            buffer.writeInt(propertyTypeOid.oidOrUnknown())
+            buffer.writeInt(propertyTypeOid.oid)
             val propertyValue = property.get(value)
             if (propertyValue == null) {
                 buffer.writeInt(-1)
@@ -150,7 +150,7 @@ internal class PgCompositeTypeDecoder<T : Any>(
                 }
                 innerTypes.getOrNull(i)
                     ?.let {
-                        val typeData = dummyTypedFieldDescription(it.oidOrUnknown())
+                        val typeData = dummyTypedFieldDescription(it.oid)
                         typeRegistry.decode(PgValue.Text(str, typeData))
                     }
                     ?: columnDecodeError(type, value.typeData)
@@ -187,7 +187,7 @@ internal class PgCompositeTypeDecoder<T : Any>(
         val length = value.bytes.readInt()
         val attributes = Array(length) {
             val typeOid = PgType.fromOid(value.bytes.readInt())
-            val fieldDescription = dummyTypedFieldDescription(typeOid.oidOrUnknown())
+            val fieldDescription = dummyTypedFieldDescription(typeOid.oid)
             val attributeLength = value.bytes.readInt()
             val slice = value.bytes.slice(attributeLength)
             value.bytes.skip(attributeLength)

@@ -89,6 +89,14 @@ class PgMoney internal constructor(internal val integer: Long) {
             encoder.encodeString(value.strRep)
         }
 
+        /**
+         * Convert the [String] provided to a new instance of [PgMoney]. This is done by first
+         * converting the [String] to a [BigDecimal] that provides a [Long] value after scaling the
+         * decimal correctly.
+         *
+         * @throws IllegalArgumentException if the [String] value provided does not match the money
+         * regex defined as '^-?\$?\d+(.\d{1,2})?$'
+         */
         fun fromString(strMoney: String): PgMoney {
             require(strMoney.matches(MONEY_REGEX)) {
                 """

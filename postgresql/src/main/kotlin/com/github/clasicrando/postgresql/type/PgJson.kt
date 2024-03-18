@@ -14,12 +14,6 @@ import kotlinx.serialization.json.encodeToStream
 
 @Serializable
 data class PgJson(val json: JsonElement) {
-    constructor(json: String): this(Json.parseToJsonElement(json))
-
-    @OptIn(ExperimentalSerializationApi::class)
-    constructor(buffer: ByteReadBuffer)
-            : this(Json.decodeFromStream<JsonElement>(buffer.inputStream()))
-
     @OptIn(ExperimentalSerializationApi::class)
     fun writeToBuffer(buffer: ByteWriteBuffer) {
         Json.encodeToStream(json, buffer.outputStream())
@@ -32,6 +26,15 @@ data class PgJson(val json: JsonElement) {
     override fun toString(): String = Json.encodeToString(json)
 
     companion object {
+        fun fromString(json: String) {
+            PgJson(Json.parseToJsonElement(json))
+        }
+
+        fun fromBytes(buffer: ByteReadBuffer) {
+            val jsonString = String(bytes = buffer.readBytes())
+            PgJson(Json.decodeFromString<JsonElement>(jsonString))
+        }
+
         inline fun <reified T> fromValue(value: T): PgJson {
             return PgJson(Json.encodeToJsonElement(value))
         }

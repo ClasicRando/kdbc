@@ -79,7 +79,6 @@ val inetTypeEncoder = PgTypeEncoder<PgInet>(
  * @throws ColumnDecodeError if the text value cannot be parsed into a [PgInet] or the binary
  * values cannot be used to construct a [PgInet]
  */
-// //
 val inetTypeDecoder = PgTypeDecoder { value ->
     val bytes = when (value) {
         is PgValue.Binary -> value.bytes

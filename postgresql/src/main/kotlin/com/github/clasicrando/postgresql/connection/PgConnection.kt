@@ -435,7 +435,7 @@ class PgConnection internal constructor(
 
         if (!statement.prepared) {
             val parameterTypes = parameters.map {
-                typeRegistry.kindOf(it).oidOrUnknown()
+                typeRegistry.kindOf(it).oid
             }
             executeStatementPrepare(query, parameterTypes, statement)
         }
