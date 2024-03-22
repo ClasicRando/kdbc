@@ -108,7 +108,7 @@ private val defaultLocalConnectOptions = PgConnectOptions(
 )
 
 private val defaultConnectOptions = PgConnectOptions(
-    host = "192.168.0.12",
+    host = "192.168.2.15",
     port = 5430U,
     username = "em_admin",
     password = System.getenv("PG_BENCHMARK_PASSWORD")
@@ -124,7 +124,7 @@ suspend fun getKdbcConnection(): Connection {
 
 suspend fun initializeConcurrentConnections(): PgConnectOptions {
     val options = PgConnectOptions(
-        host = "192.168.0.12",
+        host = "192.168.2.15",
         port = 5430U,
         username = "em_admin",
         password = System.getenv("PG_BENCHMARK_PASSWORD")

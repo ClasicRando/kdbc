@@ -8,6 +8,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.job
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.uuid.UUID
 import kotlin.coroutines.CoroutineContext
@@ -34,6 +36,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
     private val connections = Channel<C>(capacity = poolOptions.maxConnections)
     private val connectionIds: MutableMap<UUID, C> = AtomicMutableMap()
     private val connectionNeeded = Channel<CompletableDeferred<C?>>(capacity = Channel.BUFFERED)
+    private val mutex = Mutex()
 
     final override val coroutineContext: CoroutineContext = SupervisorJob(
         parent = poolOptions.parentScope?.coroutineContext?.job,
@@ -98,7 +101,13 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         val result = connections.tryReceive()
         when  {
             result.isSuccess -> return result.getOrThrow()
-            result.isFailure && !isExhausted -> return createNewConnection()
+            result.isFailure -> return mutex.withLock {
+                if (!isExhausted) {
+                    createNewConnection()
+                } else {
+                    null
+                }
+            }
             result.isClosed -> error("Connection channel for pool is closed")
         }
         return null
@@ -205,6 +214,9 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         connectionNeeded.close()
         for (connection in connectionIds.values) {
             connection.close()
+        }
+        logger.atTrace {
+            message = "Canceling scope of connection pool"
         }
         cancel()
     }

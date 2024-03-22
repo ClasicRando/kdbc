@@ -1,6 +1,8 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.column.ColumnDecodeError
+import com.github.clasicrando.common.column.columnDecodeError
+import com.github.clasicrando.common.datetime.InvalidDateString
 import com.github.clasicrando.common.datetime.tryFromString
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -46,6 +48,10 @@ val dateTypeDecoder = PgTypeDecoder { value ->
             val days = value.bytes.readInt()
             postgresEpochDate.plus(days, DateTimeUnit.DAY)
         }
-        is PgValue.Text -> LocalDate.tryFromString(value.text)
+        is PgValue.Text -> try {
+            LocalDate.tryFromString(value.text)
+        } catch (ex: InvalidDateString) {
+            columnDecodeError<LocalDate>(type = value.typeData, reason = ex.message ?: "")
+        }
     }
 }

@@ -8,7 +8,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.encodeToStream
 
@@ -26,13 +25,13 @@ data class PgJson(val json: JsonElement) {
     override fun toString(): String = Json.encodeToString(json)
 
     companion object {
-        fun fromString(json: String) {
-            PgJson(Json.parseToJsonElement(json))
+        fun fromString(json: String): PgJson {
+            return PgJson(Json.parseToJsonElement(json))
         }
 
-        fun fromBytes(buffer: ByteReadBuffer) {
+        fun fromBytes(buffer: ByteReadBuffer): PgJson {
             val jsonString = String(bytes = buffer.readBytes())
-            PgJson(Json.decodeFromString<JsonElement>(jsonString))
+            return PgJson(Json.decodeFromString<JsonElement>(jsonString))
         }
 
         inline fun <reified T> fromValue(value: T): PgJson {

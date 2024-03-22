@@ -19,7 +19,7 @@ internal class PgConnectionProvider(
             return PgConnection.connect(
                 connectOptions = connectOptions,
                 stream = stream,
-                pool = pool,
+                pool = pool as PgConnectionPool,
             )
         } catch (ex: Throwable) {
             stream?.close()

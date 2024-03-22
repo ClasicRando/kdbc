@@ -1,5 +1,11 @@
 package com.github.clasicrando.postgresql.column
 
+import com.github.clasicrando.common.column.ColumnDecodeError
+
+/**
+ * Implementation of [PgTypeEncoder] for [String]. This maps to the `text`/`name`/`bpchar`/`varchar`
+ * types in a postgresql database. Simply writes the [String] value to the buffer in UTF8 encoding.
+ */
 val stringTypeEncoder = PgTypeEncoder<String>(
     pgType = PgType.Text,
     compatibleTypes = arrayOf(
@@ -13,6 +19,16 @@ val stringTypeEncoder = PgTypeEncoder<String>(
     buffer.writeText(value)
 }
 
+/**
+ * Implementation of [PgTypeDecoder] for [String]. This maps to the `text`/`name`/`bpchar`/`varchar`
+ * types in a postgresql database
+ *
+ * ### Binary
+ * Read the bytes as text using UFT8 encoding.
+ *
+ * ### Text
+ * Return the [PgValue.Text.text] value directly
+ */
 val stringTypeDecoder = PgTypeDecoder { value ->
     when (value) {
         is PgValue.Text -> value.text

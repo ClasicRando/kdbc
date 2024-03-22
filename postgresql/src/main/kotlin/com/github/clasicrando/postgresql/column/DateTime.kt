@@ -1,9 +1,12 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.column.ColumnDecodeError
+import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.common.datetime.DateTime
+import com.github.clasicrando.common.datetime.InvalidDateString
 import com.github.clasicrando.common.datetime.tryFromString
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.toInstant
@@ -60,7 +63,11 @@ val dateTimeTypeDecoder = PgTypeDecoder { value ->
             val instant = postgresEpochInstant + microSeconds.toDuration(DurationUnit.MICROSECONDS)
             DateTime(datetime = instant.toLocalDateTime(TimeZone.UTC), offset = UtcOffset.ZERO)
         }
-        is PgValue.Text -> DateTime.fromString(value.text)
+        is PgValue.Text -> try {
+            DateTime.fromString(value.text)
+        } catch (ex: InvalidDateString) {
+            columnDecodeError<DateTime>(type = value.typeData, reason = ex.message ?: "")
+        }
     }
 }
 
@@ -100,6 +107,10 @@ val localDateTimeTypeDecoder = PgTypeDecoder { value ->
             val instant = postgresEpochInstant + microSeconds.toDuration(DurationUnit.MICROSECONDS)
             instant.toLocalDateTime(TimeZone.UTC)
         }
-        is PgValue.Text -> LocalDateTime.tryFromString(value.text)
+        is PgValue.Text -> try {
+            LocalDateTime.tryFromString(value.text)
+        } catch (ex: InvalidDateString) {
+            columnDecodeError<LocalDateTime>(type = value.typeData, reason = ex.message ?: "")
+        }
     }
 }

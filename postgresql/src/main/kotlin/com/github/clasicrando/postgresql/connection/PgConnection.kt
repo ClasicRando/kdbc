@@ -23,6 +23,7 @@ import com.github.clasicrando.postgresql.message.CloseTarget
 import com.github.clasicrando.postgresql.message.DescribeTarget
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.notification.PgNotification
+import com.github.clasicrando.postgresql.pool.PgConnectionPool
 import com.github.clasicrando.postgresql.pool.PgPoolManager
 import com.github.clasicrando.postgresql.result.PgResultSet
 import com.github.clasicrando.postgresql.statement.PgArguments
@@ -58,12 +59,9 @@ class PgConnection internal constructor(
     /** Underlining stream of data to and from the database */
     private val stream: PgStream,
     /** Reference to the [ConnectionPool] that owns this [PgConnection] */
-    private val pool: ConnectionPool<PgConnection>,
-    /**
-     * Type registry for connection. Used to decode data rows returned by the server. Defaults to a
-     * new instance of [PgTypeRegistry]
-     */
-    @PublishedApi internal val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
+    private val pool: PgConnectionPool,
+    /** Type registry for connection. Used to decode data rows returned by the server. */
+    @PublishedApi internal val typeRegistry: PgTypeRegistry = pool.typeRegistry,
 ) : Connection, DefaultUniqueResourceId() {
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
@@ -307,7 +305,8 @@ class PgConnection internal constructor(
                     Loop.Continue
                 }
                 is PgMessage.CommandComplete -> {
-                    results.addQueryResult(QueryResult(message.rowCount, message.message, result))
+                    val queryResult = QueryResult(message.rowCount, message.message, result)
+                    results.addQueryResult(queryResult)
                     Loop.Continue
                 }
                 is PgMessage.ReadyForQuery -> {
@@ -536,7 +535,7 @@ class PgConnection internal constructor(
             canRunQuery.close()
             if (stream.isConnected) {
                 stream.writeToStream(PgMessage.Terminate)
-                log(Level.INFO) {
+                log(Level.TRACE) {
                     this.message = "Successfully sent termination message"
                 }
             }
@@ -548,6 +547,7 @@ class PgConnection internal constructor(
         } finally {
             stream.close()
         }
+        preparedStatements.clear()
     }
 
     override suspend fun close() {
@@ -836,7 +836,13 @@ class PgConnection internal constructor(
         sendQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
     }
 
-    /** Update the type registry to allow for encoding and decoding PostGIS types */
+    /**
+     * Update the type registry to allow for encoding and decoding PostGIS types. This should
+     * happen at the beginning of your application or whenever you create an initial connection
+     * using a unique [PgConnectOptions] instance since the type cache is shared between
+     * connections with the same options. This also avoids inconsistency when adding and querying
+     * in a concurrent environment.
+     */
     fun includePostGisTypes() {
         typeRegistry.includePostGisTypes()
     }
@@ -875,7 +881,7 @@ class PgConnection internal constructor(
         internal suspend fun connect(
             connectOptions: PgConnectOptions,
             stream: PgStream,
-            pool: ConnectionPool<PgConnection>,
+            pool: PgConnectionPool,
         ): PgConnection {
             var connection: PgConnection? = null
             try {

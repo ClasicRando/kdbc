@@ -61,7 +61,7 @@ internal class PgCompositeTypeEncoder<T : Any>(
     }
     private val properties = cls.memberProperties
         .filter { it.name in propertyNames }
-        .map { it to typeRegistry.kindOf(it.returnType) }
+        .map { it to typeRegistry.kindOfInternal(it.returnType) }
 
     /**
      * Encode [value] into the arguments [buffer]. This writes:
@@ -130,7 +130,7 @@ internal class PgCompositeTypeDecoder<T : Any>(
         primaryConstructor = constructor
     }
     private val innerTypes = primaryConstructor.parameters
-        .map { typeRegistry.kindOf(it.type) }
+        .map { typeRegistry.kindOfInternal(it.type) }
 
     /**
      * Use the [PgCompositeLiteralParser] to parse each property in order, map each [String] into

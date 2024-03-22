@@ -11,12 +11,29 @@ import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.typeOf
+import com.github.clasicrando.postgresql.connection.PgConnectOptions
+import com.github.clasicrando.common.column.ColumnDecodeError
 
-@PublishedApi
-internal val typeRegistryLogger = KotlinLogging.logger {}
+private val logger = KotlinLogging.logger {}
 
+/**
+ * Cache of [PgTypeEncoder] and [PgTypeDecoder] instances for lookup when trying to read query
+ * results or send parameters with queries. A single instance of this class is shared between
+ * connections using the [PgConnectOptions] since they are backed by the same connection pool.
+ *
+ * Operating with this type is done through 3 channels:
+ *
+ * 1. Encoding a value into an argument buffer using [encode]
+ * 2. Decoding a [PgValue] into the expected type using [decode]
+ * 3. Adding custom types through [registerCompositeType] or [registerEnumType]
+ */
 @PublishedApi
 internal class PgTypeRegistry {
+    /**
+     * Initial [PgTypeEncoder] map storing encoders by the [KType] they can decode. Since encoders
+     * might be attached to multiple subtypes, the [defaultEncoders] is unpacked for each encode
+     * type.
+     */
     private val encoders: MutableMap<KType, PgTypeEncoder<*>> = AtomicMutableMap(
         buildMap {
             for (encoder in defaultEncoders) {
@@ -26,9 +43,24 @@ internal class PgTypeRegistry {
             }
         }
     )
+
+    /**
+     * Initial [PgTypeDecoder] map storing decoders by Oid as [Int]. Oids are unique so no need to
+     * unpack the [defaultDecoders].
+     */
     private val decoders: MutableMap<Int, PgTypeDecoder<*>> = AtomicMutableMap(defaultDecoders)
     private var hasPostGisTypes = false
 
+    /**
+     * Lookup the decoder of this [PgValue] and call [PgTypeDecoder.decode] to return a new
+     * instance with the contents of [value] used to instantiate the type. This always decodes to
+     * the Kotlin equivalent type indicated by the [PgType.oid]. Therefore, casting (safe or
+     * unsafe) is required to get to the actual value.
+     *
+     * @throws ColumnDecodeError if the decode fails as per [PgTypeDecoder.decode]
+     * @throws IllegalStateException if the oid of the [PgValue] cannot be found in the [decoders]
+     * cache
+     */
     fun decode(value: PgValue): Any {
         val oid = value.typeData.dataType
         return decoders[oid]
@@ -36,6 +68,15 @@ internal class PgTypeRegistry {
             ?: error("Could not find decoder when looking up oid = $oid")
     }
 
+    /**
+     * Lookup the encoder of this [value] and call [PgTypeEncoder.encode] to get the binary
+     * representation of the [value] into the [buffer]. This has special cases for known types that
+     * cannot be looked up properly by the [KType] of the [value] such as [List] (for array types)
+     * and [DateTimePeriod] since 1 of the sealed class variants is not accessible outside its
+     * package.
+     *
+     * @throws IllegalStateException if the encoder cannot be found in the [encoders] cache
+     */
     fun encode(value: Any, buffer: ByteWriteBuffer) {
         return when (value) {
             is DateTimePeriod -> dateTimePeriodTypeEncoder.encode(value, buffer)
@@ -44,6 +85,17 @@ internal class PgTypeRegistry {
         }
     }
 
+    /**
+     * Special case for encoding [List] values into the [buffer] specified. The order of priority
+     * is:
+     *
+     * - if the list is empty or all items are null, use [emptyOrNullOnlyArrayEncoder]
+     * - if the first element is [DateTimePeriod] then use [dateTimePeriodArrayTypeEncoder]
+     * - otherwise, attempt to create a [KType] using the first element's [KTypeProjection] and
+     * look up the encoder of the [List] type in [encoders].
+     *
+     * @throws IllegalStateException if the encoder cannot be found in the [encoders] cache
+     */
     @Suppress("UNCHECKED_CAST")
     private fun <T> encodeList(value: List<T>, buffer: ByteWriteBuffer) {
         if (value.isEmpty() || value.firstNotNullOfOrNull { it } == null) {
@@ -62,6 +114,11 @@ internal class PgTypeRegistry {
         (encoder as PgTypeEncoder<List<T>>).encode(value, buffer)
     }
 
+    /**
+     * Create a [KType] instance for [T] and use that to look up the encoder in [encoders].
+     *
+     * @throws IllegalStateException if the encoder cannot be found in the [encoders] cache
+     */
     @Suppress("UNCHECKED_CAST")
     private fun <T : Any> encodeInternal(value: T, buffer: ByteWriteBuffer) {
         val type = value::class.createType()
@@ -70,7 +127,14 @@ internal class PgTypeRegistry {
         (encoder as PgTypeEncoder<T>).encode(value, buffer)
     }
 
-    internal fun kindOf(type: KType): PgType {
+    /**
+     * Look up the [PgType] given the [KType] provided. Uses [type] to search the [encoders] cache
+     * for the referenced [PgTypeEncoder.pgType]. If that is null, check for the special case of
+     * [DateTimePeriod] since that [PgType] is known and the [KType] might not be in the cache.
+     *
+     * @throws IllegalStateException if the [PgType] cannot be found
+     */
+    internal fun kindOfInternal(type: KType): PgType {
         val pgType = encoders[type]?.pgType
         if (pgType != null) {
             return pgType
@@ -81,7 +145,17 @@ internal class PgTypeRegistry {
         }
     }
 
-    private fun <T> kindOf(value: List<T>): PgType {
+    /**
+     * Find the [PgType] of the provided [List].
+     *
+     * Usually this uses the first element in the [List] to create a [KTypeProjection] which is
+     * used to create a new [KType] for [List] with the generic type parameter specified. This
+     * allows for looking up the appropriate [List] [PgType]. If the [List] is empty or all items
+     * are null [PgType.Unspecified] is returned. There is also a special case for lists with
+     * [DateTimePeriod] as the element type since one of the sealed variants is not accessible
+     * outside its package.
+     */
+    private fun <T> kindOfList(value: List<T>): PgType {
         if (value.isEmpty() || value.firstNotNullOfOrNull { it } == null) {
             return PgType.Unspecified
         }
@@ -91,22 +165,33 @@ internal class PgTypeRegistry {
         }
         val typeParameter = KTypeProjection.invariant(elementType)
         val type = List::class.createType(arguments = listOf(typeParameter))
-        return kindOf(type)
+        return kindOfInternal(type)
     }
 
+    /**
+     * Find the [PgType] for the [value].
+     *
+     * This is handled in 4 cases:
+     *
+     * 1. when [value] is null, return [PgType.Unspecified]
+     * 2. When [value] is a [List], call [kindOfList]
+     * 3. Otherwise, call [kindOfInternal] with a [KType] created from [value]
+     * 4. If an exception is thrown during one of the previous cases, return [PgType.Unspecified]
+     */
     fun kindOf(value: Any?): PgType {
         return try {
             when (value) {
                 null -> PgType.Unspecified
-                is List<*> -> kindOf(value)
-                else -> kindOf(value::class.createType())
+                is List<*> -> kindOfList(value)
+                else -> kindOfInternal(value::class.createType())
             }
         } catch (ex: Throwable) {
             PgType.Unspecified
         }
     }
 
-    fun includePostGisTypes() {
+    /** Add geometry types into the type caches */
+    internal fun includePostGisTypes() {
         if (hasPostGisTypes) {
             return
         }
@@ -121,11 +206,20 @@ internal class PgTypeRegistry {
         hasPostGisTypes = true
     }
 
-    @PublishedApi
-    internal fun checkAgainstExistingType(types: List<KType>, oid: Int) {
+    /**
+     * Check the current [encoders] cache for each [KType] and the [decoders] for the [oid] to see
+     * if any entries already exist. If they exist, log a warning message.
+     */
+    private fun checkAgainstExistingType(types: List<KType>, oid: Int) {
+        if (decoders.containsKey(oid)) {
+            logger.atWarn {
+                message = "Replacing type definition for oid = {oid}"
+                payload = mapOf("oid" to oid)
+            }
+        }
         for (type in types) {
-            if (encoders.containsKey(type) || decoders.containsKey(oid)) {
-                typeRegistryLogger.atWarn {
+            if (encoders.containsKey(type)) {
+                logger.atWarn {
                     message = "Replacing type definition for type = {type}"
                     payload = mapOf("type" to type)
                 }
@@ -133,8 +227,11 @@ internal class PgTypeRegistry {
         }
     }
 
-    @PublishedApi
-    internal fun <E : Any, D : Any> addTypeToCaches(
+    /**
+     * Add the [encoder] to the [encoders] cache for each [PgTypeEncoder.encodeTypes] and add the
+     * [decoder] for the [oid].
+     */
+    private fun <E : Any, D : Any> addTypeToCaches(
         oid: Int,
         encoder: PgTypeEncoder<E>,
         decoder: PgTypeDecoder<D>,
@@ -145,6 +242,11 @@ internal class PgTypeRegistry {
         decoders[oid] = decoder
     }
 
+    /**
+     * Register a new enum type with all the required components. Checks the database for the oid
+     * of the enum type using the [connection] provided. Adds the type, and it's related array type
+     * as well (looking up the oid in a similar fashion).
+     */
     suspend fun <E : Enum<E>, D : Enum<D>> registerEnumType(
         connection: PgConnection,
         encoder: PgTypeEncoder<E>,
@@ -154,7 +256,7 @@ internal class PgTypeRegistry {
     ) {
         val verifiedOid = checkEnumDbTypeByName(type, connection)
             ?: error("Could not verify the enum type name '$type' in the database")
-        typeRegistryLogger.atTrace {
+        logger.atTrace {
             message = "Adding column decoder for enum type {name} ({oid})"
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
@@ -164,7 +266,7 @@ internal class PgTypeRegistry {
 
         val arrayOid = checkArrayDbTypeByOid(verifiedOid, connection)
             ?: error("Could not verify the array type for element oid = $verifiedOid")
-        typeRegistryLogger.atTrace {
+        logger.atTrace {
             message = "Adding array column decoder for enum type {name} ({oid})"
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
@@ -181,8 +283,12 @@ internal class PgTypeRegistry {
         )
     }
 
-    @PublishedApi
-    internal suspend fun <E : Any, D : Any> registerCompositeType(
+    /**
+     * Register a new composite type with all the required components. Checks the database for the
+     * oid of the composite type using the [connection] provided. Adds the type, and it's related
+     * array type as well (looking up the oid in a similar fashion).
+     */
+    suspend fun <E : Any, D : Any> registerCompositeType(
         connection: PgConnection,
         encoder: PgTypeEncoder<E>,
         decoder: PgTypeDecoder<D>,
@@ -191,7 +297,7 @@ internal class PgTypeRegistry {
     ) {
         val verifiedOid = checkCompositeDbTypeByName(type, connection)
             ?: error("Could not verify the composite type name '$type' in the database")
-        typeRegistryLogger.atTrace {
+        logger.atTrace {
             message = "Adding column decoder for composite type {name} ({oid})"
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
@@ -201,7 +307,7 @@ internal class PgTypeRegistry {
 
         val arrayOid = checkArrayDbTypeByOid(verifiedOid, connection)
             ?: error("Could not verify the array type for element oid = $verifiedOid")
-        typeRegistryLogger.atTrace {
+        logger.atTrace {
             message = "Adding array column decoder for composite type {name} ({oid})"
             payload = mapOf("name" to type, "oid" to verifiedOid)
         }
@@ -225,11 +331,16 @@ internal class PgTypeRegistry {
             pgType = PgType.IntervalArray,
         )
 
+        /**
+         * Special [PgArrayTypeEncoder] when the array is empty or all items are null. This uses a
+         * [PgTypeEncoder] that does nothing since it will never be called.
+         */
         private val emptyOrNullOnlyArrayEncoder = arrayTypeEncoder(
             encoder = PgTypeEncoder<Any>(PgType.Unknown) { _, _ -> },
             pgType = PgType.Unknown,
         )
 
+        /** Collection of the default encoders required for all postgresql clients */
         private val defaultEncoders: List<PgTypeEncoder<*>> = listOf(
             booleanTypeEncoder,
             arrayTypeEncoder(booleanTypeEncoder, PgType.BoolArray),
@@ -290,6 +401,7 @@ internal class PgTypeRegistry {
             arrayTypeEncoder(timeTzTypeEncoder, PgType.TimetzArray),
         )
 
+        /** Geometry specific type encoders for databases with the postgis extension installed */
         private val postGisEncoders: List<PgTypeEncoder<*>> = listOf(
             boxTypeEncoder,
             arrayTypeEncoder(boxTypeEncoder, PgType.BoxArray),
@@ -311,6 +423,7 @@ internal class PgTypeRegistry {
         private val intArrayTypeDecoder = arrayTypeDecoder(intTypeDecoder)
         private val inetArrayTypeDecoder = arrayTypeDecoder(inetTypeDecoder)
 
+        /** Collection of the default decoders required for all postgresql clients */
         private val defaultDecoders = mapOf(
             PgType.VOID to PgTypeDecoder {},
             PgType.BOOL to booleanTypeDecoder,
@@ -369,6 +482,7 @@ internal class PgTypeRegistry {
             PgType.INTERVAL_ARRAY to arrayTypeDecoder(dateTimePeriodTypeDecoder),
         )
 
+        /** Geometry specific type decoders for databases with the postgis extension installed */
         private val postGisDecoders: Map<Int, PgTypeDecoder<*>> = mapOf(
             PgType.BOX to boxTypeDecoder,
             PgType.BOX_ARRAY to arrayTypeDecoder(boxTypeDecoder),
@@ -386,6 +500,10 @@ internal class PgTypeRegistry {
             PgType.POLYGON_ARRAY to arrayTypeDecoder(polygonTypeDecoder),
         )
 
+        /**
+         * Query to fetch the Oid of an enum using the name and the optional schema. Default schema
+         * is public.
+         */
         private val pgEnumTypeByName =
             """
             select t.oid
@@ -396,6 +514,11 @@ internal class PgTypeRegistry {
                 and n.nspname = coalesce(nullif($2,''), 'public')
                 and t.typcategory = 'E'
             """.trimIndent()
+
+        /**
+         * Query to fetch the Oid of a composite using the name and the optional schema. Default
+         * schema is public.
+         */
         private val pgCompositeTypeByName =
             """
             select t.oid
@@ -406,6 +529,8 @@ internal class PgTypeRegistry {
                 and n.nspname = coalesce(nullif($2,''), 'public')
                 and t.typcategory = 'C'
             """.trimIndent()
+
+        /** Query to fetch the Oid of the array type with an inner type matching the Oid supplied */
         private val pgArrayTypeByInnerOid =
             """
             select typarray
@@ -413,8 +538,12 @@ internal class PgTypeRegistry {
             where oid = $1
             """.trimIndent()
 
-        @PublishedApi
-        internal suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgConnection): Int? {
+        /**
+         * Fetch and return the array Oid for a type whose inner [oid] is specified. Queries the
+         * database using the [connection] provided to retrieve the database instance specific Oid.
+         * Returns null if the Oid could not be found.
+         */
+        private suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgConnection): Int? {
             val arrayOid = connection.sendPreparedStatement(
                 query = pgArrayTypeByInnerOid,
                 parameters = listOf(oid)
@@ -425,7 +554,7 @@ internal class PgTypeRegistry {
             }
 
             if (arrayOid == null) {
-                typeRegistryLogger.atWarn {
+                logger.atWarn {
                     message = "Could not find array type for oid = {oid}"
                     payload = mapOf("oid" to oid)
                 }
@@ -434,8 +563,15 @@ internal class PgTypeRegistry {
             return arrayOid
         }
 
-        @PublishedApi
-        internal suspend fun checkEnumDbTypeByName(
+        /**
+         * Fetch and return the type Oid for an enum with the [name]. Queries the database using
+         * the [connection] provided to retrieve the database instance specific Oid. Returns null
+         * if the Oid could not be found.
+         *
+         * @param name Name of the enum type. Can be schema qualified but defaults to public if no
+         * schema is included
+         */
+        private suspend fun checkEnumDbTypeByName(
             name: String,
             connection: PgConnection,
         ): Int? {
@@ -454,7 +590,7 @@ internal class PgTypeRegistry {
                 result.rows.firstOrNull()?.getInt(0)
             }
             if (oid == null) {
-                typeRegistryLogger.atWarn {
+                logger.atWarn {
                     message = "Could not find enum type for name = {name}"
                     payload = mapOf("name" to name)
                 }
@@ -463,8 +599,15 @@ internal class PgTypeRegistry {
             return oid
         }
 
-        @PublishedApi
-        internal suspend fun checkCompositeDbTypeByName(
+        /**
+         * Fetch and return the type Oid for a composite with the [name]. Queries the database
+         * using the [connection] provided to retrieve the database instance specific Oid. Returns
+         * null if the Oid could not be found.
+         *
+         * @param name Name of the composite type. Can be schema qualified but defaults to public
+         * if no schema is included
+         */
+        private suspend fun checkCompositeDbTypeByName(
             name: String,
             connection: PgConnection,
         ): Int? {
@@ -484,7 +627,7 @@ internal class PgTypeRegistry {
                 result.rows.firstOrNull()?.getInt(0)
             }
             if (oid == null) {
-                typeRegistryLogger.atWarn {
+                logger.atWarn {
                     message = "Could not find composite type for name = {name}"
                     payload = mapOf("name" to name)
                 }
