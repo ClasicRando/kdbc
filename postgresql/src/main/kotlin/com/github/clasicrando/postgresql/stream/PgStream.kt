@@ -31,6 +31,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import java.net.InetSocketAddress
 import kotlin.coroutines.CoroutineContext
 
@@ -50,6 +51,14 @@ internal class PgStream(
 
     override val coroutineContext: CoroutineContext get() = Job(parent = scope.coroutineContext.job)
 
+    val messages = Channel<PgMessage>(capacity = Channel.BUFFERED)
+    private val messageReaderJob = launch {
+        while (isActive && isConnected) {
+            val message = receiveNextServerMessage()
+            messages.send(message)
+        }
+    }
+
     /**
      * Container for server message encoders. Used to send messages before they are sent to the
      * server.
@@ -68,7 +77,7 @@ internal class PgStream(
         logger.resourceLogger(this, level, block)
     }
 
-    internal suspend fun receiveNextServerMessage(): PgMessage {
+    private suspend fun receiveNextServerMessage(): PgMessage {
         val format = connection.readByte()
         val size = connection.readInt()
         val buffer = connection.readBuffer(size - 4)
@@ -78,7 +87,7 @@ internal class PgStream(
 
     suspend inline fun processMessageLoop(process: (PgMessage) -> Loop) {
         while (isActive && isConnected) {
-            when (val message = receiveNextServerMessage()) {
+            when (val message = messages.receive()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
                 is PgMessage.NotificationResponse -> onNotification(message)
                 is PgMessage.ParameterStatus -> onParameterStatus(message)
@@ -95,7 +104,7 @@ internal class PgStream(
 
     suspend inline fun <reified T : PgMessage> waitForOrError(): T {
         while (isActive && isConnected) {
-            when (val message = receiveNextServerMessage()) {
+            when (val message = messages.receive()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
                 is PgMessage.NotificationResponse -> onNotification(message)
                 is PgMessage.ParameterStatus -> onParameterStatus(message)
@@ -249,7 +258,7 @@ internal class PgStream(
      * be disposed.
      */
     private suspend fun handleAuthFlow() {
-        val message = receiveNextServerMessage()
+        val message = messages.receive()
         if (message is PgMessage.ErrorResponse) {
             throw GeneralPostgresError(message)
         }
