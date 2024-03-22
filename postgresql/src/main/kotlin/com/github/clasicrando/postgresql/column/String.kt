@@ -1,7 +1,5 @@
 package com.github.clasicrando.postgresql.column
 
-import com.github.clasicrando.common.column.ColumnDecodeError
-
 /**
  * Implementation of [PgTypeEncoder] for [String]. This maps to the `text`/`name`/`bpchar`/`varchar`
  * types in a postgresql database. Simply writes the [String] value to the buffer in UTF8 encoding.
