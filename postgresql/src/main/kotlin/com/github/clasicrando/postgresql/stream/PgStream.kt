@@ -24,6 +24,7 @@ import com.github.clasicrando.postgresql.notification.PgNotification
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -85,41 +86,55 @@ internal class PgStream(
         return decoders.decode(rawMessage)
     }
 
-    suspend inline fun processMessageLoop(process: (PgMessage) -> Loop) {
-        while (isActive && isConnected) {
-            when (val message = messages.receive()) {
-                is PgMessage.NoticeResponse -> onNotice(message)
-                is PgMessage.NotificationResponse -> onNotification(message)
-                is PgMessage.ParameterStatus -> onParameterStatus(message)
-                is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                else -> {
-                    when (process(message)) {
-                        Loop.Continue, Loop.Noop -> continue
-                        Loop.Break -> break
+    suspend inline fun processMessageLoop(process: (PgMessage) -> Loop): Result<Unit> {
+        try {
+            while (isActive && isConnected) {
+                when (val message = messages.receive()) {
+                    is PgMessage.NoticeResponse -> onNotice(message)
+                    is PgMessage.NotificationResponse -> onNotification(message)
+                    is PgMessage.ParameterStatus -> onParameterStatus(message)
+                    is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                    else -> {
+                        when (process(message)) {
+                            Loop.Continue, Loop.Noop -> continue
+                            Loop.Break -> break
+                        }
                     }
                 }
             }
+        } catch (ex: CancellationException) {
+            throw ex
+        } catch (ex: Throwable) {
+            return Result.failure(ex)
         }
+        return Result.success(Unit)
     }
 
-    suspend inline fun <reified T : PgMessage> waitForOrError(): T {
-        while (isActive && isConnected) {
-            when (val message = messages.receive()) {
-                is PgMessage.NoticeResponse -> onNotice(message)
-                is PgMessage.NotificationResponse -> onNotification(message)
-                is PgMessage.ParameterStatus -> onParameterStatus(message)
-                is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
-                is T -> return message
-                else -> {
-                    log(Level.TRACE) {
-                        this.message = "Ignoring {message} since it's not an error or the desired type"
-                        payload = mapOf("message" to message)
+    suspend inline fun <reified T : PgMessage> waitForOrError(): Result<T> {
+        try {
+            while (isActive && isConnected) {
+                when (val message = messages.receive()) {
+                    is PgMessage.NoticeResponse -> onNotice(message)
+                    is PgMessage.NotificationResponse -> onNotification(message)
+                    is PgMessage.ParameterStatus -> onParameterStatus(message)
+                    is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                    is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
+                    is T -> return Result.success(message)
+                    else -> {
+                        log(Level.TRACE) {
+                            this.message =
+                                "Ignoring {message} since it's not an error or the desired type"
+                            payload = mapOf("message" to message)
+                        }
                     }
                 }
             }
+        } catch (ex: CancellationException) {
+            throw ex
+        } catch (ex: Throwable) {
+            return Result.failure(ex)
         }
-        throw ExitOfProcessingLoop(T::class.qualifiedName!!)
+        return Result.failure(ExitOfProcessingLoop(T::class.qualifiedName!!))
     }
 
     /**
@@ -370,7 +385,7 @@ internal class PgStream(
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()
-            stream.waitForOrError<PgMessage.ReadyForQuery>()
+            stream.waitForOrError<PgMessage.ReadyForQuery>().getOrThrow()
             return stream
             /***
              * TODO

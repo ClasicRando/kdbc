@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.statement
 
 import com.github.clasicrando.common.statement.PreparedStatement
 import com.github.clasicrando.postgresql.column.PgColumnDescription
+import kotlinx.datetime.LocalDateTime
 
 internal class PgPreparedStatement(
     override val query: String,
@@ -12,6 +13,7 @@ internal class PgPreparedStatement(
     var parameterTypeOids: List<Int> = emptyList()
     var resultMetadata: List<PgColumnDescription> = emptyList()
     val statementName = statementId.toString()
+    override var lastExecuted: LocalDateTime? = null
 
     override fun toString(): String {
         return "PgPreparedStatement(query=\"$query\",statementId=$statementId)"

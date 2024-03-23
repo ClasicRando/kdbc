@@ -14,7 +14,7 @@ class TestPipelineQuerySpec {
     @Test
     fun `pipelineQueries should return multiple results with auto commit`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            val results = connection.pipelineQueries(
+            val results = connection.pipelineQueriesSyncAll(
                 "SELECT $1 i" to listOf(1),
                 "SELECT $1 t" to listOf("Pipeline Query"),
             ).toList()
@@ -35,7 +35,7 @@ class TestPipelineQuerySpec {
             assertEquals(0, results[1].rowsAffected)
         }
         val result = PgConnectionHelper.defaultConnection().useCatching {
-            it.pipelineQueries(
+            it.pipelineQueriesSyncAll(
                 "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
                 "SELECT $1::int t" to listOf("not int"),
             ).toList()
@@ -63,7 +63,7 @@ class TestPipelineQuerySpec {
             assertEquals(0, results[1].rowsAffected)
         }
         val result = PgConnectionHelper.defaultConnection().useCatching {
-            it.pipelineQueries(
+            it.pipelineQueriesSyncAll(
                 "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
                 "SELECT $1::int t" to listOf("not int"),
                 "SELECT $1 t" to listOf("not int"),

@@ -250,9 +250,9 @@ internal class PgTypeRegistry {
     suspend fun <E : Enum<E>, D : Enum<D>> registerEnumType(
         connection: PgConnection,
         encoder: PgTypeEncoder<E>,
-        enumType: KType,
         decoder: PgTypeDecoder<D>,
         type: String,
+        arrayType: KType,
     ) {
         val verifiedOid = checkEnumDbTypeByName(type, connection)
             ?: error("Could not verify the enum type name '$type' in the database")
@@ -273,13 +273,13 @@ internal class PgTypeRegistry {
         val arrayTypeEncoder = arrayTypeEncoder(
             encoder = encoder,
             pgType = PgType.ByName("_$type", arrayOid),
-            arrayType = enumType,
+            arrayType = arrayType,
         )
         checkAgainstExistingType(arrayTypeEncoder.encodeTypes, arrayOid)
         addTypeToCaches(
             oid = arrayOid,
             encoder = arrayTypeEncoder,
-            decoder = arrayTypeDecoder(decoder, enumType),
+            decoder = arrayTypeDecoder(decoder, arrayType),
         )
     }
 

@@ -42,7 +42,9 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.selects.select
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -82,7 +84,7 @@ class PgConnection internal constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     internal val isWaiting get() = canRunQuery.isEmpty
     /**
-     * [ReceiveChannel] for [PgNotification]s received by the server. Although this method is
+     * [ReceiveChannel] for [PgNotification]s received from the server. Although this method is
      * available to anyone who has a reference to this [PgConnection], you should only have one
      * coroutine that consumes this channel since messages are not duplicated for multiple
      * receivers so messages are consumed fairly in a first come, first server basis. The
@@ -92,14 +94,13 @@ class PgConnection internal constructor(
      */
     val notifications: ReceiveChannel<PgNotification> get() = stream.notifications
     /**
-     * Thread safe cache of [PgPreparedStatement] where the key is the query that initiated the
-     * prepared statement.
-     *
-     * TODO implement a cap to the cache so we don't hold too many prepared statements
+     * Cache of [PgPreparedStatement] where the key is the query that initiated the prepared
+     * statement. This is not thread safe, therefore it should only be accessed after querying
+     * running has been disabled to ensure a single thread/coroutine is accessing the contents.
      */
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = mutableMapOf()
+    /** ID of the next prepared statement executed. Incremented after each statement is created */
     private var nextStatementId = 1u
-    private val wasFailed = atomic(false)
 
     /**
      * Created a log message at the specified [level], applying the [block] to the
@@ -127,25 +128,6 @@ class PgConnection internal constructor(
      * for another query.
      */
     private suspend inline fun waitForQueryRunning() = canRunQuery.receive()
-
-//    /** Utility method to add a new row to the specified [resultSet] using the [rowBuffer] */
-//    private fun addRow(resultSet: MutableResultSet, rowBuffer: PgRowBuffer) {
-//        val fields: Array<Any?> = rowBuffer.use {
-//            Array(it.values.size) { i ->
-//                val buffer = it.values[i] ?: return@Array null
-//                val columnType = resultSet.columnMapping[i] as PgColumnDescription
-//                val value = when (columnType.formatCode) {
-//                    0.toShort() -> PgValue.Text(buffer, columnType)
-//                    1.toShort() -> PgValue.Binary(buffer, columnType)
-//                    else -> error(
-//                        "Invalid format code from row description. Got ${columnType.formatCode}"
-//                    )
-//                }
-//                typeRegistry.decode(value)
-//            }
-//        }
-//        resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
-//    }
 
     override val isConnected: Boolean get() = stream.isConnected
 
@@ -249,6 +231,8 @@ class PgConnection internal constructor(
                     }
                     else -> logUnexpectedMessage(message)
                 }
+            }.onFailure {
+                errors.add(it)
             }
             if (errors.isNotEmpty() && !isAutoCommit) {
                 enableQueryRunning()
@@ -268,18 +252,20 @@ class PgConnection internal constructor(
      * Collect all [QueryResult]s for the query as a buffered [Flow].
      *
      * This allows for multiple results sets from a single query to be collected by continuously
-     * looping over a [select], exiting only once a query done message is received. There will only
-     * ever be multiple results if the [statement] parameter is null (i.e. it's a simple query).
+     * looping over server messages through [PgStream.processMessageLoop], exiting only once a
+     * query done message is received. There will only ever be multiple results if the
+     * [statement] parameter is null (i.e. it's a simple query).
      *
-     * Within the [select], it received any sent:
+     * Within the message loop, it receives messages that are:
      * - error -> packing into error collection
-     * - row description -> updating the [statement] if any and creating a new [AbstractMutableResultSet]
+     * - row description -> updating the [statement], if any, and creating a new
+     * [AbstractMutableResultSet]
      * - data row -> pack the row into the current [AbstractMutableResultSet]
      * - command complete -> emitting a new [QueryResult] from the [flow]
      * - query done -> enabling others to query against this connection and exiting the
      * selectLoop
      *
-     * After the query collection the collection of errors is checked and aggregated into one
+     * After the query collection, the collection of errors is checked and aggregated into one
      * [Throwable] (if any) and thrown. Otherwise, the [flow] exits with all [QueryResult]s
      * yielded.
      */
@@ -315,6 +301,8 @@ class PgConnection internal constructor(
                 }
                 else -> logUnexpectedMessage(message)
             }
+        }.onFailure {
+            errors.add(it)
         }
 
         val error = errors.reduceToSingleOrNull() ?: return results.build()
@@ -394,6 +382,8 @@ class PgConnection internal constructor(
                 }
                 else -> logUnexpectedMessage(message)
             }
+        }.onFailure {
+            errors.add(it)
         }
 
         val error = errors.reduceToSingleOrNull() ?: return
@@ -405,22 +395,55 @@ class PgConnection internal constructor(
     }
 
     /**
+     * Remove the oldest [PgPreparedStatement] in [preparedStatements]. If any statement has a null
+     * [PgPreparedStatement.lastExecuted] then that statement is preferentially removed since the
+     * statement was never executed.
+     */
+    private fun removeOldestPreparedStatement() {
+        val neverExecuted = preparedStatements.entries
+            .find { it.value.lastExecuted == null }
+            ?.key
+        if (neverExecuted != null) {
+            preparedStatements.remove(neverExecuted)
+            return
+        }
+        val oldestQuery = preparedStatements.entries
+            .asSequence()
+            .filter { it.value.lastExecuted != null }
+            .maxBy { it.value.lastExecuted!! }
+            .key
+        preparedStatements.remove(oldestQuery)
+    }
+
+    /**
+     * Check the prepared statement cache to ensure the capacity is not exceeded. Continuously
+     * removes statements until the cache is the right size. Once that condition is met, a new
+     * entry is added to the cache for the current [query].
+     */
+    private fun getOrCachePreparedStatement(query: String): PgPreparedStatement {
+        while (preparedStatements.size >= connectOptions.statementCacheCapacity.toInt()) {
+            removeOldestPreparedStatement()
+        }
+        return preparedStatements.getOrPut(query) {
+            PgPreparedStatement(query, nextStatementId++)
+        }
+    }
+
+    /**
      * Fetch a [PgPreparedStatement] from the cache for the provided [query], returning the
      * statement. If a statement does not already exist for the [query] then a new statement is
      * created in a non-prepared state. If the statement has not already been prepared then
      * [executePreparedStatement] is called to populate the [PgPreparedStatement] with the required
      * data.
      *
-     * This will fail if the number of [parameters] does not match the number of parameters
-     * required by the query.
+     * @throws IllegalArgumentException if the number of [parameters] does not match the number of
+     * parameters required by the query
      */
     private suspend fun prepareStatement(
         query: String,
         parameters: List<Any?>,
     ): PgPreparedStatement {
-        val statement = preparedStatements.getOrPut(query) {
-            PgPreparedStatement(query, nextStatementId++)
-        }
+        val statement = getOrCachePreparedStatement(query)
 
         require(statement.paramCount == parameters.size) {
             """
@@ -474,6 +497,7 @@ class PgConnection internal constructor(
                 yield(PgMessage.Sync)
             }
         }
+        statement.lastExecuted = Clock.System.now().toLocalDateTime(TimeZone.UTC)
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to statement.query)
@@ -516,12 +540,11 @@ class PgConnection internal constructor(
             targetName = statement.statementName,
         )
         stream.writeManyToStream(closeMessage, PgMessage.Sync)
-        try {
-            stream.waitForOrError<PgMessage.CommandComplete>()
-        } catch (ex: Throwable) {
-            enableQueryRunning()
-            throw ex
-        }
+        stream.waitForOrError<PgMessage.CommandComplete>()
+            .onFailure {
+                enableQueryRunning()
+                throw it
+            }
         preparedStatements.remove(query)
         enableQueryRunning()
     }
@@ -557,10 +580,14 @@ class PgConnection internal constructor(
     }
 
     /**
-     * Allows for vararg specification of prepared statements using the default parameters of
-     * [pipelineQueries]. See the other method doc for more information.
+     * Allows for vararg specification of prepared statements using [pipelineQueries] where syncAll
+     * is the default true. See the other method doc for more information.
+     *
+     * @see pipelineQueries
      */
-    suspend fun pipelineQueries(vararg queries: Pair<String, List<Any?>>): Flow<QueryResult> {
+    suspend fun pipelineQueriesSyncAll(
+        vararg queries: Pair<String, List<Any?>>,
+    ): Flow<QueryResult> {
         return pipelineQueries(queries = queries)
     }
 
@@ -603,7 +630,7 @@ class PgConnection internal constructor(
      */
     suspend fun pipelineQueries(
         syncAll: Boolean = true,
-        queries: Array<out Pair<String, List<Any?>>>,
+        vararg queries: Pair<String, List<Any?>>,
     ): Flow<QueryResult> {
         waitForQueryRunning()
         val statements = try {
@@ -649,67 +676,64 @@ class PgConnection internal constructor(
             payload = mapOf("query" to copyQuery)
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
+        stream.waitForOrError<PgMessage.CopyInResponse>()
+            .onFailure {
+                enableQueryRunning()
+                throw it
+            }
 
-        try {
-            stream.waitForOrError<PgMessage.CopyInResponse>()
-        } catch (ex: Throwable) {
-            enableQueryRunning()
-            throw ex
-        }
-
+        var wasFailed = false
         try {
             stream.writeManySized(data.map { PgMessage.CopyData(it) })
             stream.writeToStream(PgMessage.CopyDone)
         } catch (ex: Throwable) {
             if (stream.isConnected) {
-                wasFailed.compareAndSet(expect = false, update = true)
+                wasFailed = true
                 stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
             }
         }
 
         var completeMessage: PgMessage.CommandComplete? = null
         val errors = mutableListOf<Throwable>()
-        try {
-            stream.processMessageLoop { message ->
-                when (message) {
-                    is PgMessage.ErrorResponse -> {
-                        if (wasFailed.getAndSet(false)) {
-                            completeMessage = PgMessage.CommandComplete(
-                                rowCount = 0,
-                                message = "CopyFail Issued by client",
-                            )
-                            log(Level.WARN) {
-                                this.message = "CopyIn operation failed by client"
-                            }
-                            return@processMessageLoop Loop.Continue
+        stream.processMessageLoop { message ->
+            when (message) {
+                is PgMessage.ErrorResponse -> {
+                    if (wasFailed) {
+                        completeMessage = PgMessage.CommandComplete(
+                            rowCount = 0,
+                            message = "CopyFail Issued by client",
+                        )
+                        log(Level.WARN) {
+                            this.message = "CopyIn operation failed by client"
                         }
-                        val error = GeneralPostgresError(message)
-                        log(Level.ERROR) {
-                            this.message = "Error during copy in operation"
-                            cause = error
-                        }
-                        errors.add(error)
-                        Loop.Continue
+                        return@processMessageLoop Loop.Continue
                     }
-                    is PgMessage.CommandComplete -> {
-                        completeMessage = message
-                        Loop.Continue
+                    val error = GeneralPostgresError(message)
+                    log(Level.ERROR) {
+                        this.message = "Error during copy in operation"
+                        cause = error
                     }
-                    is PgMessage.ReadyForQuery -> {
-                        enableQueryRunning()
-                        Loop.Break
+                    errors.add(error)
+                    Loop.Continue
+                }
+                is PgMessage.CommandComplete -> {
+                    completeMessage = message
+                    Loop.Continue
+                }
+                is PgMessage.ReadyForQuery -> {
+                    enableQueryRunning()
+                    Loop.Break
+                }
+                else -> {
+                    log(Level.TRACE) {
+                        this.message = "Ignoring {message} since it's not an error or the desired type"
+                        payload = mapOf("message" to message)
                     }
-                    else -> {
-                        log(Level.TRACE) {
-                            this.message = "Ignoring {message} since it's not an error or the desired type"
-                            payload = mapOf("message" to message)
-                        }
-                        Loop.Continue
-                    }
+                    Loop.Continue
                 }
             }
-        } catch (ex: Throwable) {
-            errors.add(ex)
+        }.onFailure {
+            errors.add(it)
         }
 
         val error = errors.reduceToSingleOrNull()
@@ -742,13 +766,12 @@ class PgConnection internal constructor(
             payload = mapOf("query" to copyQuery)
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
+        stream.waitForOrError<PgMessage.CopyOutResponse>()
+            .onFailure {
+                enableQueryRunning()
+                throw it
+            }
 
-        try {
-            stream.waitForOrError<PgMessage.CopyOutResponse>()
-        } catch (ex: Throwable) {
-            enableQueryRunning()
-            throw ex
-        }
         return flow {
             stream.processMessageLoop { message ->
                 when (message) {
@@ -773,21 +796,10 @@ class PgConnection internal constructor(
                         Loop.Continue
                     }
                 }
+            }.onFailure {
+                throw it
             }
         }
-    }
-
-    /**
-     * Allows for specifying a [FlowCollector] for the `COPY FROM` operation. This method simply
-     * uses the [block] in a [flow] builder, forwarding that [Flow] to the [copyIn] method.
-     *
-     * @see [copyIn]
-     */
-    suspend fun copyIn(
-        copyInStatement: CopyStatement,
-        block: suspend FlowCollector<ByteArray>.() -> Unit,
-    ): QueryResult {
-        return copyIn(copyInStatement, flow(block))
     }
 
     /**
@@ -801,20 +813,6 @@ class PgConnection internal constructor(
         data: Sequence<ByteArray>,
     ): QueryResult {
         return copyIn(copyInStatement, data.asFlow())
-    }
-
-    /**
-     * Allows for specifying a [SequenceScope] for the `COPY FROM` operation. This method simply
-     * uses the [block] in a [sequence] builder, converting that [Sequence] to a [Flow] and passing
-     * that to the [copyIn] method.
-     *
-     * @see [copyIn]
-     */
-    suspend fun copyInSequence(
-        copyInStatement: CopyStatement,
-        block: suspend SequenceScope<ByteArray>.() -> Unit
-    ): QueryResult {
-        return copyIn(copyInStatement, sequence(block).asFlow())
     }
 
     /**
@@ -847,20 +845,38 @@ class PgConnection internal constructor(
         typeRegistry.includePostGisTypes()
     }
 
+    /**
+     * Register an [Enum] class as a new type available for encoding and decoding.
+     *
+     * @param type name of the type in the database (optionally schema qualified if not in public
+     * schema)
+     */
     suspend inline fun <reified E : Enum<E>> registerEnumType(type: String) {
         typeRegistry.registerEnumType(
-            this,
-            enumTypeEncoder<E>(type),
-            typeOf<List<E?>>(),
-            enumTypeDecoder<E>(),
-            type,
+            connection = this,
+            encoder = enumTypeEncoder<E>(type),
+            decoder = enumTypeDecoder<E>(),
+            type = type,
+            arrayType = typeOf<List<E?>>(),
         )
     }
 
+    /**
+     * Register [T] as a new type composite type available for encoding and decoding.
+     *
+     * @param type name of the type in the database (optionally schema qualified if not in public
+     * schema)
+     */
     suspend inline fun <reified T : Any> registerCompositeType(type: String) {
         val encoder = compositeTypeEncoder<T>(type, typeRegistry)
         val decoder = compositeTypeDecoder<T>(typeRegistry)
-        typeRegistry.registerCompositeType(this, encoder, decoder, type, typeOf<List<T?>>())
+        typeRegistry.registerCompositeType(
+            connection = this,
+            encoder = encoder,
+            decoder = decoder,
+            type = type,
+            arrayType = typeOf<List<T?>>(),
+        )
     }
 
     companion object {
