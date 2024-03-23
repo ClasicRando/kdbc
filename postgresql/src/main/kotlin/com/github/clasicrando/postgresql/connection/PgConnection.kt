@@ -38,7 +38,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -346,13 +345,11 @@ class PgConnection internal constructor(
             query = query,
             parameterTypes = parameterTypes,
         )
-        stream.writeToStream(parseMessage)
         val describeMessage = PgMessage.Describe(
             target = DescribeTarget.PreparedStatement,
             name = statement.statementName,
         )
-        stream.writeToStream(describeMessage)
-        stream.writeToStream(PgMessage.Sync)
+        stream.writeManyToStream(parseMessage, describeMessage, PgMessage.Sync)
 
         val errors = mutableListOf<Throwable>()
         stream.processMessageLoop { message ->
@@ -399,12 +396,12 @@ class PgConnection internal constructor(
      * [PgPreparedStatement.lastExecuted] then that statement is preferentially removed since the
      * statement was never executed.
      */
-    private fun removeOldestPreparedStatement() {
+    private suspend fun removeOldestPreparedStatement() {
         val neverExecuted = preparedStatements.entries
             .find { it.value.lastExecuted == null }
             ?.key
         if (neverExecuted != null) {
-            preparedStatements.remove(neverExecuted)
+            releasePreparedStatement(neverExecuted)
             return
         }
         val oldestQuery = preparedStatements.entries
@@ -412,7 +409,7 @@ class PgConnection internal constructor(
             .filter { it.value.lastExecuted != null }
             .maxBy { it.value.lastExecuted!! }
             .key
-        preparedStatements.remove(oldestQuery)
+        releasePreparedStatement(oldestQuery)
     }
 
     /**
@@ -420,7 +417,7 @@ class PgConnection internal constructor(
      * removes statements until the cache is the right size. Once that condition is met, a new
      * entry is added to the cache for the current [query].
      */
-    private fun getOrCachePreparedStatement(query: String): PgPreparedStatement {
+    private suspend fun getOrCachePreparedStatement(query: String): PgPreparedStatement {
         while (preparedStatements.size >= connectOptions.statementCacheCapacity.toInt()) {
             removeOldestPreparedStatement()
         }

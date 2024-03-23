@@ -6,11 +6,13 @@ import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.resourceLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.withTimeout
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.suspendCoroutine
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -28,14 +30,17 @@ class Nio2AsyncStream(
 
     override val isConnected: Boolean get() = socket.isOpen
 
-    override suspend fun connect() {
+    override suspend fun connect(timeout: Duration) {
+        require(timeout.isPositive()) { "Timeout must be positive" }
         try {
-            suspendCoroutine { continuation: Continuation<Unit> ->
-                socket.connect(
-                    address,
-                    null,
-                    SuspendVoidCompletionHandler(continuation),
-                )
+            withTimeout(timeout) {
+                suspendCoroutine { continuation: Continuation<Unit> ->
+                    socket.connect(
+                        address,
+                        null,
+                        SuspendVoidCompletionHandler(continuation),
+                    )
+                }
             }
         } catch (ex: Throwable) {
             logger.resourceLogger(this, Level.TRACE) {

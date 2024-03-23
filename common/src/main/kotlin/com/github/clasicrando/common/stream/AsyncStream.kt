@@ -4,6 +4,7 @@ import com.github.clasicrando.common.AutoRelease
 import com.github.clasicrando.common.UniqueResourceId
 import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
+import kotlin.time.Duration
 
 private const val RESOURCE_TYPE = "AsyncStream"
 
@@ -20,11 +21,12 @@ interface AsyncStream : UniqueResourceId, AutoRelease {
 
     /**
      * Connect to the host targeted by this stream. This method initiates a connection to the host
-     * and suspends until the connection has been established.
+     * and suspends until the connection has been established or the [timeout] is exceeded.
      *
      * @throws StreamConnectError if the connect operation fails
+     * @throws IllegalArgumentException if the [timeout] is not positive
      */
-    suspend fun connect()
+    suspend fun connect(timeout: Duration)
 
     /**
      * Write all bytes to the supplied [buffer] into the stream. If the number of bytes in the

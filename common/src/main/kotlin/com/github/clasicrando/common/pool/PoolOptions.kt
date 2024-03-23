@@ -1,11 +1,13 @@
 package com.github.clasicrando.common.pool
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 /** Options when setting up a [ConnectionPool] */
+@Serializable
 data class PoolOptions(
     /**
      * Maximum number of [Connection][com.github.clasicrando.common.connection.Connection]

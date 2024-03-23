@@ -1,6 +1,7 @@
 package com.github.clasicrando.common
 
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -9,6 +10,7 @@ import kotlin.time.toDuration
  * Settings for logging statements internally. Allow for users to bring up internal logging
  * statements if they are required to be in the user's logs without lowering their threshold.
  */
+@Serializable
 data class LogSettings(
     /** Log level for logging requests to execute statements */
     val statementLevel: Level,
@@ -24,7 +26,7 @@ data class LogSettings(
     val slowStatementDuration: Duration,
 ) {
     companion object {
-        val DEFAULT = com.github.clasicrando.common.LogSettings(
+        val DEFAULT = LogSettings(
             statementLevel = Level.DEBUG,
             slowStatementsLevel = Level.WARN,
             slowStatementDuration = 1.toDuration(DurationUnit.SECONDS),

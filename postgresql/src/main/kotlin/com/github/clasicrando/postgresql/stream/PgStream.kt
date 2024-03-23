@@ -380,7 +380,7 @@ internal class PgStream(
         ): PgStream {
             val address = InetSocketAddress(connectOptions.host, connectOptions.port.toInt())
             val socket = Nio2AsyncStream(address)
-            socket.connect()
+            socket.connect(connectOptions.connectionTimeout)
             val stream = PgStream(scope, socket, connectOptions)
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)
