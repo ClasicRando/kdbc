@@ -2,6 +2,7 @@ package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
+import com.github.clasicrando.postgresql.type.PgNumeric.NAN
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.math.max

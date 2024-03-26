@@ -1,8 +1,8 @@
 package com.github.clasicrando.postgresql.type
 
 import com.github.clasicrando.common.buffer.ByteReadBuffer
-import com.github.clasicrando.common.column.checkOrColumnDecodeError
 import com.github.clasicrando.common.column.ColumnDecodeError
+import com.github.clasicrando.common.column.checkOrColumnDecodeError
 import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 

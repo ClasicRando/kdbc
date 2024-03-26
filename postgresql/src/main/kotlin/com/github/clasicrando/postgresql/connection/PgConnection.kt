@@ -3,11 +3,11 @@ package com.github.clasicrando.postgresql.connection
 import com.github.clasicrando.common.DefaultUniqueResourceId
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.connection.Connection
-import com.github.clasicrando.common.resourceLogger
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
 import com.github.clasicrando.common.pool.ConnectionPool
 import com.github.clasicrando.common.quoteIdentifier
 import com.github.clasicrando.common.reduceToSingleOrNull
+import com.github.clasicrando.common.resourceLogger
 import com.github.clasicrando.common.result.AbstractMutableResultSet
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.result.StatementResult

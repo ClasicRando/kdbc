@@ -21,5 +21,4 @@ jmh {
         jmhImplementation("org.openjdk.jmh:jmh-generator-annprocess:1.36")
         jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.36")
     }
-    jvmArgs.add("-Xmx2G")
 }

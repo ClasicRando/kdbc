@@ -1,6 +1,10 @@
 package com.github.clasicrando.postgresql
 
 import com.github.clasicrando.postgresql.message.PgMessage
+import com.github.clasicrando.postgresql.message.information.InformationResponse
 
-internal class GeneralPostgresError(errorResponse: PgMessage.ErrorResponse)
-    : Throwable(errorResponse.fields.entries.joinToString { "${it.key} -> ${it.value}" })
+class GeneralPostgresError internal constructor(
+    private val errorResponse: PgMessage.ErrorResponse
+) : Throwable(errorResponse.toString()) {
+    val errorInformation: InformationResponse get() = errorResponse.informationResponse
+}

@@ -3,6 +3,7 @@ package com.github.clasicrando.postgresql.message
 import com.github.clasicrando.common.message.SizedMessage
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 import com.github.clasicrando.postgresql.copy.CopyFormat
+import com.github.clasicrando.postgresql.message.information.InformationResponse
 import com.github.clasicrando.postgresql.result.PgRowBuffer
 import com.github.clasicrando.postgresql.statement.PgArguments
 
@@ -50,7 +51,7 @@ internal sealed class PgMessage(val code: Byte) {
     data class DataRow(val rowBuffer: PgRowBuffer) : PgMessage(DATA_ROW_CODE) // B
     data class Describe(val target: DescribeTarget, val name: String) : PgMessage(DESCRIBE_CODE) // F
     data object EmptyQueryResponse : PgMessage(EMPTY_QUERY_RESPONSE) // B
-    data class ErrorResponse(val fields: Map<Char, String>) : PgMessage(ERROR_RESPONSE_CODE) // B
+    data class ErrorResponse(val informationResponse: InformationResponse) : PgMessage(ERROR_RESPONSE_CODE) // B
     data class Execute(val portalName: String?, val maxRowCount: Int) : PgMessage(EXECUTE_CODE) // F
     data object Flush : PgMessage(FLUSH_CODE) // F
     data class FunctionCall(
@@ -65,7 +66,7 @@ internal sealed class PgMessage(val code: Byte) {
         val protocolVersionsNotRecognized: Array<String>,
     ) : PgMessage(NEGOTIATE_PROTOCOL_VERSION_CODE) // B
     data object NoData : PgMessage(NO_DATA_CODE) // B
-    data class NoticeResponse(val fields: Map<Char, String>) : PgMessage(NOTICE_RESPONSE_CODE) // B
+    data class NoticeResponse(val informationResponse: InformationResponse) : PgMessage(NOTICE_RESPONSE_CODE) // B
     data class NotificationResponse(
         val processId: Int,
         val channelName: String,

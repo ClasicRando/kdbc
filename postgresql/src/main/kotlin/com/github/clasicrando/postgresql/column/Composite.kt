@@ -1,8 +1,8 @@
 package com.github.clasicrando.postgresql.column
 
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
-import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.common.column.ColumnDecodeError
+import com.github.clasicrando.common.column.columnDecodeError
 import com.github.clasicrando.postgresql.type.PgCompositeLiteralParser
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
