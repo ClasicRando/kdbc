@@ -13,7 +13,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
  *
  * - a [Byte] corresponding to the overall [CopyFormat]
  * - the number of columns in the incoming data as a [Short]
- * - the format of each column as an [Array] of [Short] values
+ * - the format of each column as a [List] of [Short] values
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYOUTRESPONSE)
  */
@@ -22,7 +22,7 @@ internal object CopyOutResponseDecoder : MessageDecoder<PgMessage.CopyOutRespons
         return buffer.use { buf ->
             val copyFormat = CopyFormat.fromByte(buf.readByte())
             val columnCount = buf.readShort().toInt()
-            val columnFormats = Array(columnCount) {
+            val columnFormats = List(columnCount) {
                 CopyFormat.fromByte(buf.readByte())
             }
 

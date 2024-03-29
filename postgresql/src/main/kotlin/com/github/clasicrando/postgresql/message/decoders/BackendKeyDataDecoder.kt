@@ -6,7 +6,7 @@ import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.message.PgMessage
 
 /**
- * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is send after a successful login.
+ * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is sent after a successful login.
  * Contents are:
  * - the process ID of the backend receiving messages from this connection
  * - the secret key of the backend

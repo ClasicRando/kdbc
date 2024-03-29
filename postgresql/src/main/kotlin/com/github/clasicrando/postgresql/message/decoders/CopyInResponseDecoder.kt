@@ -7,13 +7,13 @@ import com.github.clasicrando.postgresql.copy.CopyFormat
 import com.github.clasicrando.postgresql.message.PgMessage
 
 /**
- * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is sent to signify the backend has
+ * [MessageDecoder] for [PgMessage.CopyInResponse]. This message is sent to signify the backend has
  * acknowledged an initialization of a `COPY FROM` operation. The client can therefore send
  * [PgMessage.CopyData] messages as part of the `COPY FROM` operation. The contents are:
  *
  * - a [Byte] corresponding to the overall [CopyFormat]
  * - the number of columns in the incoming data as a [Short]
- * - the format of each column as an [Array] of [Short] values
+ * - the format of each column as a [List] of [Short] values
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYINRESPONSE)
  */
@@ -22,7 +22,7 @@ internal object CopyInResponseDecoder : MessageDecoder<PgMessage.CopyInResponse>
         return buffer.use { buf ->
             val copyFormat = CopyFormat.fromByte(buf.readByte())
             val columnCount = buf.readShort().toInt()
-            val columnFormats = Array(columnCount) {
+            val columnFormats = List(columnCount) {
                 CopyFormat.fromByte(buf.readByte())
             }
 

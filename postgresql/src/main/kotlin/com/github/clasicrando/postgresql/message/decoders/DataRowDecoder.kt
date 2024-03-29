@@ -6,8 +6,8 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.result.PgRowBuffer
 
 /**
- * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is sent as part of a query result
- * and represents a single row of the result. The contents are:
+ * [MessageDecoder] for [PgMessage.DataRow]. This message is sent as part of a query result and
+ * represents a single row of the result. The contents are:
  *
  * - the number of column values as a [Short] (possible zero)
  * - for each column

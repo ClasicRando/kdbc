@@ -6,8 +6,8 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.information.InformationResponse
 
 /**
- * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is sent when the backend
- * wants to send a non-error message to the frontend. The contents of the message is a common
+ * [MessageDecoder] for [PgMessage.NoticeResponse]. This message is sent when the backend wants to
+ * send a non-error message to the frontend. The contents of the message is a common
  * [InformationResponse] packet that is using
  * [InformationResponseDecoder.decodeToInformationResponse].
  *

@@ -6,9 +6,9 @@ import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.message.PgMessage
 
 /**
- * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is sent when the frontend has
- * requested to `LISTEN` to a specific channel and the backend has a notification available. The
- * contents are:
+ * [MessageDecoder] for [PgMessage.NotificationResponse]. This message is sent when the frontend
+ * has requested to `LISTEN` to a specific channel and the backend has a notification available.
+ * The contents are:
  *
  * - the process ID of the notifying backend as an [Int]
  * - the name of the channel that the notification is related to as a CString

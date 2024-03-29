@@ -1,12 +1,20 @@
 package com.github.clasicrando.postgresql.message.decoders
 
+import com.github.clasicrando.common.message.MessageDecoder
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.stream.RawMessage
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
 
-internal class PgMessageDecoders {
+/** Common entry point for decoding backend [PgMessage]s */
+internal object PgMessageDecoders {
+    /**
+     * Decode the [RawMessage] into a [PgMessage] by looking up the appropriate [MessageDecoder]
+     * and calling [MessageDecoder.decode]. In the case that the [RawMessage.format] does not match
+     * a known format code, [PgMessage.UnknownMessage] will be returned and subsequent methods
+     * processing messages should ignore the message.
+     */
     fun decode(rawMessage: RawMessage): PgMessage {
         val contents = rawMessage.contents
         return when (rawMessage.format) {
@@ -25,16 +33,17 @@ internal class PgMessageDecoders {
             PgMessage.COPY_IN_RESPONSE_CODE -> CopyInResponseDecoder.decode(contents)
             PgMessage.COPY_OUT_RESPONSE_CODE -> CopyOutResponseDecoder.decode(contents)
             PgMessage.COPY_DATA_CODE -> CopyDataDecoder.decode(contents)
-            PgMessage.COPY_DONE -> PgMessage.CopyDone
+            PgMessage.COPY_DONE_CODE -> PgMessage.CopyDone
             PgMessage.NOTIFICATION_RESPONSE_CODE -> NotificationResponseDecoder.decode(contents)
             PgMessage.PARAMETER_DESCRIPTION_CODE -> ParameterDescriptionDecoder.decode(contents)
+            PgMessage.NEGOTIATE_PROTOCOL_VERSION_CODE -> NegotiateProtocolVersionDecoder.decode(contents)
             else -> {
                 logger.atTrace {
                     message = "Received message {format}"
                     payload = mapOf("format" to rawMessage.format)
                 }
                 rawMessage.contents.release()
-                PgMessage.NoData
+                PgMessage.UnknownMessage
             }
         }
     }

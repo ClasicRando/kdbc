@@ -45,7 +45,7 @@ internal class PgTypeRegistry {
     )
 
     /**
-     * Initial [PgTypeDecoder] map storing decoders by Oid as [Int]. Oids are unique so no need to
+     * Initial [PgTypeDecoder] map storing decoders by OID as [Int]. OIDs are unique so no need to
      * unpack the [defaultDecoders].
      */
     private val decoders: MutableMap<Int, PgTypeDecoder<*>> = AtomicMutableMap(defaultDecoders)
@@ -141,7 +141,7 @@ internal class PgTypeRegistry {
         }
         return when {
             type.isSubtypeOf(dateTimePeriodType) -> dateTimePeriodTypeEncoder.pgType
-            else -> error("Could not find type Oid looking up type = $type")
+            else -> error("Could not find type OID looking up type = $type")
         }
     }
 
@@ -501,7 +501,7 @@ internal class PgTypeRegistry {
         )
 
         /**
-         * Query to fetch the Oid of an enum using the name and the optional schema. Default schema
+         * Query to fetch the OID of an enum using the name and the optional schema. Default schema
          * is public.
          */
         private val pgEnumTypeByName =
@@ -516,7 +516,7 @@ internal class PgTypeRegistry {
             """.trimIndent()
 
         /**
-         * Query to fetch the Oid of a composite using the name and the optional schema. Default
+         * Query to fetch the OID of a composite using the name and the optional schema. Default
          * schema is public.
          */
         private val pgCompositeTypeByName =
@@ -530,7 +530,7 @@ internal class PgTypeRegistry {
                 and t.typcategory = 'C'
             """.trimIndent()
 
-        /** Query to fetch the Oid of the array type with an inner type matching the Oid supplied */
+        /** Query to fetch the OID of the array type with an inner type matching the OID supplied */
         private val pgArrayTypeByInnerOid =
             """
             select typarray
@@ -539,9 +539,9 @@ internal class PgTypeRegistry {
             """.trimIndent()
 
         /**
-         * Fetch and return the array Oid for a type whose inner [oid] is specified. Queries the
-         * database using the [connection] provided to retrieve the database instance specific Oid.
-         * Returns null if the Oid could not be found.
+         * Fetch and return the array OID for a type whose inner [oid] is specified. Queries the
+         * database using the [connection] provided to retrieve the database instance specific OID.
+         * Returns null if the OID could not be found.
          */
         private suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgConnection): Int? {
             val arrayOid = connection.sendPreparedStatement(
@@ -564,9 +564,9 @@ internal class PgTypeRegistry {
         }
 
         /**
-         * Fetch and return the type Oid for an enum with the [name]. Queries the database using
-         * the [connection] provided to retrieve the database instance specific Oid. Returns null
-         * if the Oid could not be found.
+         * Fetch and return the type OID for an enum with the [name]. Queries the database using
+         * the [connection] provided to retrieve the database instance specific OID. Returns null
+         * if the OID could not be found.
          *
          * @param name Name of the enum type. Can be schema qualified but defaults to public if no
          * schema is included
@@ -600,9 +600,9 @@ internal class PgTypeRegistry {
         }
 
         /**
-         * Fetch and return the type Oid for a composite with the [name]. Queries the database
-         * using the [connection] provided to retrieve the database instance specific Oid. Returns
-         * null if the Oid could not be found.
+         * Fetch and return the type OID for a composite with the [name]. Queries the database
+         * using the [connection] provided to retrieve the database instance specific OID. Returns
+         * null if the OID could not be found.
          *
          * @param name Name of the composite type. Can be schema qualified but defaults to public
          * if no schema is included

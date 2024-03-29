@@ -4,6 +4,24 @@ import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.message.MessageEncoder
 import com.github.clasicrando.postgresql.message.PgMessage
 
+/**
+ * [MessageEncoder] for [PgMessage.Bind]. This message is sent to initiate the backend to bind
+ * parameters to an already prepared statement. Contents are:
+ * - a header [Byte] of 'B'
+ * - the length of the following data (including the size of the [Int] length)
+ * - a CString as the portal name (an empty string is the portal name is null)
+ * - a CString as the statement name
+ * - a [Short] as the number of parameter format codes (always 1 since we use binary encoding only)
+ * - a [Short] as the format code (1 = binary)
+ * - all the parameters written as sequential pairs of:
+ *     - [Int], the length of the parameter values as bytes
+ *     - [ByteArray], the value of the parameter encoded into bytes
+ * - a [Short] as the number of result column format codes (always 1 since we only use binary
+ * encoding)
+ * - a [Short] as the format code of the result columns (1 = binary)
+ *
+ * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BIND)
+ */
 internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
     override fun encode(value: PgMessage.Bind, buffer: ByteWriteBuffer) {
         buffer.writeCode(value)

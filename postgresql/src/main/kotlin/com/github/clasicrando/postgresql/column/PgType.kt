@@ -1,9 +1,9 @@
 package com.github.clasicrando.postgresql.column
 
-/** Sealed class representing all covered postgresql types and their Oid */
+/** Sealed class representing all covered postgresql types and their OID */
 sealed class PgType(
     /**
-     * Oid value representing the unique identifier of a type within a given postgresql database.
+     * OID value representing the unique identifier of a type within a given postgresql database.
      * For all types implemented as a data object of [PgType], the type is static for any
      * postgresql database. User defined types will not be static, so they are defined as [ByOid]
      * or [ByName].

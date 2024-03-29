@@ -6,7 +6,7 @@ import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.message.PgMessage
 
 /**
- * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is sent when the session has been
+ * [MessageDecoder] for [PgMessage.ParameterStatus]. This message is sent when the session has been
  * authenticated but before the [PgMessage.BackendKeyData] and [PgMessage.ReadyForQuery] messages.
  * Each message contains a single run-time parameter name, and its current value. The contents are:
  *

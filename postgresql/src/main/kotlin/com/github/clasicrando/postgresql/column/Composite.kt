@@ -67,7 +67,7 @@ internal class PgCompositeTypeEncoder<T : Any>(
      * Encode [value] into the arguments [buffer]. This writes:
      * 1. The number of properties/attributes in the type
      * 2. For each property:
-     *     1. The property's type Oid
+     *     1. The property's type OID
      *     2. The property value encoded and length prefixed (length is -1 if the value is null)
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L481)
@@ -170,8 +170,8 @@ internal class PgCompositeTypeDecoder<T : Any>(
      *
      * 1. Read the first [Int] of the buffer as the number of properties remaining in the buffer.
      * 2. Construct an [Array] with the size already fetched where each element created as:
-     *     1. Read the next int as the element's Oid
-     *     2. Use that Oid to create a column description
+     *     1. Read the next int as the element's OID
+     *     2. Use that OID to create a column description
      *     3. Read the next int as the number of upcoming bytes for the composite attribute
      *     4. Construct a PgValue to pass to the type registry for decoding the composite attribute
      *     5. Set that decoded value as the array element

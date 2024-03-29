@@ -60,15 +60,6 @@ internal class PgStream(
         }
     }
 
-    /**
-     * Container for server message encoders. Used to send messages before they are sent to the
-     * server.
-     */
-    private val encoders: PgMessageEncoders = PgMessageEncoders()
-    /**
-     * Container for server message decoders. Used to parse messages sent from the database server.
-     */
-    private val decoders: PgMessageDecoders = PgMessageDecoders()
     /** [Channel] used to store all server notifications that have not been processed */
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
     /** [ReceiveChannel] used to store all server notifications that have not been processed */
@@ -83,7 +74,7 @@ internal class PgStream(
         val size = connection.readInt()
         val buffer = connection.readBuffer(size - 4)
         val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
-        return decoders.decode(rawMessage)
+        return PgMessageDecoders.decode(rawMessage)
     }
 
     suspend inline fun processMessageLoop(process: (PgMessage) -> Loop): Result<Unit> {
@@ -94,6 +85,7 @@ internal class PgStream(
                     is PgMessage.NotificationResponse -> onNotification(message)
                     is PgMessage.ParameterStatus -> onParameterStatus(message)
                     is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                    is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
                     else -> {
                         when (process(message)) {
                             Loop.Continue, Loop.Noop -> continue
@@ -119,6 +111,7 @@ internal class PgStream(
                     is PgMessage.ParameterStatus -> onParameterStatus(message)
                     is PgMessage.BackendKeyData -> onBackendKeyData(message)
                     is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
+                    is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
                     is T -> return Result.success(message)
                     else -> {
                         log(Level.TRACE) {
@@ -182,11 +175,21 @@ internal class PgStream(
         }
     }
 
+    /**
+     * Event handler method for [PgMessage.NegotiateProtocolVersion] messages. Only logs the
+     * message details.
+     */
+    private fun onNegotiateProtocolVersion(message: PgMessage.NegotiateProtocolVersion) {
+        log(Level.TRACE) {
+            this.message = "Server does not support protocol version 3.0. {message}"
+            payload = mapOf("message" to message)
+        }
+    }
+
     /** Write a single [message] to the [PgStream] using the appropriate derived encoder. */
     suspend inline fun writeToStream(message: PgMessage) {
         writeBuffer { buffer ->
-            val encoder = encoders.encoderFor(message)
-            encoder.encode(message, buffer)
+            PgMessageEncoders.encode(message, buffer)
         }
     }
 
@@ -196,8 +199,7 @@ internal class PgStream(
     ) {
         writeBuffer { buffer ->
             for (message in sequence { messages() }) {
-                val encoder = encoders.encoderFor(message)
-                encoder.encode(message, buffer)
+                PgMessageEncoders.encode(message, buffer)
             }
         }
     }
@@ -206,8 +208,7 @@ internal class PgStream(
     suspend inline fun writeManyToStream(vararg messages: PgMessage) {
         writeBuffer { buffer ->
             for (message in messages) {
-                val encoder = encoders.encoderFor(message)
-                encoder.encode(message, buffer)
+                PgMessageEncoders.encode(message, buffer)
             }
         }
     }
@@ -244,8 +245,7 @@ internal class PgStream(
                     messageSendBuffer.writeToAsyncStream(connection)
                     messageSendBuffer.release()
                 }
-                val encoder = encoders.encoderFor(it)
-                encoder.encode(it, messageSendBuffer)
+                PgMessageEncoders.encode(it, messageSendBuffer)
             }
             if (messageSendBuffer.position > 0) {
                 messageSendBuffer.writeToAsyncStream(connection)

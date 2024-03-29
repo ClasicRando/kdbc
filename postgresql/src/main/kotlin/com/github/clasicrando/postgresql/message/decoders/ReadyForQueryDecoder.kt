@@ -7,7 +7,7 @@ import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.TransactionStatus
 
 /**
- * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is sent when backend has finished
+ * [MessageDecoder] for [PgMessage.ReadyForQuery]. This message is sent when backend has finished
  * processing the current query cycle and is ready for more queries. The content is always a single
  * [Byte] that is translated to a [TransactionStatus].
  *

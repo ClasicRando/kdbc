@@ -9,11 +9,11 @@ import com.github.clasicrando.common.column.ColumnData
  */
 data class PgColumnDescription(
     override val fieldName: String,
-    /** Oid of the table this field. If the field is not part of a table, the value is 0. */
+    /** OID of the table this field. If the field is not part of a table, the value is 0. */
     val tableOid: Int,
     /** Attribute number of the field. If the field is not part of a table, the value is 0. */
     val columnAttribute: Short,
-    /** Oid of the field's data type */
+    /** OID of the field's data type */
     val pgType: PgType,
     /** Size of the data type. Negative values denote a variable with type. */
     val dataTypeSize: Short,

@@ -66,7 +66,7 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
      * Encode a [List] of [T] into the argument [buffer]. This writes:
      *  1. The number of dimensions (always 1)
      *  2. Array header flags (not used so always 0)
-     *  3. The Oid of the [List] item type
+     *  3. The OID of the [List] item type
      *  4. The number of items in the [List]
      *  5. The lower bound of the array (always 1)
      *  5. Each item encoded into the [buffer] (length prefixed if not null)
@@ -139,7 +139,7 @@ private const val ARRAY_LITERAL_CHECK_MESSAGE =
  *  1. [Int] - Number of dimensions for the array. Must be 1 or an [IllegalArgumentException] is
  *  thrown
  *  2. [Int] - Array header flags (discarded)
- *  3. [Int] - Array item type Oid
+ *  3. [Int] - Array item type OID
  *  4. [Int] - Length of the array
  *  5. [Int] - Lower bound of the array. Must be 1 or an [IllegalArgumentException] is thrown
  *  6. Dynamic - All items of the array as the number of bytes ([Int]) followed by that number of
