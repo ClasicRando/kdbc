@@ -19,9 +19,9 @@ import com.github.clasicrando.postgresql.column.enumTypeDecoder
 import com.github.clasicrando.postgresql.column.enumTypeEncoder
 import com.github.clasicrando.postgresql.copy.CopyStatement
 import com.github.clasicrando.postgresql.copy.CopyType
-import com.github.clasicrando.postgresql.message.CloseTarget
-import com.github.clasicrando.postgresql.message.DescribeTarget
+import com.github.clasicrando.postgresql.message.MessageTarget
 import com.github.clasicrando.postgresql.message.PgMessage
+import com.github.clasicrando.postgresql.message.TransactionStatus
 import com.github.clasicrando.postgresql.notification.PgNotification
 import com.github.clasicrando.postgresql.pool.PgConnectionPool
 import com.github.clasicrando.postgresql.pool.PgPoolManager
@@ -183,6 +183,24 @@ class PgConnection internal constructor(
         return Loop.Continue
     }
 
+    private suspend fun handleTransactionStatus(transactionStatus: TransactionStatus) {
+        if (transactionStatus == TransactionStatus.FailedTransaction
+            && connectOptions.autoRollbackOnFailedTransaction)
+        {
+            log(Level.TRACE) {
+                this.message = "Server reported failed transaction. Issuing rollback command"
+            }
+            try {
+                rollback()
+            } catch (ex: Throwable) {
+                log(Level.WARN) {
+                    this.message = "Failed to rollback transaction after failed transaction status"
+                    cause = ex
+                }
+            }
+        }
+    }
+
     /**
      * Collect all [QueryResult]s for the executed [statements] as a buffered [Flow].
      *
@@ -223,6 +241,7 @@ class PgConnection internal constructor(
                         Loop.Continue
                     }
                     is PgMessage.ReadyForQuery -> {
+                        handleTransactionStatus(message.transactionStatus)
                         if (i == statements.size - 1) {
                             enableQueryRunning()
                         }
@@ -295,6 +314,7 @@ class PgConnection internal constructor(
                     Loop.Continue
                 }
                 is PgMessage.ReadyForQuery -> {
+                    handleTransactionStatus(message.transactionStatus)
                     enableQueryRunning()
                     Loop.Break
                 }
@@ -346,7 +366,7 @@ class PgConnection internal constructor(
             parameterTypes = parameterTypes,
         )
         val describeMessage = PgMessage.Describe(
-            target = DescribeTarget.PreparedStatement,
+            target = MessageTarget.PreparedStatement,
             name = statement.statementName,
         )
         stream.writeManyToStream(parseMessage, describeMessage, PgMessage.Sync)
@@ -375,6 +395,7 @@ class PgConnection internal constructor(
                     Loop.Continue
                 }
                 is PgMessage.ReadyForQuery -> {
+                    handleTransactionStatus(message.transactionStatus)
                     Loop.Break
                 }
                 else -> logUnexpectedMessage(message)
@@ -488,7 +509,7 @@ class PgConnection internal constructor(
                 maxRowCount = 0,
             )
             yield(executeMessage)
-            val closePortalMessage = PgMessage.Close(CloseTarget.Portal, null)
+            val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
             yield(closePortalMessage)
             if (sendSync) {
                 yield(PgMessage.Sync)
@@ -533,7 +554,7 @@ class PgConnection internal constructor(
             return
         }
         val closeMessage = PgMessage.Close(
-            target = CloseTarget.PreparedStatement,
+            target = MessageTarget.PreparedStatement,
             targetName = statement.statementName,
         )
         stream.writeManyToStream(closeMessage, PgMessage.Sync)
@@ -718,6 +739,7 @@ class PgConnection internal constructor(
                     Loop.Continue
                 }
                 is PgMessage.ReadyForQuery -> {
+                    handleTransactionStatus(message.transactionStatus)
                     enableQueryRunning()
                     Loop.Break
                 }
@@ -782,6 +804,7 @@ class PgConnection internal constructor(
                     }
                     is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
                     is PgMessage.ReadyForQuery -> {
+                        handleTransactionStatus(message.transactionStatus)
                         enableQueryRunning()
                         Loop.Break
                     }

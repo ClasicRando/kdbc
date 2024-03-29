@@ -69,6 +69,11 @@ data class PgConnectOptions(
      */
     val currentSchema: String? = null,
     /**
+     * If the connection should perform a rollback command automatically if server ends a query
+     * response with an indicator that the current transaction failed. Default is true.
+     */
+    val autoRollbackOnFailedTransaction: Boolean = true,
+    /**
      * [PoolOptions] for the database connection. Used to decide how connections to the database
      * using these options should pool connections behind the scenes. If not specified then the
      * default values for a [PoolOptions] is used.
