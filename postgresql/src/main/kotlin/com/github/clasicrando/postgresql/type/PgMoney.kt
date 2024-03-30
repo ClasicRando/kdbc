@@ -8,12 +8,30 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.math.RoundingMode
 import kotlin.math.absoluteValue
 
+/**
+ * Postgresql `money` type to describe monetary values. Internally the data is stored as an [Long]
+ * but when requested for output, the value is shown with at most 2 decimal places.
+ *
+ * [docs](https://www.postgresql.org/docs/16/datatype-money.html)
+ */
 @Serializable(with = PgMoney.Companion::class)
 class PgMoney internal constructor(internal val integer: Long) {
+    /**
+     * Create a new [PgMoney] by passing the [double] to [BigDecimal.valueOf] and constructing the
+     * [Long] value needed from that [BigDecimal].
+     */
     constructor(double: Double): this(BigDecimal.valueOf(double))
+
+    /**
+     * Create a new [PgMoney] by converting the [decimal] value to a 2 scale [BigDecimal],
+     * converting that to a [BigInteger] and finally extracting a [Long] for the [PgMoney].
+     *
+     * @throws IllegalArgumentException if the [decimal] value has a [BigDecimal.scale] > 2
+     */
     constructor(decimal: BigDecimal): this(
         decimal.setScale(2, RoundingMode.UP).unscaledValue().toLong()
     ) {
@@ -70,10 +88,11 @@ class PgMoney internal constructor(internal val integer: Long) {
         return other.integer == this.integer
     }
 
-    override fun toString(): String = strRep
     override fun hashCode(): Int {
         return integer.hashCode()
     }
+
+    override fun toString(): String = strRep
 
     companion object : KSerializer<PgMoney> {
         private val MONEY_REGEX = Regex("^-?\\$?\\d+(.\\d{1,2})?$")

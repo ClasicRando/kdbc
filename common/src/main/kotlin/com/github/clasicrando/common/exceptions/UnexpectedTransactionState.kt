@@ -13,4 +13,4 @@ package com.github.clasicrando.common.exceptions
  * in an invalid/unknown state and the underlining connection should be terminated.
  */
 class UnexpectedTransactionState(inTransaction: Boolean)
-    : Exception("Expected connection ${if (inTransaction) "" else "not "}to be transaction")
+    : KdbcException("Expected connection ${if (inTransaction) "" else "not "}to be transaction")

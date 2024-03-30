@@ -1,8 +1,14 @@
 package com.github.clasicrando.postgresql.type
 
+/** Helper class to parse postgresql composite literal values */
 object PgCompositeLiteralParser {
     private const val DELIMITER = ','
 
+    /**
+     * Returns a [Sequence] of possibly null [String] values representing the attributes on the
+     * composite value. Each attribute needs to be decoded into the required data type in the
+     * composite decoder.
+     */
     fun parse(literal: String): Sequence<String?> = sequence {
         val charBuffer = literal.substring(1, literal.length - 1).toMutableList()
         var isDone = false

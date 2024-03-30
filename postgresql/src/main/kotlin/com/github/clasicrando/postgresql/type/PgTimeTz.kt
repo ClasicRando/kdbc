@@ -1,14 +1,25 @@
 package com.github.clasicrando.postgresql.type
 
+import com.github.clasicrando.common.datetime.InvalidDateString
 import com.github.clasicrando.common.datetime.tryFromString
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 
+/**
+ * Postgresql specific `time with time zone` type. Stores the [time] and timezone [offset] of the
+ * value.
+ */
 data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
     override fun toString(): String {
         return "$time$offset"
     }
 
+    /**
+     * If the other value is [PgTimeTz] then the total nanoseconds from the start of day (time zone
+     * adjusted) is compared for the [equals] method. This means 2 times that are functionally
+     * equivalent but in different time zones with return true. For example,
+     * PgTimeTz('19:14:45+05') == PgTimeTz('14:14:45+00').
+     */
     override fun equals(other: Any?): Boolean {
         if (other !is PgTimeTz) {
             return false
@@ -29,6 +40,12 @@ data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
     companion object {
         private const val NANOSECONDS_TO_SECONDS = 10_000_000_000L
 
+        /**
+         * Convert the [value] into the [LocalTime] and [UtcOffset] components that make up a new
+         * [PgTimeTz].
+         *
+         * @throws InvalidDateString
+         */
         fun fromString(value: String): PgTimeTz {
             return PgTimeTz(
                 time = LocalTime.tryFromString(value),

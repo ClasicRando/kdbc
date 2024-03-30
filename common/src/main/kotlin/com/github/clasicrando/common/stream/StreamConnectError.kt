@@ -1,5 +1,6 @@
 package com.github.clasicrando.common.stream
 
+import com.github.clasicrando.common.exceptions.KdbcException
 import java.net.InetSocketAddress
 
 /**
@@ -9,7 +10,7 @@ import java.net.InetSocketAddress
 class StreamConnectError(
     inetSocketAddress: InetSocketAddress,
     throwable: Throwable? = null,
-) : Exception("Unable to connect to host: $inetSocketAddress") {
+) : KdbcException("Unable to connect to host: $inetSocketAddress") {
     init {
         throwable?.let { addSuppressed(it) }
     }

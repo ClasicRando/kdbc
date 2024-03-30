@@ -4,6 +4,13 @@ import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.column.ColumnDecodeError
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 
+/**
+ * PostGIS polygon type represented as a list of connected [points]. Polygons are very similar to a
+ * closed [PgPath] but polygons are always closed, define a [boundBox] and are considered to
+ * contain the area within the closed path.
+ *
+ * [docs](https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-POLYGON)
+ */
 data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) : PgGeometryType {
     constructor(points: List<PgPoint>): this(makeBoundBox(points), points)
 

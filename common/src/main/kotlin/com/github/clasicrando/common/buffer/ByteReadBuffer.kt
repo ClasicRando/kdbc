@@ -1,7 +1,6 @@
 package com.github.clasicrando.common.buffer
 
 import com.github.clasicrando.common.AutoRelease
-import java.io.InputStream
 import java.nio.charset.Charset
 
 /**
@@ -166,21 +165,6 @@ class ByteReadBuffer(
             .toList()
             .toByteArray()
             .toString(charset = charset)
-    }
-
-    /**
-     * Create a wrapper [InputStream] for this buffer. Calls the [readByte] method when the
-     * [InputStream.read] method is called.
-     */
-    fun inputStream(): InputStream = object : InputStream() {
-        override fun close() {}
-
-        override fun read(): Int {
-            if (remaining == 0) {
-                return -1
-            }
-            return this@ByteReadBuffer.readByte().toInt()
-        }
     }
 
     /**

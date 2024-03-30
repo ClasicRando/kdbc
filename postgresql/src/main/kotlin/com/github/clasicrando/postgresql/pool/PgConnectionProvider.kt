@@ -6,6 +6,11 @@ import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.stream.PgStream
 
+/**
+ * Postgresql specific implementation for [ConnectionProvider] that provides the means to create
+ * new [ConnectionPool] instances holding [PgConnection]s as well as validating that a
+ * [PgConnection] is valid for reuse.
+ */
 internal class PgConnectionProvider(
     private val connectOptions: PgConnectOptions,
 ) : ConnectionProvider<PgConnection> {

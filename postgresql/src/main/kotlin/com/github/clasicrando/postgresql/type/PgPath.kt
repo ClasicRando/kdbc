@@ -4,6 +4,12 @@ import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.column.ColumnDecodeError
 import com.github.clasicrando.postgresql.column.PgColumnDescription
 
+/**
+ * PostGIS path type represented as a list of connected [points]. Paths can either be closed or
+ * open.
+ *
+ * [docs](https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATHS)
+ */
 data class PgPath(val isClosed: Boolean, val points: List<PgPoint>) : PgGeometryType {
     override val postGisLiteral: String
         get() = buildString {

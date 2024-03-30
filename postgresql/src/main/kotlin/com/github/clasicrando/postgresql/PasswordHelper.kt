@@ -3,7 +3,9 @@ package com.github.clasicrando.postgresql
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 
+/** Helper object to encode passwords */
 internal object PasswordHelper {
+    /** Binary value to hex lookup array. Indexes from 0-15 correlate to the hex [Byte] */
     private val Lookup = byteArrayOf(
         '0'.code.toByte(),
         '1'.code.toByte(),
@@ -23,7 +25,13 @@ internal object PasswordHelper {
         'f'.code.toByte()
     )
 
-    private fun bytesToHex(bytes: ByteArray, hex: ByteArray, offset: Int) {
+    /**
+     * Convert each [Byte] in [bytes] to it's hex representation. This means that each [Byte] in
+     * [bytes] is split into 2 separate [Byte] values as the 4 highest bits and 4 lowest bits.
+     * The iteration over [bytes] is capped at index 15 since the MD5 digest will always contain
+     * 128 bits (16 bytes).
+     */
+    private fun md5BytesToHex(bytes: ByteArray, hex: ByteArray, offset: Int) {
         var pos = offset
         var i = 0
         while (i < 16) {
@@ -38,7 +46,11 @@ internal object PasswordHelper {
         }
     }
 
-    @Throws(NoSuchAlgorithmException::class)
+    /**
+     * Use the MD5 hashing algorithm to hash the [username], [password] and [salt] provided.
+     *
+     * @throws NoSuchAlgorithmException
+     */
     fun encode(
         username: ByteArray,
         password: ByteArray,
@@ -48,10 +60,10 @@ internal object PasswordHelper {
         val hexDigest = ByteArray(35)
         md.update(password)
         md.update(username)
-        bytesToHex(md.digest(), hexDigest, 0)
+        md5BytesToHex(md.digest(), hexDigest, 0)
         md.update(hexDigest, 0, 32)
         md.update(salt)
-        bytesToHex(md.digest(), hexDigest, 3)
+        md5BytesToHex(md.digest(), hexDigest, 3)
         hexDigest[0] = 'm'.code.toByte()
         hexDigest[1] = 'd'.code.toByte()
         hexDigest[2] = '5'.code.toByte()

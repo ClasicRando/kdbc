@@ -1,5 +1,6 @@
 package com.github.clasicrando.common.column
 
+import com.github.clasicrando.common.exceptions.KdbcException
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
@@ -10,7 +11,7 @@ class ColumnDecodeError(
     columnName: String,
     decodeType: KType,
     reason: String,
-) : Exception(
+) : KdbcException(
     "Could not decode bytes into desired type. Actual Type: $typeName($dataType), " +
             "Column: '$columnName', " +
             "Desired Output: $decodeType" + if (reason.isNotBlank()) ", Reason: $reason" else ""
@@ -30,18 +31,7 @@ inline fun <reified T> columnDecodeError(type: ColumnData, reason: String = ""):
 inline fun <reified T> checkOrColumnDecodeError(
     check: Boolean,
     type: ColumnData,
-    reason: String = "",
-) {
-    if (!check) {
-        columnDecodeError<T>(type, reason)
-    }
-}
-
-/** Evaluate the [check] parameter and if it's false throw a [ColumnDecodeError] */
-inline fun <reified T> checkOrColumnDecodeError(
-    check: Boolean,
-    type: ColumnData,
-    reason: () -> String,
+    reason: () -> String = { "" },
 ) {
     if (!check) {
         columnDecodeError<T>(type, reason())

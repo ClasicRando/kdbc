@@ -4,6 +4,7 @@ import com.github.clasicrando.common.DefaultUniqueResourceId
 import com.github.clasicrando.common.ExitOfProcessingLoop
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
+import com.github.clasicrando.common.exceptions.KdbcException
 import com.github.clasicrando.common.message.SizedMessage
 import com.github.clasicrando.common.resourceLogger
 import com.github.clasicrando.common.stream.AsyncStream
@@ -17,6 +18,7 @@ import com.github.clasicrando.postgresql.authentication.PgAuthenticationError
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
 import com.github.clasicrando.postgresql.authentication.simplePasswordAuthFlow
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
+import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.decoders.PgMessageDecoders
 import com.github.clasicrando.postgresql.message.encoders.PgMessageEncoders
@@ -39,48 +41,91 @@ import kotlin.coroutines.CoroutineContext
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgStream"
 
+/**
+ * [AsyncStream] wrapper class for facilitating postgresql specific message protocol behaviour.
+ * A [PgConnection] will own a [PgStream] and utilize it's public methods to process incoming
+ * server messages.
+ */
 internal class PgStream(
-    private val scope: CoroutineScope,
-    private var connection: AsyncStream,
+    scope: CoroutineScope,
+    private val asyncStream: AsyncStream,
     internal val connectOptions: PgConnectOptions,
 ) : DefaultUniqueResourceId(), CoroutineScope, AutoCloseable {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
+    /** Reusable buffer for writing messages to the database server */
     private val messageSendBuffer = ByteWriteBuffer(MESSAGE_BUFFER_SIZE)
 
     override val resourceType: String = RESOURCE_TYPE
 
-    override val coroutineContext: CoroutineContext get() = Job(parent = scope.coroutineContext.job)
+    override val coroutineContext: CoroutineContext = Job(parent = scope.coroutineContext.job)
 
-    val messages = Channel<PgMessage>(capacity = Channel.BUFFERED)
+    /** [Channel] storing incoming messages that have been received and decoded to a [PgMessage] */
+    private val messagesChannel = Channel<PgMessage>(capacity = Channel.BUFFERED)
     private val messageReaderJob = launch {
         while (isActive && isConnected) {
             val message = receiveNextServerMessage()
-            messages.send(message)
+            messagesChannel.send(message)
         }
     }
+    /**
+     * Read-only channel for messages received and decoded from the server as [PgMessage]s. This
+     * should only be used if you need to have fine-grained control over the incoming messages.
+     * The preferred way of processing incoming messages is through [processMessageLoop] or
+     * [waitForOrError].
+     */
+    val messages: ReceiveChannel<PgMessage> get() = messagesChannel
 
     /** [Channel] used to store all server notifications that have not been processed */
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
     /** [ReceiveChannel] used to store all server notifications that have not been processed */
     val notifications: ReceiveChannel<PgNotification> = notificationsChannel
 
+    /**
+     * Created a log message at the specified [level], applying the [block] to the
+     * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
+     */
     internal inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
         logger.resourceLogger(this, level, block)
     }
 
+    /**
+     * Receives the next available server message from the underlining connection. Suspends until
+     * all [RawMessage] data that is required can be fetched then decodes that [RawMessage] into a
+     * [PgMessage] using [PgMessageDecoders.decode].
+     */
     private suspend fun receiveNextServerMessage(): PgMessage {
-        val format = connection.readByte()
-        val size = connection.readInt()
-        val buffer = connection.readBuffer(size - 4)
+        val format = asyncStream.readByte()
+        val size = asyncStream.readInt()
+        val buffer = asyncStream.readBuffer(size - 4)
         val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
         return PgMessageDecoders.decode(rawMessage)
     }
 
+    /**
+     * State machine like method that allows the caller to specify a [process] lambda that handles
+     * each [PgMessage] received from the server until [Loop.Break] is returned by the lambda.
+     * Since unknown errors can arise in [process], the entire loop is wrapped in a try-catch to
+     * return a [Result] value rather than throwing an exception. The caller is then responsible
+     * for decomposing the [Result]. The only exception that will escape this method is
+     * [CancellationException] to allow for regular coroutine cancellation.
+     *
+     * Some asynchronous messages are not passed forward to [process] because they are not of
+     * concern to message processors. These are:
+     *
+     * - [PgMessage.NoticeResponse]
+     * - [PgMessage.NotificationResponse]
+     * - [PgMessage.ParameterStatus], should not be received after startup but should be ignored
+     * - [PgMessage.BackendKeyData], should not be received after startup but should be ignored
+     * - [PgMessage.NegotiateProtocolVersion], should not be received after startup but should be
+     * ignored
+     *
+     * @throws CancellationException when the coroutine scope cancels this coroutine
+     */
     suspend inline fun processMessageLoop(process: (PgMessage) -> Loop): Result<Unit> {
         try {
             while (isActive && isConnected) {
-                when (val message = messages.receive()) {
+                when (val message = messagesChannel.receive()) {
                     is PgMessage.NoticeResponse -> onNotice(message)
                     is PgMessage.NotificationResponse -> onNotification(message)
                     is PgMessage.ParameterStatus -> onParameterStatus(message)
@@ -99,18 +144,37 @@ internal class PgStream(
         } catch (ex: Throwable) {
             return Result.failure(ex)
         }
+        if (!isActive) {
+            return Result.failure(KdbcException(
+                "Exited message processing loop because the coroutine scope is no longer active"
+            ))
+        }
+        if (!isConnected) {
+            return Result.failure(KdbcException(
+                "Exited message processing loop because the underlining connection was closed"
+            ))
+        }
         return Result.success(Unit)
     }
 
+    /**
+     * Similar to [processMessageLoop] but acts as a special case where it ignores all messages
+     * except for [T] and [PgMessage.ErrorResponse]. This is helpful when you need to find a
+     * specific message but also need to ensure error messages are captured and provided as the
+     * failure [Result] option. For example, when starting a `COPY TO` operation,
+     * [PgMessage.CopyOutResponse] must be found before continuing to a message processor for
+     * [PgMessage.CopyData] messages. You can wait for that message or errors, proceeding if the
+     * [Result] is successful.
+     */
     suspend inline fun <reified T : PgMessage> waitForOrError(): Result<T> {
         try {
             while (isActive && isConnected) {
-                when (val message = messages.receive()) {
+                when (val message = messagesChannel.receive()) {
                     is PgMessage.NoticeResponse -> onNotice(message)
                     is PgMessage.NotificationResponse -> onNotification(message)
                     is PgMessage.ParameterStatus -> onParameterStatus(message)
                     is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                    is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
+                    is PgMessage.ErrorResponse -> return Result.failure(GeneralPostgresError(message))
                     is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
                     is T -> return Result.success(message)
                     else -> {
@@ -186,14 +250,14 @@ internal class PgStream(
         }
     }
 
-    /** Write a single [message] to the [PgStream] using the appropriate derived encoder. */
+    /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeToStream(message: PgMessage) {
         writeBuffer { buffer ->
             PgMessageEncoders.encode(message, buffer)
         }
     }
 
-    /** Write multiple [messages] to the [PgStream] using the appropriate derived encoders. */
+    /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeManyToStream(
         crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
     ) {
@@ -204,7 +268,7 @@ internal class PgStream(
         }
     }
 
-    /** Write multiple [messages] to the [PgStream] using the appropriate derived encoders. */
+    /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeManyToStream(vararg messages: PgMessage) {
         writeBuffer { buffer ->
             for (message in messages) {
@@ -219,20 +283,32 @@ internal class PgStream(
      */
     private fun closeChannels(throwable: Throwable? = null) {
         notificationsChannel.close(throwable)
+        messagesChannel.close(throwable)
     }
 
-    val isConnected: Boolean get() = connection.isConnected
+    /** Returns true if the underlining [asyncStream] is still connected */
+    val isConnected: Boolean get() = asyncStream.isConnected
 
+    /**
+     * Use the write action, [block], to write zero or more [Byte]s to the [messageSendBuffer]
+     * which in turn is written to the [asyncStream]. The [messageSendBuffer] will always be
+     * released at the end of this method even if an [Exception] is thrown.
+     */
     private suspend inline fun writeBuffer(crossinline block: (ByteWriteBuffer) -> Unit) {
         try {
             messageSendBuffer.release()
             block(messageSendBuffer)
-            messageSendBuffer.writeToAsyncStream(connection)
+            messageSendBuffer.writeToAsyncStream(asyncStream)
         } finally {
             messageSendBuffer.release()
         }
     }
 
+    /**
+     * Utilize the known size of the [M] messages to optimally write a [flow] of messages to the
+     * server. This involves collecting the [flow] and packing is as many messages as possible into
+     * a single write to the database server.
+     */
     suspend fun <M> writeManySized(flow: Flow<M>)
     where
         M : SizedMessage,
@@ -242,13 +318,13 @@ internal class PgStream(
             messageSendBuffer.release()
             flow.collect {
                 if (messageSendBuffer.remaining < it.size) {
-                    messageSendBuffer.writeToAsyncStream(connection)
+                    messageSendBuffer.writeToAsyncStream(asyncStream)
                     messageSendBuffer.release()
                 }
                 PgMessageEncoders.encode(it, messageSendBuffer)
             }
             if (messageSendBuffer.position > 0) {
-                messageSendBuffer.writeToAsyncStream(connection)
+                messageSendBuffer.writeToAsyncStream(asyncStream)
             }
         } finally {
             messageSendBuffer.release()
@@ -258,19 +334,22 @@ internal class PgStream(
     override fun close() {
         messageSendBuffer.release()
         closeChannels()
-        if (connection.isConnected) {
-            connection.release()
+        if (asyncStream.isConnected) {
+            asyncStream.release()
         }
     }
 
     /**
      * Handle the incoming authentication request with the proper flow of messages. Currently, only
      * clear text password, md5 password and SASL flows are implemented so if the server requests
-     * and different authentication flow then an exception will be thrown. This will also throw
+     * a different authentication flow then an exception will be thrown. This will also throw
      * an exception if the first received message is not a [PgMessage.Authentication] message.
-     * In the event the first message is a [PgMessage.ErrorResponse] the [onErrorMessage] handler
-     * is invoked which signals the [PgStream] initialization method that the connection should
-     * be disposed.
+     * In the event the first message is a [PgMessage.ErrorResponse] a [GeneralPostgresError]
+     * is thrown.
+     *
+     * @throws GeneralPostgresError if a [PgMessage.ErrorResponse] is received from the server
+     * @throws PgAuthenticationError if a message is received that is not [PgMessage.Authentication]
+     * @throws IllegalStateException if the [Authentication] type is not supported
      */
     private suspend fun handleAuthFlow() {
         val message = messages.receive()
