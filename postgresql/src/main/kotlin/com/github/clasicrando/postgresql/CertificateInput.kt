@@ -1,5 +1,7 @@
 package com.github.clasicrando.postgresql
 
+import com.github.clasicrando.postgresql.CertificateInput.File
+import com.github.clasicrando.postgresql.CertificateInput.Inline
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem

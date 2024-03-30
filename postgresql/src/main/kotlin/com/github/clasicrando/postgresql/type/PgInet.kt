@@ -1,5 +1,7 @@
 package com.github.clasicrando.postgresql.type
 
+import com.github.clasicrando.postgresql.type.PgInet.Ipv4
+import com.github.clasicrando.postgresql.type.PgInet.Ipv6
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
