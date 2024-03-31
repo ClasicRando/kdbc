@@ -31,6 +31,7 @@ subprojects {
     val kotlinLoggingVersion: String by project
     val slf4jVersion: String by project
     val kotlinxCoroutinesVersion: String by project
+    val ktorVersion: String by project
     val kotlinVersion: String by project
     val kotlinxSerializationJsonVersion: String by project
     val kotlinxDateTimeVersion: String by project
@@ -39,7 +40,6 @@ subprojects {
     val junitVersion: String by project
     val logbackVersion: String by project
     val mockkVersion: String by project
-    val ktorVersion: String by project
 
     dependencies {
         implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
@@ -47,6 +47,7 @@ subprojects {
         implementation("org.slf4j:slf4j-api:$slf4jVersion")
         // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$kotlinxCoroutinesVersion")
+        implementation("io.ktor:ktor-network:$ktorVersion")
         implementation(kotlin("reflect", version = kotlinVersion))
         // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
         api("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
@@ -59,7 +60,6 @@ subprojects {
         testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
         testImplementation("ch.qos.logback:logback-classic:$logbackVersion")
         testImplementation("io.mockk:mockk:$mockkVersion")
-        implementation("io.ktor:ktor-network:$ktorVersion")
     }
 
     kotlin {
