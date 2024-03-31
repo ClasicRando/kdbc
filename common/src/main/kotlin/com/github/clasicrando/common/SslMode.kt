@@ -8,21 +8,21 @@ enum class SslMode {
     VerifyCa,
     VerifyFull,;
 
-    fun acceptInvalidCerts(): Boolean = this != com.github.clasicrando.common.SslMode.VerifyCa && this != com.github.clasicrando.common.SslMode.VerifyFull
+    fun acceptInvalidCerts(): Boolean = this != VerifyCa && this != VerifyFull
 
-    fun acceptInvalidHostnames(): Boolean = this != com.github.clasicrando.common.SslMode.VerifyFull
+    fun acceptInvalidHostnames(): Boolean = this != VerifyFull
 
     companion object {
-        val DEFAULT = com.github.clasicrando.common.SslMode.Prefer
+        val DEFAULT = Prefer
 
-        fun fromString(str: String): com.github.clasicrando.common.SslMode {
+        fun fromString(str: String): SslMode {
             return when (str.lowercase()) {
-                "disable" -> com.github.clasicrando.common.SslMode.Disable
-                "allow" -> com.github.clasicrando.common.SslMode.Allow
-                "prefer" -> com.github.clasicrando.common.SslMode.Prefer
-                "require" -> com.github.clasicrando.common.SslMode.Require
-                "verify-ca" -> com.github.clasicrando.common.SslMode.VerifyCa
-                "verify-full" -> com.github.clasicrando.common.SslMode.VerifyFull
+                "disable" -> Disable
+                "allow" -> Allow
+                "prefer" -> Prefer
+                "require" -> Require
+                "verify-ca" -> VerifyCa
+                "verify-full" -> VerifyFull
                 else -> error("Unknown value $str for 'ssl_mode'")
             }
         }

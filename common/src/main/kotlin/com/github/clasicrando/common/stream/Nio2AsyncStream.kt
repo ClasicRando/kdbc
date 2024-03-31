@@ -48,7 +48,10 @@ class Nio2AsyncStream(
                 payload = mapOf("address" to address)
                 cause = ex
             }
-            throw StreamConnectError(address, ex)
+            throw StreamConnectError(
+                io.ktor.network.sockets.InetSocketAddress(address.hostName, address.port),
+                ex,
+            )
         }
         logger.resourceLogger(this, Level.TRACE) {
             message = "Successfully connected to {address}"
@@ -57,14 +60,11 @@ class Nio2AsyncStream(
     }
 
     override suspend fun writeBuffer(buffer: ByteWriteBuffer) {
-        while (buffer.innerBuffer.hasRemaining()) {
+        val byteBuffer = ByteBuffer.allocate(0)
+        while (byteBuffer.hasRemaining()) {
             val bytes = try {
                 suspendCoroutine { continuation: Continuation<Int> ->
-                    socket.write(
-                        buffer.innerBuffer,
-                        null,
-                        SuspendCompletionHandler(continuation),
-                    )
+                    socket.write(byteBuffer, null, SuspendCompletionHandler(continuation))
                 }
             } catch (ex: Throwable) {
                 logger.resourceLogger(this, Level.TRACE) {

@@ -1,9 +1,7 @@
 package com.github.clasicrando.common.buffer
 
 import com.github.clasicrando.common.AutoRelease
-import com.github.clasicrando.common.stream.AsyncStream
 import java.io.OutputStream
-import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
 /**
@@ -13,27 +11,23 @@ import java.nio.charset.Charset
  * each write since the underling resource is reset when [release] is called rather than cleaned
  * up.
  */
-class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRelease {
-    // TODO remove direct dependency on java with kotlinx.io once the library matures
+class ByteWriteBuffer(capacity: Int) : AutoRelease {
     @PublishedApi
-    internal var innerBuffer = if (isDirect) {
-        ByteBuffer.allocateDirect(capacity)
-    } else {
-        ByteBuffer.allocate(capacity)
-    }
+    internal var innerBuffer = ByteArray(capacity)
 
     /**
      * Position within the internal buffer. This signifies how many bytes have been written to the
      * buffer
      */
-    val position: Int get() = innerBuffer.position()
+    var position: Int = 0
+        internal set
 
     /** The number of bytes available for writing before the buffer is filled */
-    val remaining: Int get() = innerBuffer.remaining()
+    val remaining: Int get() = innerBuffer.size - position
 
     private fun checkOverflow(requiredSpace: Int) {
-        if (innerBuffer.remaining() < requiredSpace) {
-            throw BufferOverflow(requiredSpace, innerBuffer.remaining())
+        if (remaining < requiredSpace) {
+            throw BufferOverflow(requiredSpace, remaining)
         }
     }
 
@@ -45,7 +39,7 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
      */
     fun writeByte(byte: Byte) {
         checkOverflow(1)
-        innerBuffer.put(byte)
+        innerBuffer[position++] = byte
     }
 
     /**
@@ -56,7 +50,8 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
      */
     fun writeShort(short: Short) {
         checkOverflow(2)
-        innerBuffer.putShort(short)
+        innerBuffer[position++] = (short.toInt() ushr 8 and 0xff).toByte()
+        innerBuffer[position++] = (short.toInt() and 0xff).toByte()
     }
 
     /**
@@ -67,7 +62,10 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
      */
     fun writeInt(int: Int) {
         checkOverflow(4)
-        innerBuffer.putInt(int)
+        innerBuffer[position++] = (int ushr 24 and 0xff).toByte()
+        innerBuffer[position++] = (int ushr 16 and 0xff).toByte()
+        innerBuffer[position++] = (int ushr 8 and 0xff).toByte()
+        innerBuffer[position++] = (int and 0xff).toByte()
     }
 
     /**
@@ -78,7 +76,14 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
      */
     fun writeLong(long: Long) {
         checkOverflow(8)
-        innerBuffer.putLong(long)
+        innerBuffer[position++] = (long ushr 56 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 48 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 40 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 32 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 24 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 16 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 8 and 0xffL).toByte()
+        innerBuffer[position++] = (long and 0xffL).toByte()
     }
 
     /**
@@ -89,7 +94,7 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
      */
     fun writeFloat(float: Float) {
         checkOverflow(4)
-        innerBuffer.putFloat(float)
+        writeInt(float.toBits())
     }
 
     /**
@@ -100,7 +105,7 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
      */
     fun writeDouble(double: Double) {
         checkOverflow(8)
-        innerBuffer.putDouble(double)
+        writeLong(double.toBits())
     }
 
     /**
@@ -117,8 +122,9 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
             "The supplied offset = $offset and length = $length is not valid for a ByteArray of " +
                     "size = ${byteArray.size}"
         }
-        checkOverflow(length)
-        innerBuffer.put(byteArray, offset, length)
+        for (i in offset..<(offset + length)) {
+            innerBuffer[position++] = byteArray[i]
+        }
     }
 
     /**
@@ -127,9 +133,8 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
      * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
      * this operation
      */
-    fun writeBytes(byteArray: ByteArray) {
-        checkOverflow(byteArray.size)
-        innerBuffer.put(byteArray, 0, byteArray.size)
+    fun writeBytes(byteArray: ByteArray)  {
+        writeBytes(byteArray = byteArray, offset = 0, length = byteArray.size)
     }
 
     /**
@@ -165,38 +170,26 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
      */
     fun writeCString(text: String, charset: Charset = Charsets.UTF_8) {
         val bytes = text.toByteArray(charset = charset)
-        val requiredSize = bytes.size + 1
-        checkOverflow(requiredSize)
-        innerBuffer.put(bytes)
-        innerBuffer.put(0)
+        writeBytes(bytes)
+        writeByte(0)
     }
 
     /** Reset the buffer to its initial state allowing the buffer to be reused */
     override fun release() {
-        innerBuffer.clear()
+        position = 0
     }
 
     /**
      * Copy the all previously written bytes of this buffer into a [ByteArray]. This leaves the
      * buffer in an initialized state after completing, as if [release] was called.
      */
-    fun writeToArray(): ByteArray {
-        innerBuffer.flip()
-        val array = ByteArray(innerBuffer.remaining())
-        innerBuffer.get(array)
-        innerBuffer.clear()
+    fun copyToArray(): ByteArray {
+        val array = ByteArray(position)
+        for (i in array.indices) {
+            array[i] = innerBuffer[i]
+        }
+        release()
         return array
-    }
-
-    /**
-     * Write all previously written bytes of this buffer into the [stream] using
-     * [AsyncStream.writeBuffer]. After successfully writing all available bytes into the [stream]
-     * the buffer is reset as if [release] was called.
-     */
-    suspend fun writeToAsyncStream(stream: AsyncStream) {
-        innerBuffer.flip()
-        stream.writeBuffer(this)
-        innerBuffer.clear()
     }
 
     /**
@@ -222,14 +215,14 @@ class ByteWriteBuffer(capacity: Int = 2048, isDirect: Boolean = true) : AutoRele
         includeLength: Boolean = false,
         block: ByteWriteBuffer.() -> Unit,
     ) {
-        check(innerBuffer.remaining() >= 4) {
-            "Cannot write the length value because the buffer does not have 4 bytes available"
-        }
-        val startIndex = innerBuffer.position()
-        innerBuffer.putInt(0)
+        var startIndex = position
+        writeInt(0)
         this.block()
-        val length = innerBuffer.position() - startIndex - if (includeLength) 0 else 4
-        innerBuffer.putInt(startIndex, length)
+        val length = position - startIndex - if (includeLength) 0 else 4
+        innerBuffer[startIndex++] = (length ushr 24 and 0xff).toByte()
+        innerBuffer[startIndex++] = (length ushr 16 and 0xff).toByte()
+        innerBuffer[startIndex++] = (length ushr 8 and 0xff).toByte()
+        innerBuffer[startIndex] = (length and 0xff).toByte()
     }
 
     /**

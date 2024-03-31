@@ -5,6 +5,9 @@ import com.github.clasicrando.common.pool.ConnectionPool
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.connection.PgConnection
+import io.ktor.network.selector.SelectorManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Postgresql specific implementation of a [ConnectionPool], keeping reference to the pool's
@@ -17,9 +20,15 @@ internal class PgConnectionPool(
     poolOptions = connectOptions.poolOptions,
     provider = PgConnectionProvider(connectOptions),
 ) {
-    internal val typeRegistry = PgTypeRegistry()
+    val typeRegistry = PgTypeRegistry()
+    val selectorManager = SelectorManager(dispatcher = this.coroutineContext)
 
     override suspend fun disposeConnection(connection: PgConnection) {
         connection.dispose()
+    }
+
+    override suspend fun close() {
+        withContext(Dispatchers.IO) { selectorManager.close() }
+        super.close()
     }
 }

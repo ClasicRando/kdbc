@@ -39,6 +39,7 @@ subprojects {
     val junitVersion: String by project
     val logbackVersion: String by project
     val mockkVersion: String by project
+    val ktorVersion: String by project
 
     dependencies {
         implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
@@ -58,6 +59,7 @@ subprojects {
         testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
         testImplementation("ch.qos.logback:logback-classic:$logbackVersion")
         testImplementation("io.mockk:mockk:$mockkVersion")
+        implementation("io.ktor:ktor-network:$ktorVersion")
     }
 
     kotlin {

@@ -8,7 +8,6 @@ import com.github.clasicrando.common.exceptions.KdbcException
 import com.github.clasicrando.common.message.SizedMessage
 import com.github.clasicrando.common.resourceLogger
 import com.github.clasicrando.common.stream.AsyncStream
-import com.github.clasicrando.common.stream.Nio2AsyncStream
 import com.github.clasicrando.common.stream.StreamConnectError
 import com.github.clasicrando.common.stream.StreamReadError
 import com.github.clasicrando.common.stream.StreamWriteError
@@ -35,7 +34,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import java.net.InetSocketAddress
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
@@ -54,7 +52,7 @@ internal class PgStream(
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
-    private val messageSendBuffer = ByteWriteBuffer(MESSAGE_BUFFER_SIZE)
+    private val messageSendBuffer = ByteWriteBuffer(SEND_BUFFER_SIZE)
 
     override val resourceType: String = RESOURCE_TYPE
 
@@ -252,7 +250,7 @@ internal class PgStream(
 
     /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeToStream(message: PgMessage) {
-        writeBuffer { buffer ->
+        writeToBuffer { buffer ->
             PgMessageEncoders.encode(message, buffer)
         }
     }
@@ -261,7 +259,7 @@ internal class PgStream(
     suspend inline fun writeManyToStream(
         crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
     ) {
-        writeBuffer { buffer ->
+        writeToBuffer { buffer ->
             for (message in sequence { messages() }) {
                 PgMessageEncoders.encode(message, buffer)
             }
@@ -270,7 +268,7 @@ internal class PgStream(
 
     /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeManyToStream(vararg messages: PgMessage) {
-        writeBuffer { buffer ->
+        writeToBuffer { buffer ->
             for (message in messages) {
                 PgMessageEncoders.encode(message, buffer)
             }
@@ -294,11 +292,11 @@ internal class PgStream(
      * which in turn is written to the [asyncStream]. The [messageSendBuffer] will always be
      * released at the end of this method even if an [Exception] is thrown.
      */
-    private suspend inline fun writeBuffer(crossinline block: (ByteWriteBuffer) -> Unit) {
+    private suspend inline fun writeToBuffer(crossinline block: suspend (ByteWriteBuffer) -> Unit) {
         try {
             messageSendBuffer.release()
             block(messageSendBuffer)
-            messageSendBuffer.writeToAsyncStream(asyncStream)
+            asyncStream.writeBuffer(messageSendBuffer)
         } finally {
             messageSendBuffer.release()
         }
@@ -318,13 +316,13 @@ internal class PgStream(
             messageSendBuffer.release()
             flow.collect {
                 if (messageSendBuffer.remaining < it.size) {
-                    messageSendBuffer.writeToAsyncStream(asyncStream)
+                    asyncStream.writeBuffer(messageSendBuffer)
                     messageSendBuffer.release()
                 }
                 PgMessageEncoders.encode(it, messageSendBuffer)
             }
             if (messageSendBuffer.position > 0) {
-                messageSendBuffer.writeToAsyncStream(asyncStream)
+                asyncStream.writeBuffer(messageSendBuffer)
             }
         } finally {
             messageSendBuffer.release()
@@ -429,7 +427,7 @@ internal class PgStream(
 //    }
 
     companion object {
-        private const val MESSAGE_BUFFER_SIZE = 2048
+        private const val SEND_BUFFER_SIZE = 2048
         private const val TLS_REJECT_WARNING = "Preferred SSL mode was rejected by server. " +
                 "Continuing with non TLS connection"
 
@@ -455,12 +453,11 @@ internal class PgStream(
          */
         internal suspend fun connect(
             scope: CoroutineScope,
+            asyncStream: AsyncStream,
             connectOptions: PgConnectOptions,
         ): PgStream {
-            val address = InetSocketAddress(connectOptions.host, connectOptions.port.toInt())
-            val socket = Nio2AsyncStream(address)
-            socket.connect(connectOptions.connectionTimeout)
-            val stream = PgStream(scope, socket, connectOptions)
+            asyncStream.connect(connectOptions.connectionTimeout)
+            val stream = PgStream(scope, asyncStream, connectOptions)
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()
@@ -469,7 +466,7 @@ internal class PgStream(
             /***
              * TODO
              * Need to add ability to upgrade to SSL connection, currently do not understand how
-             * that is done with specified cert details with ktor-io
+             * that is done with specified cert details with ktor-network-tls
              */
 //            stream.upgradeIfNeeded(
 //                coroutineContext = coroutineScope.coroutineContext,

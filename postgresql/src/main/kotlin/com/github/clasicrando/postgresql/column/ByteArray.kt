@@ -102,7 +102,7 @@ private fun String.getOrThrow(index: Int): Char {
  * [Byte] value in the format of "x{first}{second}{third}".
  */
 private fun decodeWithoutPrefix(value: String): ByteArray {
-    val buffer = ByteWriteBuffer(isDirect = false)
+    val buffer = ByteWriteBuffer(value.length)
     val maxIndex = value.length - 1
     var index = 0
 
@@ -129,5 +129,5 @@ private fun decodeWithoutPrefix(value: String): ByteArray {
         index++
         buffer.writeByte("0$nextChar$secondDigit$thirdDigit".toInt(8).toByte())
     }
-    return buffer.writeToArray()
+    return buffer.copyToArray()
 }

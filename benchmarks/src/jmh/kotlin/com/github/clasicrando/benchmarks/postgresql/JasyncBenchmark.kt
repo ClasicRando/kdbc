@@ -5,6 +5,7 @@ import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.toKotlinLocalDateTime
+import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
