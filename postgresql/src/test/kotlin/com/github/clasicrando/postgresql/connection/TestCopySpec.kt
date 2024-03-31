@@ -2,7 +2,6 @@ package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.connection.useCatching
-import com.github.clasicrando.common.result.getLong
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import com.github.clasicrando.postgresql.copy.CopyFormat
@@ -15,9 +14,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-@EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "PG_COPY_TEST", matches = "true")
 class TestCopySpec {
-
     @Test
     fun `copyIn should copy all rows`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
@@ -94,7 +92,7 @@ class TestCopySpec {
             CREATE TABLE public.copy_out_test(id int not null, text_field text not null);
             INSERT INTO public.copy_out_test(id, text_field)
             SELECT t.t, t.t || ' Value'
-            FROM generate_series(1, 1000000) t
+            FROM generate_series(1, $ROW_COUNT) t
         """
 
         @JvmStatic

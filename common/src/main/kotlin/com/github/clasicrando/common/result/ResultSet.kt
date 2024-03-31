@@ -1,13 +1,17 @@
 package com.github.clasicrando.common.result
 
+import com.github.clasicrando.common.AutoRelease
 import com.github.clasicrando.common.column.ColumnData
 
 /**
  * Collection of data as the data resulting from a query. The underlining structure of the
  * [ResultSet] is not strictly enforced. It just must conform to a structure that is [Iterable],
  * yielding [DataRow] instances.
+ *
+ * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
+ * consistent processing of data.
  */
-interface ResultSet : Iterable<DataRow> {
+interface ResultSet : Iterable<DataRow>, AutoRelease {
     /** Number of columns found within each [DataRow] entry */
     val columnCount: Int
 
@@ -26,4 +30,6 @@ val ResultSet.Companion.EMPTY_RESULT get() = object : ResultSet {
     }
 
     override fun iterator(): Iterator<DataRow> = rows.iterator()
+
+    override fun release() {}
 }

@@ -1,12 +1,10 @@
 package com.github.clasicrando.common.datetime
 
-import com.github.clasicrando.common.mapError
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
-import kotlinx.datetime.asTimeZone
 import kotlinx.datetime.toLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toLocalTime
@@ -19,50 +17,46 @@ class InvalidDateString(
 ) : Throwable("Cannot parse date string, '$value', into $cls")
 
 /**
- * Attempt to convert the string [value] provided into a [LocalDate]. If the conversion fails, an
- * [InvalidDateString] exception will be returns within the [Result].
+ * Attempt to convert the string [value] provided into a [LocalDate].
+ *
+ * @throws InvalidDateString if the conversion fails
  */
-fun LocalDate.Companion.tryFromString(value: String): Result<LocalDate> {
-    return kotlin.runCatching {
+fun LocalDate.Companion.tryFromString(value: String): LocalDate {
+    return try {
         value.toLocalDate()
-    }.mapError { t ->
-        when (t) {
-            is IllegalArgumentException -> InvalidDateString(value, LocalDate::class)
-            else -> t
-        }
+    } catch (ex: IllegalArgumentException) {
+        throw InvalidDateString(value, LocalDate::class)
     }
 }
 
 /**
- * Attempt to convert the string [value] provided into a [LocalDateTime]. If the conversion fails,
- * an [InvalidDateString] exception will be returns within the [Result].
+ * Attempt to convert the string [value] provided into a [LocalDateTime]
+ *
+ * @throws InvalidDateString if the conversion fails
  */
-fun LocalDateTime.Companion.tryFromString(value: String): Result<LocalDateTime> {
-    return kotlin.runCatching {
+fun LocalDateTime.Companion.tryFromString(value: String): LocalDateTime {
+    return try {
         value.takeWhile { it != '+' && it != 'Z' }
             .trim()
             .replace(' ', 'T')
             .toLocalDateTime()
-    }.mapError { t ->
-        when (t) {
-            is IllegalArgumentException -> InvalidDateString(value, LocalDateTime::class)
-            else -> t
-        }
+    } catch (ex: IllegalArgumentException) {
+        throw InvalidDateString(value, LocalDateTime::class)
     }
 }
 
 /**
- * Attempt to convert the string [value] provided into a [LocalTime]. If the conversion fails, an
- * [InvalidDateString] exception will be returns within the [Result].
+ * Attempt to convert the string [value] provided into a [LocalTime]
+ *
+ * @throws InvalidDateString if the conversion fails
  */
-fun LocalTime.Companion.tryFromString(value: String): Result<LocalTime> {
-    return kotlin.runCatching {
-        value.toLocalTime()
-    }.mapError { t ->
-        when (t) {
-            is IllegalArgumentException -> InvalidDateString(value, LocalTime::class)
-            else -> t
-        }
+fun LocalTime.Companion.tryFromString(value: String): LocalTime {
+    return try {
+        value.takeWhile { it != '+' && it != 'Z' }
+            .trim()
+            .toLocalTime()
+    } catch (ex: IllegalArgumentException) {
+        throw InvalidDateString(value, LocalTime::class)
     }
 }
 
@@ -70,13 +64,13 @@ fun LocalTime.Companion.tryFromString(value: String): Result<LocalTime> {
  * Attempt to extract a [TimeZone] from the date string [value] provided. If the extraction fails,
  * an [InvalidDateString] exception will be returns within the [Result]. If there is no timezone
  * information in the string, [TimeZone.UTC] is returned.
+ *
+ * @throws InvalidDateString if the conversion fails
  */
-fun TimeZone.Companion.tryFromString(value: String): Result<TimeZone> {
-    return kotlin.runCatching {
-        val timeZoneStr = value.dropWhile { it != '+' }
-            .takeIf { it.isNotBlank() } ?: return@runCatching UTC
-        timeZoneStr.toIntOrNull()
-            ?.let { UtcOffset(hours = it).asTimeZone() }
-            ?: throw InvalidDateString(timeZoneStr, TimeZone::class)
-    }
+fun UtcOffset.Companion.tryFromString(value: String): UtcOffset {
+    val timeZoneStr = value.dropWhile { it != '+' }
+        .takeIf { it.isNotBlank() } ?: return UtcOffset(0)
+    return timeZoneStr.toIntOrNull()
+        ?.let { UtcOffset(hours = it) }
+        ?: throw InvalidDateString(timeZoneStr, TimeZone::class)
 }

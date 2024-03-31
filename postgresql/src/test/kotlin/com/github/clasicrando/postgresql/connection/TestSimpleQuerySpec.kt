@@ -2,15 +2,12 @@ package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.connection.use
 import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.common.result.getString
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-@EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
 class TestSimpleQuerySpec {
     @BeforeTest
     fun setup(): Unit = runBlocking {
@@ -57,18 +54,12 @@ class TestSimpleQuerySpec {
                 CALL public.test_proc(null, null);
                 SELECT 1 test_i;
             """.trimIndent()
-            var resultCount = 0
-            connection.sendQueryFlow(queries).collect {
-                resultCount++
-                if (resultCount == 1) {
-                    assertEquals(0, it.rowsAffected)
-                    assertEquals(4, it.rows.firstOrNull()?.getInt(0))
-                } else {
-                    assertEquals(1, it.rowsAffected)
-                    assertEquals(1, it.rows.firstOrNull()?.getInt("test_i"))
-                }
-            }
-            assertEquals(2, resultCount)
+            val results = connection.sendQuery(queries).toList()
+            assertEquals(2, results.size)
+            assertEquals(0, results[0].rowsAffected)
+            assertEquals(4, results[0].rows.firstOrNull()?.getInt(0))
+            assertEquals(1, results[1].rowsAffected)
+            assertEquals(1, results[1].rows.firstOrNull()?.getInt("test_i"))
         }
     }
 

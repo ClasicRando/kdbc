@@ -1,7 +1,6 @@
 package com.github.clasicrando.common.pool
 
 import com.github.clasicrando.common.connection.Connection
-import io.ktor.network.selector.SelectorManager
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -9,7 +8,6 @@ import kotlinx.coroutines.CoroutineScope
  * connections no longer needed.
  */
 interface ConnectionPool<C : Connection> : CoroutineScope {
-    val selectorManager: SelectorManager
     /**
      * Flag indicating if the pool of connections is exhausted (number of connections is use has
      * reached the cap on [PoolOptions.maxConnections]
@@ -20,6 +18,9 @@ interface ConnectionPool<C : Connection> : CoroutineScope {
      * available if the pool has been exhausted or waiting for the time specified by
      * [PoolOptions.acquireTimeout]. Make sure to return acquired [Connection]s by calling
      * [Connection.close] to return the [Connection] to the pool.
+     *
+     * @throws AcquireTimeout if the waiting for the next available [Connection] exceeds the
+     * [PoolOptions.acquireTimeout] value specified
      */
     suspend fun acquire(): C
     /**
@@ -28,8 +29,12 @@ interface ConnectionPool<C : Connection> : CoroutineScope {
      * [Connection] was actually part of the pool and was returned. Otherwise, return false.
      */
     suspend fun giveBack(connection: C): Boolean
-    /** */
-    suspend fun waitForValidation(): Boolean
+    /**
+     * Initialize resources within the pool. This involves validating the connection options
+     * given to the pool can create valid connections and the pool is pre-populated with the
+     * desired number of minimum connections required.
+     */
+    suspend fun initialize(): Boolean
     /** Close the connection pool and all connections that are associated with the pool */
     suspend fun close()
 }

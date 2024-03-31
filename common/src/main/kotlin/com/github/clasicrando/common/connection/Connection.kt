@@ -1,9 +1,10 @@
 package com.github.clasicrando.common.connection
 
+import com.github.clasicrando.common.UniqueResourceId
 import com.github.clasicrando.common.result.QueryResult
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.toList
-import kotlinx.uuid.UUID
+import com.github.clasicrando.common.result.StatementResult
+
+private const val RESOURCE_TYPE = "Connection"
 
 /**
  * A connection/session with a database. Each database vendor will provide these required
@@ -18,7 +19,9 @@ import kotlinx.uuid.UUID
  * [Connection] for a long period of time (e.g. outside the scope of a single method) you should
  * find a way to always close the [Connection].
  */
-interface Connection {
+interface Connection : UniqueResourceId {
+    override val resourceType: String get() = RESOURCE_TYPE
+
     /**
      * Returns true if the underlining connection is still active and false if the connection has
      * been closed or a fatal error has occurred causing the connection to be aborted
@@ -30,11 +33,6 @@ interface Connection {
      * [begin] is called and reverts to false if [commit] or [rollback] is called.
      */
     val inTransaction: Boolean
-    /**
-     * Unique identifier for the connection, utilized for logging to signify log messages as coming
-     * from the same connection. Defaults to an auto-generated UUID.
-     */
-    val connectionId: UUID
 
     /**
      * Method called to close the connection and free any resources that are held by the
@@ -47,50 +45,35 @@ interface Connection {
      * already within a transaction.
      */
     suspend fun begin()
+
     /**
      * Commit the current transaction. This will fail if the [Connection] was not within a
      * transaction
      */
     suspend fun commit()
+
     /**
      * Rollback the current transaction. This will fail if the [Connection] was not within a
      * transaction
      */
     suspend fun rollback()
 
-    /** Send a raw query with no parameters, returning a [Flow] of zero or more [QueryResult]s */
-    suspend fun sendQueryFlow(query: String): Flow<QueryResult>
-
     /**
      * Send a raw query with no parameters, returning an [Iterable] of zero or more [QueryResult]s
      */
-    suspend fun sendQuery(query: String): Iterable<QueryResult> = sendQueryFlow(query).toList()
-
-    /**
-     * Send a prepared statement with [parameters], returning a [Flow] of zero or more
-     * [QueryResult]s
-     */
-    suspend fun sendPreparedStatementFlow(
-        query: String,
-        parameters: List<Any?>,
-    ): Flow<QueryResult>
+    suspend fun sendQuery(query: String): StatementResult
 
     /**
      * Send a prepared statement with [parameters], returning an [Iterable] of zero or more
      * [QueryResult]s
      */
-    suspend fun sendPreparedStatement(
-        query: String,
-        parameters: List<Any?>,
-    ): Iterable<QueryResult> = sendPreparedStatementFlow(query, parameters).toList()
+    suspend fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult
 
     /**
      * Manually release a prepared statement for the provided [query]. This will not error if the
      * query is not attached to a prepared statement.
      *
-     * Only call this method if you are sure you need it. Instead, use the `release` parameter in
-     * a call of [sendPreparedStatementFlow] to release a prepared statement immediately after the
-     * query result finishes.
+     * Only call this method if you are sure you need it.
      */
     suspend fun releasePreparedStatement(query: String)
 }

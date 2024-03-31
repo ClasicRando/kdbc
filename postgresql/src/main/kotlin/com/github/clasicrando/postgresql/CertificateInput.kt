@@ -1,18 +1,33 @@
 package com.github.clasicrando.postgresql
 
+import com.github.clasicrando.postgresql.CertificateInput.File
+import com.github.clasicrando.postgresql.CertificateInput.Inline
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.readByteArray
 
+/**
+ * Variants of method to obtain an SSL certificate. The options are either [Inline] as a literal
+ * [String] converted to a [ByteArray] or a [File] which contains a [Path] to a certificate file.
+ */
 sealed interface CertificateInput {
-    class Inline(val bytes: ByteArray): com.github.clasicrando.postgresql.CertificateInput
-    data class File(val path: Path): com.github.clasicrando.postgresql.CertificateInput
+    /** Literal SSL certificate where the certificate data is stored as [bytes] */
+    class Inline(val bytes: ByteArray): CertificateInput
+    /**
+     * File based SSL certificate where the [path] points to the file containing the SSL
+     * certificate data
+     */
+    data class File(val path: Path): CertificateInput
 
+    /**
+     * Return the certificate data. If this [CertificateInput] is [File] based, then it will read
+     * the file as a [ByteArray]. Otherwise, the [Inline] variant just returns its [Inline.bytes].
+     */
     fun data(): ByteArray {
         return when (this) {
-            is com.github.clasicrando.postgresql.CertificateInput.Inline -> this.bytes
-            is com.github.clasicrando.postgresql.CertificateInput.File -> SystemFileSystem.source(this.path)
+            is Inline -> this.bytes
+            is File -> SystemFileSystem.source(this.path)
                 .buffered()
                 .readByteArray()
         }
@@ -22,15 +37,18 @@ sealed interface CertificateInput {
         private const val BEGIN_CERTIFICATE = "-----BEGIN CERTIFICATE-----"
         private const val END_CERTIFICATE = "-----END CERTIFICATE-----"
 
-        fun fromString(str: String): com.github.clasicrando.postgresql.CertificateInput {
+        /**
+         * Convert this [String] to a [CertificateInput]. If the [str] value looks like a literal
+         * certificate then an [Inline] certificate will be returned. Otherwise, it will be
+         * interpreted as a [Path] with a [File] certificate returned.
+         */
+        fun fromString(str: String): CertificateInput {
             val trimmed = str.trim()
-            return if (trimmed.startsWith(com.github.clasicrando.postgresql.CertificateInput.Companion.BEGIN_CERTIFICATE) && trimmed.contains(
-                    com.github.clasicrando.postgresql.CertificateInput.Companion.END_CERTIFICATE
-                )) {
-                com.github.clasicrando.postgresql.CertificateInput.Inline(str.toByteArray())
-            } else {
-                com.github.clasicrando.postgresql.CertificateInput.File(Path(str))
+            if (trimmed.startsWith(BEGIN_CERTIFICATE) && trimmed.contains(END_CERTIFICATE)) {
+                return Inline(str.toByteArray())
             }
+
+            return File(Path(str))
         }
     }
 }

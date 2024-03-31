@@ -1,26 +1,32 @@
 package com.github.clasicrando.postgresql.connection
 
+import com.github.clasicrando.common.DefaultUniqueResourceId
 import com.github.clasicrando.common.Loop
-import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connection.Connection
-import com.github.clasicrando.common.connectionLogger
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
 import com.github.clasicrando.common.pool.ConnectionPool
 import com.github.clasicrando.common.quoteIdentifier
 import com.github.clasicrando.common.reduceToSingleOrNull
-import com.github.clasicrando.common.result.ArrayDataRow
-import com.github.clasicrando.common.result.MutableResultSet
+import com.github.clasicrando.common.resourceLogger
+import com.github.clasicrando.common.result.AbstractMutableResultSet
 import com.github.clasicrando.common.result.QueryResult
-import com.github.clasicrando.common.selectLoop
-import com.github.clasicrando.common.waitOrError
+import com.github.clasicrando.common.result.StatementResult
+import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.column.PgTypeRegistry
+import com.github.clasicrando.postgresql.column.compositeTypeDecoder
+import com.github.clasicrando.postgresql.column.compositeTypeEncoder
+import com.github.clasicrando.postgresql.column.enumTypeDecoder
+import com.github.clasicrando.postgresql.column.enumTypeEncoder
 import com.github.clasicrando.postgresql.copy.CopyStatement
 import com.github.clasicrando.postgresql.copy.CopyType
-import com.github.clasicrando.postgresql.message.CloseTarget
-import com.github.clasicrando.postgresql.message.DescribeTarget
+import com.github.clasicrando.postgresql.message.MessageTarget
 import com.github.clasicrando.postgresql.message.PgMessage
+import com.github.clasicrando.postgresql.message.TransactionStatus
 import com.github.clasicrando.postgresql.notification.PgNotification
+import com.github.clasicrando.postgresql.pool.PgConnectionPool
 import com.github.clasicrando.postgresql.pool.PgPoolManager
+import com.github.clasicrando.postgresql.result.PgResultSet
+import com.github.clasicrando.postgresql.statement.PgArguments
 import com.github.clasicrando.postgresql.statement.PgPreparedStatement
 import com.github.clasicrando.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
@@ -29,18 +35,16 @@ import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.selects.select
-import kotlinx.uuid.UUID
-import kotlinx.uuid.generateUUID
+import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -56,14 +60,10 @@ class PgConnection internal constructor(
     /** Underlining stream of data to and from the database */
     private val stream: PgStream,
     /** Reference to the [ConnectionPool] that owns this [PgConnection] */
-    private val pool: ConnectionPool<PgConnection>,
-    /**
-     * Type registry for connection. Used to decode data rows returned by the server. Defaults to a
-     * new instance of [PgTypeRegistry]
-     */
-    private val typeRegistry: PgTypeRegistry = PgTypeRegistry(),
-    override val connectionId: UUID = UUID.generateUUID(),
-) : Connection {
+    private val pool: PgConnectionPool,
+    /** Type registry for connection. Used to decode data rows returned by the server. */
+    @PublishedApi internal val typeRegistry: PgTypeRegistry = pool.typeRegistry,
+) : Connection, DefaultUniqueResourceId() {
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
 
@@ -83,7 +83,7 @@ class PgConnection internal constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     internal val isWaiting get() = canRunQuery.isEmpty
     /**
-     * [ReceiveChannel] for [PgNotification]s received by the server. Although this method is
+     * [ReceiveChannel] for [PgNotification]s received from the server. Although this method is
      * available to anyone who has a reference to this [PgConnection], you should only have one
      * coroutine that consumes this channel since messages are not duplicated for multiple
      * receivers so messages are consumed fairly in a first come, first server basis. The
@@ -93,19 +93,20 @@ class PgConnection internal constructor(
      */
     val notifications: ReceiveChannel<PgNotification> get() = stream.notifications
     /**
-     * Thread safe cache of [PgPreparedStatement] where the key is the query that initiated the
-     * prepared statement.
-     *
-     * TODO implement a cap to the cache so we don't hold too many prepared statements
+     * Cache of [PgPreparedStatement] where the key is the query that initiated the prepared
+     * statement. This is not thread safe, therefore it should only be accessed after querying
+     * running has been disabled to ensure a single thread/coroutine is accessing the contents.
      */
-    private val preparedStatements: MutableMap<String, PgPreparedStatement> = AtomicMutableMap()
+    private val preparedStatements: MutableMap<String, PgPreparedStatement> = mutableMapOf()
+    /** ID of the next prepared statement executed. Incremented after each statement is created */
+    private var nextStatementId = 1u
 
     /**
      * Created a log message at the specified [level], applying the [block] to the
      * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
     private inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
-        logger.connectionLogger(this, level, block)
+        logger.resourceLogger(this, level, block)
     }
 
     /**
@@ -126,17 +127,6 @@ class PgConnection internal constructor(
      * for another query.
      */
     private suspend inline fun waitForQueryRunning() = canRunQuery.receive()
-
-    /** Utility method to add a new [dataRow] to the specified [resultSet] */
-    private fun addDataRow(resultSet: MutableResultSet, dataRow: PgMessage.DataRow) {
-        val fields: Array<Any?> = Array(dataRow.values.size) { i ->
-            dataRow.values[i]?.let {
-                val columnType = resultSet.columnMapping[i]
-                typeRegistry.decode(columnType, it, connectOptions.charset)
-            }
-        }
-        resultSet.addRow(ArrayDataRow(columnMapping = resultSet.columnMap, values = fields))
-    }
 
     override val isConnected: Boolean get() = stream.isConnected
 
@@ -185,6 +175,32 @@ class PgConnection internal constructor(
         }
     }
 
+    private fun logUnexpectedMessage(message: PgMessage): Loop {
+        log(Level.TRACE) {
+            this.message = "Ignoring {message} since it's not an error or the desired type"
+            payload = mapOf("message" to message)
+        }
+        return Loop.Continue
+    }
+
+    private suspend fun handleTransactionStatus(transactionStatus: TransactionStatus) {
+        if (transactionStatus == TransactionStatus.FailedTransaction
+            && connectOptions.autoRollbackOnFailedTransaction)
+        {
+            log(Level.TRACE) {
+                this.message = "Server reported failed transaction. Issuing rollback command"
+            }
+            try {
+                rollback()
+            } catch (ex: Throwable) {
+                log(Level.WARN) {
+                    this.message = "Failed to rollback transaction after failed transaction status"
+                    cause = ex
+                }
+            }
+        }
+    }
+
     /**
      * Collect all [QueryResult]s for the executed [statements] as a buffered [Flow].
      *
@@ -205,35 +221,36 @@ class PgConnection internal constructor(
      */
     private fun collectResults(
         isAutoCommit: Boolean,
-        statements: Array<PgPreparedStatement?> = emptyArray(),
+        statements: Array<PgPreparedStatement> = emptyArray(),
     ): Flow<QueryResult> = flow {
         val errors = mutableListOf<Throwable>()
         for ((i, preparedStatement) in statements.withIndex()) {
-            var result = MutableResultSet(preparedStatement?.metadata ?: listOf())
-            selectLoop {
-                stream.errors.onReceive {
-                    errors.add(it)
-                    Loop.Continue
-                }
-                stream.rowDescription.onReceive {
-                    preparedStatement?.metadata = it
-                    result = MutableResultSet(it)
-                    Loop.Continue
-                }
-                stream.dataRows.onReceive {
-                    addDataRow(result, it)
-                    Loop.Continue
-                }
-                stream.commandComplete.onReceive {
-                    emit(QueryResult(it.rowCount, it.message, result))
-                    Loop.Continue
-                }
-                stream.queryDone.onReceive {
-                    if (i == statements.size - 1) {
-                        enableQueryRunning()
+            val result = PgResultSet(typeRegistry, preparedStatement.resultMetadata)
+            stream.processMessageLoop { message ->
+                when (message) {
+                    is PgMessage.ErrorResponse -> {
+                        errors.add(GeneralPostgresError(message))
+                        Loop.Continue
                     }
-                    Loop.Break
+                    is PgMessage.DataRow -> {
+                        result.addRow(message.rowBuffer)
+                        Loop.Continue
+                    }
+                    is PgMessage.CommandComplete -> {
+                        emit(QueryResult(message.rowCount, message.message, result))
+                        Loop.Continue
+                    }
+                    is PgMessage.ReadyForQuery -> {
+                        handleTransactionStatus(message.transactionStatus)
+                        if (i == statements.size - 1) {
+                            enableQueryRunning()
+                        }
+                        Loop.Break
+                    }
+                    else -> logUnexpectedMessage(message)
                 }
+            }.onFailure {
+                errors.add(it)
             }
             if (errors.isNotEmpty() && !isAutoCommit) {
                 enableQueryRunning()
@@ -247,69 +264,81 @@ class PgConnection internal constructor(
             cause = error
         }
         throw error
-    }.buffer()
+    }
 
     /**
      * Collect all [QueryResult]s for the query as a buffered [Flow].
      *
      * This allows for multiple results sets from a single query to be collected by continuously
-     * looping over a [select], exiting only once a query done message is received. There will only
-     * ever be multiple results if the [statement] parameter is null (i.e. it's a simple query).
+     * looping over server messages through [PgStream.processMessageLoop], exiting only once a
+     * query done message is received. There will only ever be multiple results if the
+     * [statement] parameter is null (i.e. it's a simple query).
      *
-     * Within the [select], it received any sent:
+     * Within the message loop, it receives messages that are:
      * - error -> packing into error collection
-     * - row description -> updating the [statement] if any and creating a new [MutableResultSet]
-     * - data row -> pack the row into the current [MutableResultSet]
+     * - row description -> updating the [statement], if any, and creating a new
+     * [AbstractMutableResultSet]
+     * - data row -> pack the row into the current [AbstractMutableResultSet]
      * - command complete -> emitting a new [QueryResult] from the [flow]
      * - query done -> enabling others to query against this connection and exiting the
-     * [selectLoop]
+     * selectLoop
      *
-     * After the query collection the collection of errors is checked and aggregated into one
+     * After the query collection, the collection of errors is checked and aggregated into one
      * [Throwable] (if any) and thrown. Otherwise, the [flow] exits with all [QueryResult]s
      * yielded.
      */
-    private fun collectResult(
+    private suspend fun collectResult(
         statement: PgPreparedStatement? = null,
-    ): Flow<QueryResult> = flow {
+    ): StatementResult {
         val errors = mutableListOf<Throwable>()
-        var result = MutableResultSet(statement?.metadata ?: listOf())
-        selectLoop {
-            stream.errors.onReceive {
-                errors.add(it)
-                Loop.Continue
+        var result = PgResultSet(typeRegistry, statement?.resultMetadata ?: listOf())
+        val results = StatementResult.Builder()
+        stream.processMessageLoop { message ->
+            when (message) {
+                is PgMessage.ErrorResponse -> {
+                    errors.add(GeneralPostgresError(message))
+                    Loop.Continue
+                }
+                is PgMessage.RowDescription -> {
+                    statement?.resultMetadata = message.fields
+                    result = PgResultSet(typeRegistry, message.fields)
+                    Loop.Continue
+                }
+                is PgMessage.DataRow -> {
+                    result.addRow(message.rowBuffer)
+                    Loop.Continue
+                }
+                is PgMessage.CommandComplete -> {
+                    val queryResult = QueryResult(message.rowCount, message.message, result)
+                    results.addQueryResult(queryResult)
+                    Loop.Continue
+                }
+                is PgMessage.ReadyForQuery -> {
+                    handleTransactionStatus(message.transactionStatus)
+                    enableQueryRunning()
+                    Loop.Break
+                }
+                else -> logUnexpectedMessage(message)
             }
-            stream.rowDescription.onReceive {
-                statement?.metadata = it
-                result = MutableResultSet(it)
-                Loop.Continue
-            }
-            stream.dataRows.onReceive {
-                addDataRow(result, it)
-                Loop.Continue
-            }
-            stream.commandComplete.onReceive {
-                emit(QueryResult(it.rowCount, it.message, result))
-                Loop.Continue
-            }
-            stream.queryDone.onReceive {
-                enableQueryRunning()
-                Loop.Break
-            }
+        }.onFailure {
+            errors.add(it)
         }
 
-        val error = errors.reduceToSingleOrNull() ?: return@flow
+        val error = errors.reduceToSingleOrNull() ?: return results.build()
         log(Level.ERROR) {
             message = "Error during single query execution"
             cause = error
         }
         throw error
-    }.buffer()
+    }
 
-    override suspend fun sendQueryFlow(query: String): Flow<QueryResult> {
+    override suspend fun sendQuery(
+        query: String,
+    ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
-        logger.connectionLogger(
+        logger.resourceLogger(
             this@PgConnection,
             connectOptions.logSettings.statementLevel,
         ) {
@@ -322,30 +351,119 @@ class PgConnection internal constructor(
     }
 
     /**
-     * Send all required messages to the server for prepared statement execution.
-     *
-     * To start, the cache is checked or pushed to for the supplied [query]. After that, all
-     * messages to send are as follows:
-     * - If the query has not already been prepared, [PgMessage.Parse] is sent
-     * - [PgMessage.Bind] with statement name + current parameters
-     * - If the statement has not received metadata, [PgMessage.Describe] is sent
-     * - [PgMessage.Execute] with the statement name
-     * - [PgMessage.Close] with the statement name
-     * - If [sendSync] is true, [PgMessage.Sync] is sent
-     *
-     * TODO don't send a close message if the cache is not full, also add logic to remove old items from cache
+     * Prepare the specified [statement] by requesting the server parse and describe the prepared
+     * statement. The messages received from the server are then handled to populate data within
+     * the [statement].
      */
-    private suspend fun sendPreparedStatementMessage(
+    private suspend fun executeStatementPrepare(
         query: String,
-        parameters: List<Any?>,
-        sendSync: Boolean = true,
-    ): PgPreparedStatement {
-        val statement = preparedStatements.getOrPut(query) {
-            PgPreparedStatement(query)
+        parameterTypes: List<Int>,
+        statement: PgPreparedStatement,
+    ) {
+        val parseMessage = PgMessage.Parse(
+            preparedStatementName = statement.statementName,
+            query = query,
+            parameterTypes = parameterTypes,
+        )
+        val describeMessage = PgMessage.Describe(
+            target = MessageTarget.PreparedStatement,
+            name = statement.statementName,
+        )
+        stream.writeManyToStream(parseMessage, describeMessage, PgMessage.Sync)
+
+        val errors = mutableListOf<Throwable>()
+        stream.processMessageLoop { message ->
+            when (message) {
+                is PgMessage.ErrorResponse -> {
+                    errors.add(GeneralPostgresError(message))
+                    Loop.Continue
+                }
+                is PgMessage.ParseComplete -> {
+                    statement.prepared = true
+                    Loop.Continue
+                }
+                is PgMessage.RowDescription -> {
+                    statement.resultMetadata = message.fields.map { it.copy(formatCode = 1) }
+                    Loop.Continue
+                }
+                is PgMessage.ParameterDescription -> {
+                    statement.parameterTypeOids = message.parameterDataTypes
+                    Loop.Continue
+                }
+                is PgMessage.NoData -> {
+                    statement.resultMetadata = emptyList()
+                    Loop.Continue
+                }
+                is PgMessage.ReadyForQuery -> {
+                    handleTransactionStatus(message.transactionStatus)
+                    Loop.Break
+                }
+                else -> logUnexpectedMessage(message)
+            }
+        }.onFailure {
+            errors.add(it)
         }
 
+        val error = errors.reduceToSingleOrNull() ?: return
+        log(Level.ERROR) {
+            message = "Error during prepared statement creation"
+            cause = error
+        }
+        throw error
+    }
+
+    /**
+     * Remove the oldest [PgPreparedStatement] in [preparedStatements]. If any statement has a null
+     * [PgPreparedStatement.lastExecuted] then that statement is preferentially removed since the
+     * statement was never executed.
+     */
+    private suspend fun removeOldestPreparedStatement() {
+        val neverExecuted = preparedStatements.entries
+            .find { it.value.lastExecuted == null }
+            ?.key
+        if (neverExecuted != null) {
+            releasePreparedStatement(neverExecuted)
+            return
+        }
+        val oldestQuery = preparedStatements.entries
+            .asSequence()
+            .filter { it.value.lastExecuted != null }
+            .maxBy { it.value.lastExecuted!! }
+            .key
+        releasePreparedStatement(oldestQuery)
+    }
+
+    /**
+     * Check the prepared statement cache to ensure the capacity is not exceeded. Continuously
+     * removes statements until the cache is the right size. Once that condition is met, a new
+     * entry is added to the cache for the current [query].
+     */
+    private suspend fun getOrCachePreparedStatement(query: String): PgPreparedStatement {
+        while (preparedStatements.size >= connectOptions.statementCacheCapacity.toInt()) {
+            removeOldestPreparedStatement()
+        }
+        return preparedStatements.getOrPut(query) {
+            PgPreparedStatement(query, nextStatementId++)
+        }
+    }
+
+    /**
+     * Fetch a [PgPreparedStatement] from the cache for the provided [query], returning the
+     * statement. If a statement does not already exist for the [query] then a new statement is
+     * created in a non-prepared state. If the statement has not already been prepared then
+     * [executePreparedStatement] is called to populate the [PgPreparedStatement] with the required
+     * data.
+     *
+     * @throws IllegalArgumentException if the number of [parameters] does not match the number of
+     * parameters required by the query
+     */
+    private suspend fun prepareStatement(
+        query: String,
+        parameters: List<Any?>,
+    ): PgPreparedStatement {
+        val statement = getOrCachePreparedStatement(query)
+
         require(statement.paramCount == parameters.size) {
-            enableQueryRunning()
             """
             Query does not have the correct number of parameters.
             
@@ -355,68 +473,75 @@ class PgConnection internal constructor(
             """.trimIndent()
         }
 
-        val messages = buildList {
-            if (!statement.prepared) {
-                val parseMessage = PgMessage.Parse(
-                    preparedStatementName = statement.statementName,
-                    query = query,
-                    parameterTypes = parameters.map { typeRegistry.kindOf(it) },
-                )
-                statement.prepared = true
-                add(parseMessage)
+        if (!statement.prepared) {
+            val parameterTypes = parameters.map {
+                typeRegistry.kindOf(it).oid
             }
-            val bindMessage = PgMessage.Bind(
-                portal = statement.statementName,
-                statementName = statement.statementName,
-                parameters = parameters.map {
-                    if (it == null) {
-                        return@map null
-                    }
+            executeStatementPrepare(query, parameterTypes, statement)
+        }
 
-                    val encodedValue = typeRegistry.encode(it)
-                    encodedValue?.toByteArray(charset = connectOptions.charset)
-                },
-            )
-            add(bindMessage)
-            if (statement.metadata.isEmpty()) {
-                val describeMessage = PgMessage.Describe(
-                    target = DescribeTarget.Portal,
-                    name = statement.statementName,
-                )
-                add(describeMessage)
-            }
-            val executeMessage = PgMessage.Execute(
-                portalName = statement.statementName,
-                maxRowCount = 0,
-            )
-            add(executeMessage)
-            if (sendSync) {
-                add(PgMessage.Sync)
-            }
-        }
-        logger.connectionLogger(
-            this@PgConnection,
-            connectOptions.logSettings.statementLevel,
-        ) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to query)
-        }
-        stream.writeManyToStream(messages)
         return statement
     }
 
-    override suspend fun sendPreparedStatementFlow(
+    /**
+     * Send all required messages to the server for prepared [statement] execution.
+     *
+     * - [PgMessage.Bind] with statement name + current [parameters]
+     * - If the statement has not received metadata, [PgMessage.Describe] is sent
+     * - [PgMessage.Execute] with the statement name
+     * - [PgMessage.Close] with the statement name
+     * - If [sendSync] is true, [PgMessage.Sync] is sent
+     */
+    private suspend fun executePreparedStatement(
+        statement: PgPreparedStatement,
+        parameters: List<Any?>,
+        sendSync: Boolean = true,
+    ) {
+        stream.writeManyToStream {
+            val bindMessage = PgMessage.Bind(
+                portal = null,
+                statementName = statement.statementName,
+                parameters = PgArguments(typeRegistry, parameters, statement),
+            )
+            yield(bindMessage)
+            val executeMessage = PgMessage.Execute(
+                portalName = null,
+                maxRowCount = 0,
+            )
+            yield(executeMessage)
+            val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
+            yield(closePortalMessage)
+            if (sendSync) {
+                yield(PgMessage.Sync)
+            }
+        }
+        statement.lastExecuted = Clock.System.now().toLocalDateTime(TimeZone.UTC)
+        log(connectOptions.logSettings.statementLevel) {
+            message = STATEMENT_TEMPLATE
+            payload = mapOf("query" to statement.query)
+        }
+    }
+
+    override suspend fun sendPreparedStatement(
         query: String,
         parameters: List<Any?>,
-    ): Flow<QueryResult> {
+    ): StatementResult  {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         waitForQueryRunning()
-        val statement = sendPreparedStatementMessage(query, parameters)
+        val statement = try {
+            prepareStatement(query, parameters)
+        } catch (ex: Throwable) {
+            enableQueryRunning()
+            throw ex
+        }
+        executePreparedStatement(statement, parameters)
         return collectResult(statement = statement)
     }
 
-    override suspend fun releasePreparedStatement(query: String) {
+    override suspend fun releasePreparedStatement(
+        query: String,
+    ) {
         waitForQueryRunning()
 
         val statement = preparedStatements[query]
@@ -425,15 +550,21 @@ class PgConnection internal constructor(
                 message = "query supplied did not match a stored prepared statement"
                 payload = mapOf("query" to query)
             }
+            enableQueryRunning()
             return
         }
         val closeMessage = PgMessage.Close(
-            target = CloseTarget.PreparedStatement,
+            target = MessageTarget.PreparedStatement,
             targetName = statement.statementName,
         )
         stream.writeManyToStream(closeMessage, PgMessage.Sync)
-        waitOrError(stream.errors, stream.closeStatement)
+        stream.waitForOrError<PgMessage.CommandComplete>()
+            .onFailure {
+                enableQueryRunning()
+                throw it
+            }
         preparedStatements.remove(query)
+        enableQueryRunning()
     }
 
     /**
@@ -445,7 +576,7 @@ class PgConnection internal constructor(
             canRunQuery.close()
             if (stream.isConnected) {
                 stream.writeToStream(PgMessage.Terminate)
-                log(Level.INFO) {
+                log(Level.TRACE) {
                     this.message = "Successfully sent termination message"
                 }
             }
@@ -457,17 +588,24 @@ class PgConnection internal constructor(
         } finally {
             stream.close()
         }
+        preparedStatements.clear()
     }
 
     override suspend fun close() {
-        pool.giveBack(this)
+        if (!pool.giveBack(this@PgConnection)) {
+            dispose()
+        }
     }
 
     /**
-     * Allows for vararg specification of prepared statements using the default parameters of
-     * [pipelineQueries]. See the other method doc for more information.
+     * Allows for vararg specification of prepared statements using [pipelineQueries] where syncAll
+     * is the default true. See the other method doc for more information.
+     *
+     * @see pipelineQueries
      */
-    suspend fun pipelineQueries(vararg queries: Pair<String, List<Any?>>): Flow<QueryResult> {
+    suspend fun pipelineQueriesSyncAll(
+        vararg queries: Pair<String, List<Any?>>,
+    ): Flow<QueryResult> {
         return pipelineQueries(queries = queries)
     }
 
@@ -506,18 +644,26 @@ class PgConnection internal constructor(
      *
      * If you are unsure of how this works or what the implications of pipelining has on your
      * database, you should opt to either send multiple statements in separate calls to
-     * [sendPreparedStatementFlow] or package your queries into a stored procedure.
+     * [sendPreparedStatement] or package your queries into a stored procedure.
      */
     suspend fun pipelineQueries(
         syncAll: Boolean = true,
-        queries: Array<out Pair<String, List<Any?>>>,
+        vararg queries: Pair<String, List<Any?>>,
     ): Flow<QueryResult> {
         waitForQueryRunning()
-        val statements = Array<PgPreparedStatement?>(queries.size) { i ->
-            val (queryText, queryParams) = queries[i]
-            sendPreparedStatementMessage(
-                queryText,
-                queryParams,
+        val statements = try {
+            Array(queries.size) { i ->
+                val (queryText, queryParams) = queries[i]
+                prepareStatement(query = queryText, parameters = queryParams)
+            }
+        } catch (ex: Throwable) {
+            enableQueryRunning()
+            throw ex
+        }
+        for ((i, statement) in statements.withIndex()) {
+            executePreparedStatement(
+                statement = statement,
+                parameters = queries[i].second,
                 sendSync = syncAll || i == queries.size - 1,
             )
         }
@@ -535,7 +681,10 @@ class PgConnection internal constructor(
      * the message will be captured and thrown after completing the COPY process and the connection
      * with the server reverts to regular queries.
      */
-    suspend fun copyIn(copyInStatement: CopyStatement, data: Flow<ByteArray>): QueryResult {
+    suspend fun copyIn(
+        copyInStatement: CopyStatement,
+        data: Flow<ByteArray>,
+    ): QueryResult {
         checkConnected()
         waitForQueryRunning()
 
@@ -545,51 +694,65 @@ class PgConnection internal constructor(
             payload = mapOf("query" to copyQuery)
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
+        stream.waitForOrError<PgMessage.CopyInResponse>()
+            .onFailure {
+                enableQueryRunning()
+                throw it
+            }
 
-        waitOrError(stream.errors, stream.copyInResponse)
-
-        val copyInJob = pool.launch {
-            try {
-                data.collect {
-                    stream.writeToStream(PgMessage.CopyData(it))
-                }
-                stream.writeToStream(PgMessage.CopyDone)
-            } catch (ex: Throwable) {
-                if (stream.isConnected) {
-                    stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
-                }
+        var wasFailed = false
+        try {
+            stream.writeManySized(data.map { PgMessage.CopyData(it) })
+            stream.writeToStream(PgMessage.CopyDone)
+        } catch (ex: Throwable) {
+            if (stream.isConnected) {
+                wasFailed = true
+                stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
             }
         }
 
         var completeMessage: PgMessage.CommandComplete? = null
         val errors = mutableListOf<Throwable>()
-        try {
-            selectLoop {
-                stream.errors.onReceive {
-                    if (copyInJob.isActive) {
-                        copyInJob.cancel()
+        stream.processMessageLoop { message ->
+            when (message) {
+                is PgMessage.ErrorResponse -> {
+                    if (wasFailed) {
+                        completeMessage = PgMessage.CommandComplete(
+                            rowCount = 0,
+                            message = "CopyFail Issued by client",
+                        )
+                        log(Level.WARN) {
+                            this.message = "CopyIn operation failed by client"
+                        }
+                        return@processMessageLoop Loop.Continue
                     }
-                    copyInJob.join()
+                    val error = GeneralPostgresError(message)
                     log(Level.ERROR) {
-                        message = "Error during copy in operation"
-                        cause = it
+                        this.message = "Error during copy in operation"
+                        cause = error
                     }
-                    errors.add(it)
+                    errors.add(error)
                     Loop.Continue
                 }
-                stream.commandComplete.onReceive {
-                    completeMessage = it
+                is PgMessage.CommandComplete -> {
+                    completeMessage = message
                     Loop.Continue
                 }
-                stream.queryDone.onReceive {
-                    copyInJob.join()
+                is PgMessage.ReadyForQuery -> {
+                    handleTransactionStatus(message.transactionStatus)
                     enableQueryRunning()
                     Loop.Break
                 }
+                else -> {
+                    log(Level.TRACE) {
+                        this.message = "Ignoring {message} since it's not an error or the desired type"
+                        payload = mapOf("message" to message)
+                    }
+                    Loop.Continue
+                }
             }
-        } catch (ex: Throwable) {
-            copyInJob.cancelAndJoin()
-            errors.add(ex)
+        }.onFailure {
+            errors.add(it)
         }
 
         val error = errors.reduceToSingleOrNull()
@@ -598,8 +761,8 @@ class PgConnection internal constructor(
         }
 
         return QueryResult(
-            completeMessage?.rowCount ?: 0,
-            completeMessage?.message ?: "Default copy in complete message",
+            rowsAffected = completeMessage?.rowCount ?: 0,
+            message= completeMessage?.message ?: "Default copy in complete message",
         )
     }
 
@@ -610,7 +773,9 @@ class PgConnection internal constructor(
      * want to avoid suspending the server message processor, you should always try to process each
      * item as soon as possible or collect the elements into a [List].
      */
-    suspend fun copyOut(copyOutStatement: CopyStatement): Flow<ByteArray> {
+    suspend fun copyOut(
+        copyOutStatement: CopyStatement,
+    ): Flow<ByteArray> {
         checkConnected()
         waitForQueryRunning()
 
@@ -620,43 +785,41 @@ class PgConnection internal constructor(
             payload = mapOf("query" to copyQuery)
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
-
-        waitOrError(stream.errors, stream.copyOutResponse)
-        return flow {
-            selectLoop {
-                stream.errors.onReceive {
-                    enableQueryRunning()
-                    throw it
-                }
-                stream.copyData.onReceive {
-                    emit(it.data)
-                    Loop.Continue
-                }
-                stream.copyDone.onReceive {
-                    Loop.Continue
-                }
-                stream.commandComplete.onReceive {
-                    Loop.Continue
-                }
-                stream.queryDone.onReceive {
-                    enableQueryRunning()
-                    Loop.Break
-                }
+        stream.waitForOrError<PgMessage.CopyOutResponse>()
+            .onFailure {
+                enableQueryRunning()
+                throw it
             }
-        }.buffer()
-    }
 
-    /**
-     * Allows for specifying a [FlowCollector] for the `COPY FROM` operation. This method simply
-     * uses the [block] in a [flow] builder, forwarding that [Flow] to the [copyIn] method.
-     *
-     * @see [copyIn]
-     */
-    suspend fun copyIn(
-        copyInStatement: CopyStatement,
-        block: suspend FlowCollector<ByteArray>.() -> Unit,
-    ): QueryResult {
-        return copyIn(copyInStatement, flow(block))
+        return flow {
+            stream.processMessageLoop { message ->
+                when (message) {
+                    is PgMessage.ErrorResponse -> {
+                        enableQueryRunning()
+                        throw GeneralPostgresError(message)
+                    }
+                    is PgMessage.CopyData -> {
+                        emit(message.data)
+                        Loop.Continue
+                    }
+                    is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
+                    is PgMessage.ReadyForQuery -> {
+                        handleTransactionStatus(message.transactionStatus)
+                        enableQueryRunning()
+                        Loop.Break
+                    }
+                    else -> {
+                        log(Level.TRACE) {
+                            this.message = "Ignoring {message} since it's not an error or the desired type"
+                            payload = mapOf("message" to message)
+                        }
+                        Loop.Continue
+                    }
+                }
+            }.onFailure {
+                throw it
+            }
+        }
     }
 
     /**
@@ -670,20 +833,6 @@ class PgConnection internal constructor(
         data: Sequence<ByteArray>,
     ): QueryResult {
         return copyIn(copyInStatement, data.asFlow())
-    }
-
-    /**
-     * Allows for specifying a [SequenceScope] for the `COPY FROM` operation. This method simply
-     * uses the [block] in a [sequence] builder, converting that [Sequence] to a [Flow] and passing
-     * that to the [copyIn] method.
-     *
-     * @see [copyIn]
-     */
-    suspend fun copyInSequence(
-        copyInStatement: CopyStatement,
-        block: suspend SequenceScope<ByteArray>.() -> Unit
-    ): QueryResult {
-        return copyIn(copyInStatement, sequence(block).asFlow())
     }
 
     /**
@@ -705,6 +854,51 @@ class PgConnection internal constructor(
         sendQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
     }
 
+    /**
+     * Update the type registry to allow for encoding and decoding PostGIS types. This should
+     * happen at the beginning of your application or whenever you create an initial connection
+     * using a unique [PgConnectOptions] instance since the type cache is shared between
+     * connections with the same options. This also avoids inconsistency when adding and querying
+     * in a concurrent environment.
+     */
+    fun includePostGisTypes() {
+        typeRegistry.includePostGisTypes()
+    }
+
+    /**
+     * Register an [Enum] class as a new type available for encoding and decoding.
+     *
+     * @param type name of the type in the database (optionally schema qualified if not in public
+     * schema)
+     */
+    suspend inline fun <reified E : Enum<E>> registerEnumType(type: String) {
+        typeRegistry.registerEnumType(
+            connection = this,
+            encoder = enumTypeEncoder<E>(type),
+            decoder = enumTypeDecoder<E>(),
+            type = type,
+            arrayType = typeOf<List<E?>>(),
+        )
+    }
+
+    /**
+     * Register [T] as a new type composite type available for encoding and decoding.
+     *
+     * @param type name of the type in the database (optionally schema qualified if not in public
+     * schema)
+     */
+    suspend inline fun <reified T : Any> registerCompositeType(type: String) {
+        val encoder = compositeTypeEncoder<T>(type, typeRegistry)
+        val decoder = compositeTypeDecoder<T>(typeRegistry)
+        typeRegistry.registerCompositeType(
+            connection = this,
+            encoder = encoder,
+            decoder = decoder,
+            type = type,
+            arrayType = typeOf<List<T?>>(),
+        )
+    }
+
     companion object {
         private const val STATEMENT_TEMPLATE = "Sending {query}"
 
@@ -713,21 +907,17 @@ class PgConnection internal constructor(
          * the supplied [PgConnectOptions].
          */
         suspend fun connect(connectOptions: PgConnectOptions): PgConnection {
-            return PgPoolManager.createConnection(connectOptions)
+            return PgPoolManager.acquireConnection(connectOptions)
         }
 
         /**
          * Create a new [PgConnection] instance using the supplied [connectOptions], [stream] and
          * [pool] (the pool that owns this connection).
-         *
-         * As a final step to preparing the connection for user interaction, the [typeRegistry] is
-         * updated with any custom types required using the [PgTypeRegistry.finalizeTypes] method.
-         * This may fail and will also cause the connection to be closed and an exception thrown.
          */
         internal suspend fun connect(
             connectOptions: PgConnectOptions,
             stream: PgStream,
-            pool: ConnectionPool<PgConnection>,
+            pool: PgConnectionPool,
         ): PgConnection {
             var connection: PgConnection? = null
             try {
@@ -735,8 +925,7 @@ class PgConnection internal constructor(
                 if (!connection.isConnected) {
                     error("Could not initialize connection")
                 }
-                connection.typeRegistry.finalizeTypes(connection)
-                connection.canRunQuery.send(Unit)
+                connection.enableQueryRunning()
                 return connection
             } catch (ex: Throwable) {
                 try {

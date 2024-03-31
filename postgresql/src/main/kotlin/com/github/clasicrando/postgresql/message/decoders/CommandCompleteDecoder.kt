@@ -1,15 +1,20 @@
 package com.github.clasicrando.postgresql.message.decoders
 
+import com.github.clasicrando.common.buffer.ByteReadBuffer
 import com.github.clasicrando.common.message.MessageDecoder
+import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.message.PgMessage
-import io.ktor.utils.io.charsets.Charset
-import io.ktor.utils.io.core.ByteReadPacket
 
-internal class CommandCompleteDecoder(
-    private val charset: Charset,
-) : MessageDecoder<PgMessage.CommandComplete> {
-    override fun decode(packet: ByteReadPacket): PgMessage.CommandComplete {
-        val message = packet.readCString(charset = charset)
+/**
+ * [MessageDecoder] for [PgMessage.CommandComplete]. This message is sent after a command has been
+ * successfully completed and all data that should have been transferred has been sent. The
+ * contents is a CString describing the operation outcome.
+ *
+ * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COMMANDCOMPLETE)
+ */
+internal object CommandCompleteDecoder : MessageDecoder<PgMessage.CommandComplete> {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.CommandComplete {
+        val message = buffer.use { it.readCString() }
         val words = message.split(" ")
         val rowCount = when {
             words.size <= 1 -> 0

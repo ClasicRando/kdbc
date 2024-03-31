@@ -1,230 +1,195 @@
 package com.github.clasicrando.postgresql.stream
 
-import com.github.clasicrando.common.SslMode
-import com.github.clasicrando.common.waitOrError
+import com.github.clasicrando.common.DefaultUniqueResourceId
+import com.github.clasicrando.common.ExitOfProcessingLoop
+import com.github.clasicrando.common.Loop
+import com.github.clasicrando.common.buffer.ByteWriteBuffer
+import com.github.clasicrando.common.exceptions.KdbcException
+import com.github.clasicrando.common.message.SizedMessage
+import com.github.clasicrando.common.resourceLogger
+import com.github.clasicrando.common.stream.AsyncStream
+import com.github.clasicrando.common.stream.StreamConnectError
+import com.github.clasicrando.common.stream.StreamReadError
+import com.github.clasicrando.common.stream.StreamWriteError
 import com.github.clasicrando.postgresql.GeneralPostgresError
 import com.github.clasicrando.postgresql.authentication.Authentication
+import com.github.clasicrando.postgresql.authentication.PgAuthenticationError
 import com.github.clasicrando.postgresql.authentication.saslAuthFlow
 import com.github.clasicrando.postgresql.authentication.simplePasswordAuthFlow
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
+import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.message.PgMessage
 import com.github.clasicrando.postgresql.message.decoders.PgMessageDecoders
 import com.github.clasicrando.postgresql.message.encoders.PgMessageEncoders
-import com.github.clasicrando.postgresql.message.encoders.SslMessageEncoder
 import com.github.clasicrando.postgresql.notification.PgNotification
-import com.github.clasicrando.postgresql.row.PgRowFieldDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import io.ktor.network.selector.SelectorManager
-import io.ktor.network.sockets.Connection
-import io.ktor.network.sockets.Socket
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.connection
-import io.ktor.network.sockets.isClosed
-import io.ktor.network.tls.TLSConfigBuilder
-import io.ktor.network.tls.tls
-import io.ktor.utils.io.core.BytePacketBuilder
-import io.ktor.utils.io.core.buildPacket
-import kotlinx.atomicfu.AtomicBoolean
-import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import kotlinx.uuid.UUID
-import kotlinx.uuid.generateUUID
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.cancellation.CancellationException
 
 private val logger = KotlinLogging.logger {}
+private const val RESOURCE_TYPE = "PgStream"
 
+/**
+ * [AsyncStream] wrapper class for facilitating postgresql specific message protocol behaviour.
+ * A [PgConnection] will own a [PgStream] and utilize it's public methods to process incoming
+ * server messages.
+ */
 internal class PgStream(
-    private val scope: CoroutineScope,
-    private var connection: Connection,
+    scope: CoroutineScope,
+    private val asyncStream: AsyncStream,
     internal val connectOptions: PgConnectOptions,
-): CoroutineScope, AutoCloseable {
-    private val receiveChannel get() = connection.input
-    private val sendChannel get() = connection.output
-    private val pgStreamId: UUID = UUID.generateUUID()
+) : DefaultUniqueResourceId(), CoroutineScope, AutoCloseable {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
+    /** Reusable buffer for writing messages to the database server */
+    private val messageSendBuffer = ByteWriteBuffer(SEND_BUFFER_SIZE)
 
-    override val coroutineContext: CoroutineContext get() = Job(parent = scope.coroutineContext.job)
+    override val resourceType: String = RESOURCE_TYPE
 
-    /**
-     * Container for server message encoders. Used to send messages before they are sent to the
-     * server.
-     */
-    private val encoders: PgMessageEncoders = PgMessageEncoders(connectOptions.charset)
-    /**
-     * Container for server message decoders. Used to parse messages sent from the database server.
-     */
-    private val decoders: PgMessageDecoders = PgMessageDecoders(connectOptions.charset)
+    override val coroutineContext: CoroutineContext = Job(parent = scope.coroutineContext.job)
 
+    /** [Channel] storing incoming messages that have been received and decoded to a [PgMessage] */
+    private val messagesChannel = Channel<PgMessage>(capacity = Channel.BUFFERED)
+    private val messageReaderJob = launch {
+        while (isActive && isConnected) {
+            val message = receiveNextServerMessage()
+            messagesChannel.send(message)
+        }
+    }
     /**
-     * [Channel] used to pass [PgRowFieldDescription] data received from the server to query
-     * executors.
+     * Read-only channel for messages received and decoded from the server as [PgMessage]s. This
+     * should only be used if you need to have fine-grained control over the incoming messages.
+     * The preferred way of processing incoming messages is through [processMessageLoop] or
+     * [waitForOrError].
      */
-    private val rowDescriptionChannel = Channel<List<PgRowFieldDescription>>()
-    /**
-     * [Channel] used to pass [PgMessage.DataRow] messages received from the server to query
-     * executors.
-     */
-    private val dataRowChannel = Channel<PgMessage.DataRow>(capacity = Channel.BUFFERED)
-    /**
-     * [Channel] used to pass [PgMessage.CommandComplete] messages received from the server to
-     * query executors.
-     */
-    private val commandCompleteChannel = Channel<PgMessage.CommandComplete>()
-    /**
-     * [Channel] used to notify a request to close a prepared statement that the close was
-     * completed
-     */
-    private val closeStatementChannel = Channel<Unit>()
-    /** [Channel] used to notify a query request that the query is now complete */
-    private val queryDoneChannel = Channel<Unit>()
-    /** [Channel] used to notify a `COPY FROM` request that the server is now ready for data rows */
-    private val copyInResponseChannel = Channel<Unit>()
-    /** [Channel] used to notify a `COPY TO` request that the server will now send data rows */
-    private val copyOutResponseChannel = Channel<Unit>()
-    /**
-     * [Channel] used to pass [PgMessage.CopyData] rows sent by the server to the `COPY TO`
-     * executor.
-     */
-    private val copyDataChannel = Channel<PgMessage.CopyData>(capacity = Channel.BUFFERED)
-    /** [Channel] used to notify a `COPY TO` request that the server is done sending data rows */
-    private val copyDoneChannel = Channel<Unit>()
-    /**
-     * [Channel] used to pass [GeneralPostgresError] instances to command executors to notify them
-     * of a [PgMessage.ErrorResponse] message from the server.
-     */
-    private val errorChannel = Channel<GeneralPostgresError>(capacity = Channel.BUFFERED)
+    val messages: ReceiveChannel<PgMessage> get() = messagesChannel
+
     /** [Channel] used to store all server notifications that have not been processed */
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
-
-    /**
-     * [Channel] used to pass [PgRowFieldDescription] data received from the server to query
-     * executors.
-     */
-    val rowDescription: ReceiveChannel<List<PgRowFieldDescription>> = rowDescriptionChannel
-    /**
-     * [Channel] used to pass [PgMessage.DataRow] messages received from the server to query
-     * executors.
-     */
-    val dataRows: ReceiveChannel<PgMessage.DataRow> = dataRowChannel
-    /**
-     * [Channel] used to pass [PgMessage.CommandComplete] messages received from the server to
-     * query executors.
-     */
-    val commandComplete: ReceiveChannel<PgMessage.CommandComplete> = commandCompleteChannel
-    /**
-     * [Channel] used to notify a request to close a prepared statement that the close was
-     * completed
-     */
-    val closeStatement: ReceiveChannel<Unit> = closeStatementChannel
-    /** [Channel] used to notify a query request that the query is now complete */
-    val queryDone: ReceiveChannel<Unit> = queryDoneChannel
-    /** [Channel] used to notify a `COPY FROM` request that the server is now ready for data rows */
-    val copyInResponse: ReceiveChannel<Unit> = copyInResponseChannel
-    /** [Channel] used to notify a `COPY TO` request that the server will now send data rows */
-    val copyOutResponse : ReceiveChannel<Unit> = copyOutResponseChannel
-    /**
-     * [Channel] used to pass [PgMessage.CopyData] rows sent by the server to the `COPY TO`
-     * executor.
-     */
-    val copyData: ReceiveChannel<PgMessage.CopyData> = copyDataChannel
-    /** [Channel] used to notify a `COPY TO` request that the server is done sending data rows */
-    val copyDone: ReceiveChannel<Unit> = copyDoneChannel
-    /**
-     * [Channel] used to pass [GeneralPostgresError] instances to command executors to notify them
-     * of a [PgMessage.ErrorResponse] message from the server.
-     */
-    val errors: ReceiveChannel<GeneralPostgresError> = errorChannel
-    /** [Channel] used to store all server notifications that have not been processed */
+    /** [ReceiveChannel] used to store all server notifications that have not been processed */
     val notifications: ReceiveChannel<PgNotification> = notificationsChannel
 
     /**
-     * Thread safe flag indicating that the client requested a copy fail and the resulting server
-     * error message should not throw an exception when received.
+     * Created a log message at the specified [level], applying the [block] to the
+     * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
-    private val copyFailed: AtomicBoolean = atomic(false)
-    /** Thread safe flag indicating that a user requested a prepared statement to be released */
-    private val releasePreparedStatement: AtomicBoolean = atomic(false)
-
     internal inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
-        val connectionId = "connectionId" to pgStreamId.toString()
-        logger.at(level) {
-            block()
-            payload = payload?.plus(connectionId) ?: mapOf(connectionId)
-        }
+        logger.resourceLogger(this, level, block)
     }
 
-    internal suspend fun receiveNextServerMessage(): PgMessage? {
-        receiveChannel.awaitContent()
-        if (!isConnected) {
-            return null
-        }
-        val format = receiveChannel.readByte()
-        val size = receiveChannel.readInt()
-        val packet = receiveChannel.readPacket(size - 4)
-        val rawMessage = RawMessage(
-            format = format,
-            size = size.toUInt(),
-            contents = packet,
-        )
-        return decoders.decode(rawMessage)
+    /**
+     * Receives the next available server message from the underlining connection. Suspends until
+     * all [RawMessage] data that is required can be fetched then decodes that [RawMessage] into a
+     * [PgMessage] using [PgMessageDecoders.decode].
+     */
+    private suspend fun receiveNextServerMessage(): PgMessage {
+        val format = asyncStream.readByte()
+        val size = asyncStream.readInt()
+        val buffer = asyncStream.readBuffer(size - 4)
+        val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
+        return PgMessageDecoders.decode(rawMessage)
     }
 
-    private val messageReaderJob = launch(start = CoroutineStart.LAZY) {
-        var cause: Throwable? = null
+    /**
+     * State machine like method that allows the caller to specify a [process] lambda that handles
+     * each [PgMessage] received from the server until [Loop.Break] is returned by the lambda.
+     * Since unknown errors can arise in [process], the entire loop is wrapped in a try-catch to
+     * return a [Result] value rather than throwing an exception. The caller is then responsible
+     * for decomposing the [Result]. The only exception that will escape this method is
+     * [CancellationException] to allow for regular coroutine cancellation.
+     *
+     * Some asynchronous messages are not passed forward to [process] because they are not of
+     * concern to message processors. These are:
+     *
+     * - [PgMessage.NoticeResponse]
+     * - [PgMessage.NotificationResponse]
+     * - [PgMessage.ParameterStatus], should not be received after startup but should be ignored
+     * - [PgMessage.BackendKeyData], should not be received after startup but should be ignored
+     * - [PgMessage.NegotiateProtocolVersion], should not be received after startup but should be
+     * ignored
+     *
+     * @throws CancellationException when the coroutine scope cancels this coroutine
+     */
+    suspend inline fun processMessageLoop(process: (PgMessage) -> Loop): Result<Unit> {
         try {
-            while (isActive && this@PgStream.isConnected) {
-                when (val message = receiveNextServerMessage()) {
-                    null -> break
-                    is PgMessage.ErrorResponse -> onErrorMessage(message)
+            while (isActive && isConnected) {
+                when (val message = messagesChannel.receive()) {
                     is PgMessage.NoticeResponse -> onNotice(message)
                     is PgMessage.NotificationResponse -> onNotification(message)
                     is PgMessage.ParameterStatus -> onParameterStatus(message)
-                    is PgMessage.ReadyForQuery -> onReadyForQuery(message)
                     is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                    is PgMessage.DataRow -> onDataRow(message)
-                    is PgMessage.RowDescription -> onRowDescription(message)
-                    is PgMessage.CommandComplete -> onCommandComplete(message)
-                    is PgMessage.CloseComplete -> onCloseComplete()
-                    is PgMessage.CopyInResponse -> onCopyInResponse(message)
-                    is PgMessage.CopyOutResponse -> onCopyOutResponse(message)
-                    is PgMessage.CopyData -> onCopyData(message)
-                    is PgMessage.CopyDone -> onCopyDone()
+                    is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                    else -> {
+                        when (process(message)) {
+                            Loop.Continue, Loop.Noop -> continue
+                            Loop.Break -> break
+                        }
+                    }
+                }
+            }
+        } catch (ex: CancellationException) {
+            throw ex
+        } catch (ex: Throwable) {
+            return Result.failure(ex)
+        }
+        if (!isActive) {
+            return Result.failure(KdbcException(
+                "Exited message processing loop because the coroutine scope is no longer active"
+            ))
+        }
+        if (!isConnected) {
+            return Result.failure(KdbcException(
+                "Exited message processing loop because the underlining connection was closed"
+            ))
+        }
+        return Result.success(Unit)
+    }
+
+    /**
+     * Similar to [processMessageLoop] but acts as a special case where it ignores all messages
+     * except for [T] and [PgMessage.ErrorResponse]. This is helpful when you need to find a
+     * specific message but also need to ensure error messages are captured and provided as the
+     * failure [Result] option. For example, when starting a `COPY TO` operation,
+     * [PgMessage.CopyOutResponse] must be found before continuing to a message processor for
+     * [PgMessage.CopyData] messages. You can wait for that message or errors, proceeding if the
+     * [Result] is successful.
+     */
+    suspend inline fun <reified T : PgMessage> waitForOrError(): Result<T> {
+        try {
+            while (isActive && isConnected) {
+                when (val message = messagesChannel.receive()) {
+                    is PgMessage.NoticeResponse -> onNotice(message)
+                    is PgMessage.NotificationResponse -> onNotification(message)
+                    is PgMessage.ParameterStatus -> onParameterStatus(message)
+                    is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                    is PgMessage.ErrorResponse -> return Result.failure(GeneralPostgresError(message))
+                    is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                    is T -> return Result.success(message)
                     else -> {
                         log(Level.TRACE) {
-                            this.message = "Received message: {message}"
+                            this.message =
+                                "Ignoring {message} since it's not an error or the desired type"
                             payload = mapOf("message" to message)
                         }
                     }
                 }
             }
-        } catch(cancel: CancellationException) {
-            cause = cancel
-            throw cancel
+        } catch (ex: CancellationException) {
+            throw ex
         } catch (ex: Throwable) {
-            cause = ex
-            logger.atError {
-                message = "Error within server message reader"
-                this.cause = ex
-            }
-        } finally {
-            closeChannels(cause)
-            logger.atTrace {
-                message = "Server message reader is closing"
-            }
+            return Result.failure(ex)
         }
+        return Result.failure(ExitOfProcessingLoop(T::class.qualifiedName!!))
     }
 
     /**
@@ -251,31 +216,6 @@ internal class PgStream(
     }
 
     /**
-     * Event handler method for [PgMessage.ErrorResponse] messages. Logs the error and sends the
-     * error message wrapped in a [GeneralPostgresError] [Throwable] to the [errorChannel] unless
-     * [copyFailed] flag is true. In that case, no error is sent and a [PgMessage.CommandComplete]
-     * message is sent to [commandCompleteChannel] to notify the current `COPY FROM` operations
-     * that that previous call failed.
-     */
-    private suspend fun onErrorMessage(message: PgMessage.ErrorResponse) {
-        if (copyFailed.getAndSet(false)) {
-            log(Level.WARN) {
-                this.message = "CopyIn was failed by client -> {message}"
-                payload = mapOf("message" to message)
-            }
-            val commandComplete = PgMessage.CommandComplete(0, "CopyIn failed by client")
-            commandCompleteChannel.send(commandComplete)
-            return
-        }
-        log(Level.ERROR) {
-            this.message = "Error, message -> {errorResponse}"
-            payload = mapOf("errorResponse" to message)
-        }
-        val throwable = GeneralPostgresError(message)
-        errorChannel.send(throwable)
-    }
-
-    /**
      * Event handler method for [PgMessage.BackendKeyData] messages. Puts the [message] contents
      * into [backendKeyData].
      */
@@ -298,156 +238,41 @@ internal class PgStream(
     }
 
     /**
-     * Event handler method for [PgMessage.ReadyForQuery] messages. Notifies the [queryDoneChannel]
-     * that the current query operation is complete and the server is ready for more queries.
+     * Event handler method for [PgMessage.NegotiateProtocolVersion] messages. Only logs the
+     * message details.
      */
-    private suspend fun onReadyForQuery(message: PgMessage.ReadyForQuery) {
+    private fun onNegotiateProtocolVersion(message: PgMessage.NegotiateProtocolVersion) {
         log(Level.TRACE) {
-            this.message = "Connection ready for query. Transaction Status: {status}"
-            payload = mapOf("status" to message.transactionStatus)
-        }
-        queryDoneChannel.send(Unit)
-    }
-
-    /**
-     * Event handler method for [PgMessage.RowDescription] messages. Sends the fields contains
-     * within the [message] to the [rowDescriptionChannel].
-     */
-    private suspend fun onRowDescription(message: PgMessage.RowDescription) {
-        log(Level.TRACE) {
-            this.message = "Received row description -> {desc}"
-            payload = mapOf("dec" to message)
-        }
-        rowDescriptionChannel.send(message.fields)
-    }
-
-    /**
-     * Event handler method for [PgMessage.NoticeResponse] messages. Sends the [message] to the
-     * [dataRowChannel].
-     */
-    private suspend fun onDataRow(message: PgMessage.DataRow) {
-        log(Level.TRACE) {
-            this.message = "Received row size = {size}"
-            payload = mapOf("size" to message.values.size)
-        }
-        dataRowChannel.send(message)
-    }
-
-    /**
-     * Event handler method for [PgMessage.CommandComplete] messages. Sends the [message] to the
-     * [commandCompleteChannel].
-     */
-    private suspend fun onCommandComplete(message: PgMessage.CommandComplete) {
-        log(Level.TRACE) {
-            this.message = "Received command complete -> {message}"
+            this.message = "Server does not support protocol version 3.0. {message}"
             payload = mapOf("message" to message)
         }
-        commandCompleteChannel.send(message)
     }
 
-    /**
-     * Event handler method for [PgMessage.NoticeResponse] messages. Checks to see if the
-     * [releasePreparedStatement] is true. If yes, then [closeStatementChannel] is used to notify
-     * the release requester of the completion. Otherwise, the message is ignored. In all cases,
-     * the [releasePreparedStatement] is reverted to false.
-     */
-    private suspend fun onCloseComplete() {
-        log(Level.TRACE) {
-            this.message = "Received close complete"
-        }
-        if (releasePreparedStatement.getAndSet(false)) {
-            closeStatementChannel.send(Unit)
+    /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
+    suspend inline fun writeToStream(message: PgMessage) {
+        writeToBuffer { buffer ->
+            PgMessageEncoders.encode(message, buffer)
         }
     }
 
-    /**
-     * Event handler method for [PgMessage.CopyInResponse] messages. Notifies the
-     * [copyInResponseChannel] that the server is ready to proceed.
-     */
-    private suspend fun onCopyInResponse(message: PgMessage.CopyInResponse) {
-        log(Level.TRACE) {
-            this.message = "Received CopyInResponse -> {message}"
-            payload = mapOf("message" to message)
-        }
-        copyInResponseChannel.send(Unit)
-    }
-
-    /**
-     * Event handler method for [PgMessage.CopyInResponse] messages. Notifies the
-     * [copyOutResponseChannel] that the server is ready to proceed.
-     */
-    private suspend fun onCopyOutResponse(message: PgMessage.CopyOutResponse) {
-        log(Level.TRACE) {
-            this.message = "Received CopyOutResponse -> {message}"
-            payload = mapOf("message" to message)
-        }
-        copyOutResponseChannel.send(Unit)
-    }
-
-    /**
-     * Event handler method for [PgMessage.CopyInResponse] messages. Sends the [message] to the
-     * [copyDataChannel]
-     */
-    private suspend fun onCopyData(message: PgMessage.CopyData) {
-        log(Level.TRACE) {
-            this.message = "Received CopyData, size = {size}"
-            payload = mapOf("size" to message.data.size)
-        }
-        copyDataChannel.send(message)
-    }
-    /**
-     * Event handler method for [PgMessage.CopyInResponse] messages. Notifies the [copyDoneChannel]
-     * that the server is done sending data.
-     */
-    private suspend fun onCopyDone() {
-        log(Level.TRACE) {
-            this.message = "Received CopyDone"
-        }
-        copyDoneChannel.send(Unit)
-    }
-
-    private val messageWriterChannel = Channel<PgWriteMessage>(capacity = Channel.BUFFERED)
-    val messageWriter: SendChannel<PgWriteMessage> = messageWriterChannel
-
-    init {
-        launch {
-            var cause: Throwable? = null
-            try {
-                for (message in messageWriterChannel) {
-                    writeMessage(message)
-                }
-            } catch(cancel: CancellationException) {
-                cause = cancel
-                throw cancel
-            } catch (ex: Throwable) {
-                cause = ex
-                logger.atError {
-                    message = "Error within server message processor"
-                    this.cause = ex
-                }
-                throw ex
-            } finally {
-                closeChannels(cause)
-                logger.atTrace {
-                    message = "Server Message Processor is closing"
-                }
+    /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
+    suspend inline fun writeManyToStream(
+        crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
+    ) {
+        writeToBuffer { buffer ->
+            for (message in sequence { messages() }) {
+                PgMessageEncoders.encode(message, buffer)
             }
         }
     }
 
-    /** Write a single [message] to the [PgStream] using the appropriate derived encoder. */
-    suspend inline fun writeToStream(message: PgMessage) {
-        messageWriter.send(PgWriteMessage.Single(message))
-    }
-
-    /** Write multiple [messages] to the [PgStream] using the appropriate derived encoders. */
-    suspend inline fun writeManyToStream(messages: Iterable<PgMessage>) {
-        messageWriter.send(PgWriteMessage.Multiple(messages))
-    }
-
-    /** Write multiple [messages] to the [PgStream] using the appropriate derived encoders. */
+    /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeManyToStream(vararg messages: PgMessage) {
-        writeManyToStream(messages.asIterable())
+        writeToBuffer { buffer ->
+            for (message in messages) {
+                PgMessageEncoders.encode(message, buffer)
+            }
+        }
     }
 
     /**
@@ -455,175 +280,156 @@ internal class PgStream(
      * the closure.
      */
     private fun closeChannels(throwable: Throwable? = null) {
-        rowDescriptionChannel.close(cause = throwable)
-        dataRowChannel.close(cause = throwable)
-        commandCompleteChannel.close(cause = throwable)
-        queryDoneChannel.close(cause = throwable)
-        closeStatementChannel.close(cause = throwable)
-        copyOutResponseChannel.close(cause = throwable)
-        copyInResponseChannel.close(cause = throwable)
-        copyDataChannel.close(cause = throwable)
-        copyDoneChannel.close(cause = throwable)
-        errorChannel.close(cause = throwable)
-        messageWriterChannel.close(throwable)
+        notificationsChannel.close(throwable)
+        messagesChannel.close(throwable)
     }
 
-    val isConnected: Boolean get() = connection.socket.isActive && !connection.socket.isClosed
+    /** Returns true if the underlining [asyncStream] is still connected */
+    val isConnected: Boolean get() = asyncStream.isConnected
 
-    private suspend inline fun writeMessage(message: PgWriteMessage) =
-        writeMessage { builder ->
-            when (message) {
-                is PgWriteMessage.Single -> {
-                    val encoder = encoders.encoderFor(message.message)
-                    encoder.encode(message.message, builder)
-                }
-                is PgWriteMessage.Multiple -> {
-                    for (msg in message.messages) {
-                        val encoder = encoders.encoderFor(msg)
-                        encoder.encode(msg, builder)
-                    }
-                }
-            }
+    /**
+     * Use the write action, [block], to write zero or more [Byte]s to the [messageSendBuffer]
+     * which in turn is written to the [asyncStream]. The [messageSendBuffer] will always be
+     * released at the end of this method even if an [Exception] is thrown.
+     */
+    private suspend inline fun writeToBuffer(crossinline block: suspend (ByteWriteBuffer) -> Unit) {
+        try {
+            messageSendBuffer.release()
+            block(messageSendBuffer)
+            asyncStream.writeBuffer(messageSendBuffer)
+        } finally {
+            messageSendBuffer.release()
         }
+    }
 
-    private suspend inline fun writeMessage(block: (BytePacketBuilder) -> Unit) {
-        sendChannel.writePacket(buildPacket(block))
-        sendChannel.flush()
+    /**
+     * Utilize the known size of the [M] messages to optimally write a [flow] of messages to the
+     * server. This involves collecting the [flow] and packing is as many messages as possible into
+     * a single write to the database server.
+     */
+    suspend fun <M> writeManySized(flow: Flow<M>)
+    where
+        M : SizedMessage,
+        M : PgMessage
+    {
+        try {
+            messageSendBuffer.release()
+            flow.collect {
+                if (messageSendBuffer.remaining < it.size) {
+                    asyncStream.writeBuffer(messageSendBuffer)
+                    messageSendBuffer.release()
+                }
+                PgMessageEncoders.encode(it, messageSendBuffer)
+            }
+            if (messageSendBuffer.position > 0) {
+                asyncStream.writeBuffer(messageSendBuffer)
+            }
+        } finally {
+            messageSendBuffer.release()
+        }
     }
 
     override fun close() {
+        messageSendBuffer.release()
         closeChannels()
-        if (connection.socket.isActive) {
-            connection.socket.close()
+        if (asyncStream.isConnected) {
+            asyncStream.release()
         }
     }
 
     /**
      * Handle the incoming authentication request with the proper flow of messages. Currently, only
      * clear text password, md5 password and SASL flows are implemented so if the server requests
-     * and different authentication flow then an exception will be thrown. This will also throw
+     * a different authentication flow then an exception will be thrown. This will also throw
      * an exception if the first received message is not a [PgMessage.Authentication] message.
-     * In the event the first message is a [PgMessage.ErrorResponse] the [onErrorMessage] handler
-     * is invoked which signals the [PgStream] initialization method that the connection should
-     * be disposed.
+     * In the event the first message is a [PgMessage.ErrorResponse] a [GeneralPostgresError]
+     * is thrown.
+     *
+     * @throws GeneralPostgresError if a [PgMessage.ErrorResponse] is received from the server
+     * @throws PgAuthenticationError if a message is received that is not [PgMessage.Authentication]
+     * @throws IllegalStateException if the [Authentication] type is not supported
      */
     private suspend fun handleAuthFlow() {
-        val isAuthenticated: Boolean
-        val message = receiveNextServerMessage()
+        val message = messages.receive()
         if (message is PgMessage.ErrorResponse) {
-            onErrorMessage(message)
-            return
+            throw GeneralPostgresError(message)
         }
         if (message !is PgMessage.Authentication) {
-            error("Server sent non-auth message that was not an error. Closing connection")
+            throw PgAuthenticationError(
+                "Server sent non-auth message that was not an error. Closing connection"
+            )
         }
         when (val auth = message.authentication) {
             Authentication.Ok -> {
                 log(Level.TRACE) {
                     this.message = "Successfully logged in to database"
                 }
-                isAuthenticated = true
             }
             Authentication.CleartextPassword -> {
-                isAuthenticated = this.simplePasswordAuthFlow(
+                this.simplePasswordAuthFlow(
                     connectOptions.username,
-                    connectOptions.password ?: error("Password must be provided"),
+                    connectOptions.password ?: throw PgAuthenticationError("Missing Password"),
                 )
             }
             is Authentication.Md5Password -> {
-                isAuthenticated = this.simplePasswordAuthFlow(
+                this.simplePasswordAuthFlow(
                     connectOptions.username,
-                    connectOptions.password ?: error("Password must be provided"),
+                    connectOptions.password ?: throw PgAuthenticationError("Missing Password"),
                     auth.salt,
                 )
             }
-            is Authentication.Sasl -> {
-                isAuthenticated = this.saslAuthFlow(auth)
-            }
+            is Authentication.Sasl -> this.saslAuthFlow(auth)
             else -> error("Auth request type cannot be handled. $auth")
         }
-        if (!isAuthenticated) {
-            error("Not authenticated")
-        }
     }
 
-    private suspend fun requestUpgrade(): Boolean {
-        writeMessage { builder ->
-            SslMessageEncoder.encode(PgMessage.SslRequest, builder)
-        }
-        return when (val response = receiveChannel.readByte()) {
-            'S'.code.toByte() -> true
-            'N'.code.toByte() -> false
-            else -> {
-                val responseChar = response.toInt().toChar()
-                error("Invalid response byte after SSL request. Byte = '$responseChar'")
-            }
-        }
-    }
+//    private suspend fun requestUpgrade(): Boolean {
+//        writeBuffer { builder ->
+//            SslMessageEncoder.encode(PgMessage.SslRequest, builder)
+//        }
+//        return when (val response = receiveChannel.readByte()) {
+//            'S'.code.toByte() -> true
+//            'N'.code.toByte() -> false
+//            else -> {
+//                val responseChar = response.toInt().toChar()
+//                error("Invalid response byte after SSL request. Byte = '$responseChar'")
+//            }
+//        }
+//    }
 
-    @Suppress("BlockingMethodInNonBlockingContext", "UNUSED")
-    private suspend fun upgradeIfNeeded(
-        selectorManager: SelectorManager,
-        connectOptions: PgConnectOptions,
-    ) {
-        when (connectOptions.sslMode) {
-            SslMode.Disable, SslMode.Allow -> return
-            SslMode.Prefer -> {
-                if (!requestUpgrade()) {
-                    logger.atWarn {
-                        message = TLS_REJECT_WARNING
-                    }
-                    return
-                }
-            }
-            SslMode.Require, SslMode.VerifyCa, SslMode.VerifyFull -> {
-                check(requestUpgrade()) {
-                    "TLS connection required by client but server does not accept TSL connection"
-                }
-            }
-        }
-        connection.socket.close()
-        val newConnection = createConnection(
-            selectorManager = selectorManager,
-            connectOptions = connectOptions,
-        )
-        connection = newConnection
-    }
+//    @Suppress("BlockingMethodInNonBlockingContext", "UNUSED")
+//    private suspend fun upgradeIfNeeded(
+//        selectorManager: SelectorManager,
+//        connectOptions: PgConnectOptions,
+//    ) {
+//        when (connectOptions.sslMode) {
+//            SslMode.Disable, SslMode.Allow -> return
+//            SslMode.Prefer -> {
+//                if (!requestUpgrade()) {
+//                    logger.atWarn {
+//                        message = TLS_REJECT_WARNING
+//                    }
+//                    return
+//                }
+//            }
+//            SslMode.Require, SslMode.VerifyCa, SslMode.VerifyFull -> {
+//                check(requestUpgrade()) {
+//                    "TLS connection required by client but server does not accept TSL connection"
+//                }
+//            }
+//        }
+//        connection.socket.close()
+//        val newConnection = createConnection(
+//            selectorManager = selectorManager,
+//            connectOptions = connectOptions,
+//        )
+//        connection = newConnection
+//    }
 
     companion object {
+        private const val SEND_BUFFER_SIZE = 2048
         private const val TLS_REJECT_WARNING = "Preferred SSL mode was rejected by server. " +
                 "Continuing with non TLS connection"
-
-        @Suppress("BlockingMethodInNonBlockingContext")
-        private suspend fun createConnection(
-            selectorManager: SelectorManager,
-            connectOptions: PgConnectOptions,
-            tlsConfig: (TLSConfigBuilder.() -> Unit)? = null,
-        ): Connection {
-            var socket: Socket? = null
-            try {
-                socket = withTimeout(connectOptions.connectionTimeout.toLong()) {
-                    aSocket(selectorManager)
-                        .tcp()
-                        .connect(connectOptions.host, connectOptions.port.toInt()) {
-                            keepAlive = true
-                        }
-                }
-
-                tlsConfig?.let {
-                    return socket.tls(selectorManager.coroutineContext, block = it).connection()
-                }
-                return socket.connection()
-            } catch (ex: Throwable) {
-                if (socket?.isActive == true) {
-                    socket.close()
-                }
-                if (selectorManager.isActive) {
-                    selectorManager.close()
-                }
-                throw ex
-            }
-        }
 
         /**
          * Create a new TCP connection with the Postgresql database targeted by the
@@ -635,26 +441,32 @@ internal class PgStream(
          * The method waits for a [PgMessage.ReadyForQuery] server response. In the case that the
          * server rejects the connection (by sending a [PgMessage.ErrorResponse]) the new
          * [PgStream] object is closed and an exception is thrown.
+         *
+         * @throws PgAuthenticationError if the authentication fails
+         * @throws StreamConnectError if the underling [AsyncStream] fails to connect
+         * @throws StreamReadError if any authentication message or the final ready for query
+         * message fails
+         * @throws StreamWriteError if the startup message or any authentication message written to
+         * the stream fails
+         * @throws ExitOfProcessingLoop if waiting for [PgMessage.ReadyForQuery] or error after
+         * authentication exits the processing loop unexpectedly
          */
         internal suspend fun connect(
-            selectorManager: SelectorManager,
+            scope: CoroutineScope,
+            asyncStream: AsyncStream,
             connectOptions: PgConnectOptions,
         ): PgStream {
-            val socket = createConnection(
-                selectorManager = selectorManager,
-                connectOptions = connectOptions,
-            )
-            val stream = PgStream(selectorManager, socket, connectOptions)
+            asyncStream.connect(connectOptions.connectionTimeout)
+            val stream = PgStream(scope, asyncStream, connectOptions)
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()
-            stream.messageReaderJob.start()
-            waitOrError(stream.errors, stream.queryDone)
+            stream.waitForOrError<PgMessage.ReadyForQuery>().getOrThrow()
             return stream
             /***
              * TODO
              * Need to add ability to upgrade to SSL connection, currently do not understand how
-             * that is done with specified cert details with ktor-io
+             * that is done with specified cert details with ktor-network-tls
              */
 //            stream.upgradeIfNeeded(
 //                coroutineContext = coroutineScope.coroutineContext,

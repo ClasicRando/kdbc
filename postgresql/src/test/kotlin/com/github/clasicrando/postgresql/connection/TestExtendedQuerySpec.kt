@@ -1,16 +1,12 @@
 package com.github.clasicrando.postgresql.connection
 
 import com.github.clasicrando.common.connection.use
-import com.github.clasicrando.common.result.getInt
-import com.github.clasicrando.common.result.getString
 import com.github.clasicrando.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-@EnabledIfEnvironmentVariable(named = "PG_TEST_PASSWORD", matches = ".+")
 class TestExtendedQuerySpec {
     @BeforeTest
     fun setup(): Unit = runBlocking {

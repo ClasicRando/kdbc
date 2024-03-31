@@ -1,24 +1,28 @@
 package com.github.clasicrando.postgresql.statement
 
 import com.github.clasicrando.common.statement.PreparedStatement
-import com.github.clasicrando.postgresql.row.PgRowFieldDescription
-import kotlinx.uuid.UUID
-import kotlinx.uuid.generateUUID
+import com.github.clasicrando.postgresql.column.PgColumnDescription
+import kotlinx.datetime.LocalDateTime
 
+/** Postgresql implementation of a [PreparedStatement] */
 internal class PgPreparedStatement(
     override val query: String,
-    override val statementId: UUID = UUID.generateUUID(),
+    override val statementId: UInt,
 ) : PreparedStatement {
     override val paramCount = PARAM_COUNT_REGEX.findAll(query).count()
     override var prepared = false
-    var metadata: List<PgRowFieldDescription> = emptyList()
+    var parameterTypeOids: List<Int> = emptyList()
+    var resultMetadata: List<PgColumnDescription> = emptyList()
+    /** Name value used to construct the prepared statement on the server side */
     val statementName = statementId.toString()
+    override var lastExecuted: LocalDateTime? = null
 
     override fun toString(): String {
         return "PgPreparedStatement(query=\"$query\",statementId=$statementId)"
     }
 
     companion object {
+        /** Regex to find sections of text that match the postgresql parameter syntax */
         private val PARAM_COUNT_REGEX = Regex("\\$\\d+")
     }
 }

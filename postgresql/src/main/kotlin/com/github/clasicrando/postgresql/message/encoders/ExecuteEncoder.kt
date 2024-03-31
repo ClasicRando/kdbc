@@ -1,16 +1,25 @@
 package com.github.clasicrando.postgresql.message.encoders
 
+import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.message.MessageEncoder
 import com.github.clasicrando.postgresql.message.PgMessage
-import io.ktor.utils.io.charsets.Charset
-import io.ktor.utils.io.core.BytePacketBuilder
-import io.ktor.utils.io.core.writeInt
 
-internal class ExecuteEncoder(private val charset: Charset) : MessageEncoder<PgMessage.Execute> {
-    override fun encode(value: PgMessage.Execute, buffer: BytePacketBuilder) {
+/**
+ * [MessageEncoder] for [PgMessage.Execute]. This message is sent to execute a previously created
+ * portal. The contents are:
+ * - a header [Byte] of 'E'
+ * - the length of the following data (including the size of the [Int] length)
+ * - CString as the name of the portal (can be empty to close the unnamed portal)
+ * - [Int] as the maximum number of rows to return if the portal returns rows (ignored otherwise).
+ * Zero signifies that all rows are returned
+ *
+ * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-EXECUTE)
+ */
+internal object ExecuteEncoder : MessageEncoder<PgMessage.Execute> {
+    override fun encode(value: PgMessage.Execute, buffer: ByteWriteBuffer) {
         buffer.writeCode(value)
-        buffer.writeLengthPrefixed {
-            writeCString(value.portalName, charset)
+        buffer.writeLengthPrefixed(includeLength = true) {
+            writeCString(value.portalName ?: "")
             writeInt(value.maxRowCount)
         }
     }

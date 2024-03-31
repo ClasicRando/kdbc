@@ -1,13 +1,13 @@
 package com.github.clasicrando.common.pool
 
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 /** Options when setting up a [ConnectionPool] */
+@Serializable
 data class PoolOptions(
     /**
      * Maximum number of [Connection][com.github.clasicrando.common.connection.Connection]
@@ -15,7 +15,7 @@ data class PoolOptions(
      * method will suspend until [Connection][com.github.clasicrando.common.connection.Connection]s
      * are returned.
      */
-    val maxConnections: Int,
+    val maxConnections: Int = 20,
     /**
      * Minimum number of [Connection][com.github.clasicrando.common.connection.Connection]
      * instances held within the pool. When the pool is initialized, it will be requested to create
@@ -40,11 +40,6 @@ data class PoolOptions(
      * This currently has no impact on the pool but will be used in future versions.
      */
     val idleTime: Duration = 1.toDuration(DurationUnit.MINUTES),
-    /**
-     * Dispatcher that will run all the coroutines attached the pool or other object/coroutines
-     * attached to the pool. Defaults to [Dispatchers.IO]
-     */
-    val coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     /** Optional parent scope that holds the [ConnectionPool]s scope */
     val parentScope: CoroutineScope? = null,
 ) {

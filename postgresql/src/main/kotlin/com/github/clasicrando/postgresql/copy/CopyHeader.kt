@@ -1,5 +1,10 @@
 package com.github.clasicrando.postgresql.copy
 
+/**
+ * Variations describing if the copy data includes a header. If the [Match] value is used and the
+ * copy operation is a COPY FROM, the header needs to match the table definition exactly with name
+ * and order of columns.
+ */
 enum class CopyHeader {
     True,
     False,

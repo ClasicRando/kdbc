@@ -1,193 +1,394 @@
 package com.github.clasicrando.common.result
 
+import com.github.clasicrando.common.AutoRelease
+import com.github.clasicrando.common.column.ColumnDecodeError
+import com.github.clasicrando.common.column.ColumnExtractError
 import com.github.clasicrando.common.datetime.DateTime
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.UtcOffset
+import kotlin.reflect.typeOf
 
 /**
- * Representation of a [ResultSet] row, allowing for fetching of each field's value by index or
- * column name.
+ * Representation of a [ResultSet] row. Allows for fetching of each field's value by index or
+ * column name. Once a value has been fetched from the row (by index or name) the value cannot be
+ * fetched again. Doing as such will throw an [IllegalArgumentException].
+ *
+ * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
+ * consistent processing of data.
  */
-interface DataRow {
+interface DataRow : AutoRelease {
     /**
-     * Return the index of the specified [column] name. Throws an [IllegalArgumentException] if the
-     * column is not available within the row.
+     * Return the index of the specified [column] name.
+     *
+     * @throws IllegalArgumentException [column] name cannot be found in the row
      */
     fun indexFromColumn(column: String): Int
+
     /**
-     * Get the value stored within the field at the [index] specified. Throws an
-     * [IllegalArgumentException] if the index is out of range of the row.
+     * Get the value stored within the field at the [index] specified. This will always decode to
+     * the type as specified by the [ColumnData][com.github.clasicrando.common.column.ColumnData]
+     * and you must know that and check/cast appropriately.
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
      */
     operator fun get(index: Int): Any?
+
+    /**
+     * Get the value stored within the field of [column] specified. This will always decode to
+     * the type as specified by the [ColumnData][com.github.clasicrando.common.column.ColumnData]
+     * and you must know that and check/cast appropriately.
+     *
+     * @throws IllegalArgumentException if the [column] is not in the row or the field has already
+     * been decoded
+     */
+    operator fun get(column: String): Any? = get(indexFromColumn(column))
+
+    /**
+     * Get the value stored within the field at the [index] specified, attempting to coerce the
+     * underlining value to a [Boolean].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getBoolean(index: Int): Boolean?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [Byte]. If the actual
+     * column type can be safely coerced to [Byte] this operation will not fail and will return
+     * that type as a [Byte].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getByte(index: Int): Byte?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [Short]. If the actual
+     * column type can be safely coerced to [Short] this operation will not fail and will return
+     * that type as a [Short].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getShort(index: Int): Short?
+
+    /**
+     * Get the value stored within the field at the [index] specified as an [Int]. If the actual
+     * column type can be safely coerced to [Int] this operation will not fail and will return that
+     * type as a [Int].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getInt(index: Int): Int?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [Long]. If the actual
+     * column type can be safely coerced to [Long] this operation will not fail and will return
+     * that type as a [Long].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getLong(index: Int): Long?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [Float].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact type, or the
+     * decode operation failed
+     */
+    fun getFloat(index: Int): Float?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [Double]. If the actual
+     * column type can be safely coerced to [Double] this operation will not fail and will return
+     * that type as a [Double].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getDouble(index: Int): Double?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [LocalDate].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getLocalDate(index: Int): LocalDate?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [LocalTime].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getLocalTime(index: Int): LocalTime?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [LocalDateTime].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getLocalDateTime(index: Int): LocalDateTime?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [DateTime].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getDateTime(index: Int): DateTime?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [DateTime] with the
+     * desired [offset] applied to the value returned from the database.
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getDateTime(index: Int, offset: UtcOffset): DateTime?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [String].
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     */
+    fun getString(index: Int): String?
+
+    /**
+     * Get the value stored within the field at the [index] specified as a [List] of the desired
+     * type [T]. If the database does not support querying data as a list or collection, this
+     * method will always throw an exception.
+     *
+     * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+     * already been decoded
+     * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+     * type, or the decode operation failed
+     * @throws NotImplementedError if the database does not support querying data as a list or
+     * collection
+     */
+    fun <T> getList(index: Int): List<T?>?
 }
 
 /**
- * Get the value stored within the field of [column] specified. Throws an
- * [IllegalArgumentException] if the [column] is not available within the row.
+ * Get the value stored within the field at the [index] specified and return the value if it
+ * matches the type [T] required. If the type cannot be successfully cast, an exception is thrown.
+ * If the value is null, this will never fail but just return null.
+ *
+ * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
-operator fun DataRow.get(column: String): Any? = get(indexFromColumn(column))
-
-/**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * the desired type [T]. Throws an [IllegalArgumentException] if the index is out of range of the
- * row.
- */
-@Suppress("UNCHECKED_CAST")
-fun <T : Any> DataRow.getAs(index: Int): T? = get(index) as T?
-
-/**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to the
- * desired type [T]. Throws an [IllegalArgumentException] if the index is out of range of the row.
- */
-fun <T : Any> DataRow.getAs(column: String): T? = getAs(indexFromColumn(column))
-
-/**
- * Get the value stored within the field at the [index] specified, attempting to coerce the
- * underlining value to a [Boolean]. Throws an [IllegalArgumentException] if the index is out of
- * range of the row.
- */
-fun DataRow.getBoolean(index: Int): Boolean? = getBooleanCoerce(get(index))
-
-/**
- * Get the value stored within the field of [column] specified, attempting to coerce the
- * underlining value to a [Boolean]. Throws an [IllegalArgumentException] if the index is out of
- * range of the row.
- */
-fun DataRow.getBoolean(column: String): Boolean? = getBooleanCoerce(get(column))
-
-/**
- * Attempt to either cast the value as [Boolean] (if possible), otherwise, integer types are
- * coerced to a [Boolean] treating 1 as true and all other values as false. Throws an
- * [IllegalArgumentException] if [value] is not a [Boolean] or integer type.
- */
-private fun getBooleanCoerce(value: Any?): Boolean? {
-    return when (value) {
-        null -> return null
-        is Boolean -> value
-        is Byte -> value == 1.toByte()
-        is Short -> value == 1.toShort()
-        is Int -> value == 1
-        else -> error("Cannot coerce type to boolean. value -> '$value', type -> ${value::class} ")
+inline fun <reified T : Any> DataRow.getAs(index: Int): T? {
+    val value = get(index) ?: return null
+    if (value is T) {
+        return value
     }
+    throw ColumnExtractError(typeOf<T>(), value)
 }
 
 /**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [Byte]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified and return the value if it
+ * matches the type [T] required. If the type cannot be successfully cast, an exception is thrown.
+ * If the value is null, this will never fail but just return null.
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
-fun DataRow.getByte(index: Int): Byte? = getAs(index)
+inline fun <reified T : Any> DataRow.getAs(column: String): T? = getAs(indexFromColumn(column))
 
 /**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [Byte]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified, attempting to coerce the
+ * underlining value to a [Boolean].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getByte(column: String): Byte? = getAs(column)
+fun DataRow.getBoolean(column: String): Boolean? = getBoolean(indexFromColumn(column))
 
 /**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [Short]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [Byte]. If the actual
+ * column type can be safely coerced to [Byte] this operation will not fail and will return
+ * that type as a [Byte].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getShort(index: Int): Short? = getAs(index)
+fun DataRow.getByte(column: String): Byte? = getByte(indexFromColumn(column))
 
 /**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [Short]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [Short]. If the actual
+ * column type can be safely coerced to [Short] this operation will not fail and will return
+ * that type as a [Short].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getShort(column: String): Short? = getAs(column)
+fun DataRow.getShort(column: String): Short? = getShort(indexFromColumn(column))
 
 /**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [Int]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as an [Int]. If the actual
+ * column type can be safely coerced to [Int] this operation will not fail and will return that
+ * type as a [Int].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getInt(index: Int): Int? = getAs(index)
+fun DataRow.getInt(column: String): Int? = getInt(indexFromColumn(column))
 
 /**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [Int]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [Long]. If the actual
+ * column type can be safely coerced to [Long] this operation will not fail and will return
+ * that type as a [Long].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getInt(column: String): Int? = getAs(column)
+fun DataRow.getLong(column: String): Long? = getLong(indexFromColumn(column))
 
 /**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [Long]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [Float].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact type, or the decode
+ * operation failed
  */
-fun DataRow.getLong(index: Int): Long? = getAs(index)
+fun DataRow.getFloat(column: String): Float? = getFloat(indexFromColumn(column))
 
 /**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [Long]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [Double]. If the actual
+ * column type can be safely coerced to [Double] this operation will not fail and will return
+ * that type as a [Double].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getLong(column: String): Long? = getAs(column)
+fun DataRow.getDouble(column: String): Double? = getDouble(indexFromColumn(column))
 
 /**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [Float]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [LocalDate].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getFloat(index: Int): Float? = getAs(index)
+fun DataRow.getLocalDate(column: String): LocalDate? = getLocalDate(indexFromColumn(column))
 
 /**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [Float]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [LocalTime].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getFloat(column: String): Float? = getAs(column)
+fun DataRow.getLocalTime(column: String): LocalTime? = getLocalTime(indexFromColumn(column))
 
 /**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [LocalDate]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [LocalDateTime].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getLocalDate(index: Int): LocalDate? = getAs(index)
+fun DataRow.getLocalDateTime(column: String): LocalDateTime? {
+    return getLocalDateTime(indexFromColumn(column))
+}
 
 /**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [LocalDate]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [DateTime].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getLocalDate(column: String): LocalDate? = getAs(column)
+fun DataRow.getDateTime(column: String): DateTime? {
+    return getDateTime(indexFromColumn(column), UtcOffset(seconds = 0))
+}
 
 /**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [LocalTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [DateTime] with the
+ * desired [offset] applied to the value returned from the database.
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getLocalTime(index: Int): LocalTime? = getAs(index)
+fun DataRow.getDateTime(column: String, offset: UtcOffset): DateTime? {
+    return getDateTime(indexFromColumn(column), offset)
+}
 
 /**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [LocalTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [String].
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
  */
-fun DataRow.getLocalTime(column: String): LocalTime? = getAs(column)
+fun DataRow.getString(column: String): String? = getString(indexFromColumn(column))
 
 /**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [LocalDateTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
+ * Get the value stored within the field at the [column] specified as a [List] of the desired
+ * type [T]. If the database does not support querying data as a list or collection, this
+ * method will always throw an exception.
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
+ * already been decoded
+ * @throws ColumnDecodeError if the value within the column is not the exact or a compatible
+ * type, or the decode operation failed
+ * @throws NotImplementedError if the database does not support querying data as a list or
+ * collection
  */
-fun DataRow.getLocalDateTime(index: Int): LocalDateTime? = getAs(index)
-
-/**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [LocalDateTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
- */
-fun DataRow.getLocalDateTime(column: String): LocalDateTime? = getAs(column)
-
-/**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [DateTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
- */
-fun DataRow.getDateTime(index: Int): DateTime? = getAs(index)
-
-/**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [DateTime]. Throws an [IllegalArgumentException] if the index is out of range of the row.
- */
-fun DataRow.getDateTime(column: String): DateTime? = getAs(column)
-
-/**
- * Get the value stored within the field at the [index] specified, performing a non-safe cast to
- * [String]. Throws an [IllegalArgumentException] if the index is out of range of the row.
- */
-fun DataRow.getString(index: Int): String? = getAs(index)
-
-/**
- * Get the value stored within the field of [column] specified, performing a non-safe cast to
- * [String]. Throws an [IllegalArgumentException] if the index is out of range of the row.
- */
-fun DataRow.getString(column: String): String? = getAs(column)
+fun <T> DataRow.getList(column: String): List<T?>? = getList(indexFromColumn(column))

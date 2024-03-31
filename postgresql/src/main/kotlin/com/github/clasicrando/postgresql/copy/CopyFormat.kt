@@ -1,5 +1,10 @@
 package com.github.clasicrando.postgresql.copy
 
+/**
+ * Postgresql copy format types. Currently only Text & CSV format are supported since binary
+ * formatting is quite a bit harder and more volatile to change. The text based formats are still
+ * very fast so needing the binary format is not likely.
+ */
 enum class CopyFormat {
     Text,
     CSV,
