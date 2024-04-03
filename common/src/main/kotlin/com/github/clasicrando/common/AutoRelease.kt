@@ -28,7 +28,7 @@ interface AutoRelease {
  * `finally` block. Errors thrown within the block or the [AutoRelease.release] method are
  * rethrown, suppressing the [AutoRelease.release] error if an error has already been thrown.
  */
-inline fun <A : AutoRelease, R> A.use(crossinline block: (A) -> R): R {
+inline fun <A : AutoRelease, R> A.use(block: (A) -> R): R {
     var cause: Throwable? = null
     return try {
         block(this)

@@ -465,11 +465,9 @@ class PgConnection internal constructor(
 
         require(statement.paramCount == parameters.size) {
             """
-            Query does not have the correct number of parameters.
+            Query does not have the correct number of parameters. Expected ${statement.paramCount}, got ${parameters.size}
             
-            ${query.replaceIndent("            ")}
-            
-            Expected ${statement.paramCount}, got ${parameters.size}
+            ${query.trim().replaceIndent("            ")}
             """.trimIndent()
         }
 
