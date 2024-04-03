@@ -1,6 +1,7 @@
 package com.github.clasicrando.common.connection
 
 import com.github.clasicrando.common.UniqueResourceId
+import com.github.clasicrando.common.query.Query
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.result.StatementResult
 
