@@ -5,6 +5,7 @@ import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
 import com.github.clasicrando.common.pool.ConnectionPool
+import com.github.clasicrando.common.query.QueryBatch
 import com.github.clasicrando.common.quoteIdentifier
 import com.github.clasicrando.common.reduceToSingleOrNull
 import com.github.clasicrando.common.resourceLogger
@@ -25,6 +26,7 @@ import com.github.clasicrando.postgresql.message.TransactionStatus
 import com.github.clasicrando.postgresql.notification.PgNotification
 import com.github.clasicrando.postgresql.pool.PgConnectionPool
 import com.github.clasicrando.postgresql.pool.PgPoolManager
+import com.github.clasicrando.postgresql.query.PgQueryBatch
 import com.github.clasicrando.postgresql.result.PgResultSet
 import com.github.clasicrando.postgresql.statement.PgArguments
 import com.github.clasicrando.postgresql.statement.PgPreparedStatement
@@ -896,6 +898,8 @@ class PgConnection internal constructor(
             arrayType = typeOf<List<T?>>(),
         )
     }
+
+    override fun createQueryBatch(): QueryBatch = PgQueryBatch(this)
 
     companion object {
         private const val STATEMENT_TEMPLATE = "Sending {query}"

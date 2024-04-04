@@ -1,7 +1,9 @@
 package com.github.clasicrando.common.connection
 
 import com.github.clasicrando.common.UniqueResourceId
+import com.github.clasicrando.common.query.DefaultQueryBatch
 import com.github.clasicrando.common.query.Query
+import com.github.clasicrando.common.query.QueryBatch
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.result.StatementResult
 
@@ -78,6 +80,13 @@ interface Connection : UniqueResourceId {
      * Only call this method if you are sure you need it.
      */
     suspend fun releasePreparedStatement(query: String)
+
+    /** Create a new [Query] for this [Connection] with the specified [query] string */
+    fun createQuery(query: String): Query = Query(query, this)
+    /**
+     *
+     */
+    fun createQueryBatch(): QueryBatch = DefaultQueryBatch(this)
 }
 
 /**
