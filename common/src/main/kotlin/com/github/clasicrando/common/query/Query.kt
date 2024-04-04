@@ -2,7 +2,6 @@ package com.github.clasicrando.common.query
 
 import com.github.clasicrando.common.AutoRelease
 import com.github.clasicrando.common.connection.Connection
-import com.github.clasicrando.common.datetime.DateTime
 import com.github.clasicrando.common.exceptions.EmptyQueryResult
 import com.github.clasicrando.common.exceptions.IncorrectScalarType
 import com.github.clasicrando.common.exceptions.NoResultFound
@@ -13,9 +12,6 @@ import com.github.clasicrando.common.result.StatementResult
 import com.github.clasicrando.common.use
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.LocalTime
 import kotlin.reflect.KClass
 
 /**
@@ -34,8 +30,6 @@ open class Query(
     /** Internal list of parameters that are bound to this [Query] */
     @PublishedApi
     internal val parameters: MutableList<Any?> = mutableListOf()
-    /** Read-only [List] of the parameters currently bound to this [Query] */
-    val params: List<Any?> get() = parameters
 
     /**
      * Bind a next [parameter] to the [Query]. This adds the parameter to the internal list of
@@ -100,34 +94,12 @@ open class Query(
      */
     suspend inline fun <reified T : Any> fetchScalar(): T? {
         checkNotNull(connection) { "Query already released its Connection" }
-        val cls = T::class
         return connection!!.sendPreparedStatement(query, parameters).use { statementResult ->
             if (statementResult.size == 0) {
                 throw NoResultFound(query)
             }
-            statementResult.first().use { queryResult ->
-                queryResult.rows.firstOrNull()?.use { row ->
-                    val value = when (cls) {
-                        BOOLEAN_CLASS -> row.getBoolean(FIRST_INDEX)
-                        BYTE_CLASS -> row.getByte(FIRST_INDEX)
-                        SHORT_CLASS -> row.getShort(FIRST_INDEX)
-                        INT_CLASS -> row.getInt(FIRST_INDEX)
-                        LONG_CLASS -> row.getLong(FIRST_INDEX)
-                        FLOAT_CLASS -> row.getFloat(FIRST_INDEX)
-                        DOUBLE_CLASS -> row.getDouble(FIRST_INDEX)
-                        LOCAL_DATE_CLASS -> row.getLocalDate(FIRST_INDEX)
-                        LOCAL_TIME_CLASS -> row.getLocalTime(FIRST_INDEX)
-                        LOCAL_DATE_TIME_CLASS -> row.getLocalDateTime(FIRST_INDEX)
-                        DATETIME_CLASS -> row.getDateTime(FIRST_INDEX)
-                        STRING_CLASS -> row.getString(FIRST_INDEX)
-                        else -> row[FIRST_INDEX]
-                    }
-                    if (!cls.isInstance(value)) {
-                        throw IncorrectScalarType(value, cls)
-                    }
-                    value as T?
-                }
-            }
+            statementResult.first()
+                .use { queryResult -> queryResult.extractScalar() }
         }
     }
 
@@ -146,17 +118,8 @@ open class Query(
             if (statementResult.size == 0) {
                 throw NoResultFound(query)
             }
-            statementResult.first().use { queryResult ->
-                queryResult.rows.firstOrNull()?.use { row ->
-                    try {
-                        rowParser.fromRow(row)
-                    } catch (ex: RowParseError) {
-                        throw ex
-                    } catch (ex: Throwable) {
-                        throw RowParseError(rowParser, ex)
-                    }
-                }
-            }
+            statementResult.first()
+                .use { queryResult -> queryResult.extractFirst(rowParser) }
         }
     }
 
@@ -177,20 +140,13 @@ open class Query(
             if (statementResult.size == 0) {
                 throw NoResultFound(query)
             }
-            statementResult.first().use { queryResult ->
-                if (queryResult.rowsAffected > 1) {
-                    throw TooManyRows(query)
-                }
-                queryResult.rows.firstOrNull()?.use { row ->
-                    try {
-                        rowParser.fromRow(row)
-                    } catch (ex: RowParseError) {
-                        throw ex
-                    } catch (ex: Throwable) {
-                        throw RowParseError(rowParser, ex)
+            statementResult.first()
+                .use { queryResult ->
+                    if (queryResult.rowsAffected > 1) {
+                        throw TooManyRows(query)
                     }
-                } ?: throw EmptyQueryResult(query)
-            }
+                    queryResult.extractFirst(rowParser) ?: throw EmptyQueryResult(query)
+                }
         }
     }
 
@@ -209,17 +165,8 @@ open class Query(
             if (statementResult.size == 0) {
                 throw NoResultFound(query)
             }
-            statementResult.first().use { queryResult ->
-                queryResult.rows.map { row ->
-                    try {
-                        rowParser.fromRow(row)
-                    } catch (ex: RowParseError) {
-                        throw ex
-                    } catch (ex: Throwable) {
-                        throw RowParseError(rowParser, ex)
-                    }
-                }
-            }
+            statementResult.first()
+                .use { queryResult -> queryResult.extractAll(rowParser).toList() }
         }
     }
 
@@ -239,7 +186,8 @@ open class Query(
             if (statementResult.size == 0) {
                 throw NoResultFound(query)
             }
-            statementResult.first().use { queryResult ->
+            statementResult.first()
+                .use { queryResult ->
                 for (row in queryResult.rows) {
                     try {
                         emit(rowParser.fromRow(row))
@@ -255,34 +203,5 @@ open class Query(
 
     override fun release() {
         connection = null
-    }
-
-    companion object {
-        @PublishedApi
-        internal const val FIRST_INDEX = 0
-        @PublishedApi
-        internal val BOOLEAN_CLASS = Boolean::class
-        @PublishedApi
-        internal val BYTE_CLASS = Byte::class
-        @PublishedApi
-        internal val SHORT_CLASS = Short::class
-        @PublishedApi
-        internal val INT_CLASS = Int::class
-        @PublishedApi
-        internal val LONG_CLASS = Long::class
-        @PublishedApi
-        internal val FLOAT_CLASS = Float::class
-        @PublishedApi
-        internal val DOUBLE_CLASS = Double::class
-        @PublishedApi
-        internal val LOCAL_DATE_CLASS = LocalDate::class
-        @PublishedApi
-        internal val LOCAL_TIME_CLASS = LocalTime::class
-        @PublishedApi
-        internal val LOCAL_DATE_TIME_CLASS = LocalDateTime::class
-        @PublishedApi
-        internal val DATETIME_CLASS = DateTime::class
-        @PublishedApi
-        internal val STRING_CLASS = String::class
     }
 }
