@@ -10,6 +10,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 import java.sql.Connection
 import java.time.LocalDateTime
@@ -66,5 +67,10 @@ open class JdbcBenchmarkSingle {
                 }
             }
         }
+    }
+
+    @TearDown
+    open fun destroy() {
+        connection.close()
     }
 }

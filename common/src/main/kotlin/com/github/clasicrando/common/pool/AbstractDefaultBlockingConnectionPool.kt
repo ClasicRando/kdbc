@@ -1,25 +1,24 @@
 package com.github.clasicrando.common.pool
 
-import com.github.clasicrando.common.atomic.AtomicMutableMap
+import com.github.clasicrando.common.connection.BlockingConnection
 import com.github.clasicrando.common.connection.Connection
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.atomicfu.locks.ReentrantLock
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.job
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.uuid.UUID
-import kotlin.coroutines.CoroutineContext
+import java.util.concurrent.BlockingDeque
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.LinkedBlockingDeque
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * Default implementation of a [ConnectionPool], using a [Channel] to provide and buffer
- * [Connection] instances as needed. Uses the [poolOptions] and [provider] specified to set the
- * pool's details and allow for creating/validating [Connection] instances.
+ * Default implementation of a [BlockingConnectionPool], using a [BlockingDeque] to provide and
+ * buffer [BlockingConnection] instances as needed. Uses the [poolOptions] and [provider] specified
+ * to set the pool's details and allow for creating/validating [BlockingConnection] instances.
  *
  * Before using the pool, [initialize] must be called to verify the connection options can create
  * connections. Initialization also pre-populates the pool with the number of connections required
@@ -27,27 +26,23 @@ private val logger = KotlinLogging.logger {}
  *
  * TODO
  * - look into an algorithm to close connections after a certain duration stored within the
- * [connections] channel, down to the [PoolOptions.minConnections] threshold
+ * [connections] dequeue, down to the [PoolOptions.minConnections] threshold
  */
-abstract class AbstractDefaultConnectionPool<C : Connection>(
+abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
     private val poolOptions: PoolOptions,
-    private val provider: ConnectionProvider<C>,
-) : ConnectionPool<C> {
-    private val connections = Channel<C>(capacity = poolOptions.maxConnections)
-    private val connectionIds: MutableMap<UUID, C> = AtomicMutableMap()
-    private val connectionNeeded = Channel<CompletableDeferred<C?>>(capacity = Channel.BUFFERED)
-    private val mutex = Mutex()
-
-    final override val coroutineContext: CoroutineContext = SupervisorJob(
-        parent = poolOptions.parentScope?.coroutineContext?.job,
-    )
+    private val provider: BlockingConnectionProvider<C>,
+) : BlockingConnectionPool<C> {
+    private val connections: BlockingDeque<C> = LinkedBlockingDeque()
+    private val connectionIds: MutableMap<UUID, C> = mutableMapOf()
+    private val connectionNeeded: BlockingDeque<CompletableFuture<C>> = LinkedBlockingDeque()
+    private val lock = ReentrantLock(true)
 
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,
      * add the [Connection.resourceId] to the [connectionIds] set and return the new connection
      */
-    private suspend fun createNewConnection(): C {
-        val connection = provider.create(this@AbstractDefaultConnectionPool)
+    private fun createNewConnection(): C {
+        val connection = provider.create(this@AbstractDefaultBlockingConnectionPool)
         connectionIds[connection.resourceId] = connection
         logger.atTrace {
             message = "Created new connection. Current pool size = {count}. Max size = {max}"
@@ -63,7 +58,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
      * Database specific method to dispose of a [connection] when the connection is no longer valid
      * or the pool no longer needs to [connection].
      */
-    abstract suspend fun disposeConnection(connection: C)
+    abstract fun disposeConnection(connection: C)
 
     /**
      * Invalidate a [connection] from the pool by moving the [Connection] out of the pool's
@@ -71,11 +66,11 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
      * [connectionIds] set, removing the reference to the pool in the [Connection] and closing the
      * actual [Connection]. This action will only fail if the [logger] fails to log.
      */
-    private suspend fun invalidateConnection(connection: C) {
+    private fun invalidateConnection(connection: C) {
         var connectionId: UUID? = null
         try {
             connectionId = connection.resourceId
-            connectionIds.remove(connectionId)
+            lock.withLock { connectionIds.remove(connectionId) }
             logger.atTrace {
                 message = "Invalidating connection id = {id}"
                 payload = mapOf("id" to connectionId)
@@ -97,18 +92,15 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
      *
      * @throws IllegalStateException if the channel is closed
      */
-    private suspend fun acquireConnection(): C? {
-        val result = connections.tryReceive()
-        when  {
-            result.isSuccess -> return result.getOrThrow()
-            result.isFailure -> return mutex.withLock {
-                if (!isExhausted) {
-                    createNewConnection()
-                } else {
-                    null
-                }
+    private fun acquireConnection(): C? {
+        val result = connections.poll()
+        if (result != null) {
+            return result
+        }
+        lock.withLock {
+            if (!isExhausted) {
+                return createNewConnection()
             }
-            result.isClosed -> error("Connection channel for pool is closed")
         }
         return null
     }
@@ -123,19 +115,20 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
      * [PoolOptions.acquireTimeout] duration is exceeded
      * @throws IllegalStateException if the [connections] channel is closed
      */
-    override suspend fun acquire(): C {
+    override fun acquire(): C {
         val connection = acquireConnection()
         if (connection != null) {
             return connection
         }
-        val deferred = CompletableDeferred<C?>(parent = coroutineContext.job)
-        connectionNeeded.send(deferred)
-        val result = if (poolOptions.acquireTimeout.isInfinite()) {
-            deferred.await()
-        } else {
-            withTimeoutOrNull(poolOptions.acquireTimeout) {
-                deferred.await()
-            }
+        val deferred = CompletableFuture<C>()
+        connectionNeeded.put(deferred)
+        val result = try {
+            deferred.get(
+                poolOptions.acquireTimeout.inWholeMilliseconds,
+                TimeUnit.MILLISECONDS,
+            )
+        } catch (ex: TimeoutException) {
+            throw AcquireTimeout()
         }
         if (result != null) {
             return result
@@ -152,10 +145,12 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
 
     /** Checks the [connectionIds] lookup table for the [poolConnection]'s ID */
     internal fun hasConnection(poolConnection: C): Boolean {
-        return connectionIds.contains(poolConnection.resourceId)
+        return lock.withLock {
+            connectionIds.contains(poolConnection.resourceId)
+        }
     }
 
-    override suspend fun giveBack(connection: C): Boolean {
+    override fun giveBack(connection: C): Boolean {
         if (!hasConnection(connection)) {
             return false
         }
@@ -164,22 +159,17 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
             return true
         }
         while (true) {
-            val result = connectionNeeded.tryReceive()
-            when {
-                result.isSuccess -> {
-                    if (result.getOrThrow().complete(connection)) {
-                        return true
-                    }
-                }
-                result.isFailure -> break
-                result.isClosed -> error("Connection channel for pool is closed")
+            val result = connectionNeeded.poll() ?: break
+            if (result.complete(connection)) {
+                return true
             }
         }
 
-        return connections.trySend(connection).isSuccess
+        connections.put(connection)
+        return true
     }
 
-    override suspend fun initialize(): Boolean {
+    override fun initialize(): Boolean {
         var initialConnection: C? = null
         try {
             initialConnection = createNewConnection()
@@ -198,30 +188,22 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
             } catch (ignored: Throwable) {}
         }
         for (i in 1..<poolOptions.minConnections) {
-            connections.send(createNewConnection())
+            connections.put(createNewConnection())
         }
         return true
     }
 
-    override suspend fun close() {
-        connections.close()
+    override fun close() {
         while (true) {
-            val result = connectionNeeded.tryReceive()
-            when {
-                result.isSuccess -> {
-                    val error = Exception("Pool closed while connections are still being requested")
-                    result.getOrNull()?.completeExceptionally(error)
-                }
-                result.isFailure || result.isClosed -> break
-            }
+            val result = connectionNeeded.poll() ?: break
+            val error = Exception("Pool closed while connections are still being requested")
+            result.completeExceptionally(error)
         }
-        connectionNeeded.close()
         for (connection in connectionIds.values) {
             connection.close()
         }
         logger.atTrace {
             message = "Canceling scope of connection pool"
         }
-        cancel()
     }
 }
