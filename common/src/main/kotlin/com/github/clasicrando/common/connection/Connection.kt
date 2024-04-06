@@ -1,6 +1,9 @@
 package com.github.clasicrando.common.connection
 
 import com.github.clasicrando.common.UniqueResourceId
+import com.github.clasicrando.common.query.DefaultQueryBatch
+import com.github.clasicrando.common.query.Query
+import com.github.clasicrando.common.query.QueryBatch
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.result.StatementResult
 
@@ -77,6 +80,12 @@ interface Connection : UniqueResourceId {
      * Only call this method if you are sure you need it.
      */
     suspend fun releasePreparedStatement(query: String)
+
+    /** Create a new [Query] for this [Connection] with the specified [query] string */
+    fun createQuery(query: String): Query = Query(query, this)
+
+    /** Create a new [QueryBatch] for this [Connection] */
+    fun createQueryBatch(): QueryBatch = DefaultQueryBatch(this)
 }
 
 /**
@@ -86,7 +95,7 @@ interface Connection : UniqueResourceId {
  * the function. Note, this does not catch the exception, rather it rethrows after cleaning up
  * resources if an exception was thrown.
  */
-suspend inline fun <R, C : Connection> C.use(crossinline block: suspend (C) -> R): R {
+suspend inline fun <R, C : Connection> C.use(block: (C) -> R): R {
     var cause: Throwable? = null
     return try {
         block(this)
@@ -109,9 +118,7 @@ suspend inline fun <R, C : Connection> C.use(crossinline block: suspend (C) -> R
  * the function. Note, this does catch the exception and wraps that is a [Result]. Otherwise, it
  * returns a [Result] with the result of [block].
  */
-suspend inline fun <R, C : Connection> C.useCatching(
-    crossinline block: suspend (C) -> R,
-): Result<R> {
+suspend inline fun <R, C : Connection> C.useCatching(block: (C) -> R): Result<R> {
     var cause: Throwable? = null
     return try {
         Result.success(block(this))
@@ -133,9 +140,7 @@ suspend inline fun <R, C : Connection> C.useCatching(
  * otherwise, [Connection.rollback] is called and the original exception is rethrown. This all
  * happens within a [Connection.use] block so the resources are always cleaned up before returning.
  */
-suspend inline fun <R, C : Connection> C.transaction(
-    crossinline block: suspend (C) -> R,
-): R = use {
+suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R = use {
     try {
         this.begin()
         val result = block(this)
@@ -156,7 +161,7 @@ suspend inline fun <R, C : Connection> C.transaction(
  * other exceptions are caught and returned as a [Result].
  */
 suspend inline fun <R, C : Connection> C.transactionCatching(
-    crossinline block: suspend (C) -> R,
+    block: (C) -> R,
 ): Result<R> = useCatching {
     try {
         this.begin()

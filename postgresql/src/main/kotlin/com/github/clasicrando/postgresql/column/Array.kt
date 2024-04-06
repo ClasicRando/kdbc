@@ -191,6 +191,9 @@ internal fun <T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
             List(length) {
                 // Read length value but don't use it since a ReadBufferSlice cannot be constructed
                 val elementLength = value.bytes.readInt()
+                if (elementLength == -1) {
+                    return@List null
+                }
                 val slice = value.bytes.slice(elementLength)
                 value.bytes.skip(elementLength)
                 decoder.decode(PgValue.Binary(slice, fieldDescription))

@@ -1,6 +1,9 @@
 package com.github.clasicrando.common.connection
 
 import com.github.clasicrando.common.UniqueResourceId
+import com.github.clasicrando.common.query.BlockingQuery
+import com.github.clasicrando.common.query.BlockingQueryBatch
+import com.github.clasicrando.common.query.DefaultBlockingQueryBatch
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.result.StatementResult
 
@@ -10,14 +13,14 @@ private const val RESOURCE_TYPE = "BlockingConnection"
  * A connection/session with a database. Each database vendor will provide these required
  * properties and methods to interact with any database implemented for this library.
  *
- * When you receive an instance of a [Connection], the underling connection has already been
+ * When you receive an instance of a [BlockingConnection], the underling connection has already been
  * established and the session has been prepared for immediate action.
  *
- * To keep the [Connection] resources from leaking, the recommended usage of [Connection] instances
- * is to utilize the [use] and [transaction] methods which always clean up [Connection] resources
- * before exiting. This does implicitly close the connection so if you intend to hold a
- * [Connection] for a long period of time (e.g. outside the scope of a single method) you should
- * find a way to always close the [Connection].
+ * To keep the [BlockingConnection] resources from leaking, the recommended usage of
+ * [BlockingConnection] instances is to utilize the [use] and [transaction] methods which always
+ * clean up [Connection] resources before exiting. This does implicitly close the connection so if
+ * you intend to hold a [BlockingConnection] for a long period of time (e.g. outside the scope of a
+ * single method) you should find a way to always close the [BlockingConnection].
  */
 interface BlockingConnection : UniqueResourceId {
 
@@ -78,16 +81,22 @@ interface BlockingConnection : UniqueResourceId {
      * Only call this method if you are sure you need it.
      */
     fun releasePreparedStatement(query: String)
+
+    /** Create a new [BlockingQuery] for this [BlockingConnection] with the specified [query] string */
+    fun createQuery(query: String): BlockingQuery = BlockingQuery(query, this)
+
+    /** Create a new [BlockingQueryBatch] for this [BlockingConnection] */
+    fun createQueryBatch(): BlockingQueryBatch = DefaultBlockingQueryBatch(this)
 }
 
 /**
- * Use a [Connection] within the specified [block], allowing for the [Connection] to always
- * [Connection.close], even if the block throws an exception. This is similar to the functionality
- * that [AutoCloseable] provides where the resources are always cleaned up before returning from
- * the function. Note, this does not catch the exception, rather it rethrows after cleaning up
- * resources if an exception was thrown.
+ * Use a [BlockingConnection] within the specified [block], allowing for the [BlockingConnection]
+ * to always call [BlockingConnection.close], even if the block throws an exception. This is
+ * similar to the functionality that [AutoCloseable] provides where the resources are always
+ * cleaned up before returning from the function. Note, this does not catch the exception, rather
+ * it rethrows after cleaning up resources if an exception was thrown.
  */
-inline fun <R, C : BlockingConnection> C.use(crossinline block: (C) -> R): R {
+inline fun <R, C : BlockingConnection> C.use(block: (C) -> R): R {
     var cause: Throwable? = null
     return try {
         block(this)
@@ -104,13 +113,13 @@ inline fun <R, C : BlockingConnection> C.use(crossinline block: (C) -> R): R {
 }
 
 /**
- * Use a [Connection] within the specified [block], allowing for the [Connection] to always
- * [Connection.close], even if the block throws an exception. This is similar to the functionality
- * that [AutoCloseable] provides where the resources are always cleaned up before returning from
- * the function. Note, this does catch the exception and wraps that is a [Result]. Otherwise, it
- * returns a [Result] with the result of [block].
+ * Use a [BlockingConnection] within the specified [block], allowing for the [BlockingConnection]
+ * to always call [BlockingConnection.close], even if the block throws an exception. This is
+ * similar to the functionality that [AutoCloseable] provides where the resources are always
+ * cleaned up before returning from the function. Note, this does catch the exception and wraps
+ * that is a [Result]. Otherwise, it returns a [Result] with the result of [block].
  */
-inline fun <R, C : BlockingConnection> C.useCatching(crossinline block: (C) -> R): Result<R> {
+inline fun <R, C : BlockingConnection> C.useCatching(block: (C) -> R): Result<R> {
     var cause: Throwable? = null
     return try {
         Result.success(block(this))
@@ -127,12 +136,13 @@ inline fun <R, C : BlockingConnection> C.useCatching(crossinline block: (C) -> R
 }
 
 /**
- * Use a [Connection] within the scope of a transaction. This means an implicit [Connection.begin]
- * happens before [block] is called. If no exception is thrown then [Connection.commit] is called,
- * otherwise, [Connection.rollback] is called and the original exception is rethrown. This all
- * happens within a [Connection.use] block so the resources are always cleaned up before returning.
+ * Use a [BlockingConnection] within the scope of a transaction. This means an implicit
+ * [BlockingConnection.begin] happens before [block] is called. If no exception is thrown then
+ * [BlockingConnection.commit] is called, otherwise, [BlockingConnection.rollback] is called and
+ * the original exception is rethrown. This all happens within a [BlockingConnection.use] block so
+ * the resources are always cleaned up before returning.
  */
-inline fun <R, C : BlockingConnection> C.transaction(crossinline block: (C) -> R): R = use {
+inline fun <R, C : BlockingConnection> C.transaction(block: (C) -> R): R = use {
     try {
         this.begin()
         val result = block(this)
@@ -145,15 +155,16 @@ inline fun <R, C : BlockingConnection> C.transaction(crossinline block: (C) -> R
 }
 
 /**
- * Use a [Connection] within the scope of a transaction. This means an implicit [Connection.begin]
- * happens before [block] is called. If no exception is thrown then [Connection.commit] is called,
- * returning the outcome of [block] as a [Result]. Otherwise, [Connection.rollback] is called and
- * the original exception is wrapped into a [Result] and returned. This all happens within a
- * [Connection.useCatching] block so the resources are always cleaned up before returning and all
- * other exceptions are caught and returned as a [Result].
+ * Use a [BlockingConnection] within the scope of a transaction. This means an implicit
+ * [BlockingConnection.begin] happens before [block] is called. If no exception is thrown then
+ * [BlockingConnection.commit] is called, returning the outcome of [block] as a [Result].
+ * Otherwise, [BlockingConnection.rollback] is called and the original exception is wrapped into a
+ * [Result] and returned. This all happens within a [BlockingConnection.useCatching] block so the
+ * resources are always cleaned up before returning and all other exceptions are caught and
+ * returned as a [Result].
  */
 inline fun <R, C : BlockingConnection> C.transactionCatching(
-    crossinline block: (C) -> R,
+    block: (C) -> R,
 ): Result<R> = useCatching {
     try {
         this.begin()

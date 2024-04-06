@@ -189,6 +189,9 @@ internal class PgCompositeTypeDecoder<T : Any>(
             val typeOid = PgType.fromOid(value.bytes.readInt())
             val fieldDescription = dummyTypedFieldDescription(typeOid.oid)
             val attributeLength = value.bytes.readInt()
+            if (attributeLength == -1) {
+                return@Array null
+            }
             val slice = value.bytes.slice(attributeLength)
             value.bytes.skip(attributeLength)
             val innerValue = PgValue.Binary(slice, fieldDescription)
