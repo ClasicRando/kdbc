@@ -4,7 +4,7 @@ import com.github.clasicrando.common.UniqueResourceId
 import com.github.clasicrando.common.result.QueryResult
 import com.github.clasicrando.common.result.StatementResult
 
-private const val RESOURCE_TYPE = "Connection"
+private const val RESOURCE_TYPE = "BlockingConnection"
 
 /**
  * A connection/session with a database. Each database vendor will provide these required
@@ -19,7 +19,8 @@ private const val RESOURCE_TYPE = "Connection"
  * [Connection] for a long period of time (e.g. outside the scope of a single method) you should
  * find a way to always close the [Connection].
  */
-interface Connection : UniqueResourceId {
+interface BlockingConnection : UniqueResourceId {
+
     override val resourceType: String get() = RESOURCE_TYPE
 
     /**
@@ -38,37 +39,37 @@ interface Connection : UniqueResourceId {
      * Method called to close the connection and free any resources that are held by the
      * connection. Once this has been called, the [Connection] instance should not be used.
      */
-    suspend fun close()
+    fun close()
 
     /**
      * Request that the database start a new transaction. This will fail if the [Connection] is
      * already within a transaction.
      */
-    suspend fun begin()
+    fun begin()
 
     /**
      * Commit the current transaction. This will fail if the [Connection] was not within a
      * transaction
      */
-    suspend fun commit()
+    fun commit()
 
     /**
      * Rollback the current transaction. This will fail if the [Connection] was not within a
      * transaction
      */
-    suspend fun rollback()
+    fun rollback()
 
     /**
      * Send a raw query with no parameters, returning a [StatementResult] containing zero or more
      * [QueryResult]s
      */
-    suspend fun sendQuery(query: String): StatementResult
+    fun sendQuery(query: String): StatementResult
 
     /**
      * Send a prepared statement with [parameters], returning a [StatementResult] containing zero
      * or more [QueryResult]s
      */
-    suspend fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult
+    fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult
 
     /**
      * Manually release a prepared statement for the provided [query]. This will not error if the
@@ -76,7 +77,7 @@ interface Connection : UniqueResourceId {
      *
      * Only call this method if you are sure you need it.
      */
-    suspend fun releasePreparedStatement(query: String)
+    fun releasePreparedStatement(query: String)
 }
 
 /**
@@ -86,7 +87,7 @@ interface Connection : UniqueResourceId {
  * the function. Note, this does not catch the exception, rather it rethrows after cleaning up
  * resources if an exception was thrown.
  */
-suspend inline fun <R, C : Connection> C.use(crossinline block: suspend (C) -> R): R {
+inline fun <R, C : BlockingConnection> C.use(crossinline block: (C) -> R): R {
     var cause: Throwable? = null
     return try {
         block(this)
@@ -109,9 +110,7 @@ suspend inline fun <R, C : Connection> C.use(crossinline block: suspend (C) -> R
  * the function. Note, this does catch the exception and wraps that is a [Result]. Otherwise, it
  * returns a [Result] with the result of [block].
  */
-suspend inline fun <R, C : Connection> C.useCatching(
-    crossinline block: suspend (C) -> R,
-): Result<R> {
+inline fun <R, C : BlockingConnection> C.useCatching(crossinline block: (C) -> R): Result<R> {
     var cause: Throwable? = null
     return try {
         Result.success(block(this))
@@ -133,9 +132,7 @@ suspend inline fun <R, C : Connection> C.useCatching(
  * otherwise, [Connection.rollback] is called and the original exception is rethrown. This all
  * happens within a [Connection.use] block so the resources are always cleaned up before returning.
  */
-suspend inline fun <R, C : Connection> C.transaction(
-    crossinline block: suspend (C) -> R,
-): R = use {
+inline fun <R, C : BlockingConnection> C.transaction(crossinline block: (C) -> R): R = use {
     try {
         this.begin()
         val result = block(this)
@@ -155,8 +152,8 @@ suspend inline fun <R, C : Connection> C.transaction(
  * [Connection.useCatching] block so the resources are always cleaned up before returning and all
  * other exceptions are caught and returned as a [Result].
  */
-suspend inline fun <R, C : Connection> C.transactionCatching(
-    crossinline block: suspend (C) -> R,
+inline fun <R, C : BlockingConnection> C.transactionCatching(
+    crossinline block: (C) -> R,
 ): Result<R> = useCatching {
     try {
         this.begin()

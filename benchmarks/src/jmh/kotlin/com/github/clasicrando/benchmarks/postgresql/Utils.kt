@@ -1,8 +1,10 @@
 package com.github.clasicrando.benchmarks.postgresql
 
 import com.github.clasicrando.common.LogSettings
+import com.github.clasicrando.common.connection.BlockingConnection
 import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.pool.PoolOptions
+import com.github.clasicrando.postgresql.connection.PgBlockingConnection
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.jasync.sql.db.pool.ConnectionPool
@@ -137,7 +139,30 @@ suspend fun initializeConcurrentConnections(): PgConnectOptions {
             minConnections = 8,
         ),
     )
-    PgConnection.connect(connectOptions = options)
+    PgConnection.connect(connectOptions = options).close()
+    return options
+}
+
+fun getKdbcBlockingConnection(): BlockingConnection {
+    return PgBlockingConnection.connect(connectOptions = defaultConnectOptions)
+}
+
+fun initializeThreadPoolBlockingConnections(): PgConnectOptions {
+    val options = PgConnectOptions(
+        host = "192.168.2.15",
+        port = 5430U,
+        username = "em_admin",
+        password = System.getenv("PG_BENCHMARK_PASSWORD")
+            ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
+        database = "enviro_manager",
+        applicationName = "KdbcTests${UUID.generateUUID()}",
+        logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
+        poolOptions = PoolOptions(
+            maxConnections = 10,
+            minConnections = 8,
+        ),
+    )
+    PgBlockingConnection.connect(connectOptions = options).close()
     return options
 }
 

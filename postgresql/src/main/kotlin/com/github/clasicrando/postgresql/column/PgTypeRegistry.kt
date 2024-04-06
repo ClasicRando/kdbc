@@ -4,6 +4,7 @@ import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.buffer.ByteWriteBuffer
 import com.github.clasicrando.common.column.ColumnDecodeError
 import com.github.clasicrando.common.use
+import com.github.clasicrando.postgresql.connection.PgBlockingConnection
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.connection.PgConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -324,6 +325,88 @@ internal class PgTypeRegistry {
         )
     }
 
+    /**
+     * Register a new enum type with all the required components. Checks the database for the oid
+     * of the enum type using the [connection] provided. Adds the type, and it's related array type
+     * as well (looking up the oid in a similar fashion).
+     */
+    fun <E : Enum<E>, D : Enum<D>> registerEnumType(
+        connection: PgBlockingConnection,
+        encoder: PgTypeEncoder<E>,
+        decoder: PgTypeDecoder<D>,
+        type: String,
+        arrayType: KType,
+    ) {
+        val verifiedOid = checkEnumDbTypeByName(type, connection)
+            ?: error("Could not verify the enum type name '$type' in the database")
+        logger.atTrace {
+            message = "Adding column decoder for enum type {name} ({oid})"
+            payload = mapOf("name" to type, "oid" to verifiedOid)
+        }
+        checkAgainstExistingType(encoder.encodeTypes, verifiedOid)
+        encoder.pgType = PgType.ByName(type, verifiedOid)
+        addTypeToCaches(verifiedOid, encoder, decoder)
+
+        val arrayOid = checkArrayDbTypeByOid(verifiedOid, connection)
+            ?: error("Could not verify the array type for element oid = $verifiedOid")
+        logger.atTrace {
+            message = "Adding array column decoder for enum type {name} ({oid})"
+            payload = mapOf("name" to type, "oid" to verifiedOid)
+        }
+        val arrayTypeEncoder = arrayTypeEncoder(
+            encoder = encoder,
+            pgType = PgType.ByName("_$type", arrayOid),
+            arrayType = arrayType,
+        )
+        checkAgainstExistingType(arrayTypeEncoder.encodeTypes, arrayOid)
+        addTypeToCaches(
+            oid = arrayOid,
+            encoder = arrayTypeEncoder,
+            decoder = arrayTypeDecoder(decoder, arrayType),
+        )
+    }
+
+    /**
+     * Register a new composite type with all the required components. Checks the database for the
+     * oid of the composite type using the [connection] provided. Adds the type, and it's related
+     * array type as well (looking up the oid in a similar fashion).
+     */
+    fun <E : Any, D : Any> registerCompositeType(
+        connection: PgBlockingConnection,
+        encoder: PgTypeEncoder<E>,
+        decoder: PgTypeDecoder<D>,
+        type: String,
+        arrayType: KType,
+    ) {
+        val verifiedOid = checkCompositeDbTypeByName(type, connection)
+            ?: error("Could not verify the composite type name '$type' in the database")
+        logger.atTrace {
+            message = "Adding column decoder for composite type {name} ({oid})"
+            payload = mapOf("name" to type, "oid" to verifiedOid)
+        }
+        encoder.pgType = PgType.ByName(type, verifiedOid)
+        checkAgainstExistingType(encoder.encodeTypes, verifiedOid)
+        addTypeToCaches(verifiedOid, encoder, decoder)
+
+        val arrayOid = checkArrayDbTypeByOid(verifiedOid, connection)
+            ?: error("Could not verify the array type for element oid = $verifiedOid")
+        logger.atTrace {
+            message = "Adding array column decoder for composite type {name} ({oid})"
+            payload = mapOf("name" to type, "oid" to verifiedOid)
+        }
+        val arrayTypeEncoder = arrayTypeEncoder(
+            encoder = encoder,
+            pgType = PgType.ByName("_$type", arrayOid),
+            arrayType = arrayType,
+        )
+        checkAgainstExistingType(arrayTypeEncoder.encodeTypes, arrayOid)
+        addTypeToCaches(
+            oid = arrayOid,
+            encoder = arrayTypeEncoder,
+            decoder = arrayTypeDecoder(decoder, arrayType),
+        )
+    }
+
     companion object {
         private val dateTimePeriodType = typeOf<DateTimePeriod>()
         private val dateTimePeriodArrayTypeEncoder = arrayTypeEncoder(
@@ -610,6 +693,104 @@ internal class PgTypeRegistry {
         private suspend fun checkCompositeDbTypeByName(
             name: String,
             connection: PgConnection,
+        ): Int? {
+            var schema: String? = null
+            var typeName = name
+            val schemaQualifierIndex = name.indexOf('.')
+            if (schemaQualifierIndex > -1) {
+                schema = name.substring(0, schemaQualifierIndex)
+                typeName = name.substring(schemaQualifierIndex + 1)
+            }
+
+            val parameters = listOf(typeName, schema)
+            val oid = connection.sendPreparedStatement(pgCompositeTypeByName, parameters).use {
+                val result = it.firstOrNull() ?: error(
+                    "Found no results when executing a check for composite db type by name"
+                )
+                result.rows.firstOrNull()?.getInt(0)
+            }
+            if (oid == null) {
+                logger.atWarn {
+                    message = "Could not find composite type for name = {name}"
+                    payload = mapOf("name" to name)
+                }
+                return null
+            }
+            return oid
+        }
+
+        /**
+         * Fetch and return the array OID for a type whose inner [oid] is specified. Queries the
+         * database using the [connection] provided to retrieve the database instance specific OID.
+         * Returns null if the OID could not be found.
+         */
+        private fun checkArrayDbTypeByOid(oid: Int, connection: PgBlockingConnection): Int? {
+            val arrayOid = connection.sendPreparedStatement(
+                query = pgArrayTypeByInnerOid,
+                parameters = listOf(oid)
+            ).use {
+                val result = it.firstOrNull()
+                    ?: error("Found no results when executing a check for array db type by oid")
+                result.rows.firstOrNull()?.getInt(0)
+            }
+
+            if (arrayOid == null) {
+                logger.atWarn {
+                    message = "Could not find array type for oid = {oid}"
+                    payload = mapOf("oid" to oid)
+                }
+                return null
+            }
+            return arrayOid
+        }
+
+        /**
+         * Fetch and return the type OID for an enum with the [name]. Queries the database using
+         * the [connection] provided to retrieve the database instance specific OID. Returns null
+         * if the OID could not be found.
+         *
+         * @param name Name of the enum type. Can be schema qualified but defaults to public if no
+         * schema is included
+         */
+        private fun checkEnumDbTypeByName(
+            name: String,
+            connection: PgBlockingConnection,
+        ): Int? {
+            var schema: String? = null
+            var typeName = name
+            val schemaQualifierIndex = name.indexOf('.')
+            if (schemaQualifierIndex > -1) {
+                schema = name.substring(0, schemaQualifierIndex)
+                typeName = name.substring(schemaQualifierIndex + 1)
+            }
+
+            val parameters = listOf(typeName, schema)
+            val oid = connection.sendPreparedStatement(pgEnumTypeByName, parameters).use {
+                val result = it.firstOrNull()
+                    ?: error("Found no results when executing a check for enum db type by name")
+                result.rows.firstOrNull()?.getInt(0)
+            }
+            if (oid == null) {
+                logger.atWarn {
+                    message = "Could not find enum type for name = {name}"
+                    payload = mapOf("name" to name)
+                }
+                return null
+            }
+            return oid
+        }
+
+        /**
+         * Fetch and return the type OID for a composite with the [name]. Queries the database
+         * using the [connection] provided to retrieve the database instance specific OID. Returns
+         * null if the OID could not be found.
+         *
+         * @param name Name of the composite type. Can be schema qualified but defaults to public
+         * if no schema is included
+         */
+        private fun checkCompositeDbTypeByName(
+            name: String,
+            connection: PgBlockingConnection,
         ): Int? {
             var schema: String? = null
             var typeName = name
