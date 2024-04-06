@@ -33,4 +33,8 @@ object PgConnectionHelper {
     fun defaultBlockingConnection(): PgBlockingConnection {
         return PgBlockingConnection.connect(connectOptions = defaultConnectOptions)
     }
+
+    fun defaultBlockingConnectionWithForcedSimple(): PgBlockingConnection {
+        return PgBlockingConnection.connect(connectOptions = defaultConnectOptionsWithForcedSimple)
+    }
 }

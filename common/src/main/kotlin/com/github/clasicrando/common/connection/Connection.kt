@@ -83,9 +83,8 @@ interface Connection : UniqueResourceId {
 
     /** Create a new [Query] for this [Connection] with the specified [query] string */
     fun createQuery(query: String): Query = Query(query, this)
-    /**
-     *
-     */
+
+    /** Create a new [QueryBatch] for this [Connection] */
     fun createQueryBatch(): QueryBatch = DefaultQueryBatch(this)
 }
 
