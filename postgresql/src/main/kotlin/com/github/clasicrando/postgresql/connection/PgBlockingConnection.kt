@@ -3,9 +3,8 @@ package com.github.clasicrando.postgresql.connection
 import com.github.clasicrando.common.DefaultUniqueResourceId
 import com.github.clasicrando.common.Loop
 import com.github.clasicrando.common.connection.BlockingConnection
-import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.exceptions.UnexpectedTransactionState
-import com.github.clasicrando.common.pool.ConnectionPool
+import com.github.clasicrando.common.pool.BlockingConnectionPool
 import com.github.clasicrando.common.quoteIdentifier
 import com.github.clasicrando.common.reduceToSingleOrNull
 import com.github.clasicrando.common.resourceLogger
@@ -36,9 +35,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
-import kotlinx.atomicfu.locks.reentrantLock
+import kotlinx.atomicfu.locks.ReentrantLock
 import kotlinx.atomicfu.locks.withLock
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.datetime.Clock
@@ -49,17 +47,22 @@ import kotlin.reflect.typeOf
 private val logger = KotlinLogging.logger {}
 
 /**
- * [Connection] object for a Postgresql database. A new instance cannot be created but rather the
- * [PgBlockingConnection.connect] method should be called to receive a new [PgBlockingConnection] ready for user
- * usage. This method will use connection pooling behind the scenes as to reduce unnecessary tcp
- * connection creation to the server when an application creates and closes connections frequently.
+ * [BlockingConnection] object for a Postgresql database. A new instance cannot be created but
+ * rather the [PgBlockingConnection.connect] method should be called to receive a new
+ * [PgBlockingConnection] ready for user usage. This method will use connection pooling behind the
+ * scenes as to reduce unnecessary TCP connection creation to the server when an application
+ * creates and closes connections frequently.
+ *
+ * This type is thread-safe due to an internal [ReentrantLock] but that means that only 1 thread
+ * can execute operations against the connection at a given time. If another thread attempts to
+ * execute a command, the thread will block until the lock is freed.
  */
 class PgBlockingConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
     private val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
     private val stream: PgBlockingStream,
-    /** Reference to the [ConnectionPool] that owns this [PgBlockingConnection] */
+    /** Reference to the [BlockingConnectionPool] that owns this [PgBlockingConnection] */
     private val pool: PgBlockingConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
     @PublishedApi internal val typeRegistry: PgTypeRegistry = pool.typeRegistry,
@@ -67,7 +70,8 @@ class PgBlockingConnection internal constructor(
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
 
-    private val lock = reentrantLock()
+    /** Lock keeping multiple threads from executing calls to the database */
+    private val lock = ReentrantLock(true)
     /**
      * Cache of [PgPreparedStatement] where the key is the query that initiated the prepared
      * statement. This is not thread safe, therefore it should only be accessed after querying
@@ -615,24 +619,7 @@ class PgBlockingConnection internal constructor(
         collectResults(syncAll, statements)
     }
 
-    /**
-     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
-     * the [data] provided as a [Flow] to the server. Since the server will parse the bytes
-     * supplied as a continuous flow of data rather than records, each item in the flow does not
-     * need to represent a record but, it's usually convenient to parse data as records, convert to
-     * a [ByteArray] and feed that through the flow.
-     *
-     * If the server sends an error message during or at completion of streaming the copy [data],
-     * the message will be captured and thrown after completing the COPY process and the connection
-     * with the server reverts to regular queries.
-     */
-    fun copyIn(
-        copyInStatement: CopyStatement,
-        data: Sequence<ByteArray>,
-    ): QueryResult {
-        checkConnected()
-
-        val copyQuery = copyInStatement.toStatement(CopyType.From)
+    private fun copyInInternal(copyQuery: String, data: Sequence<ByteArray>): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyQuery)
@@ -706,11 +693,66 @@ class PgBlockingConnection internal constructor(
     }
 
     /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * the [data] provided as a [Sequence] to the server. Since the server will parse the bytes
+     * supplied as a continuous flow of data rather than records, each item in the sequence does
+     * not need to represent a record but, it's usually convenient to parse data as records,
+     * convert to a [ByteArray] and feed that through the flow.
+     *
+     * If the server sends an error message during or at completion of streaming the copy [data],
+     * the message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     */
+    fun copyIn(copyInStatement: CopyStatement, data: Sequence<ByteArray>): QueryResult {
+        checkConnected()
+
+        val copyQuery = copyInStatement.toStatement(CopyType.From)
+        return lock.withLock { copyInInternal(copyQuery, data) }
+    }
+
+    private fun copyOutInternal(copyQuery: String): Sequence<ByteArray> = sequence {
+        log(connectOptions.logSettings.statementLevel) {
+            message = STATEMENT_TEMPLATE
+            payload = mapOf("query" to copyQuery)
+        }
+        stream.writeToStream(PgMessage.Query(copyQuery))
+        stream.waitForOrError<PgMessage.CopyOutResponse>()
+        stream.processMessageLoop { message ->
+            when (message) {
+                is PgMessage.ErrorResponse -> {
+                    throw GeneralPostgresError(message)
+                }
+
+                is PgMessage.CopyData -> {
+                    yield(message.data)
+                    Loop.Continue
+                }
+
+                is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
+                is PgMessage.ReadyForQuery -> {
+                    handleTransactionStatus(message.transactionStatus)
+                    Loop.Break
+                }
+
+                else -> {
+                    log(Level.TRACE) {
+                        this.message =
+                            "Ignoring {message} since it's not an error or the desired type"
+                        payload = mapOf("message" to message)
+                    }
+                    Loop.Continue
+                }
+            }
+        }.onFailure {
+            throw it
+        }
+    }
+
+    /**
      * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], reading
-     * each `CopyData` server response message and passing the data through the returned buffered
-     * [Flow]. The returned [Flow]'s buffer matches the [Channel.BUFFERED] behaviour so if you
-     * want to avoid suspending the server message processor, you should always try to process each
-     * item as soon as possible or collect the elements into a [List].
+     * each `CopyData` server response message and passing the data through the returned
+     * [Sequence]. Since [Sequence]'s do not buffer results, the caller of this methods should
+     * collect or iterate over the [Sequence] as soon as possible to not hold up the connection
      */
     fun copyOut(
         copyOutStatement: CopyStatement,
@@ -718,44 +760,7 @@ class PgBlockingConnection internal constructor(
         checkConnected()
 
         val copyQuery = copyOutStatement.toStatement(CopyType.To)
-        log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to copyQuery)
-        }
-        stream.writeToStream(PgMessage.Query(copyQuery))
-        stream.waitForOrError<PgMessage.CopyOutResponse>()
-
-        return sequence {
-            stream.processMessageLoop { message ->
-                when (message) {
-                    is PgMessage.ErrorResponse -> {
-                        throw GeneralPostgresError(message)
-                    }
-
-                    is PgMessage.CopyData -> {
-                        yield(message.data)
-                        Loop.Continue
-                    }
-
-                    is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
-                    is PgMessage.ReadyForQuery -> {
-                        handleTransactionStatus(message.transactionStatus)
-                        Loop.Break
-                    }
-
-                    else -> {
-                        log(Level.TRACE) {
-                            this.message =
-                                "Ignoring {message} since it's not an error or the desired type"
-                            payload = mapOf("message" to message)
-                        }
-                        Loop.Continue
-                    }
-                }
-            }.onFailure {
-                throw it
-            }
-        }
+        return lock.withLock { copyOutInternal(copyQuery) }
     }
 
     /**
@@ -844,8 +849,8 @@ class PgBlockingConnection internal constructor(
         }
 
         /**
-         * Create a new [PgBlockingConnection] instance using the supplied [connectOptions], [stream] and
-         * [pool] (the pool that owns this connection).
+         * Create a new [PgBlockingConnection] instance using the supplied [connectOptions],
+         * [stream] and [pool] (the pool that owns this connection).
          */
         internal fun connect(
             connectOptions: PgConnectOptions,

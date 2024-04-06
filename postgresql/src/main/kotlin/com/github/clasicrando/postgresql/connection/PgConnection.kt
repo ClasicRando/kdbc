@@ -768,10 +768,10 @@ class PgConnection internal constructor(
 
     /**
      * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], reading
-     * each `CopyData` server response message and passing the data through the returned buffered
-     * [Flow]. The returned [Flow]'s buffer matches the [Channel.BUFFERED] behaviour so if you
-     * want to avoid suspending the server message processor, you should always try to process each
-     * item as soon as possible or collect the elements into a [List].
+     * each `CopyData` server response message and passing the data through the returned [Flow].
+     * The returned [Flow] is cold so if you want to avoid suspending the server message processor,
+     * you should always try to process each item as soon as possible or collect the elements into
+     * a [List].
      */
     suspend fun copyOut(
         copyOutStatement: CopyStatement,
@@ -817,6 +817,7 @@ class PgConnection internal constructor(
                     }
                 }
             }.onFailure {
+                enableQueryRunning()
                 throw it
             }
         }

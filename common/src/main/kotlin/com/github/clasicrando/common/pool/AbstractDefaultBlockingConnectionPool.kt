@@ -2,10 +2,10 @@ package com.github.clasicrando.common.pool
 
 import com.github.clasicrando.common.connection.BlockingConnection
 import com.github.clasicrando.common.connection.Connection
+import com.github.clasicrando.common.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.atomicfu.locks.ReentrantLock
 import kotlinx.atomicfu.locks.withLock
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.uuid.UUID
 import java.util.concurrent.BlockingDeque
 import java.util.concurrent.CompletableFuture
@@ -86,11 +86,9 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
     }
 
     /**
-     * Get the next available [Connection] from the [connections] channel. If the channel is empty
-     * and the pool is not exhausted, [createNewConnection] is called to return a new connection.
-     * This will return null if the channel is empty and the pool is exhausted.
-     *
-     * @throws IllegalStateException if the channel is closed
+     * Get the next available [Connection] from the [connections] queue. If the queue is empty and
+     * the pool is not exhausted, [createNewConnection] is called to return a new connection. This
+     * will return null if the channel is empty and the pool is exhausted.
      */
     private fun acquireConnection(): C? {
         val result = connections.poll()
@@ -107,13 +105,12 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
 
     /**
      * Attempt to get a connection from the pool. If a connection is available, it will be returned
-     * without suspending. If a connection is not currently available, a [CompletableDeferred] is
-     * put into the [connectionNeeded] channel, and it's completion is awaited. After resuming,
-     * the available [Connection] is returned.
+     * without waiting. If a connection is not currently available, a [CompletableFuture] is put
+     * into the [connectionNeeded] queue, and it's completion is polled. After the future
+     * completes, the available [BlockingConnection] is returned.
      *
-     * @throws AcquireTimeout if the [CompletableDeferred] value does not complete before the
+     * @throws AcquireTimeout if the [CompletableFuture] value does not complete before the
      * [PoolOptions.acquireTimeout] duration is exceeded
-     * @throws IllegalStateException if the [connections] channel is closed
      */
     override fun acquire(): C {
         val connection = acquireConnection()
@@ -196,14 +193,11 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
     override fun close() {
         while (true) {
             val result = connectionNeeded.poll() ?: break
-            val error = Exception("Pool closed while connections are still being requested")
+            val error = KdbcException("Pool closed while connections are still being requested")
             result.completeExceptionally(error)
         }
         for (connection in connectionIds.values) {
             connection.close()
-        }
-        logger.atTrace {
-            message = "Canceling scope of connection pool"
         }
     }
 }

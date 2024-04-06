@@ -2,19 +2,16 @@ package com.github.clasicrando.postgresql.pool
 
 import com.github.clasicrando.common.pool.BlockingConnectionPool
 import com.github.clasicrando.common.pool.BlockingConnectionProvider
-import com.github.clasicrando.common.pool.ConnectionPool
-import com.github.clasicrando.common.pool.ConnectionProvider
 import com.github.clasicrando.common.stream.SocketBlockingStream
 import com.github.clasicrando.postgresql.connection.PgBlockingConnection
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
-import com.github.clasicrando.postgresql.connection.PgConnection
 import com.github.clasicrando.postgresql.stream.PgBlockingStream
 import io.ktor.network.sockets.InetSocketAddress
 
 /**
- * Postgresql specific implementation for [ConnectionProvider] that provides the means to create
- * new [ConnectionPool] instances holding [PgConnection]s as well as validating that a
- * [PgConnection] is valid for reuse.
+ * Postgresql specific implementation for [BlockingConnectionProvider] that provides the means to
+ * create new [BlockingConnectionPool] instances holding [PgBlockingConnection]s as well as
+ * validating that as [PgBlockingConnection] is valid for reuse.
  */
 internal class PgBlockingConnectionProvider(
     private val connectOptions: PgConnectOptions,

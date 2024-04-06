@@ -8,6 +8,7 @@ import io.ktor.network.sockets.toJavaAddress
 import java.net.Socket
 import kotlin.time.Duration
 
+/** Java base [Socket] implementation of a [BlockingStream] */
 class SocketBlockingStream(
     private val address: InetSocketAddress,
 ) : BlockingStream, DefaultUniqueResourceId() {

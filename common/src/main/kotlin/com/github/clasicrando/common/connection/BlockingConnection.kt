@@ -60,13 +60,14 @@ interface BlockingConnection : UniqueResourceId {
     fun rollback()
 
     /**
-     * Send a raw query with no parameters, returning an [Iterable] of zero or more [QueryResult]s
+     * Send a raw query with no parameters, returning a [StatementResult] containing zero or more
+     * [QueryResult]s
      */
     fun sendQuery(query: String): StatementResult
 
     /**
-     * Send a prepared statement with [parameters], returning an [Iterable] of zero or more
-     * [QueryResult]s
+     * Send a prepared statement with [parameters], returning a [StatementResult] containing zero
+     * or more [QueryResult]s
      */
     fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult
 

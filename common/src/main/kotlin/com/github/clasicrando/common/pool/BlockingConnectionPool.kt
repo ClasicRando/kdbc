@@ -8,7 +8,7 @@ import com.github.clasicrando.common.connection.BlockingConnection
  */
 interface BlockingConnectionPool<C : BlockingConnection> {
     /**
-     * Attempt to acquire a [BlockingConnection] from the pool, suspending until a
+     * Attempt to acquire a [BlockingConnection] from the pool, waiting until a
      * [BlockingConnection] is available if the pool has been exhausted or waiting for the time
      * specified by [PoolOptions.acquireTimeout]. Make sure to return acquired
      * [BlockingConnection]s by calling [BlockingConnection.close] to return the

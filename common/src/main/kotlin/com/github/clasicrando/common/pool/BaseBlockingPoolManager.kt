@@ -2,19 +2,19 @@ package com.github.clasicrando.common.pool
 
 import com.github.clasicrando.common.atomic.AtomicMutableMap
 import com.github.clasicrando.common.connection.BlockingConnection
-import com.github.clasicrando.common.connection.Connection
 import com.github.clasicrando.common.exceptions.CouldNotInitializeConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * Manager of [Connection] and [BlockingConnectionPool] instances for a given database vendor. This
- * type holds a collection of [BlockingConnectionPool] instances per connect options provided. Then
- * each vendor's [Connection] will have a static method that calls this [acquireConnection] to
- * fetch the connect option's [BlockingConnectionPool] and acquire a [Connection] from that pool.
- * If there is no [BlockingConnectionPool] for the supplied connect options, a new pool will be
- * created, stored, and the first [Connection] will be acquired.
+ * Manager of [BlockingConnection] and [BlockingConnectionPool] instances for a given database
+ * vendor. This type holds a collection of [BlockingConnectionPool] instances per connect options
+ * provided. Then each vendor's [BlockingConnection] will have a static method that calls this
+ * [acquireConnection] to fetch the connect option's [BlockingConnectionPool] and acquire a
+ * [BlockingConnection] from that pool. If there is no [BlockingConnectionPool] for the supplied
+ * connect options, a new pool will be created, stored, and the first [BlockingConnection] will be
+ * acquired.
  */
 abstract class BaseBlockingPoolManager<O : Any, C : BlockingConnection> {
     private val connectionPools: MutableMap<O, BlockingConnectionPool<C>> = AtomicMutableMap()

@@ -64,8 +64,8 @@ internal class PgBlockingStream(
     }
 
     /**
-     * Receives the next available server message from the underlining connection. Suspends until
-     * all [RawMessage] data that is required can be fetched then decodes that [RawMessage] into a
+     * Receives the next available server message from the underlining connection. Waits until all
+     * [RawMessage] data that is required can be fetched then decodes that [RawMessage] into a
      * [PgMessage] using [PgMessageDecoders.decode].
      */
     fun receiveNextServerMessage(): PgMessage {
