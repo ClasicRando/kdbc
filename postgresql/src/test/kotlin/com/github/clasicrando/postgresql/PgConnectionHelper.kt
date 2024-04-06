@@ -1,5 +1,6 @@
 package com.github.clasicrando.postgresql
 
+import com.github.clasicrando.postgresql.connection.PgBlockingConnection
 import com.github.clasicrando.postgresql.connection.PgConnectOptions
 import com.github.clasicrando.postgresql.connection.PgConnection
 
@@ -27,5 +28,9 @@ object PgConnectionHelper {
 
     suspend fun defaultConnectionWithForcedSimple(): PgConnection {
         return PgConnection.connect(connectOptions = defaultConnectOptionsWithForcedSimple)
+    }
+
+    fun defaultBlockingConnection(): PgBlockingConnection {
+        return PgBlockingConnection.connect(connectOptions = defaultConnectOptions)
     }
 }

@@ -31,7 +31,7 @@ interface AsyncStream : UniqueResourceId, AutoRelease {
     /**
      * Write all bytes to the supplied [buffer] into the stream. If the number of bytes in the
      * [buffer] exceeds the maximum number of bytes that can be sent in a single write operation,
-     * this method will look until all bytes have been written. While a write operation is waiting
+     * this method will loop until all bytes have been written. While a write operation is waiting
      * to complete, this method will suspend.
      *
      * @throws StreamWriteError if the write operation fails

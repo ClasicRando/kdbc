@@ -144,7 +144,11 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         throw AcquireTimeout()
     }
 
-    override val isExhausted: Boolean get() = connectionIds.size >= poolOptions.maxConnections
+    /**
+     * Flag indicating if the pool of connections is exhausted (number of connections is use has
+     * reached the cap on [PoolOptions.maxConnections]
+     */
+    private val isExhausted: Boolean get() = connectionIds.size >= poolOptions.maxConnections
 
     /** Checks the [connectionIds] lookup table for the [poolConnection]'s ID */
     internal fun hasConnection(poolConnection: C): Boolean {

@@ -9,11 +9,6 @@ import kotlinx.coroutines.CoroutineScope
  */
 interface ConnectionPool<C : Connection> : CoroutineScope {
     /**
-     * Flag indicating if the pool of connections is exhausted (number of connections is use has
-     * reached the cap on [PoolOptions.maxConnections]
-     */
-    val isExhausted: Boolean
-    /**
      * Attempt to acquire a [Connection] from the pool, suspending until a [Connection] is
      * available if the pool has been exhausted or waiting for the time specified by
      * [PoolOptions.acquireTimeout]. Make sure to return acquired [Connection]s by calling
