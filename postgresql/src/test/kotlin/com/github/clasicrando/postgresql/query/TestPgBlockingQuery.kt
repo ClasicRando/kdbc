@@ -12,7 +12,6 @@ import com.github.clasicrando.common.result.DataRow
 import com.github.clasicrando.common.result.getInt
 import com.github.clasicrando.common.use
 import com.github.clasicrando.postgresql.PgConnectionHelper
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
