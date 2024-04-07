@@ -2,22 +2,20 @@ package com.github.kdbc.postgresql.connection
 
 import com.github.kdbc.core.connection.use
 import com.github.kdbc.core.result.getInt
+import com.github.kdbc.postgresql.GeneralPostgresError
 import com.github.kdbc.postgresql.PgConnectionHelper
-import kotlin.test.BeforeTest
+import com.github.kdbc.postgresql.message.information.Severity
+import com.github.kdbc.postgresql.message.information.SqlState
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestBlockingSimpleQuerySpec {
-    @BeforeTest
-    fun setup() {
-        PgConnectionHelper.defaultBlockingConnection().use {
-            it.sendQuery(TEST_PROC)
-        }
-    }
-
     @Test
     fun `sendQuery should return 1 result when regular query`() {
-        PgConnectionHelper.defaultBlockingConnection().use {
+        PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use {
             val result = it.sendQuery(QUERY_SERIES).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
@@ -34,8 +32,8 @@ class TestBlockingSimpleQuerySpec {
 
     @Test
     fun `sendQuery should return 1 result when stored procedure with out parameter`() {
-        PgConnectionHelper.defaultBlockingConnection().use {
-            val result = it.sendQuery("CALL public.test_proc(null, null)").toList()
+        PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use {
+            val result = it.sendQuery("CALL public.$TEST_PROC_NAME(null, null)").toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(0, queryResult.rowsAffected)
@@ -48,9 +46,9 @@ class TestBlockingSimpleQuerySpec {
 
     @Test
     fun `sendQuery should return multiple results when multiple statements`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+        PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use { connection ->
             val queries = """
-                CALL public.test_proc(null, null);
+                CALL public.$TEST_PROC_NAME(null, null);
                 SELECT 1 test_i;
             """.trimIndent()
             val results = connection.sendQuery(queries).toList()
@@ -62,10 +60,22 @@ class TestBlockingSimpleQuerySpec {
         }
     }
 
+    @Test
+    fun `sendQuery should timeout when long running query with timeout specified`() {
+        PgConnectionHelper.defaultBlockingConnectionWithQueryTimeout().use { connection ->
+            val queries = "CALL public.$LONG_RUNNING_TEST_PROC_NAME()"
+            val exception = assertThrows<GeneralPostgresError> { connection.sendQuery(queries) }
+            assertEquals(Severity.ERROR, exception.errorInformation.severity)
+            assertEquals(SqlState.QueryCanceled, exception.errorInformation.code)
+        }
+    }
+
     companion object {
-        const val TEST_PROC = """
-            DROP PROCEDURE IF EXISTS public.test_proc;
-            CREATE PROCEDURE public.test_proc(out int, out text)
+        const val TEST_PROC_NAME = "test_proc"
+        const val LONG_RUNNING_TEST_PROC_NAME = "long_running_test_proc"
+        private const val STARTUP_SCRIPT = """
+            DROP PROCEDURE IF EXISTS public.$TEST_PROC_NAME;
+            CREATE PROCEDURE public.$TEST_PROC_NAME(out int, out text)
             LANGUAGE plpgsql
             AS $$
             BEGIN
@@ -73,11 +83,25 @@ class TestBlockingSimpleQuerySpec {
                 $2 := 'This is a test';
             END;
             $$;
+            DROP PROCEDURE IF EXISTS public.$LONG_RUNNING_TEST_PROC_NAME;
+            CREATE PROCEDURE public.$LONG_RUNNING_TEST_PROC_NAME()
+            LANGUAGE sql
+            AS $$
+            SELECT pg_sleep(5);
+            $$;
         """
 
         const val QUERY_SERIES = """
             SELECT s.s, 'Regular Query' t
             FROM generate_series(1, 10) s
         """
+
+        @JvmStatic
+        @BeforeAll
+        fun setup(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use {
+                it.sendQuery(STARTUP_SCRIPT)
+            }
+        }
     }
 }

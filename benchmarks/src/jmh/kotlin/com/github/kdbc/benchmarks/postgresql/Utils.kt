@@ -1,16 +1,14 @@
 package com.github.kdbc.benchmarks.postgresql
 
+import com.github.jasync.sql.db.pool.ConnectionPool
+import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
+import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import com.github.kdbc.core.LogSettings
 import com.github.kdbc.core.connection.BlockingConnection
 import com.github.kdbc.core.connection.Connection
 import com.github.kdbc.core.pool.PoolOptions
-import com.github.kdbc.postgresql.connection.PgConnectOptions
-import com.github.kdbc.postgresql.connection.PgConnection
-import com.github.jasync.sql.db.pool.ConnectionPool
-import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
-import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import com.github.kdbc.postgresql.Postgres
-import com.github.kdbc.postgresql.connection.PgBlockingConnection
+import com.github.kdbc.postgresql.connection.PgConnectOptions
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID

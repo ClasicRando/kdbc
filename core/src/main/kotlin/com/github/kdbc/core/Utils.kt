@@ -3,6 +3,7 @@ package com.github.kdbc.core
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
+import kotlin.time.Duration
 
 const val zeroByte: Byte = 0
 
@@ -80,3 +81,5 @@ fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
 
 /** Wrap the [String] as if the value was a SQL identifier */
 fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""
+
+fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration.ZERO
