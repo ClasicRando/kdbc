@@ -9,6 +9,7 @@ import com.github.kdbc.postgresql.connection.PgConnection
 import com.github.jasync.sql.db.pool.ConnectionPool
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
+import com.github.kdbc.postgresql.Postgres
 import com.github.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.uuid.UUID
@@ -121,7 +122,7 @@ private val defaultConnectOptions = PgConnectOptions(
 )
 
 suspend fun getKdbcConnection(): Connection {
-    return PgConnection.connect(connectOptions = defaultConnectOptions)
+    return Postgres.connection(connectOptions = defaultConnectOptions)
 }
 
 suspend fun initializeConcurrentConnections(): PgConnectOptions {
@@ -139,12 +140,12 @@ suspend fun initializeConcurrentConnections(): PgConnectOptions {
             minConnections = 8,
         ),
     )
-    PgConnection.connect(connectOptions = options).close()
+    Postgres.connection(connectOptions = options).close()
     return options
 }
 
 fun getKdbcBlockingConnection(): BlockingConnection {
-    return PgBlockingConnection.connect(connectOptions = defaultConnectOptions)
+    return Postgres.blockingConnection(connectOptions = defaultConnectOptions)
 }
 
 fun initializeThreadPoolBlockingConnections(): PgConnectOptions {
@@ -162,7 +163,7 @@ fun initializeThreadPoolBlockingConnections(): PgConnectOptions {
             minConnections = 8,
         ),
     )
-    PgBlockingConnection.connect(connectOptions = options).close()
+    Postgres.blockingConnection(connectOptions = options).close()
     return options
 }
 

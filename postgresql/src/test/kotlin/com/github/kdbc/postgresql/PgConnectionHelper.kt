@@ -14,7 +14,7 @@ object PgConnectionHelper {
     )
 
     suspend fun defaultConnection(): PgConnection {
-        return PgConnection.connect(connectOptions = defaultConnectOptions)
+        return Postgres.connection(connectOptions = defaultConnectOptions)
     }
 
     private val defaultConnectOptionsWithForcedSimple = PgConnectOptions(
@@ -27,14 +27,14 @@ object PgConnectionHelper {
     )
 
     suspend fun defaultConnectionWithForcedSimple(): PgConnection {
-        return PgConnection.connect(connectOptions = defaultConnectOptionsWithForcedSimple)
+        return Postgres.connection(connectOptions = defaultConnectOptionsWithForcedSimple)
     }
 
     fun defaultBlockingConnection(): PgBlockingConnection {
-        return PgBlockingConnection.connect(connectOptions = defaultConnectOptions)
+        return Postgres.blockingConnection(connectOptions = defaultConnectOptions)
     }
 
     fun defaultBlockingConnectionWithForcedSimple(): PgBlockingConnection {
-        return PgBlockingConnection.connect(connectOptions = defaultConnectOptionsWithForcedSimple)
+        return Postgres.blockingConnection(connectOptions = defaultConnectOptionsWithForcedSimple)
     }
 }

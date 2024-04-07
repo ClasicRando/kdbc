@@ -2,6 +2,7 @@ package com.github.kdbc.benchmarks.postgresql
 
 import com.github.kdbc.core.connection.use
 import com.github.kdbc.core.use
+import com.github.kdbc.postgresql.Postgres
 import com.github.kdbc.postgresql.connection.PgConnectOptions
 import com.github.kdbc.postgresql.connection.PgConnection
 import kotlinx.coroutines.async
@@ -31,7 +32,7 @@ open class KdbcBenchmarkConcurrentSingle {
 
     @Setup
     open fun start(): Unit = runBlocking {
-        PgConnection.connect(connectOptions = options).use {
+        Postgres.connection(connectOptions = options).use {
             it.sendQuery(setupQuery)
         }
     }
@@ -43,7 +44,7 @@ open class KdbcBenchmarkConcurrentSingle {
     }
 
     private suspend fun executeQuery(stepId: Int): List<PostDataClass> {
-        return PgConnection.connect(connectOptions = options).use { conn ->
+        return Postgres.connection(connectOptions = options).use { conn ->
             conn.sendPreparedStatement(kdbcQuerySingle, listOf(stepId)).use {
                 val result = it.firstOrNull()
                     ?: throw Exception("No records returned from $kdbcQuerySingle, id = $stepId")

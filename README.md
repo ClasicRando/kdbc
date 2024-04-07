@@ -28,7 +28,7 @@ val connectOptions = PgConnectOptions(
       password = "yourSecretPassword",
       applicationName = "MyFirstKdbcProject"
 )
-val connection = PgConnection.connect(connectOption = connectOptions)
+val connection = Postgres.connection(connectOption = connectOptions)
 val text: String = connection.query("SELECT 'KDBC Docs'").fetchScalar()
 println(text) // KDBC Docs
 connection.close()
@@ -49,7 +49,7 @@ val connectOptions = PgConnectOptions(
 )
 // The connection is provided as an argument to the inlined lambda and the connection is always
 // closed before exiting the block 
-PgConnection.connect(connectOption = connectOptions).use { conn: PgConnection ->
+Postgres.connection(connectOption = connectOptions).use { conn: PgConnection ->
     val text: String = conn.query("SELECT 'KDBC Docs'").fetchScalar()
     println(text) // KDBC Docs
 }
@@ -67,7 +67,7 @@ val connectOptions = PgConnectOptions(
 )
 // The connection is provided as an argument to the inlined lambda and the connection is always
 // closed before exiting the block
-PgConnection.connect(connectOption = connectOptions).use { conn: PgConnection ->
+Postgres.connection(connectOption = connectOptions).use { conn: PgConnection ->
     conn.query("CALL your_stored_procedure($1, $2)")
         .bind(1)
         .bind("KDBC Docs")
@@ -101,7 +101,7 @@ val connectOptions = PgConnectOptions(
 )
 // The connection is provided as an argument to the inlined lambda and the connection is always
 // closed before exiting the block
-PgConnection.connect(connectOption = connectOptions).use { conn: PgConnection ->
+Postgres.connection(connectOption = connectOptions).use { conn: PgConnection ->
     val rows = conn.query("SELECT 1 id, 'KDBC Docs' string_value").fetchAll(TableRowParser)
     println(rows.joinToString(prefix = "[", postfix = "]")) // [TableRow(id=1,text=KDBC Docs)]
 }
@@ -131,7 +131,7 @@ val connectOptions = PgConnectOptions(
     password = "yourSecretPassword",
     applicationName = "MyFirstKdbcProject"
 )
-val connection = PgConnection.connect(connectOption = connectOptions)
+val connection = Postgres.connection(connectOption = connectOptions)
 val statementResult = connection.sendQuery("SELECT 'KDBC Docs'")
 val queryResult = statementResult[0]
 println(queryResult.rowAffected) // 1
@@ -217,7 +217,7 @@ That can be represented as a data class and registered with the connections.
 ```kotlin
 data class MyType(val id: Int, val textValue: String)
 
-val connection = PgConnection.connect(connectOptions)
+val connection = Postgres.connection(connectOptions)
 connection.registerCompositeType<MyType>("my_type")
 ```
 
@@ -240,7 +240,7 @@ enum class MyEnum {
     Third,
 }
 
-val connection = PgConnection.connect(connectOptions)
+val connection = Postgres.connection(connectOptions)
 connection.registerEnumType<MyEnum>("my_enum")
 ```
 
@@ -287,7 +287,7 @@ val copyStatement = CopyStatement(
     columns = listOf(),
     format = CopyFormat.CSV,
 )
-PgConnection.connect(connectOptions).use { conn: PgConnection ->
+Postgres.connection(connectOptions).use { conn: PgConnection ->
     conn.copyIn(copyStatement, rows)
     /*
         This prints:
@@ -316,13 +316,13 @@ blocked during this operation whereas the suspending connection will be free to
 execute queries as the caller tries to receive the next notification.
 ```kotlin
 // Suspending Variant (receive)
-val connection = PgConnection.connect(connectOptions)
+val connection = Postgres.connection(connectOptions)
 // Suspend until the next notification is available
 val notification: PgNotification = connection.notifications.receive()
 println(notification)
 
 // Suspending Variant (loop)
-val connectionLoop = PgConnection.connect(connectOptions)
+val connectionLoop = Postgres.connection(connectOptions)
 // Loops until the channel is closed
 for (notification in connectionLoop.notifications) {
     println(notification)
