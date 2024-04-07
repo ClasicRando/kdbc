@@ -9,6 +9,6 @@ version = "0.1"
 val scramClientVersion: String by project
 
 dependencies {
-    api(project(":common"))
+    api(project(":core"))
     implementation("com.ongres.scram:client:$scramClientVersion")
 }

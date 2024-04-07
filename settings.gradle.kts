@@ -19,5 +19,5 @@ plugins {
 
 rootProject.name = "kdbc"
 include("postgresql")
-include("common")
+include("core")
 include("benchmarks")
