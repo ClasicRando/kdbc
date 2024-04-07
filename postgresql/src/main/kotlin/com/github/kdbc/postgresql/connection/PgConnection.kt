@@ -26,7 +26,6 @@ import com.github.kdbc.postgresql.message.PgMessage
 import com.github.kdbc.postgresql.message.TransactionStatus
 import com.github.kdbc.postgresql.notification.PgNotification
 import com.github.kdbc.postgresql.pool.PgConnectionPool
-import com.github.kdbc.postgresql.pool.PgPoolManager
 import com.github.kdbc.postgresql.query.PgQueryBatch
 import com.github.kdbc.postgresql.result.PgResultSet
 import com.github.kdbc.postgresql.statement.PgArguments
@@ -340,6 +339,9 @@ class PgConnection internal constructor(
     ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
+        if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
+            return sendPreparedStatement(query, emptyList())
+        }
         waitForQueryRunning()
         logger.resourceLogger(
             this@PgConnection,

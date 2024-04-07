@@ -34,7 +34,13 @@ data class PgConnectOptions(
     val logSettings: LogSettings = LogSettings.DEFAULT,
     /** Size of the cache storing prepared statement on the client side */
     val statementCacheCapacity: UShort = 100U,
-    /**  */
+    /**
+     * Flag allowing the connection to override a call to send a simple query to send a prepared
+     * statement instead, so binary data transfer can be used. To make things simple, a connection
+     * check that a query does not contain a ';' (since prepared statements only allow a single
+     * statement per query) and if this flag is true. If either checks returns false, the simple
+     * query protocol is used.
+     */
     val useExtendedProtocolForSimpleQueries: Boolean = true,
     /**
      * This parameter adjusts the number of digits used for textual output of floating-point values,

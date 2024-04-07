@@ -308,6 +308,9 @@ class PgBlockingConnection internal constructor(
     ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
+        if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
+            return sendPreparedStatement(query, emptyList())
+        }
         return lock.withLock {
             logger.resourceLogger(
                 this@PgBlockingConnection,
