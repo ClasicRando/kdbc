@@ -1,10 +1,9 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import com.github.kdbc.core.connection.use
-import com.github.kdbc.core.use
-import com.github.kdbc.postgresql.Postgres
-import com.github.kdbc.postgresql.connection.PgConnectOptions
-import com.github.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.postgresql.Postgres
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking

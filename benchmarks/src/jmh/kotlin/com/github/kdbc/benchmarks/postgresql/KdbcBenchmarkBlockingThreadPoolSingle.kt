@@ -1,9 +1,9 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import com.github.kdbc.core.connection.use
-import com.github.kdbc.core.use
-import com.github.kdbc.postgresql.Postgres
-import com.github.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.postgresql.Postgres
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork

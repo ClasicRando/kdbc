@@ -1,7 +1,7 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import com.github.kdbc.core.connection.BlockingConnection
-import com.github.kdbc.core.use
+import io.github.clasicrando.kdbc.core.connection.BlockingConnection
+import io.github.clasicrando.kdbc.core.use
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork

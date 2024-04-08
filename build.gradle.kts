@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm")
 }
 
-group = "com.github.clasicrando"
+group = "io.github.clasicrando"
 version = "0.1"
 
 buildscript {

@@ -1,6 +1,6 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import com.github.kdbc.core.connection.Connection
+import io.github.clasicrando.kdbc.core.connection.Connection
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode

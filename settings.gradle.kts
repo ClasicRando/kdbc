@@ -18,6 +18,8 @@ plugins {
 }
 
 rootProject.name = "kdbc"
-include("postgresql")
 include("core")
+findProject("core")?.name = "kdbc-core"
+include("postgresql")
+findProject("postgresql")?.name = "kdbc-postgresql"
 include("benchmarks")
