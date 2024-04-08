@@ -2,7 +2,7 @@ package com.github.kdbc.benchmarks.postgresql
 
 import com.github.kdbc.core.connection.use
 import com.github.kdbc.core.use
-import com.github.kdbc.postgresql.connection.PgBlockingConnection
+import com.github.kdbc.postgresql.Postgres
 import com.github.kdbc.postgresql.connection.PgConnectOptions
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -33,7 +33,7 @@ open class KdbcBenchmarkBlockingThreadPoolSingle {
 
     @Setup
     open fun start() {
-        PgBlockingConnection.connect(connectOptions = options).use {
+        Postgres.blockingConnection(connectOptions = options).use {
             it.sendQuery(setupQuery)
         }
     }
@@ -45,7 +45,7 @@ open class KdbcBenchmarkBlockingThreadPoolSingle {
     }
 
     private fun executeQuery(stepId: Int): List<PostDataClass> {
-        return PgBlockingConnection.connect(connectOptions = options).use { conn ->
+        return Postgres.blockingConnection(connectOptions = options).use { conn ->
             conn.sendPreparedStatement(kdbcQuerySingle, listOf(stepId)).use {
                 val result = it.firstOrNull()
                     ?: throw Exception("No records returned from $kdbcQuerySingle, id = $stepId")

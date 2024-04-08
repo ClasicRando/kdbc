@@ -2,6 +2,7 @@ package com.github.kdbc.postgresql.connection
 
 import com.github.kdbc.core.LogSettings
 import com.github.kdbc.core.SslMode
+import com.github.kdbc.core.isZeroOrInfinite
 import com.github.kdbc.core.pool.PoolOptions
 import com.github.kdbc.postgresql.CertificateInput
 import io.github.oshai.kotlinlogging.Level
@@ -32,9 +33,23 @@ data class PgConnectOptions(
     val database: String? = null,
     /** Statement logging settings. If not specified, [LogSettings.DEFAULT] is used. */
     val logSettings: LogSettings = LogSettings.DEFAULT,
+    /**
+     * The duration that is waited before canceling a query execution due to timeout. The default
+     * is an infinite timeout which means it will never cancel a query.
+     *
+     * Note: [Duration.ZERO] is also treated as infinite and negative timeouts are ignored with the
+     * default value is used
+     */
+    val queryTimeout: Duration = Duration.INFINITE,
     /** Size of the cache storing prepared statement on the client side */
     val statementCacheCapacity: UShort = 100U,
-    /**  */
+    /**
+     * Flag allowing the connection to override a call to send a simple query to send a prepared
+     * statement instead, so binary data transfer can be used. To make things simple, a connection
+     * check that a query does not contain a ';' (since prepared statements only allow a single
+     * statement per query) and if this flag is true. If either checks returns false, the simple
+     * query protocol is used.
+     */
     val useExtendedProtocolForSimpleQueries: Boolean = true,
     /**
      * This parameter adjusts the number of digits used for textual output of floating-point values,
@@ -94,6 +109,13 @@ data class PgConnectOptions(
         "search_path" to currentSchema,
         "bytea_output" to "hex",
         "application_name" to applicationName,
+        "statement_timeout" to queryTimeout.coerceAtLeast(Duration.ZERO).let {
+            if (it.isZeroOrInfinite()) {
+                "0"
+            } else {
+                it.inWholeMilliseconds.coerceAtMost(Int.MAX_VALUE.toLong()).toString()
+            }
+        }
     ).mapNotNull { (key, value) ->
         value?.let { key to it }
     }

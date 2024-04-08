@@ -13,6 +13,7 @@ import com.github.kdbc.core.result.AbstractMutableResultSet
 import com.github.kdbc.core.result.QueryResult
 import com.github.kdbc.core.result.StatementResult
 import com.github.kdbc.postgresql.GeneralPostgresError
+import com.github.kdbc.postgresql.Postgres
 import com.github.kdbc.postgresql.column.PgTypeRegistry
 import com.github.kdbc.postgresql.column.compositeTypeDecoder
 import com.github.kdbc.postgresql.column.compositeTypeEncoder
@@ -25,7 +26,6 @@ import com.github.kdbc.postgresql.message.PgMessage
 import com.github.kdbc.postgresql.message.TransactionStatus
 import com.github.kdbc.postgresql.notification.PgNotification
 import com.github.kdbc.postgresql.pool.PgConnectionPool
-import com.github.kdbc.postgresql.pool.PgPoolManager
 import com.github.kdbc.postgresql.query.PgQueryBatch
 import com.github.kdbc.postgresql.result.PgResultSet
 import com.github.kdbc.postgresql.statement.PgArguments
@@ -52,7 +52,7 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * [Connection] object for a Postgresql database. A new instance cannot be created but rather the
- * [PgConnection.connect] method should be called to receive a new [PgConnection] ready for user
+ * [Postgres.connection] method should be called to receive a new [PgConnection] ready for user
  * usage. This method will use connection pooling behind the scenes as to reduce unnecessary tcp
  * connection creation to the server when an application creates and closes connections frequently.
  */
@@ -339,6 +339,9 @@ class PgConnection internal constructor(
     ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
+        if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
+            return sendPreparedStatement(query, emptyList())
+        }
         waitForQueryRunning()
         logger.resourceLogger(
             this@PgConnection,
@@ -904,14 +907,6 @@ class PgConnection internal constructor(
 
     companion object {
         private const val STATEMENT_TEMPLATE = "Sending {query}"
-
-        /**
-         * Create a new [PgConnection] (or reuse an existing connection if any are available) using
-         * the supplied [PgConnectOptions].
-         */
-        suspend fun connect(connectOptions: PgConnectOptions): PgConnection {
-            return PgPoolManager.acquireConnection(connectOptions)
-        }
 
         /**
          * Create a new [PgConnection] instance using the supplied [connectOptions], [stream] and

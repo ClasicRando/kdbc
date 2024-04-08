@@ -4,14 +4,13 @@
   <img height="50px" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fkotlinlang.org%2Fdocs%2Fimages%2Fkotlin-logo.png&f=1&nofb=1&ipt=f9985bbac1e2117b69f4a0950f0dea95714d864df42c33c0c03705286124e127&ipo=images" alt="kotlin logo">
 </p>
 
-Database drivers using pure Kotlin™ to drive database communication. The
-library provides both blocking and non-blocking solutions for database
-communication. The coroutine based solution uses Ktor networking under the hood
-which implements non-blocking selector socket channel connections. For the
-blocking solution, basic java sockets (as seen in JDBC based libraries) are
-used to facilitate database communications. This library is heavily inspired
-by Rust's [SQLx](https://github.com/launchbadge/sqlx) and the connection spec
-in C#.
+Database drivers using Kotlin™ to drive database communication. The library
+provides both blocking and non-blocking solutions for database communication.
+The coroutine based solution uses Ktor networking under the hood which
+implements non-blocking selector socket channel connections. For the blocking
+solution, basic java sockets (as seen in JDBC based libraries) are used to
+facilitate database communications. This library is heavily inspired by Rust's
+[SQLx](https://github.com/launchbadge/sqlx) and the connection spec in C#.
 
 Currently, there is only initial support for [Postgresql](https://www.postgresql.org/) and plans for
 other freely available databases, but other JDBC compliant databases might
@@ -28,7 +27,7 @@ val connectOptions = PgConnectOptions(
       password = "yourSecretPassword",
       applicationName = "MyFirstKdbcProject"
 )
-val connection = PgConnection.connect(connectOption = connectOptions)
+val connection = Postgres.connection(connectOption = connectOptions)
 val text: String = connection.query("SELECT 'KDBC Docs'").fetchScalar()
 println(text) // KDBC Docs
 connection.close()
@@ -49,7 +48,7 @@ val connectOptions = PgConnectOptions(
 )
 // The connection is provided as an argument to the inlined lambda and the connection is always
 // closed before exiting the block 
-PgConnection.connect(connectOption = connectOptions).use { conn: PgConnection ->
+Postgres.connection(connectOption = connectOptions).use { conn: PgConnection ->
     val text: String = conn.query("SELECT 'KDBC Docs'").fetchScalar()
     println(text) // KDBC Docs
 }
@@ -67,7 +66,7 @@ val connectOptions = PgConnectOptions(
 )
 // The connection is provided as an argument to the inlined lambda and the connection is always
 // closed before exiting the block
-PgConnection.connect(connectOption = connectOptions).use { conn: PgConnection ->
+Postgres.connection(connectOption = connectOptions).use { conn: PgConnection ->
     conn.query("CALL your_stored_procedure($1, $2)")
         .bind(1)
         .bind("KDBC Docs")
@@ -101,7 +100,7 @@ val connectOptions = PgConnectOptions(
 )
 // The connection is provided as an argument to the inlined lambda and the connection is always
 // closed before exiting the block
-PgConnection.connect(connectOption = connectOptions).use { conn: PgConnection ->
+Postgres.connection(connectOption = connectOptions).use { conn: PgConnection ->
     val rows = conn.query("SELECT 1 id, 'KDBC Docs' string_value").fetchAll(TableRowParser)
     println(rows.joinToString(prefix = "[", postfix = "]")) // [TableRow(id=1,text=KDBC Docs)]
 }
@@ -131,7 +130,7 @@ val connectOptions = PgConnectOptions(
     password = "yourSecretPassword",
     applicationName = "MyFirstKdbcProject"
 )
-val connection = PgConnection.connect(connectOption = connectOptions)
+val connection = Postgres.connection(connectOption = connectOptions)
 val statementResult = connection.sendQuery("SELECT 'KDBC Docs'")
 val queryResult = statementResult[0]
 println(queryResult.rowAffected) // 1
@@ -217,7 +216,7 @@ That can be represented as a data class and registered with the connections.
 ```kotlin
 data class MyType(val id: Int, val textValue: String)
 
-val connection = PgConnection.connect(connectOptions)
+val connection = Postgres.connection(connectOptions)
 connection.registerCompositeType<MyType>("my_type")
 ```
 
@@ -240,7 +239,7 @@ enum class MyEnum {
     Third,
 }
 
-val connection = PgConnection.connect(connectOptions)
+val connection = Postgres.connection(connectOptions)
 connection.registerEnumType<MyEnum>("my_enum")
 ```
 
@@ -287,7 +286,7 @@ val copyStatement = CopyStatement(
     columns = listOf(),
     format = CopyFormat.CSV,
 )
-PgConnection.connect(connectOptions).use { conn: PgConnection ->
+Postgres.connection(connectOptions).use { conn: PgConnection ->
     conn.copyIn(copyStatement, rows)
     /*
         This prints:
@@ -316,13 +315,13 @@ blocked during this operation whereas the suspending connection will be free to
 execute queries as the caller tries to receive the next notification.
 ```kotlin
 // Suspending Variant (receive)
-val connection = PgConnection.connect(connectOptions)
+val connection = Postgres.connection(connectOptions)
 // Suspend until the next notification is available
 val notification: PgNotification = connection.notifications.receive()
 println(notification)
 
 // Suspending Variant (loop)
-val connectionLoop = PgConnection.connect(connectOptions)
+val connectionLoop = Postgres.connection(connectOptions)
 // Loops until the channel is closed
 for (notification in connectionLoop.notifications) {
     println(notification)

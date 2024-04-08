@@ -32,6 +32,7 @@ internal object PgMessageEncoders {
             is PgMessage.CopyData -> CopyDataEncoder
             is PgMessage.CopyDone -> CodeOnlyMessageEncoder
             is PgMessage.CopyFail -> CopyFailEncoder
+            is PgMessage.CancelRequest -> CancelRequestEncoder
             else -> error("Message $message cannot be encoded")
         } as MessageEncoder<T>
         encoder.encode(message, buffer)
