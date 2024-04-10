@@ -3,9 +3,6 @@ plugins {
     id("kotlinx-atomicfu")
 }
 
-group = "io.github.clasicrando"
-version = "0.1"
-
 val scramClientVersion: String by project
 
 dependencies {

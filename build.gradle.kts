@@ -1,9 +1,13 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
+import com.vanniktech.maven.publish.SonatypeHost
+
 plugins {
     kotlin("jvm")
+    id("com.vanniktech.maven.publish")
+    signing
+    id("org.jetbrains.dokka")
 }
-
-group = "io.github.clasicrando"
-version = "0.1"
 
 buildscript {
     repositories {
@@ -19,9 +23,26 @@ buildscript {
 
 apply(plugin = "kotlinx-atomicfu")
 
-subprojects {
+allprojects {
     apply(plugin = "kotlin")
+    group = "io.github.clasicrando"
+    version = "0.0.1"
+
+    repositories {
+        mavenCentral()
+    }
+
+    kotlin {
+        jvmToolchain(11)
+        compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
+    }
+}
+
+subprojects {
     apply(plugin = "kotlinx-atomicfu")
+    apply(plugin = "signing")
+    apply(plugin = "org.jetbrains.dokka")
+    apply(plugin = "com.vanniktech.maven.publish")
 
     repositories {
         mavenCentral()
@@ -48,6 +69,7 @@ subprojects {
         // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$kotlinxCoroutinesVersion")
         implementation("io.ktor:ktor-network:$ktorVersion")
+        implementation(kotlin("stdlib", version = kotlinVersion))
         implementation(kotlin("reflect", version = kotlinVersion))
         // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
         api("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
@@ -60,11 +82,6 @@ subprojects {
         testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
         testImplementation("ch.qos.logback:logback-classic:$logbackVersion")
         testImplementation("io.mockk:mockk:$mockkVersion")
-    }
-
-    kotlin {
-        jvmToolchain(11)
-        compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
     }
 
     tasks.test {
@@ -89,5 +106,59 @@ subprojects {
             }))
         }
         useJUnitPlatform()
+    }
+
+    tasks.dokkaHtml {
+        outputDirectory.set(layout.buildDirectory.dir("documentation/html"))
+    }
+
+    tasks.dokkaJavadoc {
+        outputDirectory.set(layout.buildDirectory.dir("documentation/javadoc"))
+    }
+
+    val projName = when (project.name) {
+        "core" -> "kdbc-core"
+        "postgresql" -> "kdbc-postgresql"
+        else -> "kdbc-other"
+    }
+
+    tasks {
+        jar {
+            base.archivesName = projName
+        }
+    }
+
+    mavenPublishing {
+        configure(KotlinJvm(
+            javadocJar = JavadocJar.Dokka("dokkaHtml"),
+            sourcesJar = true,
+        ))
+        publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+        coordinates(group.toString(), projName, version.toString())
+        pom {
+            name = "kdbc"
+            description = "Blocking and Non-Blocking database drivers using Kotlin"
+            inceptionYear = "2024"
+            url = "https://github.com/ClasicRando/kdbc"
+            licenses {
+                license {
+                    name = "The Apache License, Version 2.0"
+                    url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                    distribution = "repo"
+                }
+            }
+            developers {
+                developer {
+                    name = "Steven Thomson"
+                    email = "steventhomson9@gmail.com"
+                }
+            }
+            scm {
+                url = "https://github.com/ClasicRando/kdbc/tree/main"
+                connection = "scm:git:git://github.com/ClasicRando/kdbc.git"
+                developerConnection = "scm:git:ssh://github.com:ClasicRando/kdbc.git"
+            }
+        }
+        signAllPublications()
     }
 }

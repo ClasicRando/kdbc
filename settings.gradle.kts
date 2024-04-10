@@ -6,10 +6,14 @@ pluginManagement {
 
     val kotlinVersion: String by settings
     val kotlinxSerializationPluginVersion: String by settings
+    val dokkaVersion: String by settings
+    val mavenPublishVersion: String by settings
 
     plugins {
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.serialization") version kotlinxSerializationPluginVersion
+        id("org.jetbrains.dokka") version dokkaVersion
+        id("com.vanniktech.maven.publish") version mavenPublishVersion
     }
 }
 
@@ -19,7 +23,5 @@ plugins {
 
 rootProject.name = "kdbc"
 include("core")
-findProject("core")?.name = "kdbc-core"
 include("postgresql")
-findProject("postgresql")?.name = "kdbc-postgresql"
 include("benchmarks")
