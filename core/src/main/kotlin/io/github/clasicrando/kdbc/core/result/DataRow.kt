@@ -4,11 +4,16 @@ import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.column.ColumnData
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.ColumnExtractError
+import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
+import io.github.clasicrando.kdbc.core.exceptions.InvalidWrappedType
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.typeOf
 
 /**
@@ -26,6 +31,9 @@ interface DataRow : AutoRelease {
      * @throws IllegalArgumentException [column] name cannot be found in the row
      */
     fun indexFromColumn(column: String): Int
+
+    /** Return the [ColumnData] of the specified [index] in the result */
+    fun columnData(index: Int): ColumnData
 
     /**
      * Get the value stored within the field at the [index] specified. This will always decode to
@@ -202,6 +210,11 @@ interface DataRow : AutoRelease {
      * collection
      */
     fun <T> getList(index: Int): List<T?>?
+}
+
+/** Return the [ColumnData] for the specified [column] name */
+fun DataRow.columnData(column: String): ColumnData {
+    return columnData(indexFromColumn(column))
 }
 
 /**
@@ -392,4 +405,90 @@ fun DataRow.getString(column: String): String? = getString(indexFromColumn(colum
  * @throws NotImplementedError if the database does not support querying data as a list or
  * collection
  */
-fun <T> DataRow.getList(column: String): List<T?>? = getList(indexFromColumn(column))
+fun <T : Any> DataRow.getList(column: String): List<T?>? = getList(indexFromColumn(column))
+
+private val BOOLEAN_CLASS = Boolean::class
+private val BYTE_CLASS = Byte::class
+private val SHORT_CLASS = Short::class
+private val INT_CLASS = Int::class
+private val LONG_CLASS = Long::class
+private val FLOAT_CLASS = Float::class
+private val DOUBLE_CLASS = Double::class
+private val LOCAL_DATE_CLASS = LocalDate::class
+private val LOCAL_TIME_CLASS = LocalTime::class
+private val LOCAL_DATE_TIME_CLASS = LocalDateTime::class
+private val DATETIME_CLASS = DateTime::class
+private val STRING_CLASS = String::class
+
+/**
+ * Extract a value from the [DataRow] at [index], requesting the specified type as [type].
+ *
+ * @throws ColumnDecodeError if the required [type] cannot be extracted as the column [index]
+ */
+@PublishedApi
+internal fun DataRow.get(index: Int, type: KType): Any? {
+    val cls = type.classifier!! as KClass<*>
+    val value = when (cls) {
+        BOOLEAN_CLASS -> getBoolean(index)
+        BYTE_CLASS -> getByte(index)
+        SHORT_CLASS -> getShort(index)
+        INT_CLASS -> getInt(index)
+        LONG_CLASS -> getLong(index)
+        FLOAT_CLASS -> getFloat(index)
+        DOUBLE_CLASS -> getDouble(index)
+        LOCAL_DATE_CLASS -> getLocalDate(index)
+        LOCAL_TIME_CLASS -> getLocalTime(index)
+        LOCAL_DATE_TIME_CLASS -> getLocalDateTime(index)
+        DATETIME_CLASS -> getDateTime(index)
+        STRING_CLASS -> getString(index)
+        else -> this[index]
+    } ?: return null
+    if (!cls.isInstance(value)) {
+        columnDecodeError(
+            kType = type,
+            type = columnData(index),
+            reason = "Field extracted but required type does not match the value"
+        )
+    }
+    return value
+}
+
+/**
+ * Get the value stored within the field at the [index] specified as the value type [T]. This will
+ * always decode to the type as specified by the [ColumnData] and then the wrapper value type will
+ * be created with the column value.
+ *
+ * @throws IllegalArgumentException if the [index] is out of range of the row, the field has
+ * already been decoded or [T] is not a value class
+ * @throws InvalidWrappedType if the requested type [T] is a value class and inserting the
+ * inner type's value fails
+ */
+inline fun <reified T : Any> DataRow.getValueType(index: Int): T? {
+    val cls = T::class
+    require(cls.isValue)
+    val primaryConstructor = cls.primaryConstructor!!
+    val innerType = primaryConstructor.parameters[0].type
+
+    val value = get(index, innerType) ?: return null
+    try {
+        return primaryConstructor.call(value)
+    } catch (ex: Throwable) {
+        val error = InvalidWrappedType(value, cls)
+        error.addSuppressed(ex)
+        throw error
+    }
+}
+
+/**
+ * Get the value stored within the field at the [column] specified as the value type [T]. This will
+ * always decode to the type as specified by the [ColumnData] and then the wrapper value type will
+ * be created with the column value.
+ *
+ * @throws IllegalArgumentException if the [column] is out of range of the row, the field has
+ * already been decoded or [T] is not a value class
+ * @throws InvalidWrappedType if the requested type [T] is a value class and inserting the
+ * inner type's value fails
+ */
+inline fun <reified T : Any> DataRow.getValueType(column: String): T? {
+    return getValueType(indexFromColumn(column))
+}

@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
+import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.exceptions.EmptyQueryResult
-import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.exceptions.TooManyRows
 import io.github.clasicrando.kdbc.core.query.RowParser
@@ -50,6 +50,9 @@ class TestPgQuery {
         }
     }
 
+    @JvmInline
+    value class Id(val value: Long)
+
     @Test
     fun `execute should succeed when valid query`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
@@ -82,10 +85,30 @@ class TestPgQuery {
     }
 
     @Test
+    fun `fetchScalar should succeed when valid query with value class type`(): Unit = runBlocking {
+        PgConnectionHelper.defaultConnection().use { connection ->
+            connection.createQuery("SELECT 69").use {
+                val scalar = it.fetchScalar<Id>()
+                assertNotNull(scalar)
+                assertEquals(Id(69), scalar)
+            }
+        }
+    }
+
+    @Test
     fun `fetchScalar should fail when query returns a different type`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
             connection.createQuery("SELECT 1").use {
-                assertThrows<IncorrectScalarType> { it.fetchScalar<List<Int>>() }
+                assertThrows<ColumnDecodeError> { it.fetchScalar<List<Int>>() }
+            }
+        }
+    }
+
+    @Test
+    fun `fetchScalar should fail when query returns value that cannot be put into value class`(): Unit = runBlocking {
+        PgConnectionHelper.defaultConnection().use { connection ->
+            connection.createQuery("SELECT 'Not ID'").use {
+                assertThrows<ColumnDecodeError> { it.fetchScalar<Id>() }
             }
         }
     }

@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
+import io.github.clasicrando.kdbc.core.column.ColumnData
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
@@ -97,6 +98,10 @@ internal class PgDataRow(
         }
         val columns = resultSet.columnMap.entries.joinToString { "${it.key}->${it.value}" }
         error("Could not find column in mapping. Column = '$column', columns = $columns")
+    }
+
+    override fun columnData(index: Int): ColumnData {
+        return resultSet.columnMapping[index]
     }
 
     override fun get(index: Int): Any? {
