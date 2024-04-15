@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.authentication
 
-import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
-import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import com.ongres.scram.client.ScramClient
 import com.ongres.scram.client.ScramSession
 import com.ongres.scram.common.stringprep.StringPreparations
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
+import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.Level
 
 /**
