@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
+import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.exceptions.EmptyQueryResult
 import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
@@ -84,7 +85,7 @@ class TestPgBlockingQuery {
     fun `fetchScalar should fail when query returns a different type`() {
         PgConnectionHelper.defaultBlockingConnection().use { connection ->
             connection.createQuery("SELECT 1").use {
-                assertThrows<IncorrectScalarType> { it.fetchScalar<List<Int>>() }
+                assertThrows<ColumnDecodeError> { it.fetchScalar<List<Int>>() }
             }
         }
     }
