@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Create required directories for database files
+dir="$HOME/kdbc-tests-dbs"
+mkdir -p "$dir/postgresql"
+
+# Pull podman images
+podman pull docker.io/postgis/postgis
+
+read -s -p "Postgres Password: " postgresPassword
+echo ""
+if [[ -z "${postgresPassword}" ]]; then
+  echo "No value provided for postgres password"
+  exit 1
+fi
+
+podman pod create --name kdbc-dbs -p 5432:5432
+podman create --pod=kdbc-dbs \
+  --name kdbc-pg \
+  -e "POSTGRES_PASSWORD=${postgresPassword}" \
+  -v "$dir/postgresql:/var/lib/postgresql/data:Z" \
+  postgis/postgis
