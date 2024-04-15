@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.query
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.exceptions.EmptyQueryResult
-import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.exceptions.TooManyRows
 import io.github.clasicrando.kdbc.core.query.RowParser
