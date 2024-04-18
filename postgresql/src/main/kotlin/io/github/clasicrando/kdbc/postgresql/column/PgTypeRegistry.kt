@@ -36,14 +36,14 @@ internal class PgTypeRegistry {
      * type.
      */
     private val encoders: MutableMap<KType, PgTypeEncoder<*>> = AtomicMutableMap(
-            buildMap {
-                for (encoder in defaultEncoders) {
-                    for (type in encoder.encodeTypes) {
-                        this[type] = encoder
-                    }
+        buildMap {
+            for (encoder in defaultEncoders) {
+                for (type in encoder.encodeTypes) {
+                    this[type] = encoder
                 }
             }
-        )
+        }
+    )
 
     /**
      * Initial [PgTypeDecoder] map storing decoders by OID as [Int]. OIDs are unique so no need to
@@ -135,6 +135,7 @@ internal class PgTypeRegistry {
      *
      * @throws IllegalStateException if the [PgType] cannot be found
      */
+    @PublishedApi
     internal fun kindOfInternal(type: KType): PgType {
         val pgType = encoders[type]?.pgType
         if (pgType != null) {
@@ -205,6 +206,19 @@ internal class PgTypeRegistry {
             decoders[oid] = decoder
         }
         hasPostGisTypes = true
+    }
+
+    @PublishedApi
+    internal fun <E : Any> registerEncoder(
+        encoder: PgTypeEncoder<E>,
+        arrayEncoder: PgTypeEncoder<List<E?>>,
+    ) {
+        for (type in encoder.encodeTypes) {
+            encoders[type] = encoder
+        }
+        for (type in arrayEncoder.encodeTypes) {
+            encoders[type] = encoder
+        }
     }
 
     /**

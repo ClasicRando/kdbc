@@ -19,6 +19,7 @@ import io.github.clasicrando.kdbc.postgresql.column.compositeTypeDecoder
 import io.github.clasicrando.kdbc.postgresql.column.compositeTypeEncoder
 import io.github.clasicrando.kdbc.postgresql.column.enumTypeDecoder
 import io.github.clasicrando.kdbc.postgresql.column.enumTypeEncoder
+import io.github.clasicrando.kdbc.postgresql.column.valueTypeEncoder
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyType
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
@@ -867,6 +868,16 @@ class PgConnection internal constructor(
      */
     fun includePostGisTypes() {
         typeRegistry.includePostGisTypes()
+    }
+
+    /**
+     * Register [T] as a new value wrapper type available for encoding
+     *
+     * @throws IllegalArgumentException if type [T] is not a value class
+     */
+    inline fun <reified T : Any> registerWrapperValueType() {
+        val encoders = valueTypeEncoder<T>(typeRegistry)
+        typeRegistry.registerEncoder(encoders.first, encoders.second)
     }
 
     /**
