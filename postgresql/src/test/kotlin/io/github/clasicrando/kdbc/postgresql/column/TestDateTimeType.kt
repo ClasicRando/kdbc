@@ -2,8 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.datetime.DateTime
-import io.github.clasicrando.kdbc.core.result.getDateTime
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
@@ -18,16 +17,10 @@ class TestDateTimeType {
         val query = "SELECT $1 datetime_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(dateTime)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(
-                    expected = dateTime.withOffset(UtcOffset.ZERO),
-                    actual = rows.map { it.getDateTime("datetime_col") }.first(),
-                )
-            }
+            val value = conn.createPreparedQuery(query)
+                .bind(dateTime)
+                .fetchScalar<DateTime>()
+            assertEquals(expected = dateTime.withOffset(UtcOffset.ZERO), actual = value)
         }
     }
 
@@ -35,17 +28,12 @@ class TestDateTimeType {
         val query = "SELECT '2024-02-25T05:25:51+02'::timestamptz;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(dateTime, rows.map { it.getDateTime(0, offset)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<DateTime>()
+            assertEquals(dateTime.withOffset(UtcOffset.ZERO), value)
         }
     }
 

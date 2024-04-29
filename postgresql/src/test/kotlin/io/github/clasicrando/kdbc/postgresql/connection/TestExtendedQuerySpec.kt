@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlin.test.BeforeTest
@@ -11,14 +12,15 @@ class TestExtendedQuerySpec {
     @BeforeTest
     fun setup(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
-            it.sendQuery(TEST_PROC)
+            it.createQuery(TEST_PROC)
+                .executeClosing()
         }
     }
 
     @Test
-    fun `sendPreparedStatement should return 1 result when regular query`(): Unit = runBlocking {
+    fun `sendExtendedQuery should return 1 result when regular query`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
-            val result = it.sendPreparedStatement(QUERY_SERIES, listOf(1, 10)).toList()
+            val result = it.sendExtendedQuery(QUERY_SERIES, listOf(1, 10)).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(10, queryResult.rowsAffected)
@@ -33,12 +35,12 @@ class TestExtendedQuerySpec {
     }
 
     @Test
-    fun `sendPreparedStatement should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
+    fun `sendExtendedQuery should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
             val param1 = 2
             val param2 = "start"
             val params = listOf<Any?>(param1, param2)
-            val result = it.sendPreparedStatement(
+            val result = it.sendExtendedQuery(
                 "CALL public.test_proc_ext($1::int, $2::text)",
                 params,
             ).toList()

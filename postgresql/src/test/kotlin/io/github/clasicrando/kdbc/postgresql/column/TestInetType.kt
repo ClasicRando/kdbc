@@ -1,8 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgInet
 import kotlinx.coroutines.runBlocking
@@ -18,13 +17,10 @@ class TestInetType {
         val query = "SELECT $1 inet_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(inet)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(inet, rows.map { it.getAs<PgInet>("inet_col") }.first())
-            }
+            val value = conn.createPreparedQuery(query)
+                .bind(inet)
+                .fetchScalar<PgInet>()
+            assertEquals(inet, value)
         }
     }
 
@@ -33,17 +29,12 @@ class TestInetType {
         val query = "SELECT '$inetAddress'::inet;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(inet, rows.map { it.getAs<PgInet>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgInet>()
+            assertEquals(inet, value)
         }
     }
 

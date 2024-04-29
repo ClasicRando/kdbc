@@ -1,36 +1,34 @@
 package io.github.clasicrando.kdbc.core.query
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 
 /**
- * A batch of [Query] instances can be executed and aggregated into a single [StatementResult] for
- * convenience since the basic [Query] API doesn't provide the ability to execute multiple queries
- * at once or extract multiple result blocks from queries.
+ * Base implementation of a [PreparedQueryBatch]. Delegates executing the queries to the database
+ * specific implementation.
  */
-abstract class QueryBatch(protected var connection: Connection?) : AutoRelease {
-    private val queries: MutableList<Query> = mutableListOf()
+abstract class BasePreparedQueryBatch<C : Connection>(
+    protected var connection: C?,
+) : PreparedQueryBatch {
+    protected val queries: MutableList<PreparedQuery> = mutableListOf()
 
     /**
      * Implementation specific method to execute and aggregate the results returned from the
      * database server into a single [StatementResult].
      */
-    protected abstract suspend fun executeQueriesAggregating(
-        queries: List<Pair<String, List<Any?>>>
-    ): StatementResult
+    protected abstract suspend fun vendorExecuteQueriesAggregating(): StatementResult
 
     /**
      * Execute all provided queries into a single [StatementResult] and allow for processing each
      * [QueryResult] returned.
      */
-    suspend fun executeQueries(): StatementResult {
+    final override suspend fun executeQueries(): StatementResult {
         checkNotNull(connection) { "QueryBatch already released its Connection" }
         if (queries.isEmpty()) {
             return StatementResult(emptyList())
         }
-        return executeQueriesAggregating(queries.map { it.query to it.parameters })
+        return vendorExecuteQueriesAggregating()
     }
 
     /**
@@ -40,9 +38,9 @@ abstract class QueryBatch(protected var connection: Connection?) : AutoRelease {
      *
      * @throws IllegalStateException if the batch has already been released
      */
-    fun addQuery(query: String): Query {
+    final override fun addPreparedQuery(query: String): PreparedQuery {
         checkNotNull(connection) { "QueryBatch already released its Connection" }
-        val result = connection!!.createQuery(query)
+        val result = connection!!.createPreparedQuery(query)
         queries += result
         return result
     }

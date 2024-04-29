@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
@@ -627,14 +628,9 @@ internal class PgTypeRegistry {
          * Returns null if the OID could not be found.
          */
         private suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgConnection): Int? {
-            val arrayOid = connection.sendPreparedStatement(
-                query = pgArrayTypeByInnerOid,
-                parameters = listOf(oid)
-            ).use {
-                val result = it.firstOrNull()
-                    ?: error("Found no results when executing a check for array db type by oid")
-                result.rows.firstOrNull()?.getInt(0)
-            }
+            val arrayOid = connection.createPreparedQuery(pgArrayTypeByInnerOid)
+                .bind(oid)
+                .fetchScalar<Int>()
 
             if (arrayOid == null) {
                 logger.atWarn {
@@ -666,12 +662,10 @@ internal class PgTypeRegistry {
                 typeName = name.substring(schemaQualifierIndex + 1)
             }
 
-            val parameters = listOf(typeName, schema)
-            val oid = connection.sendPreparedStatement(pgEnumTypeByName, parameters).use {
-                val result = it.firstOrNull()
-                    ?: error("Found no results when executing a check for enum db type by name")
-                result.rows.firstOrNull()?.getInt(0)
-            }
+            val oid = connection.createPreparedQuery(pgEnumTypeByName)
+                .bind(typeName)
+                .bind(schema)
+                .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
                     message = "Could not find enum type for name = {name}"
@@ -702,13 +696,10 @@ internal class PgTypeRegistry {
                 typeName = name.substring(schemaQualifierIndex + 1)
             }
 
-            val parameters = listOf(typeName, schema)
-            val oid = connection.sendPreparedStatement(pgCompositeTypeByName, parameters).use {
-                val result = it.firstOrNull() ?: error(
-                    "Found no results when executing a check for composite db type by name"
-                )
-                result.rows.firstOrNull()?.getInt(0)
-            }
+            val oid = connection.createPreparedQuery(pgCompositeTypeByName)
+                .bind(typeName)
+                .bind(schema)
+                .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
                     message = "Could not find composite type for name = {name}"

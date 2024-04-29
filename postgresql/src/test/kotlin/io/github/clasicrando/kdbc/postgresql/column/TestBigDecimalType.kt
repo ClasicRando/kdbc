@@ -1,8 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import java.math.BigDecimal
@@ -16,13 +15,10 @@ class TestBigDecimalType {
         val query = "SELECT $1 numeric_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(value)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<BigDecimal>("numeric_col") }.first())
-            }
+            val bigDecimal = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<BigDecimal>()
+            assertEquals(value, bigDecimal)
         }
     }
 
@@ -32,17 +28,12 @@ class TestBigDecimalType {
         val query = "SELECT $number;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val bigDecimal = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(expectedResult, rows.map { it.getAs<BigDecimal>(0) }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<BigDecimal>()
+            assertEquals(expectedResult, bigDecimal)
         }
     }
 

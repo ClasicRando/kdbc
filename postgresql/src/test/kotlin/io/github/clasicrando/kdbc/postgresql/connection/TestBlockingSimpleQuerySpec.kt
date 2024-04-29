@@ -6,7 +6,6 @@ import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.message.information.Severity
 import io.github.clasicrando.kdbc.postgresql.message.information.SqlState
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
@@ -98,8 +97,8 @@ class TestBlockingSimpleQuerySpec {
 
         @JvmStatic
         @BeforeAll
-        fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
+        fun setup() {
+            PgConnectionHelper.defaultBlockingConnection().use {
                 it.sendQuery(STARTUP_SCRIPT)
             }
         }

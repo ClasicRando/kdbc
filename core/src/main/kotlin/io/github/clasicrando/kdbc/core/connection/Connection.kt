@@ -1,11 +1,9 @@
 package io.github.clasicrando.kdbc.core.connection
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
-import io.github.clasicrando.kdbc.core.query.DefaultQueryBatch
+import io.github.clasicrando.kdbc.core.query.PreparedQuery
+import io.github.clasicrando.kdbc.core.query.PreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.Query
-import io.github.clasicrando.kdbc.core.query.QueryBatch
-import io.github.clasicrando.kdbc.core.result.QueryResult
-import io.github.clasicrando.kdbc.core.result.StatementResult
 
 private const val RESOURCE_TYPE = "Connection"
 
@@ -62,30 +60,28 @@ interface Connection : UniqueResourceId {
     suspend fun rollback()
 
     /**
-     * Send a raw query with no parameters, returning a [StatementResult] containing zero or more
-     * [QueryResult]s
+     * Create a new [Query] for this [Connection] with the specified [query] string. [Query]
+     * instances are for SQL queries that do not accept parameters and aren't executed frequently
+     * enough to require a precomputed query plan that is generated with a [PreparedQuery]. This
+     * means that even if your query doesn't accept parameters, a [PreparedQuery] is recommended
+     * when frequently executing a static query.
      */
-    suspend fun sendQuery(query: String): StatementResult
+    fun createQuery(query: String): Query
 
     /**
-     * Send a prepared statement with [parameters], returning a [StatementResult] containing zero
-     * or more [QueryResult]s
+     * Create a new [PreparedQuery] for this [Connection] with the specified [query] string.
+     * [PreparedQuery] are for SQL queries that either accept parameters or are executed frequently
+     * so a precomputed query plan is best.
      */
-    suspend fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult
+    fun createPreparedQuery(query: String): PreparedQuery
 
     /**
-     * Manually release a prepared statement for the provided [query]. This will not error if the
-     * query is not attached to a prepared statement.
-     *
-     * Only call this method if you are sure you need it.
+     * Create a new [PreparedQueryBatch] for this [Connection]. This allows executing 1 or more
+     * [PreparedQuery] instances within a single batch of commands. This is not guaranteed to
+     * improve performance but some databases provide optimized protocols for sending multiple
+     * queries at the same time.
      */
-    suspend fun releasePreparedStatement(query: String)
-
-    /** Create a new [Query] for this [Connection] with the specified [query] string */
-    fun createQuery(query: String): Query = Query(query, this)
-
-    /** Create a new [QueryBatch] for this [Connection] */
-    fun createQueryBatch(): QueryBatch = DefaultQueryBatch(this)
+    fun createPreparedQueryBatch(): PreparedQueryBatch
 }
 
 /**

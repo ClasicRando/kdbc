@@ -2,15 +2,16 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.RowParser
+import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestPgArrayType {
     private fun fieldDescription(pgType: PgType): PgColumnDescription {
@@ -78,13 +79,12 @@ class TestPgArrayType {
         val query = "SELECT x array_values FROM UNNEST($1) x"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(values)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(4, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(4, rows.size)
-                Assertions.assertIterableEquals(values, rows.map { it.getAs<Int>("array_values") })
-            }
+            val ints = conn.createPreparedQuery(query)
+                .bind(values)
+                .fetchAll(object : RowParser<Int> {
+                    override fun fromRow(row: DataRow): Int = row.getInt(0)!!
+                })
+            Assertions.assertIterableEquals(values, ints)
         }
     }
 
@@ -93,17 +93,12 @@ class TestPgArrayType {
         val query = "SELECT ARRAY[1,2,3,4]::int[]"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val ints = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                Assertions.assertIterableEquals(expectedResult, rows.map { it.getAs<List<Int>>(0) }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<List<Int>>()
+            Assertions.assertIterableEquals(expectedResult, ints)
         }
     }
 

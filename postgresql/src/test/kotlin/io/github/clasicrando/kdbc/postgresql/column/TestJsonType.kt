@@ -1,8 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgJson
 import kotlinx.coroutines.runBlocking
@@ -12,6 +11,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class TestJsonType {
     @Serializable
@@ -23,14 +23,11 @@ class TestJsonType {
         val query = "SELECT $1::${if (isJsonB) "jsonb" else "json"} json_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(pgJsonValue)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                val pgJson = rows.map { it.getAs<PgJson>("json_col")!! }.first()
-                assertEquals(jsonValue, pgJson.decode())
-            }
+            val pgJson = conn.createPreparedQuery(query)
+                .bind(pgJsonValue)
+                .fetchScalar<PgJson>()
+            assertNotNull(pgJson)
+            assertEquals(jsonValue, pgJson.decode())
         }
     }
 
@@ -38,18 +35,13 @@ class TestJsonType {
         val query = "SELECT '$JSON_STRING'::${if (isJsonB) "jsonb" else "json"};"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val pgJson = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                val pgJson = rows.map { it.getAs<PgJson>(0)!! }.first()
-                assertEquals(jsonValue, pgJson.decode())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgJson>()
+            assertNotNull(pgJson)
+            assertEquals(jsonValue, pgJson.decode())
         }
     }
 

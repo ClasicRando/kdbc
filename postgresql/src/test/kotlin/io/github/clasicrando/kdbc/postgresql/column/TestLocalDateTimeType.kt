@@ -1,8 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getLocalDateTime
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
@@ -17,16 +16,10 @@ class TestLocalDateTimeType {
         val query = "SELECT $1 local_datetime_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(localDateTime)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(
-                    expected = localDateTime,
-                    actual = rows.map { it.getLocalDateTime("local_datetime_col") }.first(),
-                )
-            }
+            val value = conn.createPreparedQuery(query)
+                .bind(localDateTime)
+                .fetchScalar<LocalDateTime>()
+            assertEquals(expected = localDateTime, actual = value)
         }
     }
 
@@ -34,17 +27,12 @@ class TestLocalDateTimeType {
         val query = "SELECT '2024-02-25T05:25:51'::timestamp;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(localDateTime, rows.map { it.getLocalDateTime(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<LocalDateTime>()
+            assertEquals(localDateTime, value)
         }
     }
 

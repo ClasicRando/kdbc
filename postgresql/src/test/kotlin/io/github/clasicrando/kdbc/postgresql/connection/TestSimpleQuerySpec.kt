@@ -15,9 +15,9 @@ import kotlin.test.assertEquals
 class TestSimpleQuerySpec {
 
     @Test
-    fun `sendQuery should return 1 result when regular query`(): Unit = runBlocking {
+    fun `sendSimpleQuery should return 1 result when regular query`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use {
-            val result = it.sendQuery(QUERY_SERIES).toList()
+            val result = it.sendSimpleQuery(QUERY_SERIES).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(10, queryResult.rowsAffected)
@@ -32,9 +32,9 @@ class TestSimpleQuerySpec {
     }
 
     @Test
-    fun `sendQuery should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
+    fun `sendSimpleQuery should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use {
-            val result = it.sendQuery("CALL public.$TEST_PROC_NAME(null, null)").toList()
+            val result = it.sendSimpleQuery("CALL public.$TEST_PROC_NAME(null, null)").toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(0, queryResult.rowsAffected)
@@ -46,13 +46,13 @@ class TestSimpleQuerySpec {
     }
 
     @Test
-    fun `sendQuery should return multiple results when multiple statements`(): Unit = runBlocking {
+    fun `sendSimpleQuery should return multiple results when multiple statements`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { connection ->
             val queries = """
                 CALL public.$TEST_PROC_NAME(null, null);
                 SELECT 1 test_i;
             """.trimIndent()
-            val results = connection.sendQuery(queries).toList()
+            val results = connection.sendSimpleQuery(queries).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
             assertEquals(4, results[0].rows.firstOrNull()?.getInt(0))
@@ -62,10 +62,10 @@ class TestSimpleQuerySpec {
     }
 
     @Test
-    fun `sendQuery should timeout when long running query with timeout specified`(): Unit = runBlocking {
+    fun `sendSimpleQuery should timeout when long running query with timeout specified`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnectionWithQueryTimeout().use { connection ->
             val queries = "CALL public.$LONG_RUNNING_TEST_PROC_NAME()"
-            val exception = assertThrows<GeneralPostgresError> { connection.sendQuery(queries) }
+            val exception = assertThrows<GeneralPostgresError> { connection.sendSimpleQuery(queries) }
             assertEquals(Severity.ERROR, exception.errorInformation.severity)
             assertEquals(SqlState.QueryCanceled, exception.errorInformation.code)
         }
@@ -101,7 +101,7 @@ class TestSimpleQuerySpec {
         @BeforeAll
         fun setup(): Unit = runBlocking {
             PgConnectionHelper.defaultConnection().use {
-                it.sendQuery(STARTUP_SCRIPT)
+                it.sendSimpleQuery(STARTUP_SCRIPT)
             }
         }
     }

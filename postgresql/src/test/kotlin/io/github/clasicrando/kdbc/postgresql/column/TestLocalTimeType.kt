@@ -1,8 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getLocalTime
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalTime
@@ -15,16 +14,10 @@ class TestLocalTimeType {
         val query = "SELECT $1 local_time_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(localTime)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(
-                    expected = localTime,
-                    actual = rows.map { it.getLocalTime("local_time_col") }.first(),
-                )
-            }
+            val value = conn.createPreparedQuery(query)
+                .bind(localTime)
+                .fetchScalar<LocalTime>()
+            assertEquals(expected = localTime, actual = value)
         }
     }
 
@@ -32,17 +25,12 @@ class TestLocalTimeType {
         val query = "SELECT '05:25:51'::time;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(localTime, rows.map { it.getLocalTime(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<LocalTime>()
+            assertEquals(localTime, value)
         }
     }
 

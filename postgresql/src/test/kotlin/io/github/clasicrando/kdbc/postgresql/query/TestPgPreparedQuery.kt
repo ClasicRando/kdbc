@@ -25,7 +25,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class TestPgQuery {
+class TestPgPreparedQuery {
     data class Row(val intValue: Int, val stringValue: String)
 
     object GoodRowParserTest : RowParser<Row> {
@@ -96,7 +96,9 @@ class TestPgQuery {
     @Test
     fun `fetchFirst should succeed when valid query with rowparser`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            val row = connection.createQuery("SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value")
+            val row = connection.createPreparedQuery("SELECT $1 int_value, $2 string_value")
+                .bind(INT_VALUE)
+                .bind(STRING_VALUE)
                 .fetchFirst(GoodRowParserTest)
             assertNotNull(row)
             assertEquals(INT_VALUE, row.intValue)
@@ -107,7 +109,9 @@ class TestPgQuery {
     @Test
     fun `fetchFirst should fail when bad row parser`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            connection.createQuery("SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value").use {
+            connection.createPreparedQuery("SELECT $1 int_value, $2 string_value").use {
+                it.bind(INT_VALUE)
+                it.bind(STRING_VALUE)
                 assertThrows<RowParseError> { it.fetchFirst(BadRowParserTest) }
             }
         }
@@ -116,7 +120,9 @@ class TestPgQuery {
     @Test
     fun `fetchSingle should succeed when valid query with rowparser`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            val row = connection.createQuery("SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value")
+            val row = connection.createPreparedQuery("SELECT $1 int_value, $2 string_value")
+                .bind(INT_VALUE)
+                .bind(STRING_VALUE)
                 .fetchSingle(GoodRowParserTest)
             assertNotNull(row)
             assertEquals(INT_VALUE, row.intValue)
@@ -127,13 +133,15 @@ class TestPgQuery {
     @Test
     fun `fetchSingle should fail when no rows are returned`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            connection.createQuery(
+            connection.createPreparedQuery(
                 """
                     SELECT *
-                    FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
+                    FROM (SELECT $1 int_value, $2 string_value) t
                     WHERE 1 = 2
                 """.trimIndent()
             ).use {
+                it.bind(INT_VALUE)
+                it.bind(STRING_VALUE)
                 assertThrows<EmptyQueryResult> { it.fetchSingle(BadRowParserTest) }
             }
         }
@@ -142,13 +150,15 @@ class TestPgQuery {
     @Test
     fun `fetchSingle should fail when multiple rows are returned`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            connection.createQuery(
+            connection.createPreparedQuery(
                 """
                     SELECT *
-                    FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
+                    FROM (SELECT $1 int_value, $2 string_value) t
                     CROSS JOIN generate_series(1,2) s
                 """.trimIndent()
             ).use {
+                it.bind(INT_VALUE)
+                it.bind(STRING_VALUE)
                 assertThrows<TooManyRows> { it.fetchSingle(BadRowParserTest) }
             }
         }
@@ -157,13 +167,16 @@ class TestPgQuery {
     @Test
     fun `fetchAll should succeed when valid query and row parser`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            val rows = connection.createQuery(
+            val rows = connection.createPreparedQuery(
                 """
                     SELECT *
-                    FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
+                    FROM (SELECT $1 int_value, $2 string_value) t
                     CROSS JOIN generate_series(1,2) s
                 """.trimIndent()
-            ).fetchAll(GoodRowParserTest)
+            )
+                .bind(INT_VALUE)
+                .bind(STRING_VALUE)
+                .fetchAll(GoodRowParserTest)
             assertEquals(2, rows.size)
             for (row in rows) {
                 assertEquals(INT_VALUE, row.intValue)
@@ -175,31 +188,34 @@ class TestPgQuery {
     @Test
     fun `fetchAll should fail when unexpected exception is thrown`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            connection.createQuery(
+            val rows = connection.createPreparedQuery(
                 """
                     SELECT *
-                    FROM (SELECT null int_value, '$STRING_VALUE' string_value) t
+                    FROM (SELECT null int_value, $1 string_value) t
                     CROSS JOIN generate_series(1,2) s
                 """.trimIndent()
-            ).use {
-                val exception = assertThrows<RowParseError> { it.fetchAll(BadRowParserTest2) }
-                val suppressedExceptions = exception.suppressedExceptions
-                assertEquals(1, suppressedExceptions.size)
-                assertTrue(suppressedExceptions.first() is NullPointerException)
-            }
+            )
+                .bind(STRING_VALUE)
+            val exception = assertThrows<RowParseError> { rows.fetchAll(BadRowParserTest2) }
+            val suppressedExceptions = exception.suppressedExceptions
+            assertEquals(1, suppressedExceptions.size)
+            assertTrue(suppressedExceptions.first() is NullPointerException)
         }
     }
 
     @Test
     fun `fetch should succeed when valid query and row parser`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            val rows = connection.createQuery(
+            val rows = connection.createPreparedQuery(
                 """
                     SELECT *
-                    FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
+                    FROM (SELECT $1 int_value, $2 string_value) t
                     CROSS JOIN generate_series(1,2) s
                 """.trimIndent()
-            ).fetch(GoodRowParserTest)
+            )
+                .bind(INT_VALUE)
+                .bind(STRING_VALUE)
+                .fetch(GoodRowParserTest)
             var count = 0
             rows.collect { row ->
                 count++

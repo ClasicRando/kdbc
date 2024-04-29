@@ -5,7 +5,9 @@ import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.pool.ConnectionPool
-import io.github.clasicrando.kdbc.core.query.QueryBatch
+import io.github.clasicrando.kdbc.core.query.PreparedQuery
+import io.github.clasicrando.kdbc.core.query.PreparedQueryBatch
+import io.github.clasicrando.kdbc.core.query.Query
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.resourceLogger
@@ -26,7 +28,9 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
-import io.github.clasicrando.kdbc.postgresql.query.PgQueryBatch
+import io.github.clasicrando.kdbc.postgresql.query.PgPreparedQuery
+import io.github.clasicrando.kdbc.postgresql.query.PgPreparedQueryBatch
+import io.github.clasicrando.kdbc.postgresql.query.PgQuery
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
 import io.github.clasicrando.kdbc.postgresql.statement.PgArguments
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
@@ -134,7 +138,7 @@ class PgConnection internal constructor(
 
     override suspend fun begin() {
         try {
-            sendQuery("BEGIN;")
+            sendSimpleQuery("BEGIN;")
             if (_inTransaction.compareAndSet(expect = false, update = true)) {
                 throw UnexpectedTransactionState(inTransaction = true)
             }
@@ -155,7 +159,7 @@ class PgConnection internal constructor(
 
     override suspend fun commit() {
         try {
-            sendQuery("COMMIT;")
+            sendSimpleQuery("COMMIT;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
                 log(Level.ERROR) {
@@ -167,7 +171,7 @@ class PgConnection internal constructor(
 
     override suspend fun rollback() {
         try {
-            sendQuery("ROLLBACK;")
+            sendSimpleQuery("ROLLBACK;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
                 log(Level.ERROR) {
@@ -175,6 +179,16 @@ class PgConnection internal constructor(
                 }
             }
         }
+    }
+
+    override fun createQuery(query: String): Query = PgQuery(this, query)
+
+    override fun createPreparedQuery(query: String): PreparedQuery {
+        return PgPreparedQuery(this, query)
+    }
+
+    override fun createPreparedQueryBatch(): PreparedQueryBatch {
+        return PgPreparedQueryBatch(this)
     }
 
     private fun logUnexpectedMessage(message: PgMessage): Loop {
@@ -334,13 +348,28 @@ class PgConnection internal constructor(
         throw error
     }
 
-    override suspend fun sendQuery(
+    /**
+     * Send a query to the postgres database using the simple query protocol. This sends a single
+     * [PgMessage.Query] message with the raw SQL query with no parameters. The database then
+     * responds with zero or more [QueryResult]s that are packages into a [StatementResult].
+     *
+     * **Note**: This method will defer to [sendExtendedQuery] if the [query] does not contain a
+     * semicolon and the [PgConnectOptions.useExtendedProtocolForSimpleQueries] is true (the
+     * default value).
+     *
+     * [postgres docs](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-SIMPLE-QUERY)
+     *
+     * @throws IllegalArgumentException if the [query] is blank
+     * @throws IllegalStateException if the underlining connection is no longer active
+     */
+    internal suspend fun sendSimpleQuery(
         query: String,
     ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
+
         if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
-            return sendPreparedStatement(query, emptyList())
+            return sendExtendedQuery(query, emptyList())
         }
         waitForQueryRunning()
         logger.resourceLogger(
@@ -423,18 +452,16 @@ class PgConnection internal constructor(
      * statement was never executed.
      */
     private suspend fun removeOldestPreparedStatement() {
-        val neverExecuted = preparedStatements.entries
-            .find { it.value.lastExecuted == null }
-            ?.key
+        val neverExecuted = preparedStatements.values
+            .find { it.lastExecuted == null }
         if (neverExecuted != null) {
             releasePreparedStatement(neverExecuted)
             return
         }
-        val oldestQuery = preparedStatements.entries
+        val oldestQuery = preparedStatements.values
             .asSequence()
-            .filter { it.value.lastExecuted != null }
-            .maxBy { it.value.lastExecuted!! }
-            .key
+            .filter { it.lastExecuted != null }
+            .maxBy { it.lastExecuted!! }
         releasePreparedStatement(oldestQuery)
     }
 
@@ -525,7 +552,18 @@ class PgConnection internal constructor(
         }
     }
 
-    override suspend fun sendPreparedStatement(
+    /**
+     * Send a query to the postgres database using the extended query protocol. This goes through
+     * the process of preparing the query (see [prepareStatement]) before then executing with the
+     * provided parameters. The database then responds with 1 [QueryResult]s that is packages into
+     * a [StatementResult].
+     *
+     * [postgres docs](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY)
+     *
+     * @throws IllegalArgumentException if the [query] is blank
+     * @throws IllegalStateException if the underlining connection is no longer active
+     */
+    internal suspend fun sendExtendedQuery(
         query: String,
         parameters: List<Any?>,
     ): StatementResult  {
@@ -542,23 +580,16 @@ class PgConnection internal constructor(
         return collectResult(statement = statement)
     }
 
-    override suspend fun releasePreparedStatement(
-        query: String,
-    ) {
+    /**
+     * Send a [PgMessage.Close] message for the [preparedStatement]. This will close the server
+     * side prepared statement and then remove the [preparedStatement] for the client cache.
+     */
+    private suspend fun releasePreparedStatement(preparedStatement: PgPreparedStatement) {
         waitForQueryRunning()
 
-        val statement = preparedStatements[query]
-        if (statement == null) {
-            log(Level.WARN) {
-                message = "query supplied did not match a stored prepared statement"
-                payload = mapOf("query" to query)
-            }
-            enableQueryRunning()
-            return
-        }
         val closeMessage = PgMessage.Close(
             target = MessageTarget.PreparedStatement,
-            targetName = statement.statementName,
+            targetName = preparedStatement.statementName,
         )
         stream.writeManyToStream(closeMessage, PgMessage.Sync)
         stream.waitForOrError<PgMessage.CommandComplete>()
@@ -566,7 +597,7 @@ class PgConnection internal constructor(
                 enableQueryRunning()
                 throw it
             }
-        preparedStatements.remove(query)
+        preparedStatements.remove(preparedStatement.query)
         enableQueryRunning()
     }
 
@@ -606,7 +637,7 @@ class PgConnection internal constructor(
      *
      * @see pipelineQueries
      */
-    suspend fun pipelineQueriesSyncAll(
+    internal suspend fun pipelineQueriesSyncAll(
         vararg queries: Pair<String, List<Any?>>,
     ): Flow<QueryResult> {
         return pipelineQueries(queries = queries)
@@ -647,9 +678,9 @@ class PgConnection internal constructor(
      *
      * If you are unsure of how this works or what the implications of pipelining has on your
      * database, you should opt to either send multiple statements in separate calls to
-     * [sendPreparedStatement] or package your queries into a stored procedure.
+     * [sendExtendedQuery] or package your queries into a stored procedure.
      */
-    suspend fun pipelineQueries(
+    internal suspend fun pipelineQueries(
         syncAll: Boolean = true,
         vararg queries: Pair<String, List<Any?>>,
     ): Flow<QueryResult> {
@@ -846,7 +877,7 @@ class PgConnection internal constructor(
      */
     suspend fun listen(channelName: String) {
         val query = "LISTEN ${channelName.quoteIdentifier()};"
-        sendQuery(query)
+        sendSimpleQuery(query)
     }
 
     /**
@@ -855,7 +886,7 @@ class PgConnection internal constructor(
      */
     suspend fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
-        sendQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
+        sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
     }
 
     /**
@@ -902,8 +933,6 @@ class PgConnection internal constructor(
             arrayType = typeOf<List<T?>>(),
         )
     }
-
-    override fun createQueryBatch(): QueryBatch = PgQueryBatch(this)
 
     companion object {
         private const val STATEMENT_TEMPLATE = "Sending {query}"

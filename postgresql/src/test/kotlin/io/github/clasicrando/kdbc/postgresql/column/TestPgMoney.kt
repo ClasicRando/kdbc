@@ -1,8 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgMoney
 import kotlinx.coroutines.runBlocking
@@ -110,13 +109,10 @@ class TestPgMoney {
         val query = "SELECT $1 money_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(moneyValue)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(moneyValue, rows.map { it.getAs<PgMoney>("money_col") }.first())
-            }
+            val money = conn.createPreparedQuery(query)
+                .bind(moneyValue)
+                .fetchScalar<PgMoney>()
+            assertEquals(moneyValue, money)
         }
     }
 
@@ -124,17 +120,12 @@ class TestPgMoney {
         val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val money = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(moneyValue, rows.map { it.getAs<PgMoney>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgMoney>()
+            assertEquals(moneyValue, money)
         }
     }
 

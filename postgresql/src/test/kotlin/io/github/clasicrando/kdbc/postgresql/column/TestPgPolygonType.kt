@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgPoint
@@ -18,13 +18,10 @@ class TestPgPolygonType {
 
         PgConnectionHelper.defaultConnection().use { conn ->
             conn.includePostGisTypes()
-            conn.sendPreparedStatement(query, listOf(value)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<PgPolygon>("polygon_col") }.first())
-            }
+            val polygon = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<PgPolygon>()
+            assertEquals(value, polygon)
         }
     }
 
@@ -33,17 +30,12 @@ class TestPgPolygonType {
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             conn.includePostGisTypes()
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val polygon = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<PgPolygon>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgPolygon>()
+            assertEquals(value, polygon)
         }
     }
 
@@ -73,7 +65,7 @@ class TestPgPolygonType {
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
             PgConnectionHelper.defaultConnection().use { conn ->
-                conn.sendQuery(POST_GIS_QUERY).use {
+                conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getBoolean(0) == true)
                 }
             }

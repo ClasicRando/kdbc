@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAs
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -72,13 +73,10 @@ class TestEnumType {
 
         PgConnectionHelper.defaultConnection().use { conn ->
             conn.registerEnumType<EnumType>("enum_type")
-            conn.sendPreparedStatement(query, listOf(value)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<EnumType>("enum_col") }.first())
-            }
+            val fetchValue = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<EnumType>()
+            assertEquals(value, fetchValue)
         }
     }
 
@@ -87,17 +85,12 @@ class TestEnumType {
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             conn.registerEnumType<EnumType>("enum_type")
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val fetchValue = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<EnumType>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<EnumType>()
+            assertEquals(value, fetchValue)
         }
     }
 
@@ -118,7 +111,7 @@ class TestEnumType {
         @BeforeAll
         fun setup(): Unit = runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                connection.sendQuery("""
+                connection.sendSimpleQuery("""
                     DROP TYPE IF EXISTS public.enum_type;
                     CREATE TYPE public.enum_type AS ENUM
                     (

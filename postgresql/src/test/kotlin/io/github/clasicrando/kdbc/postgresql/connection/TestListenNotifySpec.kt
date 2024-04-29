@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -12,7 +13,8 @@ class TestListenNotifySpec {
     fun `listen should issue a listen command and receive notification`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
             it.listen(CHANNEL_NAME)
-            it.sendQuery("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')")
+            it.createQuery("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')")
+                .executeClosing()
             val notification = withTimeout(200) {
                 it.notifications.receive()
             }
@@ -25,7 +27,8 @@ class TestListenNotifySpec {
     @Test
     fun `notify should issue a notify command and receive notification`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
-            it.sendQuery("LISTEN $CHANNEL_NAME")
+            it.createQuery("LISTEN $CHANNEL_NAME")
+                .executeClosing()
             it.notify(CHANNEL_NAME, PAYLOAD)
             val notification = withTimeout(200) {
                 it.notifications.receive()

@@ -1,8 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getBoolean
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.params.ParameterizedTest
@@ -16,13 +15,10 @@ class TestBooleanType {
         val query = "SELECT $1 bool_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(value)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getBoolean("bool_col") }.first())
-            }
+            val boolean = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<Boolean>()
+            assertEquals(value, boolean)
         }
     }
 
@@ -30,17 +26,12 @@ class TestBooleanType {
         val query = "SELECT $value;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val boolean = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getBoolean(0) }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<Boolean>()
+            assertEquals(value, boolean)
         }
     }
 

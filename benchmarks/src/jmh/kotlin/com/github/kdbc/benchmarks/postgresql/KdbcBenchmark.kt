@@ -1,6 +1,8 @@
 package com.github.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.connection.Connection
+import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.fetchAll
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -27,7 +29,7 @@ open class KdbcBenchmark {
 
     @Setup
     open fun start(): Unit = runBlocking {
-        connection.sendQuery(setupQuery)
+        connection.createQuery(setupQuery).executeClosing()
     }
 
     private fun step() {
@@ -35,27 +37,14 @@ open class KdbcBenchmark {
         if (id >= 5000) id = 1
     }
 
-//    @Benchmark
+
+    @Benchmark
     open fun queryData() = runBlocking {
         step()
-        val result = connection.sendPreparedStatement(kdbcQuery, listOf(id, id + 10)).first()
-        result.rows.map { row ->
-            PostDataClass(
-                row.getInt(0)!!,
-                row.getString(1)!!,
-                row.getLocalDateTime(2)!!,
-                row.getLocalDateTime(3)!!,
-                row.getInt(4),
-                row.getInt(5),
-                row.getInt(6),
-                row.getInt(7),
-                row.getInt(8),
-                row.getInt(9),
-                row.getInt(10),
-                row.getInt(11),
-                row.getInt(12),
-            )
-        }
+        connection.createPreparedQuery(kdbcQuery)
+            .bind(id)
+            .bind(id + 10)
+            .fetchAll(PostDataClassRowParser)
     }
 
     @TearDown

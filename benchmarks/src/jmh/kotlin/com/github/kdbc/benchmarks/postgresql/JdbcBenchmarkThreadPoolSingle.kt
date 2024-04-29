@@ -73,7 +73,7 @@ open class JdbcBenchmarkThreadPoolSingle {
         }
     }
 
-//    @Benchmark
+    @Benchmark
     open fun queryData() {
         val taskCount = concurrencyLimit
         for (i in 1..taskCount) {

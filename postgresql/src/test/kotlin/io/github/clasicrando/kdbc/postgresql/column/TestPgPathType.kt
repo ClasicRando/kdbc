@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgPath
@@ -21,13 +21,10 @@ class TestPgPathType {
 
         PgConnectionHelper.defaultConnection().use { conn ->
             conn.includePostGisTypes()
-            conn.sendPreparedStatement(query, listOf(value)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<PgPath>("path_col") }.first())
-            }
+            val path = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<PgPath>()
+            assertEquals(value, path)
         }
     }
 
@@ -37,17 +34,12 @@ class TestPgPathType {
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             conn.includePostGisTypes()
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val path = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<PgPath>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgPath>()
+            assertEquals(value, path)
         }
     }
 
@@ -83,7 +75,7 @@ class TestPgPathType {
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
             PgConnectionHelper.defaultConnection().use { conn ->
-                conn.sendQuery(POST_GIS_QUERY).use {
+                conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getBoolean(0) == true)
                 }
             }
