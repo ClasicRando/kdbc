@@ -167,12 +167,17 @@ class ByteReadBuffer(
             .toString(charset = charset)
     }
 
+    /** Reset this buffer to it's initial reading position so the value can be read again */
+    fun reset() {
+        position = 0
+    }
+
     /**
      * Reset the buffer's position to 0 and set the inner buffer to an empty [ByteArray]. This
      * leaves the buffer in an unusable state
      */
     override fun release() {
-        position = 0
+        reset()
         innerBuffer = ByteArray(0)
     }
 

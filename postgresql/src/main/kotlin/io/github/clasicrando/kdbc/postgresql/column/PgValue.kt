@@ -42,4 +42,14 @@ sealed class PgValue(val typeData: PgColumnDescription) {
             return "PgValue.Binary(typeData=$typeData)"
         }
     }
+
+    /**
+     * If this [PgValue] is a [PgValue.Binary] then reset the [ByteReadBuffer]. Otherwise, do
+     * nothing.
+     */
+    fun reset() {
+        if (this is Binary) {
+            bytes.reset()
+        }
+    }
 }
