@@ -8,7 +8,7 @@ class TestBlockingSaslAuthFlow {
     @Test
     fun `saslAuthFlow should succeed when valid login`() {
         PgConnectionHelper.defaultBlockingConnection().use {
-            it.sendQuery("SELECT 1")
+            it.sendSimpleQuery("SELECT 1")
         }
     }
 }

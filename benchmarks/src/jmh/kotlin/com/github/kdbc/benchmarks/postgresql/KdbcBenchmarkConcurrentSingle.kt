@@ -51,7 +51,7 @@ open class KdbcBenchmarkConcurrentSingle {
         }
     }
 
-    @Benchmark
+//    @Benchmark
     open fun queryData() = runBlocking {
         val results = List(concurrencyLimit) {
             val stepId = step()

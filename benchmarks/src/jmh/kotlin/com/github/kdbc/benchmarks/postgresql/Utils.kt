@@ -1,8 +1,5 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import com.github.jasync.sql.db.pool.ConnectionPool
-import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
-import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.connection.Connection
@@ -81,12 +78,6 @@ private const val missingEnvironmentVariableMessage = "To run benchmarks the env
 private val connectionString = System.getenv("JDBC_PG_CONNECTION_STRING")
     ?: throw IllegalStateException(missingEnvironmentVariableMessage)
 
-private const val missingLocalEnvironmentVariableMessage = "To run benchmarks the " +
-        "environment variable JDBC_PG_CONNECTION_STRING must be available"
-
-private val localConnectionString = System.getenv("JDBC_LOCAL_PG_CONNECTION_STRING")
-    ?: throw IllegalStateException(missingEnvironmentVariableMessage)
-
 fun getJdbcConnection(): JdbcConnection = DriverManager.getConnection(connectionString)
 
 fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
@@ -97,83 +88,45 @@ fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     return PoolingDataSource(connectionPool)
 }
 
-private val defaultLocalConnectOptions = PgConnectOptions(
+private val kdbcConnectOptions = PgConnectOptions(
     host = "127.0.0.1",
     port = 5432U,
     username = "postgres",
-    password = System.getenv("PG_LOCAL_BENCHMARK_PASSWORD")
-        ?: error("To run benchmarks the environment variable PG_LOCAL_BENCHMARK_PASSWORD must be available"),
-    database = "test",
-    applicationName = "KdbcTests",
-    logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
-)
-
-private val defaultConnectOptions = PgConnectOptions(
-    host = "192.168.2.15",
-    port = 5430U,
-    username = "em_admin",
     password = System.getenv("PG_BENCHMARK_PASSWORD")
         ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
-    database = "enviro_manager",
-    applicationName = "KdbcTests",
+    database = "postgres",
+    applicationName = "KdbcTests${UUID.generateUUID()}",
     logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
 )
 
 suspend fun getKdbcConnection(): Connection {
-    return Postgres.connection(connectOptions = defaultConnectOptions)
+    return Postgres.connection(connectOptions = kdbcConnectOptions)
 }
 
 suspend fun initializeConcurrentConnections(): PgConnectOptions {
-    val options = PgConnectOptions(
-        host = "192.168.2.15",
-        port = 5430U,
-        username = "em_admin",
-        password = System.getenv("PG_BENCHMARK_PASSWORD")
-            ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
-        database = "enviro_manager",
-        applicationName = "KdbcTests${UUID.generateUUID()}",
-        logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
+    val options = kdbcConnectOptions.copy(
         poolOptions = PoolOptions(
             maxConnections = 10,
             minConnections = 8,
-        ),
+        )
     )
     Postgres.connection(connectOptions = options).close()
     return options
 }
 
 fun getKdbcBlockingConnection(): BlockingConnection {
-    return Postgres.blockingConnection(connectOptions = defaultConnectOptions)
+    return Postgres.blockingConnection(connectOptions = kdbcConnectOptions)
 }
 
 fun initializeThreadPoolBlockingConnections(): PgConnectOptions {
-    val options = PgConnectOptions(
-        host = "192.168.2.15",
-        port = 5430U,
-        username = "em_admin",
-        password = System.getenv("PG_BENCHMARK_PASSWORD")
-            ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
-        database = "enviro_manager",
-        applicationName = "KdbcTests${UUID.generateUUID()}",
-        logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
+    val options = kdbcConnectOptions.copy(
         poolOptions = PoolOptions(
             maxConnections = 10,
             minConnections = 8,
-        ),
+        )
     )
     Postgres.blockingConnection(connectOptions = options).close()
     return options
 }
 
-fun getJasyncPool(): ConnectionPool<PostgreSQLConnection> {
-    return PostgreSQLConnectionBuilder.createConnectionPool {
-        host = "192.168.0.12"
-        port = 5430
-        database = "enviro_manager"
-        username = "em_admin"
-        password = System.getenv("PG_BENCHMARK_PASSWORD")
-            ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available")
-    }
-}
-
-const val concurrencyLimit: Int = 100
+const val concurrencyLimit = 100

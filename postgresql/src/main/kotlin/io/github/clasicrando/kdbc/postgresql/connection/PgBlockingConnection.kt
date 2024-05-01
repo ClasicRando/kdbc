@@ -5,7 +5,9 @@ import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool
-import io.github.clasicrando.kdbc.core.query.BlockingQueryBatch
+import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
+import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
+import io.github.clasicrando.kdbc.core.query.BlockingQuery
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.resourceLogger
@@ -26,7 +28,9 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingConnectionPool
-import io.github.clasicrando.kdbc.postgresql.query.PgBlockingQueryBatch
+import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQuery
+import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQueryBatch
+import io.github.clasicrando.kdbc.postgresql.query.PgBlockingQuery
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
 import io.github.clasicrando.kdbc.postgresql.statement.PgArguments
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
@@ -104,7 +108,7 @@ class PgBlockingConnection internal constructor(
 
     override fun begin() {
         try {
-            sendQuery("BEGIN;")
+            sendSimpleQuery("BEGIN;")
             if (_inTransaction.compareAndSet(expect = false, update = true)) {
                 throw UnexpectedTransactionState(inTransaction = true)
             }
@@ -125,7 +129,7 @@ class PgBlockingConnection internal constructor(
 
     override fun commit() {
         try {
-            sendQuery("COMMIT;")
+            sendSimpleQuery("COMMIT;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
                 log(Level.ERROR) {
@@ -137,7 +141,7 @@ class PgBlockingConnection internal constructor(
 
     override fun rollback() {
         try {
-            sendQuery("ROLLBACK;")
+            sendSimpleQuery("ROLLBACK;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
                 log(Level.ERROR) {
@@ -303,13 +307,27 @@ class PgBlockingConnection internal constructor(
         throw error
     }
 
-    override fun sendQuery(
+    /**
+     * Send a query to the postgres database using the simple query protocol. This sends a single
+     * [PgMessage.Query] message with the raw SQL query with no parameters. The database then
+     * responds with zero or more [QueryResult]s that are packages into a [StatementResult].
+     *
+     * **Note**: This method will defer to [sendExtendedQuery] if the [query] does not contain a
+     * semicolon and the [PgConnectOptions.useExtendedProtocolForSimpleQueries] is true (the
+     * default value).
+     *
+     * [postgres docs](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-SIMPLE-QUERY)
+     *
+     * @throws IllegalArgumentException if the [query] is blank
+     * @throws IllegalStateException if the underlining connection is no longer active
+     */
+    internal fun sendSimpleQuery(
         query: String,
     ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
-            return sendPreparedStatement(query, emptyList())
+            return sendExtendedQuery(query, emptyList())
         }
         return lock.withLock {
             logger.resourceLogger(
@@ -390,18 +408,16 @@ class PgBlockingConnection internal constructor(
      * statement was never executed.
      */
     private fun removeOldestPreparedStatement() {
-        val neverExecuted = preparedStatements.entries
-            .find { it.value.lastExecuted == null }
-            ?.key
+        val neverExecuted = preparedStatements.values
+            .find { it.lastExecuted == null }
         if (neverExecuted != null) {
             releasePreparedStatement(neverExecuted)
             return
         }
-        val oldestQuery = preparedStatements.entries
+        val oldestQuery = preparedStatements.values
             .asSequence()
-            .filter { it.value.lastExecuted != null }
-            .maxBy { it.value.lastExecuted!! }
-            .key
+            .filter { it.lastExecuted != null }
+            .maxBy { it.lastExecuted!! }
         releasePreparedStatement(oldestQuery)
     }
 
@@ -494,7 +510,18 @@ class PgBlockingConnection internal constructor(
         }
     }
 
-    override fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult {
+    /**
+     * Send a query to the postgres database using the extended query protocol. This goes through
+     * the process of preparing the query (see [prepareStatement]) before then executing with the
+     * provided parameters. The database then responds with 1 [QueryResult]s that is packages into
+     * a [StatementResult].
+     *
+     * [postgres docs](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY)
+     *
+     * @throws IllegalArgumentException if the [query] is blank
+     * @throws IllegalStateException if the underlining connection is no longer active
+     */
+    internal fun sendExtendedQuery(query: String, parameters: List<Any?>): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         return lock.withLock {
@@ -508,23 +535,19 @@ class PgBlockingConnection internal constructor(
         }
     }
 
-    override fun releasePreparedStatement(query: String) {
-        val statement = preparedStatements[query]
-        if (statement == null) {
-            log(Level.WARN) {
-                message = "query supplied did not match a stored prepared statement"
-                payload = mapOf("query" to query)
-            }
-            return
-        }
+    /**
+     * Send a [PgMessage.Close] message for the [preparedStatement]. This will close the server
+     * side prepared statement and then remove the [preparedStatement] for the client cache.
+     */
+    private fun releasePreparedStatement(preparedStatement: PgPreparedStatement) {
         val closeMessage = PgMessage.Close(
             target = MessageTarget.PreparedStatement,
-            targetName = statement.statementName,
+            targetName = preparedStatement.statementName,
         )
         lock.withLock {
             stream.writeManyToStream(closeMessage, PgMessage.Sync)
             stream.waitForOrError<PgMessage.CommandComplete>()
-            preparedStatements.remove(query)
+            preparedStatements.remove(preparedStatement.query)
         }
     }
 
@@ -604,7 +627,7 @@ class PgBlockingConnection internal constructor(
      *
      * If you are unsure of how this works or what the implications of pipelining has on your
      * database, you should opt to either send multiple statements in separate calls to
-     * [sendPreparedStatement] or package your queries into a stored procedure.
+     * [sendExtendedQuery] or package your queries into a stored procedure.
      */
     fun pipelineQueries(
         syncAll: Boolean = true,
@@ -775,7 +798,7 @@ class PgBlockingConnection internal constructor(
      */
     fun listen(channelName: String) {
         val query = "LISTEN ${channelName.quoteIdentifier()};"
-        sendQuery(query)
+        sendSimpleQuery(query)
     }
 
     /**
@@ -784,7 +807,7 @@ class PgBlockingConnection internal constructor(
      */
     fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
-        sendQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
+        sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
     }
 
     /**
@@ -842,7 +865,15 @@ class PgBlockingConnection internal constructor(
         )
     }
 
-    override fun createQueryBatch(): BlockingQueryBatch = PgBlockingQueryBatch(this)
+    override fun createQuery(query: String): BlockingQuery = PgBlockingQuery(this, query)
+
+    override fun createPreparedQuery(query: String): BlockingPreparedQuery {
+        return PgBlockingPreparedQuery(this, query)
+    }
+
+    override fun createPreparedQueryBatch(): BlockingPreparedQueryBatch {
+        return PgBlockingPreparedQueryBatch(this)
+    }
 
     companion object {
         private const val STATEMENT_TEMPLATE = "Sending {query}"

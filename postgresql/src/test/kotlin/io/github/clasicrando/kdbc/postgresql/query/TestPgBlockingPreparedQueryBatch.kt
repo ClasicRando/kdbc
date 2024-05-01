@@ -6,13 +6,13 @@ import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgBlockingQueryBatch {
+class TestPgBlockingPreparedQueryBatch {
     @Test
     fun `executeQueries should return StatementResult`() {
         PgConnectionHelper.defaultBlockingConnection().use { connection ->
-            connection.createQueryBatch().use { queryBatch ->
-                queryBatch.addQuery("SELECT $ID")
-                queryBatch.addQuery("SELECT $1::text")
+            connection.createPreparedQueryBatch().use { queryBatch ->
+                queryBatch.addPreparedQuery("SELECT $ID")
+                queryBatch.addPreparedQuery("SELECT $1::text")
                     .bind(TEXT)
                 queryBatch.executeQueries().use { statementResult ->
                     assertEquals(2, statementResult.size)

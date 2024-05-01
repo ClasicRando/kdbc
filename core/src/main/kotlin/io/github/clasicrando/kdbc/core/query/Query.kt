@@ -9,7 +9,7 @@ import io.github.clasicrando.kdbc.core.connection.Connection
  *
  * This is the easiest way to execute queries against the database since you don't need to bind any
  * parameters to the query itself before executing. Although the API exists, it's generally
- * recommended to use a [PreparedQuery] since [Query]s are not guaranteed to create or cache a
+ * recommended to use a [PreparedQuery] since a [Query] is not guaranteed to create or cache a
  * query plan for future calls of this same SQL query.
  */
 interface Query : AutoRelease {

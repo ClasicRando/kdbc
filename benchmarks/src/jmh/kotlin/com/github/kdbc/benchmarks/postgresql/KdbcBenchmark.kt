@@ -38,7 +38,7 @@ open class KdbcBenchmark {
     }
 
 
-    @Benchmark
+//    @Benchmark
     open fun queryData() = runBlocking {
         step()
         connection.createPreparedQuery(kdbcQuery)

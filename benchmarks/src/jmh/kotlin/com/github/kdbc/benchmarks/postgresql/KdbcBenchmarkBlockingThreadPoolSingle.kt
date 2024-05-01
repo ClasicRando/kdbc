@@ -1,7 +1,8 @@
 package com.github.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import org.openjdk.jmh.annotations.Benchmark
@@ -34,7 +35,8 @@ open class KdbcBenchmarkBlockingThreadPoolSingle {
     @Setup
     open fun start() {
         Postgres.blockingConnection(connectOptions = options).use {
-            it.sendQuery(setupQuery)
+            it.createQuery(setupQuery)
+                .executeClosing()
         }
     }
 
@@ -46,30 +48,9 @@ open class KdbcBenchmarkBlockingThreadPoolSingle {
 
     private fun executeQuery(stepId: Int): List<PostDataClass> {
         return Postgres.blockingConnection(connectOptions = options).use { conn ->
-            conn.sendPreparedStatement(kdbcQuerySingle, listOf(stepId)).use {
-                val result = it.firstOrNull()
-                    ?: throw Exception("No records returned from $kdbcQuerySingle, id = $stepId")
-                assert(result.rowsAffected == 1L)
-                result.use { qr ->
-                    qr.rows.map { row ->
-                        PostDataClass(
-                            row.getInt(0)!!,
-                            row.getString(1)!!,
-                            row.getLocalDateTime(2)!!,
-                            row.getLocalDateTime(3)!!,
-                            row.getInt(4),
-                            row.getInt(5),
-                            row.getInt(6),
-                            row.getInt(7),
-                            row.getInt(8),
-                            row.getInt(9),
-                            row.getInt(10),
-                            row.getInt(11),
-                            row.getInt(12),
-                        )
-                    }
-                }
-            }
+            conn.createPreparedQuery(kdbcQuerySingle)
+                .bind(stepId)
+                .fetchAll(PostDataClassRowParser)
         }
     }
 

@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,7 +11,7 @@ class TestBlockingListenNotifySpec {
     fun `listen should issue a listen command and receive notification`() {
         PgConnectionHelper.defaultBlockingConnection().use {
             it.listen(CHANNEL_NAME)
-            it.sendQuery("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')")
+            it.createQuery("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')").executeClosing()
             val notifications = it.getNotifications()
             assertEquals(
                 1,
@@ -27,7 +28,7 @@ class TestBlockingListenNotifySpec {
     @Test
     fun `notify should issue a notify command and receive notification`() {
         PgConnectionHelper.defaultBlockingConnection().use {
-            it.sendQuery("LISTEN $CHANNEL_NAME")
+            it.createQuery("LISTEN $CHANNEL_NAME").executeClosing()
             it.notify(CHANNEL_NAME, PAYLOAD)
             val notifications = it.getNotifications()
             assertEquals(

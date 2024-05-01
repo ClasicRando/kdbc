@@ -3,8 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
@@ -23,13 +21,10 @@ class TestCompositeType {
 
         PgConnectionHelper.defaultBlockingConnection().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
-            conn.sendPreparedStatement(query, listOf(type)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(type, rows.map { it.getAs<CompositeType>("composite_col") }.first())
-            }
+            val value = conn.createPreparedQuery(query)
+                .bind(type)
+                .fetchScalar<CompositeType>()
+            assertEquals(type, value)
         }
     }
 
@@ -38,17 +33,12 @@ class TestCompositeType {
 
         PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(type, rows.map { it.getAs<CompositeType>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<CompositeType>()
+            assertEquals(type, value)
         }
     }
 

@@ -10,14 +10,14 @@ class TestBlockingExtendedQuerySpec {
     @BeforeTest
     fun setup() {
         PgConnectionHelper.defaultBlockingConnection().use {
-            it.sendQuery(TEST_PROC)
+            it.sendSimpleQuery(TEST_PROC)
         }
     }
 
     @Test
     fun `sendPreparedStatement should return 1 result when regular query`() {
         PgConnectionHelper.defaultBlockingConnection().use {
-            val result = it.sendPreparedStatement(QUERY_SERIES, listOf(1, 10)).toList()
+            val result = it.sendExtendedQuery(QUERY_SERIES, listOf(1, 10)).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(10, queryResult.rowsAffected)
@@ -37,7 +37,7 @@ class TestBlockingExtendedQuerySpec {
             val param1 = 2
             val param2 = "start"
             val params = listOf<Any?>(param1, param2)
-            val result = it.sendPreparedStatement(
+            val result = it.sendExtendedQuery(
                 "CALL public.test_proc_ext($1::int, $2::text)",
                 params,
             ).toList()

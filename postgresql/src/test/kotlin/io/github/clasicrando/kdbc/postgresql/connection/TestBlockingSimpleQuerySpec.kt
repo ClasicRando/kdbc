@@ -15,7 +15,7 @@ class TestBlockingSimpleQuerySpec {
     @Test
     fun `sendQuery should return 1 result when regular query`() {
         PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use {
-            val result = it.sendQuery(QUERY_SERIES).toList()
+            val result = it.sendSimpleQuery(QUERY_SERIES).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(10, queryResult.rowsAffected)
@@ -32,7 +32,7 @@ class TestBlockingSimpleQuerySpec {
     @Test
     fun `sendQuery should return 1 result when stored procedure with out parameter`() {
         PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use {
-            val result = it.sendQuery("CALL public.$TEST_PROC_NAME(null, null)").toList()
+            val result = it.sendSimpleQuery("CALL public.$TEST_PROC_NAME(null, null)").toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
             assertEquals(0, queryResult.rowsAffected)
@@ -50,7 +50,7 @@ class TestBlockingSimpleQuerySpec {
                 CALL public.$TEST_PROC_NAME(null, null);
                 SELECT 1 test_i;
             """.trimIndent()
-            val results = connection.sendQuery(queries).toList()
+            val results = connection.sendSimpleQuery(queries).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
             assertEquals(4, results[0].rows.firstOrNull()?.getInt(0))
@@ -63,7 +63,7 @@ class TestBlockingSimpleQuerySpec {
     fun `sendQuery should timeout when long running query with timeout specified`() {
         PgConnectionHelper.defaultBlockingConnectionWithQueryTimeout().use { connection ->
             val queries = "CALL public.$LONG_RUNNING_TEST_PROC_NAME()"
-            val exception = assertThrows<GeneralPostgresError> { connection.sendQuery(queries) }
+            val exception = assertThrows<GeneralPostgresError> { connection.sendSimpleQuery(queries) }
             assertEquals(Severity.ERROR, exception.errorInformation.severity)
             assertEquals(SqlState.QueryCanceled, exception.errorInformation.code)
         }
@@ -99,7 +99,7 @@ class TestBlockingSimpleQuerySpec {
         @BeforeAll
         fun setup() {
             PgConnectionHelper.defaultBlockingConnection().use {
-                it.sendQuery(STARTUP_SCRIPT)
+                it.sendSimpleQuery(STARTUP_SCRIPT)
             }
         }
     }

@@ -11,8 +11,8 @@ import io.github.clasicrando.kdbc.core.result.StatementResult
  */
 interface PreparedQueryBatch : AutoRelease {
     /**
-     * Add a new [PreparedQuery] to execute in this batch. Returns the [PreparedQuery] parameters
-     * can be bound.
+     * Add a new [PreparedQuery] to execute in this batch. Returns the [PreparedQuery] so
+     * parameters can be bound.
      */
     fun addPreparedQuery(query: String): PreparedQuery
 

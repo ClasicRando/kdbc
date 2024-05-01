@@ -1,11 +1,9 @@
 package io.github.clasicrando.kdbc.core.connection
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
+import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
+import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
-import io.github.clasicrando.kdbc.core.query.BlockingQueryBatch
-import io.github.clasicrando.kdbc.core.query.DefaultBlockingQueryBatch
-import io.github.clasicrando.kdbc.core.result.QueryResult
-import io.github.clasicrando.kdbc.core.result.StatementResult
 
 private const val RESOURCE_TYPE = "BlockingConnection"
 
@@ -63,30 +61,28 @@ interface BlockingConnection : UniqueResourceId {
     fun rollback()
 
     /**
-     * Send a raw query with no parameters, returning a [StatementResult] containing zero or more
-     * [QueryResult]s
+     * Create a new [BlockingQuery] for this [BlockingConnection] with the specified [query]
+     * string. [BlockingQuery] instances are for SQL queries that do not accept parameters and
+     * aren't executed frequently enough to require a precomputed query plan that is generated with
+     * a [BlockingPreparedQuery]. This means that even if your query doesn't accept parameters, a
+     * [BlockingPreparedQuery] is recommended when frequently executing a static query.
      */
-    fun sendQuery(query: String): StatementResult
+    fun createQuery(query: String): BlockingQuery
 
     /**
-     * Send a prepared statement with [parameters], returning a [StatementResult] containing zero
-     * or more [QueryResult]s
+     * Create a new [BlockingPreparedQuery] for this [BlockingConnection] with the specified
+     * [query] string. [BlockingPreparedQuery] are for SQL queries that either accept parameters or
+     * are executed frequently so a precomputed query plan is best.
      */
-    fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult
+    fun createPreparedQuery(query: String): BlockingPreparedQuery
 
     /**
-     * Manually release a prepared statement for the provided [query]. This will not error if the
-     * query is not attached to a prepared statement.
-     *
-     * Only call this method if you are sure you need it.
+     * Create a new [BlockingPreparedQueryBatch] for this [BlockingConnection]. This allows
+     * executing 1 or more [BlockingPreparedQuery] instances within a single batch of commands.
+     * This is not guaranteed to improve performance but some databases provide optimized protocols
+     * for sending multiple queries at the same time.
      */
-    fun releasePreparedStatement(query: String)
-
-    /** Create a new [BlockingQuery] for this [BlockingConnection] with the specified [query] string */
-    fun createQuery(query: String): BlockingQuery = BlockingQuery(query, this)
-
-    /** Create a new [BlockingQueryBatch] for this [BlockingConnection] */
-    fun createQueryBatch(): BlockingQueryBatch = DefaultBlockingQueryBatch(this)
+    fun createPreparedQueryBatch(): BlockingPreparedQueryBatch
 }
 
 /**

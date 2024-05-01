@@ -27,7 +27,7 @@ class TestBlockingPipelineQuerySpec {
     @Test
     fun `pipelineQueries should throw exception and keep previous changes when erroneous query and autocommit`() {
         PgConnectionHelper.defaultBlockingConnection().use {
-            val results = it.sendQuery(ROLLBACK_CHECK).toList()
+            val results = it.sendSimpleQuery(ROLLBACK_CHECK).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
             assertEquals(0, results[1].rowsAffected)
@@ -45,7 +45,7 @@ class TestBlockingPipelineQuerySpec {
             "Exception should be GeneralPostgresError but got ${exception?.toString()}"
         )
         PgConnectionHelper.defaultBlockingConnection().use {
-            val results = it.sendQuery("SELECT COUNT(*) FROM public.rollback_check").toList()
+            val results = it.sendSimpleQuery("SELECT COUNT(*) FROM public.rollback_check").toList()
             assertEquals(1, results.size)
             assertEquals(1, results[0].rowsAffected)
             assertEquals(1, results[0].rows.first().getLong(0))
@@ -55,7 +55,7 @@ class TestBlockingPipelineQuerySpec {
     @Test
     fun `pipelineQueries should throw exception and keep previous changes when erroneous query with more queries after and autocommit`() {
         PgConnectionHelper.defaultBlockingConnection().use {
-            val results = it.sendQuery(ROLLBACK_CHECK).toList()
+            val results = it.sendSimpleQuery(ROLLBACK_CHECK).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
             assertEquals(0, results[1].rowsAffected)
@@ -74,7 +74,7 @@ class TestBlockingPipelineQuerySpec {
             "Exception should be GeneralPostgresError but got ${exception?.toString()}\n${exception?.message}\n${exception?.stackTraceToString()}"
         )
         PgConnectionHelper.defaultBlockingConnection().use {
-            val results = it.sendQuery("SELECT COUNT(*) FROM public.rollback_check").toList()
+            val results = it.sendSimpleQuery("SELECT COUNT(*) FROM public.rollback_check").toList()
             assertEquals(1, results.size)
             assertEquals(1, results[0].rowsAffected)
             assertEquals(1, results[0].rows.first().getLong(0))
@@ -84,7 +84,7 @@ class TestBlockingPipelineQuerySpec {
     @Test
     fun `pipelineQueries should throw exception and rollback transaction when erroneous query and not auto commit`() {
         PgConnectionHelper.defaultBlockingConnection().use {
-            val results = it.sendQuery(ROLLBACK_CHECK).toList()
+            val results = it.sendSimpleQuery(ROLLBACK_CHECK).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
             assertEquals(0, results[1].rowsAffected)
@@ -105,7 +105,7 @@ class TestBlockingPipelineQuerySpec {
             "Exception should be GeneralPostgresError but got ${exception?.toString()}"
         )
         PgConnectionHelper.defaultBlockingConnection().use {
-            val results = it.sendQuery("SELECT COUNT(*) FROM public.rollback_check").toList()
+            val results = it.sendSimpleQuery("SELECT COUNT(*) FROM public.rollback_check").toList()
             assertEquals(1, results.size)
             assertEquals(1, results[0].rowsAffected)
             assertEquals(0, results[0].rows.first().getLong(0))

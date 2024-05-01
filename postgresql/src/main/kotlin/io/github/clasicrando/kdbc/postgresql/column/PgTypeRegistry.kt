@@ -716,7 +716,7 @@ internal class PgTypeRegistry {
          * Returns null if the OID could not be found.
          */
         private fun checkArrayDbTypeByOid(oid: Int, connection: PgBlockingConnection): Int? {
-            val arrayOid = connection.sendPreparedStatement(
+            val arrayOid = connection.sendExtendedQuery(
                 query = pgArrayTypeByInnerOid,
                 parameters = listOf(oid)
             ).use {
@@ -753,7 +753,7 @@ internal class PgTypeRegistry {
             }
 
             val parameters = listOf(typeName, schema)
-            val oid = connection.sendPreparedStatement(pgEnumTypeByName, parameters).use {
+            val oid = connection.sendExtendedQuery(pgEnumTypeByName, parameters).use {
                 val result = it.firstOrNull()
                     ?: error("Found no results when executing a check for enum db type by name")
                 result.rows.firstOrNull()?.getInt(0)
@@ -789,7 +789,7 @@ internal class PgTypeRegistry {
             }
 
             val parameters = listOf(typeName, schema)
-            val oid = connection.sendPreparedStatement(pgCompositeTypeByName, parameters).use {
+            val oid = connection.sendExtendedQuery(pgCompositeTypeByName, parameters).use {
                 val result = it.firstOrNull() ?: error(
                     "Found no results when executing a check for composite db type by name"
                 )
