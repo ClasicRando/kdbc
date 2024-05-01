@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class TestBlockingPipelineQuerySpec {
+class TestBlockingPipelineSuspendingQuerySpec {
     @Test
     fun `pipelineQueries should return multiple results with auto commit`() {
         PgConnectionHelper.defaultBlockingConnection().use { connection ->

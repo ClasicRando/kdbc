@@ -22,7 +22,7 @@ class TestJsonType {
     fun `encode should accept PgJson when querying postgresql`(isJsonB: Boolean) = runBlocking {
         val query = "SELECT $1::${if (isJsonB) "jsonb" else "json"} json_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
             val pgJson = conn.createPreparedQuery(query)
                 .bind(pgJsonValue)
                 .fetchScalar<PgJson>()
@@ -34,7 +34,7 @@ class TestJsonType {
     private suspend fun decodeTest(isJsonB: Boolean, isPrepared: Boolean) {
         val query = "SELECT '$JSON_STRING'::${if (isJsonB) "jsonb" else "json"};"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
             val pgJson = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

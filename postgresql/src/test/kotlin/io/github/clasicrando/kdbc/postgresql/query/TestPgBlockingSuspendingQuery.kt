@@ -24,7 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class TestPgBlockingQuery {
+class TestPgBlockingSuspendingQuery {
     data class Row(val intValue: Int, val stringValue: String)
 
     object GoodRowParserTest : RowParser<Row> {

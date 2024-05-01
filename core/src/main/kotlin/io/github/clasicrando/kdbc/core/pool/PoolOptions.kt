@@ -6,7 +6,7 @@ import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-/** Options when setting up a [ConnectionPool] */
+/** Options when setting up a connection pool for any database vendor */
 @Serializable
 data class PoolOptions(
     /**

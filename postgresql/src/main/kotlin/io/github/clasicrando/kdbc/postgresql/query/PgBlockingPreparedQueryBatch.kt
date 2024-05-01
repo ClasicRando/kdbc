@@ -50,18 +50,9 @@ class PgBlockingPreparedQueryBatch(
 
     override fun vendorExecuteQueriesAggregating(): StatementResult {
         checkNotNull(connection) { "QueryBatch already released its Connection" }
-        val statementResultBuilder = StatementResult.Builder()
-        try {
-            val pipelineQueries = Array(queries.size) {
-                queries[it].sql to queries[it].parameters
-            }
-            connection!!
-                .pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
-                .forEach { statementResultBuilder.addQueryResult(it) }
-        } catch (ex: Throwable) {
-            statementResultBuilder.build().release()
-            throw ex
+        val pipelineQueries = Array(queries.size) {
+            queries[it].sql to queries[it].parameters
         }
-        return statementResultBuilder.build()
+        return connection!!.pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
     }
 }

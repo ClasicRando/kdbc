@@ -32,7 +32,7 @@ open class KdbcBenchmarkConcurrentSingle {
 
     @Setup
     open fun start(): Unit = runBlocking {
-        Postgres.connection(connectOptions = options).use {
+        Postgres.suspendingConnection(connectOptions = options).use {
             it.createQuery(setupQuery).executeClosing()
         }
     }
@@ -44,14 +44,14 @@ open class KdbcBenchmarkConcurrentSingle {
     }
 
     private suspend fun executeQuery(stepId: Int): List<PostDataClass> {
-        return Postgres.connection(connectOptions = options).use { conn ->
+        return Postgres.suspendingConnection(connectOptions = options).use { conn ->
             conn.createPreparedQuery(kdbcQuerySingle)
                 .bind(stepId)
                 .fetchAll(PostDataClassRowParser)
         }
     }
 
-//    @Benchmark
+    @Benchmark
     open fun queryData() = runBlocking {
         val results = List(concurrencyLimit) {
             val stepId = step()

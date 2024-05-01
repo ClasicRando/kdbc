@@ -11,7 +11,7 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestBlockingSimpleQuerySpec {
+class TestBlockingSimpleSuspendingQuerySpec {
     @Test
     fun `sendQuery should return 1 result when regular query`() {
         PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use {

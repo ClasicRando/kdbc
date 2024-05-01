@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 class TestListenNotifySpec {
     @Test
     fun `listen should issue a listen command and receive notification`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             it.listen(CHANNEL_NAME)
             it.createQuery("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')")
                 .executeClosing()
@@ -26,7 +26,7 @@ class TestListenNotifySpec {
 
     @Test
     fun `notify should issue a notify command and receive notification`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             it.createQuery("LISTEN $CHANNEL_NAME")
                 .executeClosing()
             it.notify(CHANNEL_NAME, PAYLOAD)

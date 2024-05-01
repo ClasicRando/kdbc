@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 class TestCopySpec {
     @Test
     fun `copyIn should copy all rows`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement(
                 tableName = "copy_in_test",
@@ -41,7 +41,7 @@ class TestCopySpec {
 
     @Test
     fun `copyIn should throw exception when improperly formatted rows`(): Unit = runBlocking {
-        val result = PgConnectionHelper.defaultConnection().useCatching {
+        val result = PgConnectionHelper.defaultSuspendingConnection().useCatching {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement(
                 tableName = "copy_in_test",
@@ -55,7 +55,7 @@ class TestCopySpec {
         }
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is GeneralPostgresError)
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test;")
                 .fetchScalar<Long>()
             assertEquals(0, count)
@@ -64,7 +64,7 @@ class TestCopySpec {
 
     @Test
     fun `copyOut should supply all rows from table`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             var rowIndex = 0L
             val copyOutStatement = CopyStatement(
                 tableName = "copy_out_test",
@@ -98,7 +98,7 @@ class TestCopySpec {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
+            PgConnectionHelper.defaultSuspendingConnection().use {
                 it.createQuery(CREATE_COPY_TARGET_TABLE).executeClosing()
                 it.createQuery(CREATE_COPY_FROM_TABLE).executeClosing()
             }

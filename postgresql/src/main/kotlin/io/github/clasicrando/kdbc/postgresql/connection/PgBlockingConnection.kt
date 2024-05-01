@@ -198,7 +198,8 @@ class PgBlockingConnection internal constructor(
     private fun collectResults(
         isAutoCommit: Boolean,
         statements: Array<PgPreparedStatement> = emptyArray(),
-    ): Sequence<QueryResult> = sequence {
+    ): StatementResult {
+        val builder = StatementResult.Builder()
         val errors = mutableListOf<Throwable>()
         for (preparedStatement in statements) {
             val result = PgResultSet(typeRegistry, preparedStatement.resultMetadata)
@@ -215,7 +216,8 @@ class PgBlockingConnection internal constructor(
                     }
 
                     is PgMessage.CommandComplete -> {
-                        yield(QueryResult(message.rowCount, message.message, result))
+                        val queryResult = QueryResult(message.rowCount, message.message, result)
+                        builder.addQueryResult(queryResult)
                         Loop.Continue
                     }
 
@@ -234,7 +236,7 @@ class PgBlockingConnection internal constructor(
             }
         }
 
-        val error = errors.reduceToSingleOrNull() ?: return@sequence
+        val error = errors.reduceToSingleOrNull() ?: return builder.build()
         log(Level.ERROR) {
             message = "Error during single query execution"
             cause = error
@@ -588,7 +590,7 @@ class PgBlockingConnection internal constructor(
      */
     fun pipelineQueriesSyncAll(
         vararg queries: Pair<String, List<Any?>>,
-    ): Sequence<QueryResult> {
+    ): StatementResult {
         return pipelineQueries(queries = queries)
     }
 
@@ -632,7 +634,7 @@ class PgBlockingConnection internal constructor(
     fun pipelineQueries(
         syncAll: Boolean = true,
         vararg queries: Pair<String, List<Any?>>,
-    ): Sequence<QueryResult> = lock.withLock {
+    ): StatementResult = lock.withLock {
         val statements = Array(queries.size) { i ->
             val (queryText, queryParams) = queries[i]
             prepareStatement(query = queryText, parameters = queryParams)

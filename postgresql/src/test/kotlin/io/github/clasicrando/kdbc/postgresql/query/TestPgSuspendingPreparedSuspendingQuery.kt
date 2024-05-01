@@ -17,6 +17,7 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getInt
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
@@ -24,7 +25,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class TestPgBlockingPreparedQuery {
+class TestPgSuspendingPreparedSuspendingQuery {
     data class Row(val intValue: Int, val stringValue: String)
 
     object GoodRowParserTest : RowParser<Row> {
@@ -55,8 +56,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `execute should succeed when valid query`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `execute should succeed when valid query`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             connection.createQuery("SELECT 1").use {
                 it.execute()
             }
@@ -64,8 +65,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchScalar should succeed when valid query with basic type`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchScalar should succeed when valid query with basic type`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             val scalar = connection.createQuery("SELECT 1").fetchScalar<Int>()
             assertNotNull(scalar)
             assertEquals(1, scalar)
@@ -73,8 +74,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchScalar should succeed when valid query with custom type`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchScalar should succeed when valid query with custom type`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             connection.createQuery("SELECT '{1,2,3}'::int[]").use {
                 val scalar = it.fetchScalar<List<Int>>()
                 assertNotNull(scalar)
@@ -84,8 +85,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchScalar should fail when query returns a different type`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchScalar should fail when query returns a different type`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             assertThrows<IncorrectScalarType> {
                 connection.createQuery("SELECT 1").fetchScalar<List<Int>>()
             }
@@ -93,8 +94,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchFirst should succeed when valid query with rowparser`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchFirst should succeed when valid query with rowparser`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             val row = connection.createPreparedQuery("SELECT $1 int_value, $2 string_value")
                 .bind(INT_VALUE)
                 .bind(STRING_VALUE)
@@ -106,8 +107,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchFirst should fail when bad row parser`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchFirst should fail when bad row parser`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             connection.createPreparedQuery("SELECT $1 int_value, $2 string_value").use {
                 it.bind(INT_VALUE)
                 it.bind(STRING_VALUE)
@@ -117,8 +118,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchSingle should succeed when valid query with rowparser`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchSingle should succeed when valid query with rowparser`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             val row = connection.createPreparedQuery("SELECT $1 int_value, $2 string_value")
                 .bind(INT_VALUE)
                 .bind(STRING_VALUE)
@@ -130,8 +131,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchSingle should fail when no rows are returned`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchSingle should fail when no rows are returned`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             connection.createPreparedQuery(
                 """
                     SELECT *
@@ -147,8 +148,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchSingle should fail when multiple rows are returned`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchSingle should fail when multiple rows are returned`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             connection.createPreparedQuery(
                 """
                     SELECT *
@@ -164,8 +165,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchAll should succeed when valid query and row parser`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchAll should succeed when valid query and row parser`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             val rows = connection.createPreparedQuery(
                 """
                     SELECT *
@@ -185,8 +186,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetchAll should fail when unexpected exception is thrown`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetchAll should fail when unexpected exception is thrown`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             val rows = connection.createPreparedQuery(
                 """
                     SELECT *
@@ -203,8 +204,8 @@ class TestPgBlockingPreparedQuery {
     }
 
     @Test
-    fun `fetch should succeed when valid query and row parser`() {
-        PgConnectionHelper.defaultBlockingConnection().use { connection ->
+    fun `fetch should succeed when valid query and row parser`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             val rows = connection.createPreparedQuery(
                 """
                     SELECT *
@@ -216,7 +217,7 @@ class TestPgBlockingPreparedQuery {
                 .bind(STRING_VALUE)
                 .fetch(GoodRowParserTest)
             var count = 0
-            rows.forEach { row ->
+            rows.collect { row ->
                 count++
                 assertEquals(INT_VALUE, row.intValue)
                 assertEquals(STRING_VALUE, row.stringValue)

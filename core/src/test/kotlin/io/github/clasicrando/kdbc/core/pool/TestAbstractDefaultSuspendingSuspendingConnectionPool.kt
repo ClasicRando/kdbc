@@ -1,16 +1,19 @@
 package io.github.clasicrando.kdbc.core.pool
 
-import io.github.clasicrando.kdbc.core.connection.BlockingConnection
+import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -18,15 +21,15 @@ import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-class TestAbstractDefaultBlockingConnectionPool {
+class TestAbstractDefaultSuspendingSuspendingConnectionPool {
     @ParameterizedTest
     @ValueSource(ints = [0, 1])
-    fun `acquire should return connection`(minConnections: Int) {
-        val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
+    fun `acquire should return connection`(minConnections: Int): Unit = runBlocking {
+        val factory = mockk<SuspendingConnectionProvider<SuspendingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<BlockingConnection>(relaxed = true)
+            val connection = mockk<SuspendingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
         }
@@ -35,7 +38,7 @@ class TestAbstractDefaultBlockingConnectionPool {
             minConnections = minConnections,
             acquireTimeout = 1.toDuration(DurationUnit.SECONDS),
         )
-        TestBlockingConnectionPoolImpl(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -44,39 +47,41 @@ class TestAbstractDefaultBlockingConnectionPool {
     }
 
     @Test
-    fun `acquire should return connection after suspending when pool exhausted`() {
-        val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
+    fun `acquire should return connection after suspending when pool exhausted`(): Unit = runBlocking {
+        val factory = mockk<SuspendingConnectionProvider<SuspendingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<BlockingConnection>(relaxed = true)
+            val connection = mockk<SuspendingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
         }
         val options = PoolOptions(maxConnections = 1, minConnections = 0)
-        TestBlockingConnectionPoolImpl(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
             val heldConnection = it.acquire()
             val expectedId = heldConnection.resourceId
-            thread {
-                Thread.sleep(2_000)
+            launch {
+                delay(2_000)
                 it.giveBack(heldConnection)
             }
-            val result = it.acquire()
+            val result = withTimeout(10_000) {
+                it.acquire()
+            }
 
             assertEquals(expectedId, result.resourceId)
         }
     }
 
     @Test
-    fun `acquire should throw cancellation exception when acquire duration exceeded`() {
-        val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
+    fun `acquire should throw cancellation exception when acquire duration exceeded`(): Unit = runBlocking {
+        val factory = mockk<SuspendingConnectionProvider<SuspendingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<BlockingConnection>(relaxed = true)
+            val connection = mockk<SuspendingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
         }
@@ -85,7 +90,7 @@ class TestAbstractDefaultBlockingConnectionPool {
             minConnections = 0,
             acquireTimeout = 1.toDuration(DurationUnit.NANOSECONDS),
         )
-        TestBlockingConnectionPoolImpl(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -94,12 +99,12 @@ class TestAbstractDefaultBlockingConnectionPool {
     }
 
     @Test
-    fun `giveBack should return connection to pool when returned connection is valid`() {
-        val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
+    fun `giveBack should return connection to pool when returned connection is valid`(): Unit = runBlocking {
+        val factory = mockk<SuspendingConnectionProvider<SuspendingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<BlockingConnection>(relaxed = true)
+            val connection = mockk<SuspendingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
         }
@@ -108,7 +113,7 @@ class TestAbstractDefaultBlockingConnectionPool {
             minConnections = 0,
             acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
         )
-        TestBlockingConnectionPoolImpl(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -116,19 +121,19 @@ class TestAbstractDefaultBlockingConnectionPool {
             val result = it.giveBack(acquiredConnection)
 
             assertTrue(result)
-            assertTrue((it as AbstractDefaultBlockingConnectionPool).hasConnection(acquiredConnection))
+            assertTrue((it as AbstractDefaultSuspendingConnectionPool).hasConnection(acquiredConnection))
 
             assertDoesNotThrow { it.acquire() }
         }
     }
 
     @Test
-    fun `initialize should return false when first connection is invalid`() {
-        val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
+    fun `initialize should return false when first connection is invalid`(): Unit = runBlocking {
+        val factory = mockk<SuspendingConnectionProvider<SuspendingConnection>>()
         coEvery { factory.validate(any()) } returns false
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<BlockingConnection>(relaxed = true)
+            val connection = mockk<SuspendingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
         }
@@ -137,7 +142,7 @@ class TestAbstractDefaultBlockingConnectionPool {
             minConnections = 0,
             acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
         )
-        TestBlockingConnectionPoolImpl(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -147,12 +152,12 @@ class TestAbstractDefaultBlockingConnectionPool {
     }
 
     @Test
-    fun `initialize should return true when first connection is valid`() {
-        val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
+    fun `initialize should return true when first connection is valid`(): Unit = runBlocking {
+        val factory = mockk<SuspendingConnectionProvider<SuspendingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
             val connectionId = UUID.generateUUID()
-            val connection = mockk<BlockingConnection>(relaxed = true)
+            val connection = mockk<SuspendingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
         }
@@ -161,7 +166,7 @@ class TestAbstractDefaultBlockingConnectionPool {
             minConnections = 0,
             acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
         )
-        TestBlockingConnectionPoolImpl(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -171,8 +176,8 @@ class TestAbstractDefaultBlockingConnectionPool {
     }
 
     @Test
-    fun `initialize return false when create throws`() {
-        val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
+    fun `initialize return false when create throws`(): Unit = runBlocking {
+        val factory = mockk<SuspendingConnectionProvider<SuspendingConnection>>()
         coEvery { factory.validate(any()) } returns true
         val throwableMessage = "Special Throwable"
         coEvery { factory.create(any()) } throws Throwable(throwableMessage)
@@ -181,7 +186,7 @@ class TestAbstractDefaultBlockingConnectionPool {
             minConnections = 0,
             acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
         )
-        TestBlockingConnectionPoolImpl(
+        TestConnectionPoolImpl(
             poolOptions = options,
             provider = factory,
         ).use {
@@ -191,8 +196,8 @@ class TestAbstractDefaultBlockingConnectionPool {
     }
 }
 
-private inline fun <R, C : BlockingConnection> BlockingConnectionPool<C>.use(
-    crossinline block: (BlockingConnectionPool<C>) -> R
+private suspend inline fun <R, C : SuspendingConnection> SuspendingConnectionPool<C>.use(
+    crossinline block: suspend (SuspendingConnectionPool<C>) -> R
 ): R {
     var cause: Throwable? = null
     return try {
@@ -209,9 +214,9 @@ private inline fun <R, C : BlockingConnection> BlockingConnectionPool<C>.use(
     }
 }
 
-internal class TestBlockingConnectionPoolImpl(
+internal class TestConnectionPoolImpl(
     poolOptions: PoolOptions,
-    provider: BlockingConnectionProvider<BlockingConnection>,
-) : AbstractDefaultBlockingConnectionPool<BlockingConnection>(poolOptions, provider) {
-    override fun disposeConnection(connection: BlockingConnection) = Unit
+    provider: SuspendingConnectionProvider<SuspendingConnection>,
+) : AbstractDefaultSuspendingConnectionPool<SuspendingConnection>(poolOptions, provider) {
+    override suspend fun disposeConnection(connection: SuspendingConnection) = Unit
 }

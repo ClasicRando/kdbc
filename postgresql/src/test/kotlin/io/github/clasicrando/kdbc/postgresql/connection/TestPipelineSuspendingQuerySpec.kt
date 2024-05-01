@@ -5,16 +5,15 @@ import io.github.clasicrando.kdbc.core.connection.useCatching
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class TestPipelineQuerySpec {
+class TestPipelineSuspendingQuerySpec {
     @Test
     fun `pipelineQueries should return multiple results with auto commit`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use { connection ->
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             val results = connection.pipelineQueriesSyncAll(
                 "SELECT $1 i" to listOf(1),
                 "SELECT $1 t" to listOf("Pipeline Query"),
@@ -29,13 +28,13 @@ class TestPipelineQuerySpec {
 
     @Test
     fun `pipelineQueries should throw exception and keep previous changes when erroneous query and autocommit`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val results = it.sendSimpleQuery(ROLLBACK_CHECK).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
             assertEquals(0, results[1].rowsAffected)
         }
-        val result = PgConnectionHelper.defaultConnection().useCatching {
+        val result = PgConnectionHelper.defaultSuspendingConnection().useCatching {
             it.pipelineQueriesSyncAll(
                 "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
                 "SELECT $1::int t" to listOf("not int"),
@@ -47,7 +46,7 @@ class TestPipelineQuerySpec {
             exception is GeneralPostgresError,
             "Exception should be GeneralPostgresError but got ${exception?.toString()}"
         )
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val count = it.createQuery("SELECT COUNT(*) FROM public.rollback_check")
                 .fetchScalar<Long>()
             assertEquals(1, count)
@@ -56,13 +55,13 @@ class TestPipelineQuerySpec {
 
     @Test
     fun `pipelineQueries should throw exception and keep previous changes when erroneous query with more queries after and autocommit`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val results = it.sendSimpleQuery(ROLLBACK_CHECK).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
             assertEquals(0, results[1].rowsAffected)
         }
-        val result = PgConnectionHelper.defaultConnection().useCatching {
+        val result = PgConnectionHelper.defaultSuspendingConnection().useCatching {
             it.pipelineQueriesSyncAll(
                 "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
                 "SELECT $1::int t" to listOf("not int"),
@@ -75,7 +74,7 @@ class TestPipelineQuerySpec {
             exception is GeneralPostgresError,
             "Exception should be GeneralPostgresError but got ${exception?.toString()}\n${exception?.message}\n${exception?.stackTraceToString()}"
         )
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val count = it.createQuery("SELECT COUNT(*) FROM public.rollback_check")
                 .fetchScalar<Long>()
             assertEquals(1, count)
@@ -84,13 +83,13 @@ class TestPipelineQuerySpec {
 
     @Test
     fun `pipelineQueries should throw exception and rollback transaction when erroneous query and not auto commit`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val results = it.sendSimpleQuery(ROLLBACK_CHECK).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
             assertEquals(0, results[1].rowsAffected)
         }
-        val result = PgConnectionHelper.defaultConnection().useCatching {
+        val result = PgConnectionHelper.defaultSuspendingConnection().useCatching {
             it.pipelineQueries(
                 syncAll = false,
                 queries = arrayOf(
@@ -105,7 +104,7 @@ class TestPipelineQuerySpec {
             exception is GeneralPostgresError,
             "Exception should be GeneralPostgresError but got ${exception?.toString()}"
         )
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val count = it.createQuery("SELECT COUNT(*) FROM public.rollback_check")
                 .fetchScalar<Long>()
             assertEquals(0, count)

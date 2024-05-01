@@ -7,7 +7,7 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.DateTimePeriod
 import kotlin.reflect.KType
@@ -29,8 +29,7 @@ private val logger = KotlinLogging.logger {}
  * 2. Decoding a [PgValue] into the expected type using [decode]
  * 3. Adding custom types through [registerCompositeType] or [registerEnumType]
  */
-@PublishedApi
-internal class PgTypeRegistry {
+class PgTypeRegistry {
     /**
      * Initial [PgTypeEncoder] map storing encoders by the [KType] they can decode. Since encoders
      * might be attached to multiple subtypes, the [defaultEncoders] is unpacked for each encode
@@ -250,7 +249,7 @@ internal class PgTypeRegistry {
      * as well (looking up the oid in a similar fashion).
      */
     suspend fun <E : Enum<E>, D : Enum<D>> registerEnumType(
-        connection: PgConnection,
+        connection: PgSuspendingConnection,
         encoder: PgTypeEncoder<E>,
         decoder: PgTypeDecoder<D>,
         type: String,
@@ -291,7 +290,7 @@ internal class PgTypeRegistry {
      * array type as well (looking up the oid in a similar fashion).
      */
     suspend fun <E : Any, D : Any> registerCompositeType(
-        connection: PgConnection,
+        connection: PgSuspendingConnection,
         encoder: PgTypeEncoder<E>,
         decoder: PgTypeDecoder<D>,
         type: String,
@@ -627,7 +626,7 @@ internal class PgTypeRegistry {
          * database using the [connection] provided to retrieve the database instance specific OID.
          * Returns null if the OID could not be found.
          */
-        private suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgConnection): Int? {
+        private suspend fun checkArrayDbTypeByOid(oid: Int, connection: PgSuspendingConnection): Int? {
             val arrayOid = connection.createPreparedQuery(pgArrayTypeByInnerOid)
                 .bind(oid)
                 .fetchScalar<Int>()
@@ -652,7 +651,7 @@ internal class PgTypeRegistry {
          */
         private suspend fun checkEnumDbTypeByName(
             name: String,
-            connection: PgConnection,
+            connection: PgSuspendingConnection,
         ): Int? {
             var schema: String? = null
             var typeName = name
@@ -686,7 +685,7 @@ internal class PgTypeRegistry {
          */
         private suspend fun checkCompositeDbTypeByName(
             name: String,
-            connection: PgConnection,
+            connection: PgSuspendingConnection,
         ): Int? {
             var schema: String? = null
             var typeName = name

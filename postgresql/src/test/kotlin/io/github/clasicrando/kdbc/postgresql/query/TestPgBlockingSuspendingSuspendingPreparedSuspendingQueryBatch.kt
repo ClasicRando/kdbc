@@ -6,7 +6,7 @@ import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgBlockingPreparedQueryBatch {
+class TestPgBlockingSuspendingSuspendingPreparedSuspendingQueryBatch {
     @Test
     fun `executeQueries should return StatementResult`() {
         PgConnectionHelper.defaultBlockingConnection().use { connection ->

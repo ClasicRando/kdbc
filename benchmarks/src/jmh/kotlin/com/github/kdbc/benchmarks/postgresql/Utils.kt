@@ -2,7 +2,7 @@ package com.github.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
-import io.github.clasicrando.kdbc.core.connection.Connection
+import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
@@ -99,8 +99,8 @@ private val kdbcConnectOptions = PgConnectOptions(
     logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
 )
 
-suspend fun getKdbcConnection(): Connection {
-    return Postgres.connection(connectOptions = kdbcConnectOptions)
+suspend fun getKdbcConnection(): SuspendingConnection {
+    return Postgres.suspendingConnection(connectOptions = kdbcConnectOptions)
 }
 
 suspend fun initializeConcurrentConnections(): PgConnectOptions {
@@ -110,7 +110,7 @@ suspend fun initializeConcurrentConnections(): PgConnectOptions {
             minConnections = 8,
         )
     )
-    Postgres.connection(connectOptions = options).close()
+    Postgres.suspendingConnection(connectOptions = options).close()
     return options
 }
 

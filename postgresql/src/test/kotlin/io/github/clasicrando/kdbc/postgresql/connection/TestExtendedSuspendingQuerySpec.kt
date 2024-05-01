@@ -8,10 +8,10 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestExtendedQuerySpec {
+class TestExtendedSuspendingQuerySpec {
     @BeforeTest
     fun setup(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             it.createQuery(TEST_PROC)
                 .executeClosing()
         }
@@ -19,7 +19,7 @@ class TestExtendedQuerySpec {
 
     @Test
     fun `sendExtendedQuery should return 1 result when regular query`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val result = it.sendExtendedQuery(QUERY_SERIES, listOf(1, 10)).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
@@ -36,7 +36,7 @@ class TestExtendedQuerySpec {
 
     @Test
     fun `sendExtendedQuery should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             val param1 = 2
             val param2 = "start"
             val params = listOf<Any?>(param1, param2)

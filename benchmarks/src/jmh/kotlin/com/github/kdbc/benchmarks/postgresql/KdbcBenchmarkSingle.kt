@@ -1,6 +1,6 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import io.github.clasicrando.kdbc.core.connection.Connection
+import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import kotlinx.coroutines.runBlocking
@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Benchmark)
 open class KdbcBenchmarkSingle {
     private var id = 0
-    private val connection: Connection = runBlocking { getKdbcConnection() }
+    private val connection: SuspendingConnection = runBlocking { getKdbcConnection() }
 
     @Setup
     open fun start(): Unit = runBlocking {
@@ -37,7 +37,7 @@ open class KdbcBenchmarkSingle {
         if (id > 5000) id = 1
     }
 
-//    @Benchmark
+    @Benchmark
     open fun queryData(): Unit = runBlocking {
         step()
         connection.createPreparedQuery(kdbcQuerySingle)

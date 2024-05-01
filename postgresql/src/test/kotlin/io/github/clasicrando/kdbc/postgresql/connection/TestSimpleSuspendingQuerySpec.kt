@@ -12,11 +12,11 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestSimpleQuerySpec {
+class TestSimpleSuspendingQuerySpec {
 
     @Test
     fun `sendSimpleQuery should return 1 result when regular query`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use {
             val result = it.sendSimpleQuery(QUERY_SERIES).toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
@@ -33,7 +33,7 @@ class TestSimpleQuerySpec {
 
     @Test
     fun `sendSimpleQuery should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use {
             val result = it.sendSimpleQuery("CALL public.$TEST_PROC_NAME(null, null)").toList()
             assertEquals(1, result.size)
             val queryResult = result[0]
@@ -47,7 +47,7 @@ class TestSimpleQuerySpec {
 
     @Test
     fun `sendSimpleQuery should return multiple results when multiple statements`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { connection ->
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { connection ->
             val queries = """
                 CALL public.$TEST_PROC_NAME(null, null);
                 SELECT 1 test_i;
@@ -63,7 +63,7 @@ class TestSimpleQuerySpec {
 
     @Test
     fun `sendSimpleQuery should timeout when long running query with timeout specified`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnectionWithQueryTimeout().use { connection ->
+        PgConnectionHelper.defaultSuspendingConnectionWithQueryTimeout().use { connection ->
             val queries = "CALL public.$LONG_RUNNING_TEST_PROC_NAME()"
             val exception = assertThrows<GeneralPostgresError> { connection.sendSimpleQuery(queries) }
             assertEquals(Severity.ERROR, exception.errorInformation.severity)
@@ -100,7 +100,7 @@ class TestSimpleQuerySpec {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
+            PgConnectionHelper.defaultSuspendingConnection().use {
                 it.sendSimpleQuery(STARTUP_SCRIPT)
             }
         }

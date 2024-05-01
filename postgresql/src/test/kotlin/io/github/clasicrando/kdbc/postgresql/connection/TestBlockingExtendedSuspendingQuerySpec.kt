@@ -6,7 +6,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestBlockingExtendedQuerySpec {
+class TestBlockingExtendedSuspendingQuerySpec {
     @BeforeTest
     fun setup() {
         PgConnectionHelper.defaultBlockingConnection().use {

@@ -7,10 +7,10 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgPreparedQueryBatch {
+class TestPgSuspendingSuspendingPreparedSuspendingQueryBatch {
     @Test
     fun `executeQueries should return StatementResult`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use { connection ->
+        PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             connection.createPreparedQueryBatch().use { queryBatch ->
                 queryBatch.addPreparedQuery("SELECT $ID")
                 queryBatch.addPreparedQuery("SELECT $1::text")

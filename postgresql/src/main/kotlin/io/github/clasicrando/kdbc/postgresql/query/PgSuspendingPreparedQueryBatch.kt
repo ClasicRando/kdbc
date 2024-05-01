@@ -1,12 +1,13 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
-import io.github.clasicrando.kdbc.core.query.BasePreparedQueryBatch
-import io.github.clasicrando.kdbc.core.query.PreparedQueryBatch
+import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
+import io.github.clasicrando.kdbc.core.query.BaseSuspendingPreparedQueryBatch
+import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.result.StatementResult
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
 
 /**
- * Postgresql implementation of a [PreparedQueryBatch]. Uses query pipelining to execute all
+ * Postgresql implementation of a [SuspendingPreparedQueryBatch]. Uses query pipelining to execute all
  * prepared statements as a pipeline to optimize round trips to the server. This allows for sending
  * multiple prepared queries at once to the server, so you do not need to wait for previous queries
  * to complete to request another result.
@@ -36,32 +37,22 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
  * If you are sure each one of your statements do not impact each other and can be handled in
  * separate transactions, keep the [syncAll] as default and catch exception thrown during
  * query execution. Alternatively, you can also manually begin a transaction using
- * [io.github.clasicrando.kdbc.core.connection.Connection.begin] and handle the transaction state
- * of your connection yourself. In that case, any sync message sent to the server does not cause
- * implicit transactional behaviour.
+ * [SuspendingConnection.begin] and handle the transaction state of your connection yourself. In
+ * that case, any sync message sent to the server does not cause implicit transactional behaviour.
  *
- * @see PgConnection.pipelineQueries
+ * @see PgSuspendingConnection.pipelineQueries
  */
-class PgPreparedQueryBatch(connection: PgConnection) : BasePreparedQueryBatch<PgConnection>(connection) {
-    /** Sync all parameter provided to the [PgConnection.pipelineQueries] method */
+class PgSuspendingPreparedQueryBatch(
+    connection: PgSuspendingConnection,
+) : BaseSuspendingPreparedQueryBatch<PgSuspendingConnection>(connection) {
+    /** Sync all parameter provided to the [PgSuspendingConnection.pipelineQueries] method */
     var syncAll: Boolean = true
 
     override suspend fun vendorExecuteQueriesAggregating(): StatementResult {
         checkNotNull(connection) { "QueryBatch already released its Connection" }
-        val statementResultBuilder = StatementResult.Builder()
-        try {
-            val pipelineQueries = Array(queries.size) {
-                queries[it].sql to queries[it].parameters
-            }
-            connection!!
-                .pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
-                .collect {
-                    statementResultBuilder.addQueryResult(it)
-                }
-        } catch (ex: Throwable) {
-            statementResultBuilder.build().release()
-            throw ex
+        val pipelineQueries = Array(queries.size) {
+            queries[it].sql to queries[it].parameters
         }
-        return statementResultBuilder.build()
+        return connection!!.pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
     }
 }

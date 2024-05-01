@@ -2,12 +2,11 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
-import io.github.clasicrando.kdbc.core.connection.Connection
+import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
-import io.github.clasicrando.kdbc.core.pool.ConnectionPool
-import io.github.clasicrando.kdbc.core.query.PreparedQuery
-import io.github.clasicrando.kdbc.core.query.PreparedQueryBatch
-import io.github.clasicrando.kdbc.core.query.Query
+import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQuery
+import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQueryBatch
+import io.github.clasicrando.kdbc.core.query.SuspendingQuery
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.resourceLogger
@@ -27,10 +26,10 @@ import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
-import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
-import io.github.clasicrando.kdbc.postgresql.query.PgPreparedQuery
-import io.github.clasicrando.kdbc.postgresql.query.PgPreparedQueryBatch
-import io.github.clasicrando.kdbc.postgresql.query.PgQuery
+import io.github.clasicrando.kdbc.postgresql.pool.PgSuspendingConnectionPool
+import io.github.clasicrando.kdbc.postgresql.query.PgSuspendingPreparedQuery
+import io.github.clasicrando.kdbc.postgresql.query.PgSuspendingPreparedQueryBatch
+import io.github.clasicrando.kdbc.postgresql.query.PgSuspendingQuery
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
 import io.github.clasicrando.kdbc.postgresql.statement.PgArguments
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
@@ -40,13 +39,13 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -55,43 +54,33 @@ import kotlin.reflect.typeOf
 private val logger = KotlinLogging.logger {}
 
 /**
- * [Connection] object for a Postgresql database. A new instance cannot be created but rather the
- * [Postgres.connection] method should be called to receive a new [PgConnection] ready for user
- * usage. This method will use connection pooling behind the scenes as to reduce unnecessary tcp
- * connection creation to the server when an application creates and closes connections frequently.
+ * [SuspendingConnection] object for a Postgresql database. A new instance cannot be created but
+ * rather the [Postgres.suspendingConnection] method should be called to receive a new
+ * [PgSuspendingConnection] ready for user usage. This method will use connection pooling behind
+ * the scenes as to reduce unnecessary tcp connection creation to the server when an application
+ * creates and closes connections frequently.
  */
-class PgConnection internal constructor(
+class PgSuspendingConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
     private val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
     private val stream: PgStream,
-    /** Reference to the [ConnectionPool] that owns this [PgConnection] */
-    private val pool: PgConnectionPool,
+    /** Reference to the connection pool that owns this connection */
+    private val pool: PgSuspendingConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
     @PublishedApi internal val typeRegistry: PgTypeRegistry = pool.typeRegistry,
-) : Connection, DefaultUniqueResourceId() {
+) : SuspendingConnection, DefaultUniqueResourceId() {
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
 
     /**
-     * [Channel] that when containing a single item, signifies the connection is ready for a new
-     * query. Do not operate on this directly but rather use the [enableQueryRunning] and
-     * [waitForQueryRunning] methods to allow for future calls to this connection to execute
-     * queries and wait for the ability to execute a new query, respectively.
+     *
      */
-    private val canRunQuery = Channel<Unit>(capacity = 1)
-    /**
-     * Boolean flag indicating that the connection is waiting to run a new query. This is used by
-     * the [PgConnectionProvider][io.github.clasicrando.kdbc.postgresql.pool.PgConnectionProvider]
-     * to check if a connection returned to a [ConnectionPool] is in a valid state (i.e. not stuck
-     * waiting for a query to finish).
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    internal val isWaiting get() = canRunQuery.isEmpty
+    private val mutex = Mutex()
     /**
      * [ReceiveChannel] for [PgNotification]s received from the server. Although this method is
-     * available to anyone who has a reference to this [PgConnection], you should only have one
-     * coroutine that consumes this channel since messages are not duplicated for multiple
+     * available to anyone who has a reference to this [PgSuspendingConnection], you should only
+     * have one coroutine that consumes this channel since messages are not duplicated for multiple
      * receivers so messages are consumed fairly in a first come, first server basis. The
      * recommended practice would then be to spawn a coroutine to read this channel until it closes
      * or consume this channel as a flow and dispatch each [PgNotification] to the desired
@@ -118,21 +107,11 @@ class PgConnection internal constructor(
     /**
      * Verify that the connection is currently active. Throws an [IllegalStateException] is the
      * underlining connection is no longer active. This should be performed before each call to for
-     * the [PgConnection] to interact with the server.
+     * the connection to interact with the server.
      */
     private fun checkConnected() {
         check(isConnected) { "Cannot execute queries against a closed connection" }
     }
-
-    /** Send a message to the [canRunQuery] channel to enable future users to execute query */
-    private suspend inline fun enableQueryRunning() = canRunQuery.send(Unit)
-
-    /**
-     * Suspend until there is a message in the [canRunQuery] channel. This signifies that no other
-     * user is currently running a query and the server has notified the client that it is ready
-     * for another query.
-     */
-    private suspend inline fun waitForQueryRunning() = canRunQuery.receive()
 
     override val isConnected: Boolean get() = stream.isConnected
 
@@ -181,14 +160,14 @@ class PgConnection internal constructor(
         }
     }
 
-    override fun createQuery(query: String): Query = PgQuery(this, query)
+    override fun createQuery(query: String): SuspendingQuery = PgSuspendingQuery(this, query)
 
-    override fun createPreparedQuery(query: String): PreparedQuery {
-        return PgPreparedQuery(this, query)
+    override fun createPreparedQuery(query: String): SuspendingPreparedQuery {
+        return PgSuspendingPreparedQuery(this, query)
     }
 
-    override fun createPreparedQueryBatch(): PreparedQueryBatch {
-        return PgPreparedQueryBatch(this)
+    override fun createPreparedQueryBatch(): SuspendingPreparedQueryBatch {
+        return PgSuspendingPreparedQueryBatch(this)
     }
 
     private fun logUnexpectedMessage(message: PgMessage): Loop {
@@ -235,12 +214,13 @@ class PgConnection internal constructor(
      * collection of errors is checked and aggregated into one [Throwable] (if any) and thrown.
      * Otherwise, the [flow] exits with all [QueryResult]s yielded.
      */
-    private fun collectResults(
+    private suspend fun collectResults(
         isAutoCommit: Boolean,
         statements: Array<PgPreparedStatement> = emptyArray(),
-    ): Flow<QueryResult> = flow {
+    ): StatementResult {
+        val builder = StatementResult.Builder()
         val errors = mutableListOf<Throwable>()
-        for ((i, preparedStatement) in statements.withIndex()) {
+        for (preparedStatement in statements) {
             val result = PgResultSet(typeRegistry, preparedStatement.resultMetadata)
             stream.processMessageLoop { message ->
                 when (message) {
@@ -253,14 +233,12 @@ class PgConnection internal constructor(
                         Loop.Continue
                     }
                     is PgMessage.CommandComplete -> {
-                        emit(QueryResult(message.rowCount, message.message, result))
+                        val queryResult = QueryResult(message.rowCount, message.message, result)
+                        builder.addQueryResult(queryResult)
                         Loop.Continue
                     }
                     is PgMessage.ReadyForQuery -> {
                         handleTransactionStatus(message.transactionStatus)
-                        if (i == statements.size - 1) {
-                            enableQueryRunning()
-                        }
                         Loop.Break
                     }
                     else -> logUnexpectedMessage(message)
@@ -269,12 +247,11 @@ class PgConnection internal constructor(
                 errors.add(it)
             }
             if (errors.isNotEmpty() && !isAutoCommit) {
-                enableQueryRunning()
                 break
             }
         }
 
-        val error = errors.reduceToSingleOrNull() ?: return@flow
+        val error = errors.reduceToSingleOrNull() ?: return builder.build()
         log(Level.ERROR) {
             message = "Error during single query execution"
             cause = error
@@ -331,7 +308,6 @@ class PgConnection internal constructor(
                 }
                 is PgMessage.ReadyForQuery -> {
                     handleTransactionStatus(message.transactionStatus)
-                    enableQueryRunning()
                     Loop.Break
                 }
                 else -> logUnexpectedMessage(message)
@@ -371,17 +347,19 @@ class PgConnection internal constructor(
         if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
             return sendExtendedQuery(query, emptyList())
         }
-        waitForQueryRunning()
-        logger.resourceLogger(
-            this@PgConnection,
-            connectOptions.logSettings.statementLevel,
-        ) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to query)
-        }
-        stream.writeToStream(PgMessage.Query(query))
 
-        return collectResult()
+        return mutex.withLock {
+            logger.resourceLogger(
+                this@PgSuspendingConnection,
+                connectOptions.logSettings.statementLevel,
+            ) {
+                message = STATEMENT_TEMPLATE
+                payload = mapOf("query" to query)
+            }
+            stream.writeToStream(PgMessage.Query(query))
+
+            collectResult()
+        }
     }
 
     /**
@@ -569,15 +547,16 @@ class PgConnection internal constructor(
     ): StatementResult  {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
-        waitForQueryRunning()
-        val statement = try {
-            prepareStatement(query, parameters)
-        } catch (ex: Throwable) {
-            enableQueryRunning()
-            throw ex
+
+        return mutex.withLock {
+            val statement = try {
+                prepareStatement(query, parameters)
+            } catch (ex: Throwable) {
+                throw ex
+            }
+            executePreparedStatement(statement, parameters)
+            collectResult(statement = statement)
         }
-        executePreparedStatement(statement, parameters)
-        return collectResult(statement = statement)
     }
 
     /**
@@ -585,20 +564,15 @@ class PgConnection internal constructor(
      * side prepared statement and then remove the [preparedStatement] for the client cache.
      */
     private suspend fun releasePreparedStatement(preparedStatement: PgPreparedStatement) {
-        waitForQueryRunning()
-
-        val closeMessage = PgMessage.Close(
-            target = MessageTarget.PreparedStatement,
-            targetName = preparedStatement.statementName,
-        )
-        stream.writeManyToStream(closeMessage, PgMessage.Sync)
-        stream.waitForOrError<PgMessage.CommandComplete>()
-            .onFailure {
-                enableQueryRunning()
-                throw it
-            }
-        preparedStatements.remove(preparedStatement.query)
-        enableQueryRunning()
+        mutex.withLock {
+            val closeMessage = PgMessage.Close(
+                target = MessageTarget.PreparedStatement,
+                targetName = preparedStatement.statementName,
+            )
+            stream.writeManyToStream(closeMessage, PgMessage.Sync)
+            stream.waitForOrError<PgMessage.CommandComplete>()
+            preparedStatements.remove(preparedStatement.query)
+        }
     }
 
     /**
@@ -607,7 +581,6 @@ class PgConnection internal constructor(
      */
     internal suspend fun dispose() {
         try {
-            canRunQuery.close()
             if (stream.isConnected) {
                 stream.writeToStream(PgMessage.Terminate)
                 log(Level.TRACE) {
@@ -626,7 +599,7 @@ class PgConnection internal constructor(
     }
 
     override suspend fun close() {
-        if (!pool.giveBack(this@PgConnection)) {
+        if (!pool.giveBack(this@PgSuspendingConnection)) {
             dispose()
         }
     }
@@ -639,7 +612,7 @@ class PgConnection internal constructor(
      */
     internal suspend fun pipelineQueriesSyncAll(
         vararg queries: Pair<String, List<Any?>>,
-    ): Flow<QueryResult> {
+    ): Iterable<QueryResult> {
         return pipelineQueries(queries = queries)
     }
 
@@ -683,56 +656,30 @@ class PgConnection internal constructor(
     internal suspend fun pipelineQueries(
         syncAll: Boolean = true,
         vararg queries: Pair<String, List<Any?>>,
-    ): Flow<QueryResult> {
-        waitForQueryRunning()
-        val statements = try {
-            Array(queries.size) { i ->
+    ): StatementResult {
+        return mutex.withLock {
+            val statements = Array(queries.size) { i ->
                 val (queryText, queryParams) = queries[i]
                 prepareStatement(query = queryText, parameters = queryParams)
             }
-        } catch (ex: Throwable) {
-            enableQueryRunning()
-            throw ex
+            for ((i, statement) in statements.withIndex()) {
+                executePreparedStatement(
+                    statement = statement,
+                    parameters = queries[i].second,
+                    sendSync = syncAll || i == queries.size - 1,
+                )
+            }
+            collectResults(syncAll, statements)
         }
-        for ((i, statement) in statements.withIndex()) {
-            executePreparedStatement(
-                statement = statement,
-                parameters = queries[i].second,
-                sendSync = syncAll || i == queries.size - 1,
-            )
-        }
-        return collectResults(syncAll, statements)
     }
 
-    /**
-     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
-     * the [data] provided as a [Flow] to the server. Since the server will parse the bytes
-     * supplied as a continuous flow of data rather than records, each item in the flow does not
-     * need to represent a record but, it's usually convenient to parse data as records, convert to
-     * a [ByteArray] and feed that through the flow.
-     *
-     * If the server sends an error message during or at completion of streaming the copy [data],
-     * the message will be captured and thrown after completing the COPY process and the connection
-     * with the server reverts to regular queries.
-     */
-    suspend fun copyIn(
-        copyInStatement: CopyStatement,
-        data: Flow<ByteArray>,
-    ): QueryResult {
-        checkConnected()
-        waitForQueryRunning()
-
-        val copyQuery = copyInStatement.toStatement(CopyType.From)
+    private suspend fun copyInInternal(copyQuery: String, data: Flow<ByteArray>): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyQuery)
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyInResponse>()
-            .onFailure {
-                enableQueryRunning()
-                throw it
-            }
 
         var wasFailed = false
         try {
@@ -774,7 +721,6 @@ class PgConnection internal constructor(
                 }
                 is PgMessage.ReadyForQuery -> {
                     handleTransactionStatus(message.transactionStatus)
-                    enableQueryRunning()
                     Loop.Break
                 }
                 else -> {
@@ -801,35 +747,38 @@ class PgConnection internal constructor(
     }
 
     /**
-     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], reading
-     * each `CopyData` server response message and passing the data through the returned [Flow].
-     * The returned [Flow] is cold so if you want to avoid suspending the server message processor,
-     * you should always try to process each item as soon as possible or collect the elements into
-     * a [List].
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * the [data] provided as a [Flow] to the server. Since the server will parse the bytes
+     * supplied as a continuous flow of data rather than records, each item in the flow does not
+     * need to represent a record but, it's usually convenient to parse data as records, convert to
+     * a [ByteArray] and feed that through the flow.
+     *
+     * If the server sends an error message during or at completion of streaming the copy [data],
+     * the message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
      */
-    suspend fun copyOut(
-        copyOutStatement: CopyStatement,
-    ): Flow<ByteArray> {
+    suspend fun copyIn(
+        copyInStatement: CopyStatement,
+        data: Flow<ByteArray>,
+    ): QueryResult {
         checkConnected()
-        waitForQueryRunning()
 
-        val copyQuery = copyOutStatement.toStatement(CopyType.To)
+        val copyQuery = copyInStatement.toStatement(CopyType.From)
+        return mutex.withLock { copyInInternal(copyQuery, data) }
+    }
+
+    private suspend fun copyOutInternal(copyQuery: String): Flow<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyQuery)
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyOutResponse>()
-            .onFailure {
-                enableQueryRunning()
-                throw it
-            }
 
         return flow {
             stream.processMessageLoop { message ->
                 when (message) {
                     is PgMessage.ErrorResponse -> {
-                        enableQueryRunning()
                         throw GeneralPostgresError(message)
                     }
                     is PgMessage.CopyData -> {
@@ -839,7 +788,6 @@ class PgConnection internal constructor(
                     is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
                     is PgMessage.ReadyForQuery -> {
                         handleTransactionStatus(message.transactionStatus)
-                        enableQueryRunning()
                         Loop.Break
                     }
                     else -> {
@@ -850,11 +798,24 @@ class PgConnection internal constructor(
                         Loop.Continue
                     }
                 }
-            }.onFailure {
-                enableQueryRunning()
-                throw it
-            }
+            }.getOrThrow()
         }
+    }
+
+    /**
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], reading
+     * each `CopyData` server response message and passing the data through the returned [Flow].
+     * The returned [Flow] is cold so if you want to avoid suspending the server message processor,
+     * you should always try to process each item as soon as possible or collect the elements into
+     * a [List].
+     */
+    suspend fun copyOut(
+        copyOutStatement: CopyStatement,
+    ): Flow<ByteArray> {
+        checkConnected()
+
+        val copyQuery = copyOutStatement.toStatement(CopyType.To)
+        return mutex.withLock { copyOutInternal(copyQuery) }
     }
 
     /**
@@ -938,21 +899,20 @@ class PgConnection internal constructor(
         private const val STATEMENT_TEMPLATE = "Sending {query}"
 
         /**
-         * Create a new [PgConnection] instance using the supplied [connectOptions], [stream] and
-         * [pool] (the pool that owns this connection).
+         * Create a new [PgSuspendingConnection] instance using the supplied [connectOptions],
+         * [stream] and [pool] (the pool that owns this connection).
          */
         internal suspend fun connect(
             connectOptions: PgConnectOptions,
             stream: PgStream,
-            pool: PgConnectionPool,
-        ): PgConnection {
-            var connection: PgConnection? = null
+            pool: PgSuspendingConnectionPool,
+        ): PgSuspendingConnection {
+            var connection: PgSuspendingConnection? = null
             try {
-                connection = PgConnection(connectOptions, stream, pool)
+                connection = PgSuspendingConnection(connectOptions, stream, pool)
                 if (!connection.isConnected) {
                     error("Could not initialize connection")
                 }
-                connection.enableQueryRunning()
                 return connection
             } catch (ex: Throwable) {
                 try {

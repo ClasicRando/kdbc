@@ -1,23 +1,23 @@
 package io.github.clasicrando.kdbc.postgresql.pool
 
-import io.github.clasicrando.kdbc.core.pool.ConnectionPool
-import io.github.clasicrando.kdbc.core.pool.ConnectionProvider
+import io.github.clasicrando.kdbc.core.pool.SuspendingConnectionPool
+import io.github.clasicrando.kdbc.core.pool.SuspendingConnectionProvider
 import io.github.clasicrando.kdbc.core.stream.KtorAsyncStream
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.ktor.network.sockets.InetSocketAddress
 
 /**
- * Postgresql specific implementation for [ConnectionProvider] that provides the means to create
- * new [ConnectionPool] instances holding [PgConnection]s as well as validating that a
- * [PgConnection] is valid for reuse.
+ * Postgresql specific implementation for [SuspendingConnectionProvider] that provides the means to
+ * create new [SuspendingConnectionPool] instances holding [PgSuspendingConnection]s as well as
+ * validating that a [PgSuspendingConnection] is valid for reuse.
  */
-internal class PgConnectionProvider(
+internal class PgSuspendingConnectionProvider(
     private val connectOptions: PgConnectOptions,
-) : ConnectionProvider<PgConnection> {
-    override suspend fun create(pool: ConnectionPool<PgConnection>): PgConnection {
-        pool as PgConnectionPool
+) : SuspendingConnectionProvider<PgSuspendingConnection> {
+    override suspend fun create(pool: SuspendingConnectionPool<PgSuspendingConnection>): PgSuspendingConnection {
+        pool as PgSuspendingConnectionPool
         val address = InetSocketAddress(connectOptions.host, connectOptions.port.toInt())
         val asyncStream = KtorAsyncStream(address, pool.selectorManager)
         var stream: PgStream? = null
@@ -27,7 +27,7 @@ internal class PgConnectionProvider(
                 asyncStream = asyncStream,
                 connectOptions = connectOptions,
             )
-            return PgConnection.connect(
+            return PgSuspendingConnection.connect(
                 connectOptions = connectOptions,
                 stream = stream,
                 pool = pool,
@@ -38,10 +38,10 @@ internal class PgConnectionProvider(
         }
     }
 
-    override suspend fun validate(connection: PgConnection): Boolean {
+    override suspend fun validate(connection: PgSuspendingConnection): Boolean {
         if (connection.isConnected && connection.inTransaction) {
             connection.rollback()
         }
-        return connection.isConnected && !connection.inTransaction && !connection.isWaiting
+        return connection.isConnected && !connection.inTransaction
     }
 }

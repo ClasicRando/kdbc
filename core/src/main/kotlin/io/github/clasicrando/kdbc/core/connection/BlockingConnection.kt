@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.connection
 
-import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
@@ -16,47 +15,35 @@ private const val RESOURCE_TYPE = "BlockingConnection"
  *
  * To keep the [BlockingConnection] resources from leaking, the recommended usage of
  * [BlockingConnection] instances is to utilize the [use] and [transaction] methods which always
- * clean up [Connection] resources before exiting. This does implicitly close the connection so if
- * you intend to hold a [BlockingConnection] for a long period of time (e.g. outside the scope of a
- * single method) you should find a way to always close the [BlockingConnection].
+ * clean up [BlockingConnection] resources before exiting. This does implicitly close the
+ * connection so if you intend to hold a [BlockingConnection] for a long period of time (e.g.
+ * outside the scope of a single method) you should find a way to always close the
+ * [BlockingConnection].
  */
-interface BlockingConnection : UniqueResourceId {
-
+interface BlockingConnection : Connection {
     override val resourceType: String get() = RESOURCE_TYPE
 
     /**
-     * Returns true if the underlining connection is still active and false if the connection has
-     * been closed or a fatal error has occurred causing the connection to be aborted
-     */
-    val isConnected: Boolean
-
-    /**
-     * Returns true if the connection is currently within a transaction. This is set to true after
-     * [begin] is called and reverts to false if [commit] or [rollback] is called.
-     */
-    val inTransaction: Boolean
-
-    /**
      * Method called to close the connection and free any resources that are held by the
-     * connection. Once this has been called, the [Connection] instance should not be used.
+     * connection. Once this has been called, the [BlockingConnection] instance should not be used.
      */
     fun close()
 
     /**
-     * Request that the database start a new transaction. This will fail if the [Connection] is
-     * already within a transaction.
+     * Request that the database start a new transaction. This will fail if the
+     * [BlockingConnection] is already within a transaction.
      */
     fun begin()
 
     /**
-     * Commit the current transaction. This will fail if the [Connection] was not within a
+     * Commit the current transaction. This will fail if the [BlockingConnection] was not within a
      * transaction
      */
     fun commit()
 
     /**
-     * Rollback the current transaction. This will fail if the [Connection] was not within a
-     * transaction
+     * Rollback the current transaction. This will fail if the [BlockingConnection] was not within
+     * a transaction
      */
     fun rollback()
 

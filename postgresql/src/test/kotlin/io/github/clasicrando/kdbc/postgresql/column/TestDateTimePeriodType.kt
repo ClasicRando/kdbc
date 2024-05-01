@@ -13,7 +13,7 @@ class TestDateTimePeriodType {
     fun `encode should accept DateTimePeriod when querying postgresql`() = runBlocking {
         val query = "SELECT $1 interval_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(dateTimePeriod)
                 .fetchScalar<DateTimePeriod>()
@@ -24,7 +24,7 @@ class TestDateTimePeriodType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT interval '1 year 4 month 9 day 5 hour 45 minute 8.009005 second';"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

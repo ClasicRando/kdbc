@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.pool
 
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
-import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.atomicfu.locks.ReentrantLock
@@ -39,7 +38,8 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
 
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,
-     * add the [Connection.resourceId] to the [connectionIds] set and return the new connection
+     * add the [BlockingConnection.resourceId] to the [connectionIds] set and return the new
+     * connection
      */
     private fun createNewConnection(): C {
         val connection = provider.create(this@AbstractDefaultBlockingConnectionPool)
@@ -61,10 +61,11 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
     abstract fun disposeConnection(connection: C)
 
     /**
-     * Invalidate a [connection] from the pool by moving the [Connection] out of the pool's
-     * resources and references. This means, removing the [Connection.resourceId] out of the
-     * [connectionIds] set, removing the reference to the pool in the [Connection] and closing the
-     * actual [Connection]. This action will only fail if the [logger] fails to log.
+     * Invalidate a [connection] from the pool by moving the [BlockingConnection] out of the pool's
+     * resources and references. This means, removing the [BlockingConnection.resourceId] out of
+     * the [connectionIds] set, removing the reference to the pool in the [BlockingConnection] and
+     * closing the actual [BlockingConnection]. This action will only fail if the [logger] fails to
+     * log.
      */
     private fun invalidateConnection(connection: C) {
         var connectionId: UUID? = null
@@ -86,9 +87,9 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
     }
 
     /**
-     * Get the next available [Connection] from the [connections] queue. If the queue is empty and
-     * the pool is not exhausted, [createNewConnection] is called to return a new connection. This
-     * will return null if the channel is empty and the pool is exhausted.
+     * Get the next available [BlockingConnection] from the [connections] queue. If the queue is
+     * empty and the pool is not exhausted, [createNewConnection] is called to return a new
+     * connection. This will return null if the channel is empty and the pool is exhausted.
      */
     private fun acquireConnection(): C? {
         val result = connections.poll()

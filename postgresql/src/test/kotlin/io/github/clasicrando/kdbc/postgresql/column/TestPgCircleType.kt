@@ -16,7 +16,7 @@ class TestPgCircleType {
     fun `encode should accept PgCircle when querying postgresql`() = runBlocking {
         val query = "SELECT $1 circle_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
             conn.includePostGisTypes()
             val circle = conn.createPreparedQuery(query)
                 .bind(value)
@@ -28,7 +28,7 @@ class TestPgCircleType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::circle;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
             conn.includePostGisTypes()
             val circle = if (isPrepared) {
                 conn.createPreparedQuery(query)
@@ -62,7 +62,7 @@ class TestPgCircleType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn ->
+            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getBoolean(0) == true)
                 }

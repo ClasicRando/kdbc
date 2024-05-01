@@ -16,7 +16,7 @@ class TestPgBoxType {
     fun `encode should accept PgBox when querying postgresql`() = runBlocking {
         val query = "SELECT $1 box_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
             conn.includePostGisTypes()
             val box = conn.createPreparedQuery(query)
                 .bind(value)
@@ -28,7 +28,7 @@ class TestPgBoxType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::box;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
             conn.includePostGisTypes()
             val box = if (isPrepared) {
                 conn.createPreparedQuery(query)
@@ -65,7 +65,7 @@ class TestPgBoxType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn ->
+            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getBoolean(0) == true)
                 }

@@ -19,7 +19,7 @@ class TestPgPathType {
         val value = getPath(isClosed)
         val query = "SELECT $1 path_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
             conn.includePostGisTypes()
             val path = conn.createPreparedQuery(query)
                 .bind(value)
@@ -32,7 +32,7 @@ class TestPgPathType {
         val value = getPath(isClosed)
         val query = "SELECT '${value.postGisLiteral}'::path;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
             conn.includePostGisTypes()
             val path = if (isPrepared) {
                 conn.createPreparedQuery(query)
@@ -74,7 +74,7 @@ class TestPgPathType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn ->
+            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getBoolean(0) == true)
                 }

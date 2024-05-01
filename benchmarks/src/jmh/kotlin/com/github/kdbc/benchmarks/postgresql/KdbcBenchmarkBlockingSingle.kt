@@ -37,7 +37,7 @@ open class KdbcBenchmarkBlockingSingle {
         if (id > 5000) id = 1
     }
 
-//    @Benchmark
+    @Benchmark
     open fun queryData() {
         step()
         connection.createPreparedQuery(kdbcQuerySingle)
