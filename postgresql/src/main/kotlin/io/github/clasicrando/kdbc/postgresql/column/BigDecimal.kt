@@ -1,33 +1,49 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.type.PgNumeric
 import java.math.BigDecimal
+import kotlin.reflect.typeOf
 
 /**
- * Implementation of a [PgTypeEncoder] for the [BigDecimal] type. This maps to the `numeric` type
- * in a postgresql database. Numeric types are constructed using the internal type [PgNumeric] and
- * encoded to the buffer using [PgNumeric.encodeToBuffer]. To get a [PgNumeric],
- * [PgNumeric.fromBigDecimal] is called to convert the [BigDecimal] value to [PgNumeric].
+ * Implementation of a [PgTypeDescription] for the [BigDecimal] type. This maps to the `numeric`
+ * type in a postgresql database.
  */
-internal val bigDecimalTypeEncoder = PgTypeEncoder<BigDecimal>(PgType.Numeric) { value, buffer ->
-    PgNumeric.fromBigDecimal(value)
-        .encodeToBuffer(buffer)
-}
+object NumericTypeDescription : PgTypeDescription<BigDecimal>(
+    pgType = PgType.Numeric,
+    kType = typeOf<BigDecimal>()
+) {
+    /**
+     * Numeric types are constructed using the internal type [PgNumeric] and encoded to the buffer
+     * using [PgNumeric.encodeToBuffer]. To get a [PgNumeric], [PgNumeric.fromBigDecimal] is called
+     * to convert the [BigDecimal] value to [PgNumeric].
+     */
+    override fun encode(value: BigDecimal, buffer: ByteWriteBuffer) {
+        PgNumeric.fromBigDecimal(value)
+            .encodeToBuffer(buffer)
+    }
 
-/**
- * Implementation of a [PgTypeDecoder] for the [BigDecimal] type. This maps to the `numeric` type
- * in a postgresql database.
- *
- * ### Binary
- * When supplied in the binary format, [PgNumeric.fromBytes] is used to get a [PgNumeric] which can
- * be converted to a [BigDecimal] using [PgNumeric.toBigDecimal].
- *
- * ### Text
- * When supplied in text format, a [BigDecimal] can be constructed directly from the [String].
- */
-internal val bigDecimalTypeDecoder = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> PgNumeric.fromBytes(value.bytes).toBigDecimal()
-        is PgValue.Text -> BigDecimal(value.text)
+    /**
+     * First decode the bytes using [PgNumeric.fromBytes] to get a [PgNumeric] which can be
+     * converted to a [BigDecimal] using [PgNumeric.toBigDecimal].
+     */
+    override fun decodeBytes(value: PgValue.Binary): BigDecimal {
+        return PgNumeric.fromBytes(value.bytes).toBigDecimal()
+    }
+
+    /**
+     * When supplied in text format, a [BigDecimal] can be constructed directly from the [String].
+     */
+    override fun decodeText(value: PgValue.Text): BigDecimal {
+        return BigDecimal(value.text)
     }
 }
+
+/**
+ * Implementation of a [ArrayTypeDescription] for [BigDecimal]. This maps to the `numeric[]` type
+ * in a postgresql database.
+ */
+object NumericArrayTypeDescription : ArrayTypeDescription<BigDecimal>(
+    pgType = PgType.NumericArray,
+    innerType = NumericTypeDescription,
+)

@@ -3,9 +3,11 @@ package io.github.clasicrando.kdbc.postgresql.connection
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.connection.useCatching
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
+import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -15,14 +17,14 @@ class TestPipelineSuspendingQuerySpec {
     fun `pipelineQueries should return multiple results with auto commit`(): Unit = runBlocking {
         PgConnectionHelper.defaultSuspendingConnection().use { connection ->
             val results = connection.pipelineQueriesSyncAll(
-                "SELECT $1 i" to listOf(1),
-                "SELECT $1 t" to listOf("Pipeline Query"),
+                "SELECT $1 i" to listOf(1 to typeOf<Int>()),
+                "SELECT $1 t" to listOf("Pipeline Query" to typeOf<String>()),
             ).toList()
             assertEquals(2, results.size)
             assertEquals(1, results[0].rowsAffected)
-            assertEquals(1, results[0].rows.first().getInt(0))
+            assertEquals(1, results[0].rows.first().getAsNonNull(0))
             assertEquals(1, results[1].rowsAffected)
-            assertEquals("Pipeline Query", results[1].rows.first().getString(0))
+            assertEquals("Pipeline Query", results[1].rows.first().getAsNonNull(0))
         }
     }
 
@@ -36,8 +38,11 @@ class TestPipelineSuspendingQuerySpec {
         }
         val result = PgConnectionHelper.defaultSuspendingConnection().useCatching {
             it.pipelineQueriesSyncAll(
-                "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
-                "SELECT $1::int t" to listOf("not int"),
+                "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(
+                    1 to typeOf<Int>(),
+                    "Pipeline Query" to typeOf<String>(),
+                ),
+                "SELECT $1::int t" to listOf("not int" to typeOf<String>()),
             ).toList()
         }
         assertTrue(result.isFailure)
@@ -63,9 +68,12 @@ class TestPipelineSuspendingQuerySpec {
         }
         val result = PgConnectionHelper.defaultSuspendingConnection().useCatching {
             it.pipelineQueriesSyncAll(
-                "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
-                "SELECT $1::int t" to listOf("not int"),
-                "SELECT $1 t" to listOf("not int"),
+                "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(
+                    1 to typeOf<Int>(),
+                    "Pipeline Query" to typeOf<String>(),
+                ),
+                "SELECT $1::int t" to listOf("not int" to typeOf<String>()),
+                "SELECT $1 t" to listOf("not int" to typeOf<String>()),
             ).toList()
         }
         assertTrue(result.isFailure)
@@ -93,8 +101,11 @@ class TestPipelineSuspendingQuerySpec {
             it.pipelineQueries(
                 syncAll = false,
                 queries = arrayOf(
-                    "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(1, "Pipeline Query"),
-                    "SELECT $1::int t" to listOf("not int"),
+                    "INSERT INTO public.rollback_check VALUES($1,$2)" to listOf(
+                        1 to typeOf<Int>(),
+                        "Pipeline Query" to typeOf<String>(),
+                    ),
+                    "SELECT $1::int t" to listOf("not int" to typeOf<String>()),
                 ),
             ).toList()
         }

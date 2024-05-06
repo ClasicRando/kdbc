@@ -52,7 +52,7 @@ internal class PgStream(
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
-    private val messageSendBuffer = ByteWriteBuffer(SEND_BUFFER_SIZE)
+    private val messageSendBuffer = ByteWriteBuffer()
 
     override val resourceType: String = RESOURCE_TYPE
 
@@ -309,7 +309,7 @@ internal class PgStream(
         try {
             messageSendBuffer.release()
             flow.collect {
-                if (messageSendBuffer.remaining < it.size) {
+                if (messageSendBuffer.position >= SEND_BUFFER_SIZE) {
                     asyncStream.writeBuffer(messageSendBuffer)
                     messageSendBuffer.release()
                 }

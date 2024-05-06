@@ -1,7 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgBox
@@ -17,7 +19,6 @@ class TestPgBoxType {
         val query = "SELECT $1 box_col;"
 
         PgConnectionHelper.defaultSuspendingConnection().use { conn ->
-            conn.includePostGisTypes()
             val box = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgBox>()
@@ -29,7 +30,6 @@ class TestPgBoxType {
         val query = "SELECT '${value.postGisLiteral}'::box;"
 
         PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
-            conn.includePostGisTypes()
             val box = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -67,7 +67,7 @@ class TestPgBoxType {
         fun checkPostGis(): Unit = runBlocking {
             PgConnectionHelper.defaultSuspendingConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                    check(it.first().rows.first().getBoolean(0) == true)
+                    check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }
             }
         }

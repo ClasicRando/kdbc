@@ -1,6 +1,7 @@
 package com.github.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
+import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import kotlinx.coroutines.runBlocking

@@ -1,32 +1,35 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
+import kotlin.reflect.typeOf
 
 /**
- * Implementation of [PgTypeEncoder] for [Short]. This maps to the `int2` or `smallint` type in a
- * postgresql database. Simply writes the [Short] value to the buffer.
+ * Implementation of a [PgTypeDescription] for the [Short] type. This maps to the `int2`/`smallint`
+ * type in a postgresql database.
  */
-val shortTypeEncoder = PgTypeEncoder<Short>(PgType.Int2) { value, buffer ->
-    buffer.writeShort(value)
-}
+object SmallIntTypeDescription : PgTypeDescription<Short>(
+    pgType = PgType.Int2,
+    kType = typeOf<Short>(),
+) {
+    /** Simply writes the [Short] value to the buffer */
+    override fun encode(value: Short, buffer: ByteWriteBuffer) {
+        buffer.writeShort(value)
+    }
 
-/**
- * Implementation of [PgTypeDecoder] for [Short]. This maps to the `int2` or `smallint` type in a
- * postgresql database.
- *
- * ### Binary
- * Read the first [Short] value from the buffer.
- *
- * ### Text
- * Convert the [String] value into a [Short]
- *
- * @throws ColumnDecodeError if the [String] value cannot be converted to a [Short]
- */
-val shortTypeDecoder = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> value.bytes.readShort()
-        is PgValue.Text -> value.text
+    /** Read the first [Short] value from the buffer. */
+    override fun decodeBytes(value: PgValue.Binary): Short {
+        return value.bytes.readShort()
+    }
+
+    /**
+     * Convert the [String] value into a [Short]
+     *
+     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Short]
+     */
+    override fun decodeText(value: PgValue.Text): Short {
+        return value.text
             .toShortOrNull()
             ?: columnDecodeError<Short>(
                 type = value.typeData,
@@ -35,31 +38,40 @@ val shortTypeDecoder = PgTypeDecoder { value ->
     }
 }
 
+/**
+ * Implementation of a [ArrayTypeDescription] for [Short]. This maps to the `int2[]`/`smallint[]`
+ * type in a postgresql database.
+ */
+object SmallIntArrayTypeDescription : ArrayTypeDescription<Short>(
+    pgType = PgType.Int2Array,
+    innerType = SmallIntTypeDescription,
+)
 
 /**
- * Implementation of [PgTypeEncoder] for [Int]. This maps to the `int4` or `int` type in a
- * postgresql database. Simply writes the [Int] value to the buffer.
+ * Implementation of a [PgTypeDescription] for the [Int] type. This maps to the `int4`/`integer`
+ * type in a postgresql database.
  */
-val intTypeEncoder = PgTypeEncoder<Int>(PgType.Int4) { value, buffer ->
-    buffer.writeInt(value)
-}
+object IntTypeDescription : PgTypeDescription<Int>(
+    pgType = PgType.Int4,
+    kType = typeOf<Int>(),
+) {
+    /** Simply writes the [Int] value to the buffer */
+    override fun encode(value: Int, buffer: ByteWriteBuffer) {
+        buffer.writeInt(value)
+    }
 
-/**
- * Implementation of [PgTypeDecoder] for [Int]. This maps to the `int4` or `int` type in a
- * postgresql database.
- *
- * ### Binary
- * Read the first [Int] value from the buffer.
- *
- * ### Text
- * Convert the [String] value into a [Int]
- *
- * @throws ColumnDecodeError if the [String] value cannot be converted to a [Int]
- */
-val intTypeDecoder = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> value.bytes.readInt()
-        is PgValue.Text -> value.text
+    /** Read the first [Int] value from the buffer. */
+    override fun decodeBytes(value: PgValue.Binary): Int {
+        return value.bytes.readInt()
+    }
+
+    /**
+     * Convert the [String] value into a [Int]
+     *
+     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Int]
+     */
+    override fun decodeText(value: PgValue.Text): Int {
+        return value.text
             .toIntOrNull()
             ?: columnDecodeError<Int>(
                 type = value.typeData,
@@ -69,29 +81,81 @@ val intTypeDecoder = PgTypeDecoder { value ->
 }
 
 /**
- * Implementation of [PgTypeEncoder] for [Long]. This maps to the `bigint` type in a postgresql
- * database. Simply writes the [Long] value to the buffer.
+ * Implementation of a [ArrayTypeDescription] for [Int]. This maps to the `int4[]`/`integer[]` type
+ * in a postgresql database.
  */
-val longTypeEncoder = PgTypeEncoder<Long>(PgType.Int8) { value, buffer ->
-    buffer.writeLong(value)
+object IntArrayTypeDescription : ArrayTypeDescription<Int>(
+    pgType = PgType.Int4Array,
+    innerType = IntTypeDescription,
+)
+
+/**
+ * Implementation of a [PgTypeDescription] for the [Int] type. This maps to the `oid` type in a
+ * postgresql database.
+ */
+object OidTypeDescription : PgTypeDescription<Int>(
+    pgType = PgType.Oid,
+    kType = typeOf<Int>(),
+) {
+    /** Simply writes the [Int] value to the buffer */
+    override fun encode(value: Int, buffer: ByteWriteBuffer) {
+        buffer.writeInt(value)
+    }
+
+    /** Read the first [Int] value from the buffer. */
+    override fun decodeBytes(value: PgValue.Binary): Int {
+        return value.bytes.readInt()
+    }
+
+    /**
+     * Convert the [String] value into a [Int]
+     *
+     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Int]
+     */
+    override fun decodeText(value: PgValue.Text): Int {
+        return value.text
+            .toIntOrNull()
+            ?: columnDecodeError<Int>(
+                type = value.typeData,
+                reason = "Could not convert '${value.text}' into a Int",
+            )
+    }
 }
 
 /**
- * Implementation of [PgTypeDecoder] for [Long]. This maps to the `int8` or `bigint` type in a
+ * Implementation of a [ArrayTypeDescription] for [Int]. This maps to the `oid[]` type in a
  * postgresql database.
- *
- * ### Binary
- * Read the first [Long] value from the buffer.
- *
- * ### Text
- * Convert the [String] value into a [Long]
- *
- * @throws ColumnDecodeError if the [String] value cannot be converted to a [Long]
  */
-val longTypeDecoder = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> value.bytes.readLong()
-        is PgValue.Text -> value.text
+object OidArrayTypeDescription : ArrayTypeDescription<Int>(
+    pgType = PgType.OidArray,
+    innerType = IntTypeDescription,
+)
+
+/**
+ * Implementation of a [PgTypeDescription] for the [Long] type. This maps to the `int8`/`bigint`
+ * type in a postgresql database.
+ */
+object BigIntTypeDescription : PgTypeDescription<Long>(
+    pgType = PgType.Int8,
+    kType = typeOf<Long>(),
+) {
+    /** Simply writes the [Long] value to the buffer */
+    override fun encode(value: Long, buffer: ByteWriteBuffer) {
+        buffer.writeLong(value)
+    }
+
+    /** Read the first [Long] value from the buffer. */
+    override fun decodeBytes(value: PgValue.Binary): Long {
+        return value.bytes.readLong()
+    }
+
+    /**
+     * Convert the [String] value into a [Long]
+     *
+     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Long]
+     */
+    override fun decodeText(value: PgValue.Text): Long {
+        return value.text
             .toLongOrNull()
             ?: columnDecodeError<Long>(
                 type = value.typeData,
@@ -101,29 +165,39 @@ val longTypeDecoder = PgTypeDecoder { value ->
 }
 
 /**
- * Implementation of [PgTypeEncoder] for [Float]. This maps to the `float4` or `real` type in a
- * postgresql database. Simply writes the [Float] value to the buffer.
+ * Implementation of a [ArrayTypeDescription] for [Long]. This maps to the `int8[]`/`bigint[]` type
+ * in a postgresql database.
  */
-val floatTypeEncoder = PgTypeEncoder<Float>(PgType.Float4) { value, buffer ->
-    buffer.writeFloat(value)
-}
+object BigIntArrayTypeDescription : ArrayTypeDescription<Long>(
+    pgType = PgType.Int8Array,
+    innerType = BigIntTypeDescription,
+)
 
 /**
- * Implementation of [PgTypeDecoder] for [Float]. This maps to the `float4` or `real` type in a
- * postgresql database.
- *
- * ### Binary
- * Read the first [Float] value from the buffer.
- *
- * ### Text
- * Convert the [String] value into a [Float]
- *
- * @throws ColumnDecodeError if the [String] value cannot be converted to a [Float]
+ * Implementation of a [PgTypeDescription] for the [Float] type. This maps to the `float4`/`real`
+ * type in a postgresql database.
  */
-val floatTypeDecoder = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> value.bytes.readFloat()
-        is PgValue.Text -> value.text
+object RealTypeDescription : PgTypeDescription<Float>(
+    pgType = PgType.Float4,
+    kType = typeOf<Float>(),
+) {
+    /** Simply writes the [Float] value to the buffer */
+    override fun encode(value: Float, buffer: ByteWriteBuffer) {
+        buffer.writeFloat(value)
+    }
+
+    /** Read the first [Long] value from the buffer. */
+    override fun decodeBytes(value: PgValue.Binary): Float {
+        return value.bytes.readFloat()
+    }
+
+    /**
+     * Convert the [String] value into a [Float]
+     *
+     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Float]
+     */
+    override fun decodeText(value: PgValue.Text): Float {
+        return value.text
             .toFloatOrNull()
             ?: columnDecodeError<Float>(
                 type = value.typeData,
@@ -132,31 +206,40 @@ val floatTypeDecoder = PgTypeDecoder { value ->
     }
 }
 
-
 /**
- * Implementation of [PgTypeEncoder] for [Double]. This maps to the `float8` or `double precision`
- * type in a postgresql database. Simply writes the [Short] value to the buffer.
- */
-val doubleTypeEncoder = PgTypeEncoder<Double>(PgType.Float8) { value, buffer ->
-    buffer.writeDouble(value)
-}
-
-/**
- * Implementation of [PgTypeDecoder] for [Double]. This maps to the `float8` or `double precision`
+ * Implementation of a [ArrayTypeDescription] for [Float]. This maps to the `float4[]`/`real[]`
  * type in a postgresql database.
- *
- * ### Binary
- * Read the first [Double] value from the buffer.
- *
- * ### Text
- * Convert the [String] value into a [Double]
- *
- * @throws ColumnDecodeError if the [String] value cannot be converted to a [Double]
  */
-val doubleTypeDecoder = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> value.bytes.readDouble()
-        is PgValue.Text -> value.text
+object RealArrayTypeDescription : ArrayTypeDescription<Float>(
+    pgType = PgType.Float4Array,
+    innerType = RealTypeDescription,
+)
+
+/**
+ * Implementation of a [PgTypeDescription] for the [Double] type. This maps to the
+ * `float8`/`double precision` type in a postgresql database.
+ */
+object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
+    pgType = PgType.Float8,
+    kType = typeOf<Double>(),
+) {
+    /** Simply writes the [Double] value to the buffer */
+    override fun encode(value: Double, buffer: ByteWriteBuffer) {
+        buffer.writeDouble(value)
+    }
+
+    /** Read the first [Long] value from the buffer. */
+    override fun decodeBytes(value: PgValue.Binary): Double {
+        return value.bytes.readDouble()
+    }
+
+    /**
+     * Convert the [String] value into a [Double]
+     *
+     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Double]
+     */
+    override fun decodeText(value: PgValue.Text): Double {
+        return value.text
             .toDoubleOrNull()
             ?: columnDecodeError<Double>(
                 type = value.typeData,
@@ -164,3 +247,12 @@ val doubleTypeDecoder = PgTypeDecoder { value ->
             )
     }
 }
+
+/**
+ * Implementation of a [ArrayTypeDescription] for [Double]. This maps to the
+ * `float8[]`/`double precision[]` type in a postgresql database.
+ */
+object DoublePrecisionArrayTypeDescription : ArrayTypeDescription<Double>(
+    pgType = PgType.Float8Array,
+    innerType = DoublePrecisionTypeDescription,
+)

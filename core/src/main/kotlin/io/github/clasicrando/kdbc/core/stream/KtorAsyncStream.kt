@@ -59,7 +59,9 @@ class KtorAsyncStream(
 
     override suspend fun writeBuffer(buffer: ByteWriteBuffer) {
         check(isConnected) { "Cannot write to a stream that is not connected" }
-        writeChannel.writeFully(buffer.innerBuffer, 0, buffer.position)
+        for (byte in buffer.innerBuffer) {
+            writeChannel.writeByte(byte)
+        }
         writeChannel.flush()
     }
 

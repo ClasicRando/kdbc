@@ -1,7 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgPath
@@ -20,7 +22,6 @@ class TestPgPathType {
         val query = "SELECT $1 path_col;"
 
         PgConnectionHelper.defaultSuspendingConnection().use { conn ->
-            conn.includePostGisTypes()
             val path = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgPath>()
@@ -33,7 +34,6 @@ class TestPgPathType {
         val query = "SELECT '${value.postGisLiteral}'::path;"
 
         PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
-            conn.includePostGisTypes()
             val path = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -76,7 +76,7 @@ class TestPgPathType {
         fun checkPostGis(): Unit = runBlocking {
             PgConnectionHelper.defaultSuspendingConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                    check(it.first().rows.first().getBoolean(0) == true)
+                    check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }
             }
         }

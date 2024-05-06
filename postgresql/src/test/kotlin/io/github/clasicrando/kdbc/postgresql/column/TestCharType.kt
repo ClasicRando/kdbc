@@ -2,9 +2,11 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.RowParser
+import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.DataRow
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
@@ -29,7 +31,7 @@ class TestCharType {
     }
 
     object CharTestRowParser : RowParser<Byte> {
-        override fun fromRow(row: DataRow): Byte = row.getByte(0)!!
+        override fun fromRow(row: DataRow): Byte = row.getAsNonNull(0)
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {

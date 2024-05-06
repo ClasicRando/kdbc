@@ -38,7 +38,7 @@ open class JdbcBenchmark {
         if (id >= 5000) id = 1
     }
 
-    @Benchmark
+//    @Benchmark
     open fun queryData() {
         step()
         connection.prepareStatement(jdbcQuery).use { preparedStatement ->

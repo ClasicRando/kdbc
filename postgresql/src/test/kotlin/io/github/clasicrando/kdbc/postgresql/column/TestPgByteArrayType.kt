@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -28,7 +29,7 @@ class TestPgByteArrayType {
         }
 
         val pgValue = PgValue.Text(byteString, fieldDescription)
-        val result = byteArrayTypeDecoder.decode(pgValue)
+        val result = ByteaTypeDescription.decode(pgValue)
 
         Assertions.assertArrayEquals(bytes, result)
     }
@@ -44,7 +45,7 @@ class TestPgByteArrayType {
         }
 
         val pgValue = PgValue.Text(byteString, fieldDescription)
-        val result = byteArrayTypeDecoder.decode(pgValue)
+        val result = ByteaTypeDescription.decode(pgValue)
 
         Assertions.assertArrayEquals(bytes, result)
     }

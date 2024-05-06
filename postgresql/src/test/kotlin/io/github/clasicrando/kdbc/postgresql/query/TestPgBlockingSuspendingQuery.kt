@@ -11,10 +11,8 @@ import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchFirst
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.fetchSingle
-import io.github.clasicrando.kdbc.core.query.getIntOrThrow
-import io.github.clasicrando.kdbc.core.query.getStringOrThrow
 import io.github.clasicrando.kdbc.core.result.DataRow
-import io.github.clasicrando.kdbc.core.result.getInt
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import org.junit.jupiter.api.Assertions
@@ -30,8 +28,8 @@ class TestPgBlockingSuspendingQuery {
     object GoodRowParserTest : RowParser<Row> {
         override fun fromRow(row: DataRow): Row {
             return Row(
-                intValue = getIntOrThrow(row, "int_value"),
-                stringValue = getStringOrThrow(row, "string_value"),
+                intValue = row.getAsNonNull("int_value"),
+                stringValue = row.getAsNonNull("string_value"),
             )
         }
     }
@@ -39,8 +37,8 @@ class TestPgBlockingSuspendingQuery {
     object BadRowParserTest : RowParser<Row> {
         override fun fromRow(row: DataRow): Row {
             return Row(
-                intValue = row.getInt(3)!!,
-                stringValue = getStringOrThrow(row, "string_value"),
+                intValue = row.getAsNonNull(3),
+                stringValue = row.getAsNonNull("string_value"),
             )
         }
     }
@@ -48,8 +46,8 @@ class TestPgBlockingSuspendingQuery {
     object BadRowParserTest2 : RowParser<Row> {
         override fun fromRow(row: DataRow): Row {
             return Row(
-                intValue = row.getInt("int_value")!!,
-                stringValue = getStringOrThrow(row, "string_value"),
+                intValue = row.getAsNonNull("int_value"),
+                stringValue = row.getAsNonNull("string_value"),
             )
         }
     }

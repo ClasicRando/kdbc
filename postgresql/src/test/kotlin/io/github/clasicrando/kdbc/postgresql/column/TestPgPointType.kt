@@ -1,7 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgPoint
@@ -16,7 +18,6 @@ class TestPgPointType {
         val query = "SELECT $1 point_col;"
 
         PgConnectionHelper.defaultSuspendingConnection().use { conn ->
-            conn.includePostGisTypes()
             val point = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgPoint>()
@@ -28,7 +29,6 @@ class TestPgPointType {
         val query = "SELECT '${value.postGisLiteral}'::point;"
 
         PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
-            conn.includePostGisTypes()
             val point = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -63,7 +63,7 @@ class TestPgPointType {
         fun checkPostGis(): Unit = runBlocking {
             PgConnectionHelper.defaultSuspendingConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                    check(it.first().rows.first().getBoolean(0) == true)
+                    check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }
             }
         }

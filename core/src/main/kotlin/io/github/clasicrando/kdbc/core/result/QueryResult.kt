@@ -1,15 +1,11 @@
 package io.github.clasicrando.kdbc.core.result
 
 import io.github.clasicrando.kdbc.core.AutoRelease
-import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
 import io.github.clasicrando.kdbc.core.exceptions.NoResultFound
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.use
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.LocalTime
 import kotlin.reflect.KClass
 
 /**
@@ -46,21 +42,7 @@ open class QueryResult(
     inline fun <reified T : Any> extractScalar(): T? {
         val cls = T::class
         return rows.firstOrNull()?.use { row ->
-            val value = when (cls) {
-                BOOLEAN_CLASS -> row.getBoolean(FIRST_INDEX)
-                BYTE_CLASS -> row.getByte(FIRST_INDEX)
-                SHORT_CLASS -> row.getShort(FIRST_INDEX)
-                INT_CLASS -> row.getInt(FIRST_INDEX)
-                LONG_CLASS -> row.getLong(FIRST_INDEX)
-                FLOAT_CLASS -> row.getFloat(FIRST_INDEX)
-                DOUBLE_CLASS -> row.getDouble(FIRST_INDEX)
-                LOCAL_DATE_CLASS -> row.getLocalDate(FIRST_INDEX)
-                LOCAL_TIME_CLASS -> row.getLocalTime(FIRST_INDEX)
-                LOCAL_DATE_TIME_CLASS -> row.getLocalDateTime(FIRST_INDEX)
-                DATETIME_CLASS -> row.getDateTime(FIRST_INDEX)
-                STRING_CLASS -> row.getString(FIRST_INDEX)
-                else -> row[FIRST_INDEX]
-            }
+            val value = row[FIRST_INDEX]
             if (!cls.isInstance(value)) {
                 throw IncorrectScalarType(value, cls)
             }
@@ -113,29 +95,5 @@ open class QueryResult(
     companion object {
         @PublishedApi
         internal const val FIRST_INDEX = 0
-        @PublishedApi
-        internal val BOOLEAN_CLASS = Boolean::class
-        @PublishedApi
-        internal val BYTE_CLASS = Byte::class
-        @PublishedApi
-        internal val SHORT_CLASS = Short::class
-        @PublishedApi
-        internal val INT_CLASS = Int::class
-        @PublishedApi
-        internal val LONG_CLASS = Long::class
-        @PublishedApi
-        internal val FLOAT_CLASS = Float::class
-        @PublishedApi
-        internal val DOUBLE_CLASS = Double::class
-        @PublishedApi
-        internal val LOCAL_DATE_CLASS = LocalDate::class
-        @PublishedApi
-        internal val LOCAL_TIME_CLASS = LocalTime::class
-        @PublishedApi
-        internal val LOCAL_DATE_TIME_CLASS = LocalDateTime::class
-        @PublishedApi
-        internal val DATETIME_CLASS = DateTime::class
-        @PublishedApi
-        internal val STRING_CLASS = String::class
     }
 }

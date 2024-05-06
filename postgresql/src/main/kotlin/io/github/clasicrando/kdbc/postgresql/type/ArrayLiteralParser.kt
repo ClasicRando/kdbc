@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.array
+package io.github.clasicrando.kdbc.postgresql.type
 
 /** Parser of Postgresql array literal string */
 @PublishedApi

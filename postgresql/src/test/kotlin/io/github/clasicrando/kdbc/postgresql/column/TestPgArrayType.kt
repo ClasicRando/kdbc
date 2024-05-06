@@ -3,9 +3,11 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.RowParser
+import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.DataRow
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
@@ -29,10 +31,9 @@ class TestPgArrayType {
     @Test
     fun `decode should return decoded value when valid array literal 1`() {
         val literal = "{1,2,3,4}"
-        val decoder = arrayTypeDecoder(intTypeDecoder)
         val pgValue = PgValue.Text(literal, fieldDescription(PgType.Int4Array))
 
-        val result = decoder.decode(pgValue)
+        val result = IntArrayTypeDescription.decode(pgValue)
 
         Assertions.assertIterableEquals(listOf(1, 2, 3, 4), result)
     }
@@ -40,10 +41,9 @@ class TestPgArrayType {
     @Test
     fun `decode should return decoded value when valid array literal 2`() {
         val literal = "{Test,NULL,Also a test}"
-        val decoder = arrayTypeDecoder(stringTypeDecoder)
         val pgValue = PgValue.Text(literal, fieldDescription(PgType.TextArray))
 
-        val result = decoder.decode(pgValue)
+        val result = TextArrayTypeDescription.decode(pgValue)
 
         Assertions.assertIterableEquals(listOf("Test", null, "Also a test"), result)
     }
@@ -51,10 +51,9 @@ class TestPgArrayType {
     @Test
     fun `decode should return decoded value when valid array literal 3`() {
         val literal = "{2023-01-01 22:02:59}"
-        val decoder = arrayTypeDecoder(localDateTimeTypeDecoder)
         val pgValue = PgValue.Text(literal, fieldDescription(PgType.TimestampArray))
 
-        val result = decoder.decode(pgValue)
+        val result = TimestampArrayTypeDescription.decode(pgValue)
 
         Assertions.assertIterableEquals(
             listOf(LocalDateTime(2023, 1, 1, 22, 2, 59)),
@@ -65,11 +64,10 @@ class TestPgArrayType {
     @Test
     fun `decode should throw a column decode error when literal is not wrapped by curl braces`() {
         val literal = "1,2,3,4"
-        val decoder = arrayTypeDecoder(intTypeDecoder)
         val pgValue = PgValue.Text(literal, fieldDescription(PgType.Int4Array))
 
         assertThrows<ColumnDecodeError> {
-            decoder.decode(pgValue)
+            IntArrayTypeDescription.decode(pgValue)
         }
     }
 
@@ -82,7 +80,7 @@ class TestPgArrayType {
             val ints = conn.createPreparedQuery(query)
                 .bind(values)
                 .fetchAll(object : RowParser<Int> {
-                    override fun fromRow(row: DataRow): Int = row.getInt(0)!!
+                    override fun fromRow(row: DataRow): Int = row.getAsNonNull(0)
                 })
             Assertions.assertIterableEquals(values, ints)
         }

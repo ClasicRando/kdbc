@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.array
 
+import io.github.clasicrando.kdbc.postgresql.type.ArrayLiteralParser
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource

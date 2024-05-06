@@ -18,7 +18,7 @@ data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) : PgGeometr
         get() = "(${points.joinToString(separator = ",") { it.postGisLiteral }})"
 
     companion object {
-        private fun makeBoundBox(points: List<PgPoint>): PgBox {
+        fun makeBoundBox(points: List<PgPoint>): PgBox {
             require(points.isNotEmpty()) { "Cannot make bounding box for polygon with no points" }
             var x1 = points[0].x
             var x2 = points[0].x

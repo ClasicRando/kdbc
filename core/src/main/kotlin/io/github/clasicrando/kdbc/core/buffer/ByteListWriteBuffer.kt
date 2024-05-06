@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.buffer
 
 import io.github.clasicrando.kdbc.core.AutoRelease
-import java.io.OutputStream
 import java.nio.charset.Charset
 
 /**
@@ -11,25 +10,15 @@ import java.nio.charset.Charset
  * each write since the underling resource is reset when [release] is called rather than cleaned
  * up.
  */
-class ByteWriteBuffer2(capacity: Int) : AutoRelease {
+class ByteWriteBuffer : AutoRelease {
     @PublishedApi
-    internal var innerBuffer = ByteArray(capacity)
+    internal val innerBuffer = ArrayList<Byte>()
 
     /**
      * Position within the internal buffer. This signifies how many bytes have been written to the
      * buffer
      */
-    var position: Int = 0
-        internal set
-
-    /** The number of bytes available for writing before the buffer is filled */
-    val remaining: Int get() = innerBuffer.size - position
-
-    private fun checkOverflow(requiredSpace: Int) {
-        if (remaining < requiredSpace) {
-            throw BufferOverflow(requiredSpace, remaining)
-        }
-    }
+    val position: Int get() = innerBuffer.size
 
     /**
      * Write a single [byte] to the buffer
@@ -38,8 +27,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * this operation
      */
     fun writeByte(byte: Byte) {
-        checkOverflow(1)
-        innerBuffer[position++] = byte
+        innerBuffer.add(byte)
     }
 
     /**
@@ -49,9 +37,8 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * this operation
      */
     fun writeShort(short: Short) {
-        checkOverflow(2)
-        innerBuffer[position++] = (short.toInt() ushr 8 and 0xff).toByte()
-        innerBuffer[position++] = (short.toInt() and 0xff).toByte()
+        innerBuffer.add((short.toInt() ushr 8 and 0xff).toByte())
+        innerBuffer.add((short.toInt() and 0xff).toByte())
     }
 
     /**
@@ -61,11 +48,10 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * this operation
      */
     fun writeInt(int: Int) {
-        checkOverflow(4)
-        innerBuffer[position++] = (int ushr 24 and 0xff).toByte()
-        innerBuffer[position++] = (int ushr 16 and 0xff).toByte()
-        innerBuffer[position++] = (int ushr 8 and 0xff).toByte()
-        innerBuffer[position++] = (int and 0xff).toByte()
+        innerBuffer.add((int ushr 24 and 0xff).toByte())
+        innerBuffer.add((int ushr 16 and 0xff).toByte())
+        innerBuffer.add((int ushr 8 and 0xff).toByte())
+        innerBuffer.add((int and 0xff).toByte())
     }
 
     /**
@@ -75,15 +61,14 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * this operation
      */
     fun writeLong(long: Long) {
-        checkOverflow(8)
-        innerBuffer[position++] = (long ushr 56 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 48 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 40 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 32 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 24 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 16 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 8 and 0xffL).toByte()
-        innerBuffer[position++] = (long and 0xffL).toByte()
+        innerBuffer.add((long ushr 56 and 0xffL).toByte())
+        innerBuffer.add((long ushr 48 and 0xffL).toByte())
+        innerBuffer.add((long ushr 40 and 0xffL).toByte())
+        innerBuffer.add((long ushr 32 and 0xffL).toByte())
+        innerBuffer.add((long ushr 24 and 0xffL).toByte())
+        innerBuffer.add((long ushr 16 and 0xffL).toByte())
+        innerBuffer.add((long ushr 8 and 0xffL).toByte())
+        innerBuffer.add((long and 0xffL).toByte())
     }
 
     /**
@@ -93,7 +78,6 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * this operation
      */
     fun writeFloat(float: Float) {
-        checkOverflow(4)
         writeInt(float.toBits())
     }
 
@@ -104,7 +88,6 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * this operation
      */
     fun writeDouble(double: Double) {
-        checkOverflow(8)
         writeLong(double.toBits())
     }
 
@@ -123,7 +106,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
                     "size = ${byteArray.size}"
         }
         for (i in offset..<(offset + length)) {
-            innerBuffer[position++] = byteArray[i]
+            innerBuffer.add(byteArray[i])
         }
     }
 
@@ -176,7 +159,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
 
     /** Reset the buffer to its initial state allowing the buffer to be reused */
     override fun release() {
-        position = 0
+        innerBuffer.clear()
     }
 
     /**
@@ -213,7 +196,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      */
     inline fun writeLengthPrefixed(
         includeLength: Boolean = false,
-        block: ByteWriteBuffer2.() -> Unit,
+        block: ByteWriteBuffer.() -> Unit,
     ) {
         var startIndex = position
         writeInt(0)
@@ -225,20 +208,8 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
         innerBuffer[startIndex] = (length and 0xff).toByte()
     }
 
-    /**
-     * Create a wrapper [OutputStream] for this buffer. Calls the [writeByte] method when the
-     * [OutputStream.write] method is called. Calls the [writeBytes] method when
-     * [OutputStream.write] is called.
-     */
-    fun outputStream(): OutputStream = object : OutputStream() {
-        override fun write(b: Int) {
-            this@ByteWriteBuffer2.writeByte(b.toByte())
-        }
-
-        override fun write(b: ByteArray, off: Int, len: Int) {
-            this@ByteWriteBuffer2.writeBytes(byteArray = b, offset = off, length = len)
-        }
-
-        override fun close() {}
+    fun copyFrom(buffer: ByteWriteBuffer) {
+        innerBuffer.addAll(buffer.innerBuffer)
+        buffer.release()
     }
 }

@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.message
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
 import io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse
-import io.github.clasicrando.kdbc.postgresql.result.PgRowBuffer
-import io.github.clasicrando.kdbc.postgresql.statement.PgArguments
+import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 
 /**
  * Specified frontend and backend messages that can be sent to and received from the database
@@ -35,13 +35,13 @@ internal sealed class PgMessage(val code: Byte) {
     ) : PgMessage(BACKEND_KEY_DATA_CODE) // B
     /**
      * Frontend message sent with the [BIND_CODE] header [Byte]. Supplies the optional [portal]
-     * name (if null or empty, the unnamed portal is used), the [statementName] and a buffer
-     * containing the [PgArguments] to be bound to the portal.
+     * name (if null or empty, the unnamed portal is used), the [statementName] and a
+     * [PgEncodeBuffer] containing the arguments to be bound to the portal.
      */
     data class Bind(
         val portal: String?,
         val statementName: String,
-        val parameters: PgArguments,
+        val encodeBuffer: PgEncodeBuffer,
     ) : PgMessage(BIND_CODE) // F
     /**
      * Backend message sent with the [BIND_COMPLETE_CODE] header [Byte]. Contains no data, only
@@ -136,7 +136,7 @@ internal sealed class PgMessage(val code: Byte) {
      * Backend message sent with the [DATA_ROW_CODE] header [Byte]. Contains the row data of a
      * single query result in [rowBuffer].
      */
-    data class DataRow(val rowBuffer: PgRowBuffer) : PgMessage(DATA_ROW_CODE) // B
+    data class DataRow(val rowBuffer: ByteReadBuffer) : PgMessage(DATA_ROW_CODE) // B
     /**
      * Frontend message sent with the [DESCRIBE_CODE] header [Byte]. Contains the [target] of the
      * describe command and the name of the target to be described.

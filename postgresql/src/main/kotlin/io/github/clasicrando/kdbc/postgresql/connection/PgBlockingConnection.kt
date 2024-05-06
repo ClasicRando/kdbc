@@ -16,11 +16,7 @@ import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.Postgres
-import io.github.clasicrando.kdbc.postgresql.column.PgTypeRegistry
-import io.github.clasicrando.kdbc.postgresql.column.compositeTypeDecoder
-import io.github.clasicrando.kdbc.postgresql.column.compositeTypeEncoder
-import io.github.clasicrando.kdbc.postgresql.column.enumTypeDecoder
-import io.github.clasicrando.kdbc.postgresql.column.enumTypeEncoder
+import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyType
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
@@ -32,7 +28,7 @@ import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQuery
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingQuery
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
-import io.github.clasicrando.kdbc.postgresql.statement.PgArguments
+import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
@@ -48,7 +44,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlin.reflect.typeOf
+import kotlin.reflect.KType
 
 private val logger = KotlinLogging.logger {}
 
@@ -71,7 +67,7 @@ class PgBlockingConnection internal constructor(
     /** Reference to the [BlockingConnectionPool] that owns this [PgBlockingConnection] */
     private val pool: PgBlockingConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
-    @PublishedApi internal val typeRegistry: PgTypeRegistry = pool.typeRegistry,
+    @PublishedApi internal val typeCache: PgTypeCache = pool.typeCache,
 ) : BlockingConnection, DefaultUniqueResourceId() {
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
@@ -202,7 +198,7 @@ class PgBlockingConnection internal constructor(
         val builder = StatementResult.Builder()
         val errors = mutableListOf<Throwable>()
         for (preparedStatement in statements) {
-            val result = PgResultSet(typeRegistry, preparedStatement.resultMetadata)
+            val result = PgResultSet(typeCache, preparedStatement.resultMetadata)
             stream.processMessageLoop { message ->
                 when (message) {
                     is PgMessage.ErrorResponse -> {
@@ -269,7 +265,7 @@ class PgBlockingConnection internal constructor(
         statement: PgPreparedStatement? = null,
     ): StatementResult {
         val errors = mutableListOf<Throwable>()
-        var result = PgResultSet(typeRegistry, statement?.resultMetadata ?: listOf())
+        var result = PgResultSet(typeCache, statement?.resultMetadata ?: listOf())
         val results = StatementResult.Builder()
         stream.processMessageLoop { message ->
             when (message) {
@@ -279,7 +275,7 @@ class PgBlockingConnection internal constructor(
                 }
                 is PgMessage.RowDescription -> {
                     statement?.resultMetadata = message.fields
-                    result = PgResultSet(typeRegistry, message.fields)
+                    result = PgResultSet(typeCache, message.fields)
                     Loop.Continue
                 }
                 is PgMessage.DataRow -> {
@@ -449,7 +445,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun prepareStatement(
         query: String,
-        parameters: List<Any?>,
+        parameters: List<Pair<Any?, KType>>,
     ): PgPreparedStatement {
         val statement = getOrCachePreparedStatement(query)
 
@@ -464,10 +460,11 @@ class PgBlockingConnection internal constructor(
         }
 
         if (!statement.prepared) {
-            val parameterTypes = parameters.map {
-                typeRegistry.kindOf(it).oid
-            }
-            executeStatementPrepare(query, parameterTypes, statement)
+            executeStatementPrepare(
+                query = query,
+                parameterTypes = parameters.map { typeCache.getTypeHint(it.first, it.second).oid },
+                statement = statement,
+            )
         }
 
         return statement
@@ -484,14 +481,14 @@ class PgBlockingConnection internal constructor(
      */
     private fun executePreparedStatement(
         statement: PgPreparedStatement,
-        parameters: List<Any?>,
+        parameters: PgEncodeBuffer,
         sendSync: Boolean = true,
     ) {
         stream.writeManyToStream {
             val bindMessage = PgMessage.Bind(
                 portal = null,
                 statementName = statement.statementName,
-                parameters = PgArguments(typeRegistry, parameters, statement),
+                encodeBuffer = parameters,
             )
             yield(bindMessage)
             val executeMessage = PgMessage.Execute(
@@ -523,7 +520,10 @@ class PgBlockingConnection internal constructor(
      * @throws IllegalArgumentException if the [query] is blank
      * @throws IllegalStateException if the underlining connection is no longer active
      */
-    internal fun sendExtendedQuery(query: String, parameters: List<Any?>): StatementResult {
+    internal fun sendExtendedQuery(
+        query: String,
+        parameters: List<Pair<Any?, KType>>,
+    ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
         return lock.withLock {
@@ -532,7 +532,12 @@ class PgBlockingConnection internal constructor(
             } catch (ex: Throwable) {
                 throw ex
             }
-            executePreparedStatement(statement, parameters)
+
+            val encodeBuffer = PgEncodeBuffer(statement.resultMetadata, typeCache)
+            for ((parameter, type) in parameters) {
+                encodeBuffer.encodeValue(parameter, type)
+            }
+            executePreparedStatement(statement, encodeBuffer)
             collectResult(statement = statement)
         }
     }
@@ -589,7 +594,7 @@ class PgBlockingConnection internal constructor(
      * @see pipelineQueries
      */
     fun pipelineQueriesSyncAll(
-        vararg queries: Pair<String, List<Any?>>,
+        vararg queries: Pair<String, List<Pair<Any?, KType>>>,
     ): StatementResult {
         return pipelineQueries(queries = queries)
     }
@@ -633,16 +638,21 @@ class PgBlockingConnection internal constructor(
      */
     fun pipelineQueries(
         syncAll: Boolean = true,
-        vararg queries: Pair<String, List<Any?>>,
+        vararg queries: Pair<String, List<Pair<Any?, KType>>>,
     ): StatementResult = lock.withLock {
         val statements = Array(queries.size) { i ->
             val (queryText, queryParams) = queries[i]
             prepareStatement(query = queryText, parameters = queryParams)
         }
         for ((i, statement) in statements.withIndex()) {
+            val encodeBuffer = PgEncodeBuffer(statement.resultMetadata, typeCache)
+            for ((parameter, type) in queries[i].second) {
+                encodeBuffer.encodeValue(parameter, type)
+            }
+
             executePreparedStatement(
                 statement = statement,
-                parameters = queries[i].second,
+                parameters = encodeBuffer,
                 sendSync = syncAll || i == queries.size - 1,
             )
         }
@@ -823,29 +833,17 @@ class PgBlockingConnection internal constructor(
     }
 
     /**
-     * Update the type registry to allow for encoding and decoding PostGIS types. This should
-     * happen at the beginning of your application or whenever you create an initial connection
-     * using a unique [PgConnectOptions] instance since the type cache is shared between
-     * connections with the same options. This also avoids inconsistency when adding and querying
-     * in a concurrent environment.
-     */
-    fun includePostGisTypes() {
-        typeRegistry.includePostGisTypes()
-    }
-
-    /**
      * Register an [Enum] class as a new type available for encoding and decoding.
      *
      * @param type name of the type in the database (optionally schema qualified if not in public
      * schema)
      */
     inline fun <reified E : Enum<E>> registerEnumType(type: String) {
-        typeRegistry.registerEnumType(
+        typeCache.addEnumType(
             connection = this,
-            encoder = enumTypeEncoder<E>(type),
-            decoder = enumTypeDecoder<E>(),
-            type = type,
-            arrayType = typeOf<List<E?>>(),
+            name = type,
+            cls = E::class,
+            enumValues = enumValues<E>(),
         )
     }
 
@@ -856,14 +854,10 @@ class PgBlockingConnection internal constructor(
      * schema)
      */
     inline fun <reified T : Any> registerCompositeType(type: String) {
-        val encoder = compositeTypeEncoder<T>(type, typeRegistry)
-        val decoder = compositeTypeDecoder<T>(typeRegistry)
-        typeRegistry.registerCompositeType(
+        typeCache.addCompositeType(
             connection = this,
-            encoder = encoder,
-            decoder = decoder,
-            type = type,
-            arrayType = typeOf<List<T?>>(),
+            name = type,
+            cls = T::class
         )
     }
 

@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.message.decoders
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import io.github.clasicrando.kdbc.postgresql.result.PgRowBuffer
 
 /**
  * [MessageDecoder] for [PgMessage.DataRow]. This message is sent as part of a query result and
@@ -18,7 +17,6 @@ import io.github.clasicrando.kdbc.postgresql.result.PgRowBuffer
  */
 internal object DataRowDecoder : MessageDecoder<PgMessage.DataRow> {
     override fun decode(buffer: ByteReadBuffer): PgMessage.DataRow {
-        val rowBuffer = PgRowBuffer(buffer)
-        return PgMessage.DataRow(rowBuffer)
+        return PgMessage.DataRow(buffer)
     }
 }

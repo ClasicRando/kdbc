@@ -30,7 +30,8 @@ internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
             writeCString(value.statementName)
             writeShort(1)
             writeShort(1)
-            value.parameters.writeToBuffer(this)
+            writeShort(value.encodeBuffer.paramCount.toShort())
+            copyFrom(value.encodeBuffer.innerBuffer)
             writeShort(1)
             writeShort(1)
         }

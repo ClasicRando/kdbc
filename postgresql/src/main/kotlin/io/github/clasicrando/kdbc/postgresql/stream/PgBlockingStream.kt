@@ -48,7 +48,7 @@ internal class PgBlockingStream(
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
-    private val messageSendBuffer = ByteWriteBuffer(SEND_BUFFER_SIZE)
+    private val messageSendBuffer = ByteWriteBuffer()
 
     override val resourceType: String = RESOURCE_TYPE
 
@@ -296,7 +296,7 @@ internal class PgBlockingStream(
         try {
             messageSendBuffer.release()
             for (message in flow) {
-                if (messageSendBuffer.remaining < message.size) {
+                if (messageSendBuffer.position >= SEND_BUFFER_SIZE) {
                     blockingStream.writeBuffer(messageSendBuffer)
                     messageSendBuffer.release()
                 }

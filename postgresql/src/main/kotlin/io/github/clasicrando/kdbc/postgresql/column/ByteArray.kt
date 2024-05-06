@@ -1,43 +1,57 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import kotlin.reflect.typeOf
 
 /**
- * Implementation of [PgTypeEncoder] for [ByteArray]. This maps to the `bytea` type in a postgresql
- * database. Simply writes all bytes in the [ByteArray] to the buffer.
- *
- * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L471)
+ * Implementation of a [PgTypeDescription] for [ByteArray]. This maps to the `bytea` type in a
+ * postgresql database
  */
-val byteArrayTypeEncoder = PgTypeEncoder<ByteArray>(PgType.Bytea) { value, buffer ->
-    buffer.writeBytes(value)
-}
+object ByteaTypeDescription : PgTypeDescription<ByteArray>(
+    pgType = PgType.Bytea,
+    kType = typeOf<ByteArray>(),
+) {
+    /**
+     * Simply writes all bytes in the [ByteArray] to the buffer.
+     *
+     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L471)
+     */
+    override fun encode(value: ByteArray, buffer: ByteWriteBuffer) {
+        buffer.writeBytes(value)
+    }
 
-/**
- * Implementation of [PgTypeDecoder] for [ByteArray]. This maps to the `bytea` type in a postgresql
- * database.
- *
- * ### Binary
- * Reads all available bytes in the value's buffer.
- *
- * ### Text
- * Decode the [String] as either a prefixed hex format value (using [decodeWithPrefix]) or an
- * escape format value (using [decodeWithoutPrefix]).
- *
- * [pg source code binary](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L490)
- * [pg source code text](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L388)
- */
-val byteArrayTypeDecoder = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> value.bytes.readBytes()
-        is PgValue.Text -> {
-            if (value.text.startsWith(HEX_START)) {
-                decodeWithPrefix(value.text)
-            } else {
-                decodeWithoutPrefix(value.text)
-            }
+    /**
+     * Reads all available bytes in the value's buffer.
+     *
+     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L490)
+     */
+    override fun decodeBytes(value: PgValue.Binary): ByteArray {
+        return value.bytes.readBytes()
+    }
+
+    /**
+     * Decode the [String] as either a prefixed hex format value (using [decodeWithPrefix]) or an
+     * escape format value (using [decodeWithoutPrefix]).
+     *
+     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L388)
+     */
+    override fun decodeText(value: PgValue.Text): ByteArray {
+        return if (value.text.startsWith(HEX_START)) {
+            decodeWithPrefix(value.text)
+        } else {
+            decodeWithoutPrefix(value.text)
         }
     }
 }
+
+/**
+ * Implementation of a [ArrayTypeDescription] for [ByteArray]. This maps to the `bytea[]` type in a
+ * postgresql database.
+ */
+object ByteaArrayTypeDescription : ArrayTypeDescription<ByteArray>(
+    pgType = PgType.ByteaArray,
+    innerType = ByteaTypeDescription,
+)
 
 /** Prefix for a hex format `bytea` value */
 private const val HEX_START = "\\x"
@@ -102,7 +116,7 @@ private fun String.getOrThrow(index: Int): Char {
  * [Byte] value in the format of "x{first}{second}{third}".
  */
 private fun decodeWithoutPrefix(value: String): ByteArray {
-    val buffer = ByteWriteBuffer(value.length)
+    val buffer = ByteWriteBuffer()
     val maxIndex = value.length - 1
     var index = 0
 

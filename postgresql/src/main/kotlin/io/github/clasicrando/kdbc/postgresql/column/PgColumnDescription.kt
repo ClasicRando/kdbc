@@ -15,7 +15,7 @@ data class PgColumnDescription(
     val columnAttribute: Short,
     /** OID of the field's data type */
     val pgType: PgType,
-    /** Size of the data type. Negative values denote a variable with type. */
+    /** Size of the data type. Negative values denote a variable width type. */
     val dataTypeSize: Short,
     /**
      * Modifier of the data type (see

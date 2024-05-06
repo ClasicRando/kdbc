@@ -2,7 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.pool
 
 import io.github.clasicrando.kdbc.core.pool.AbstractDefaultSuspendingConnectionPool
 import io.github.clasicrando.kdbc.core.pool.SuspendingConnectionPool
-import io.github.clasicrando.kdbc.postgresql.column.PgTypeRegistry
+import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
 import io.ktor.network.selector.SelectorManager
@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Postgresql specific implementation of a [SuspendingConnectionPool], keeping reference to the
- * pool's [typeRegistry] and providing the custom [disposeConnection] method that simple calls
+ * pool's [typeCache] and providing the custom [disposeConnection] method that simple calls
  * [PgSuspendingConnection.dispose].
  */
 class PgSuspendingConnectionPool(
@@ -20,7 +20,7 @@ class PgSuspendingConnectionPool(
     poolOptions = connectOptions.poolOptions,
     provider = PgSuspendingConnectionProvider(connectOptions),
 ) {
-    val typeRegistry = PgTypeRegistry()
+    val typeCache = PgTypeCache()
     val selectorManager = SelectorManager(dispatcher = this.coroutineContext)
 
     override suspend fun disposeConnection(connection: PgSuspendingConnection) {

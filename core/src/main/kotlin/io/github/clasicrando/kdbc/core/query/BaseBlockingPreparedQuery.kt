@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.core.query
 
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
+import kotlin.reflect.KType
 
 /**
  * Base implementation of a [BlockingPreparedQuery]. Extends [BaseBlockingQuery] so each vendor
@@ -11,9 +12,9 @@ abstract class BaseBlockingPreparedQuery<C : BlockingConnection>(
     sql: String,
 ) : BaseBlockingQuery<C>(connection = connection, sql = sql), BlockingPreparedQuery {
     /** Internal list of parameters that are bound to this [BlockingPreparedQuery] */
-    protected val innerParameters: MutableList<Any?> = mutableListOf()
+    protected val innerParameters: MutableList<Pair<Any?, KType>> = mutableListOf()
 
-    override val parameters: List<Any?> get() = innerParameters
+    override val parameters: List<Pair<Any?, KType>> get() = innerParameters
 
     /**
      * Bind a next [parameter] to the [BlockingPreparedQuery]. This adds the parameter to the
@@ -22,32 +23,8 @@ abstract class BaseBlockingPreparedQuery<C : BlockingConnection>(
      *
      * Returns a reference to the [BlockingPreparedQuery] to allow for method chaining.
      */
-    final override fun bind(parameter: Any?): BlockingPreparedQuery {
-        innerParameters += parameter
-        return this
-    }
-
-    /**
-     * Bind the [parameters] to the [BlockingPreparedQuery]. This adds each parameter to the
-     * internal list of parameters in the order the parameter exists in the query regardless of the
-     * vendor specific method of linking parameter values to query parameters.
-     *
-     * Returns a reference to the [BlockingPreparedQuery] to allow for method chaining.
-     */
-    final override fun bindMany(parameters: Collection<Any?>): BlockingPreparedQuery {
-        this.innerParameters.addAll(parameters)
-        return this
-    }
-
-    /**
-     * Bind the [parameters] to the [BlockingPreparedQuery]. This adds each parameter to the
-     * internal list of parameters in the order the parameter exists in the query regardless of the
-     * vendor specific method of linking parameter values to query parameters.
-     *
-     * Returns a reference to the [BlockingPreparedQuery] to allow for method chaining.
-     */
-    final override fun bindMany(vararg parameters: Any?): BlockingPreparedQuery {
-        this.innerParameters.addAll(parameters)
+    final override fun bind(parameter: Any?, kType: KType): BlockingPreparedQuery {
+        innerParameters += parameter to kType
         return this
     }
 

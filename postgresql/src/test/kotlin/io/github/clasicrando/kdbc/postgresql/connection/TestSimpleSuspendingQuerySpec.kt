@@ -1,7 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getInt
+import io.github.clasicrando.kdbc.core.result.getAs
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.message.information.Severity
@@ -24,8 +25,8 @@ class TestSimpleSuspendingQuerySpec {
             var rowCount = 0
             for ((i, row) in queryResult.rows.withIndex()) {
                 rowCount++
-                assertEquals(i + 1, row.getInt(0))
-                assertEquals("Regular Query", row.getString(1))
+                assertEquals(i + 1, row.getAsNonNull(0))
+                assertEquals("Regular Query", row.getAsNonNull(1))
             }
             assertEquals(10, rowCount)
         }
@@ -40,8 +41,8 @@ class TestSimpleSuspendingQuerySpec {
             assertEquals(0, queryResult.rowsAffected)
             val rows = queryResult.rows.toList()
             assertEquals(1, rows.size)
-            assertEquals(4, rows[0].getInt(0))
-            assertEquals("This is a test", rows[0].getString(1))
+            assertEquals(4, rows[0].getAsNonNull(0))
+            assertEquals("This is a test", rows[0].getAsNonNull(1))
         }
     }
 
@@ -55,9 +56,9 @@ class TestSimpleSuspendingQuerySpec {
             val results = connection.sendSimpleQuery(queries).toList()
             assertEquals(2, results.size)
             assertEquals(0, results[0].rowsAffected)
-            assertEquals(4, results[0].rows.firstOrNull()?.getInt(0))
+            assertEquals(4, results[0].rows.firstOrNull()?.getAs(0))
             assertEquals(1, results[1].rowsAffected)
-            assertEquals(1, results[1].rows.firstOrNull()?.getInt("test_i"))
+            assertEquals(1, results[1].rows.firstOrNull()?.getAs("test_i"))
         }
     }
 

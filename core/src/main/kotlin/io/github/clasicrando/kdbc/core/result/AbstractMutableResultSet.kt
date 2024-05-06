@@ -15,12 +15,6 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
 ) : ResultSet {
     private var backingList: MutableList<R>? = ArrayList()
 
-    /** [Map] of column name to column index. Used within other internal classes */
-    val columnMap = columnMapping.withIndex()
-        .associate { (i, value) ->
-            value.typeName to i
-        }
-
     /** Add a new [row] to the end of this [ResultSet] */
     fun addRow(row: R) {
         backingList?.add(row)

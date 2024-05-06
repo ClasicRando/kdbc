@@ -1,12 +1,13 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.postgresql.column.PgType.ByOid
+
 /** Sealed class representing all covered postgresql types and their OID */
 sealed class PgType(
     /**
      * OID value representing the unique identifier of a type within a given postgresql database.
      * For all types implemented as a data object of [PgType], the type is static for any
-     * postgresql database. User defined types will not be static, so they are defined as [ByOid]
-     * or [ByName].
+     * postgresql database. User defined types will not be static, so they are defined as [ByOid].
      */
     val oid: Int
 ) {
@@ -206,16 +207,15 @@ sealed class PgType(
             return "PgType.ByOid(oid=$oid)"
         }
     }
-    /**
-     * Define a [PgType] by a [name]. This is the preferred method of defining the [PgType] for a
-     * user defined type since the [oid] can vary database to database. [oid] defaults to [UNKNOWN]
-     * but this instance should be replaced with a known [oid] during registration in the
-     * [PgTypeRegistry].
-     */
-    class ByName(val name: String, oid: Int = UNKNOWN) : PgType(oid) {
-        override fun toString(): String {
-            return "PgType.ByName(name=$name, oid=$oid)"
-        }
+
+    final override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PgType) return false
+        return oid == other.oid
+    }
+
+    final override fun hashCode(): Int {
+        return oid
     }
     
     companion object {
