@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.message.SizedMessage
@@ -48,7 +49,7 @@ internal class PgBlockingStream(
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
-    private val messageSendBuffer = ByteWriteBuffer()
+    private val messageSendBuffer = ByteArrayWriteBuffer(SEND_BUFFER_SIZE)
 
     override val resourceType: String = RESOURCE_TYPE
 
@@ -246,17 +247,6 @@ internal class PgBlockingStream(
     }
 
     /** Write multiple [messages] to the [PgBlockingStream] using [PgMessageEncoders.encode] */
-    inline fun writeManyToStream(
-        crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
-    ) {
-        writeToBuffer { buffer ->
-            for (message in sequence { messages() }) {
-                PgMessageEncoders.encode(message, buffer)
-            }
-        }
-    }
-
-    /** Write multiple [messages] to the [PgBlockingStream] using [PgMessageEncoders.encode] */
     fun writeManyToStream(vararg messages: PgMessage) {
         writeToBuffer { buffer ->
             for (message in messages) {
@@ -296,7 +286,7 @@ internal class PgBlockingStream(
         try {
             messageSendBuffer.release()
             for (message in flow) {
-                if (messageSendBuffer.position >= SEND_BUFFER_SIZE) {
+                if (messageSendBuffer.remaining <= message.size) {
                     blockingStream.writeBuffer(messageSendBuffer)
                     messageSendBuffer.release()
                 }

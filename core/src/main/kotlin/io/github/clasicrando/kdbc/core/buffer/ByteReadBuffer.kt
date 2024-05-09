@@ -47,8 +47,8 @@ class ByteReadBuffer(
     /** Number of bytes remaining as readable within the buffer */
     val remaining: Int get() = size - position
 
-    private fun checkExhausted() {
-        if (position >= size || offset + position >= innerBuffer.size) {
+    private fun checkRemaining(required: Int) {
+        if (remaining < required) {
             throw BufferExhausted()
         }
     }
@@ -59,7 +59,7 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readByte(): Byte {
-        checkExhausted()
+        checkRemaining(1)
         return innerBuffer[offset + position++]
     }
 
@@ -69,9 +69,10 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readShort(): Short {
+        checkRemaining(2)
         val result = (
-            this.readByte().toInt() and 0xff shl 8
-            or (this.readByte().toInt() and 0xff))
+            innerBuffer[offset + position++].toInt() and 0xff shl 8
+            or (innerBuffer[offset + position++].toInt() and 0xff))
         return result.toShort()
     }
 
@@ -81,11 +82,12 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readInt(): Int {
+        checkRemaining(4)
         val result = (
-            (this.readByte().toInt() and 0xff shl 24)
-            or (this.readByte().toInt() and 0xff shl 16)
-            or (this.readByte().toInt() and 0xff shl 8)
-            or (this.readByte().toInt() and 0xff))
+            (innerBuffer[offset + position++].toInt() and 0xff shl 24)
+            or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
+            or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
+            or (innerBuffer[offset + position++].toInt() and 0xff))
         return result
     }
 
@@ -95,15 +97,16 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readLong(): Long {
+        checkRemaining(8)
         val result = (
-            (this.readByte().toLong() and 0xffL shl 56)
-            or (this.readByte().toLong() and 0xffL shl 48)
-            or (this.readByte().toLong() and 0xffL shl 40)
-            or (this.readByte().toLong() and 0xffL shl 32)
-            or (this.readByte().toLong() and 0xffL shl 24)
-            or (this.readByte().toLong() and 0xffL shl 16)
-            or (this.readByte().toLong() and 0xffL shl 8)
-            or (this.readByte().toLong() and 0xffL))
+            (innerBuffer[offset + position++].toLong() and 0xffL shl 56)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 48)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 40)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 32)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 24)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 16)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 8)
+            or (innerBuffer[offset + position++].toLong() and 0xffL))
         return result
     }
 
@@ -131,15 +134,17 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
     fun readBytes(length: Int): ByteArray {
-        if (remaining < length) {
-            throw BufferExhausted()
-        }
-        return ByteArray(length) { this.readByte() }
+        checkRemaining(length)
+        val start = offset + position
+        position += length
+        return this.innerBuffer.copyOfRange(start, start + length)
     }
 
     /** Read all remaining bytes into a [ByteArray]. This can result in an empty array. */
     fun readBytes(): ByteArray {
-        return ByteArray(remaining) { this.readByte() }
+        val currentPosition = position
+        position = size
+        return this.innerBuffer.copyOfRange(offset + currentPosition, offset + size)
     }
 
     /**
@@ -153,18 +158,25 @@ class ByteReadBuffer(
     }
 
     /**
-     * Read bytes until 0 is returned from [readByte] indicating the end of a CString (null
-     * terminated char array). These bytes are then converted to a [String] using the specified
-     * [charset]. By default, the bytes are read using [Charsets.UTF_8].
+     * Read bytes until 0 is found in the current relative [position] indicating the end of a
+     * CString (null terminated char array). These bytes are then converted to a [String] using the
+     * specified [charset]. By default, the bytes are read using [Charsets.UTF_8].
      *
      * @throws BufferExhausted if the buffer has been exhausted before finding a zero byte
      * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
      */
     fun readCString(charset: Charset = Charsets.UTF_8): String {
-        return generateSequence { this@ByteReadBuffer.readByte().takeIf { it != ZERO_BYTE } }
-            .toList()
-            .toByteArray()
-            .toString(charset = charset)
+        val buffer = ArrayList<Byte>()
+
+        while (remaining > 0) {
+            val nextByte = innerBuffer[offset + position++]
+            if (nextByte == ZERO_BYTE) {
+                break
+            }
+
+            buffer.add(nextByte)
+        }
+        return String(bytes = buffer.toByteArray(), charset = charset)
     }
 
     /** Reset this buffer to it's initial reading position so the value can be read again */

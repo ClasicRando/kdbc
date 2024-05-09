@@ -210,8 +210,8 @@ sealed class PgType(
 
     final override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is PgType) return false
-        return oid == other.oid
+        if (other is PgType) return oid == other.oid
+        return false
     }
 
     final override fun hashCode(): Int {

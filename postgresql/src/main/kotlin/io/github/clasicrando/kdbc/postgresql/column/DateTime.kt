@@ -6,6 +6,7 @@ import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -16,18 +17,13 @@ import kotlin.reflect.typeOf
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
+private const val postgresEpochMilliseconds = 946_684_800_000L
+
 /**
- * Zero instant within a postgresql database. Datetime values (with or without a timezone) sent as
- * binary are always an offset from this [Instant][kotlinx.datetime.Instant]
+ * Zero instant within a postgresql database as '2000-01-01 00:00:00+00'. Datetime values (with or
+ * without a timezone) sent as binary are always an offset from this [Instant].
  */
-private val postgresEpochInstant = LocalDateTime(
-    year = 2000,
-    monthNumber = 1,
-    dayOfMonth = 1,
-    hour = 0,
-    minute = 0,
-    second = 0,
-).toInstant(UtcOffset.ZERO)
+private val postgresEpochInstant = Instant.fromEpochMilliseconds(postgresEpochMilliseconds)
 
 /**
  * Implementation of a [PgTypeDescription] for the [LocalDate] type. This maps to the `date` type

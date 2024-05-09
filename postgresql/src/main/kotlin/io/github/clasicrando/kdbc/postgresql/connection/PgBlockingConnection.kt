@@ -43,8 +43,6 @@ import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 private val logger = KotlinLogging.logger {}
 
@@ -484,25 +482,22 @@ class PgBlockingConnection internal constructor(
         parameters: PgEncodeBuffer,
         sendSync: Boolean = true,
     ) {
-        stream.writeManyToStream {
-            val bindMessage = PgMessage.Bind(
-                portal = null,
-                statementName = statement.statementName,
-                encodeBuffer = parameters,
-            )
-            yield(bindMessage)
-            val executeMessage = PgMessage.Execute(
-                portalName = null,
-                maxRowCount = 0,
-            )
-            yield(executeMessage)
-            val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
-            yield(closePortalMessage)
-            if (sendSync) {
-                yield(PgMessage.Sync)
-            }
+        val bindMessage = PgMessage.Bind(
+            portal = null,
+            statementName = statement.statementName,
+            encodeBuffer = parameters,
+        )
+        val executeMessage = PgMessage.Execute(
+            portalName = null,
+            maxRowCount = 0,
+        )
+        val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
+        stream.writeManyToStream(bindMessage, executeMessage, closePortalMessage)
+
+        if (sendSync) {
+            stream.writeToStream(PgMessage.Sync)
         }
-        statement.lastExecuted = Clock.System.now().toLocalDateTime(TimeZone.UTC)
+        statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to statement.query)

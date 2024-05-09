@@ -44,8 +44,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 private val logger = KotlinLogging.logger {}
 
@@ -520,7 +518,7 @@ class PgSuspendingConnection internal constructor(
                 yield(PgMessage.Sync)
             }
         }
-        statement.lastExecuted = Clock.System.now().toLocalDateTime(TimeZone.UTC)
+        statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to statement.query)
