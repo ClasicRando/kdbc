@@ -7,23 +7,24 @@ package io.github.clasicrando.kdbc.core.buffer
  * each write since the underling resource is reset when [release] is called rather than cleaned
  * up.
  */
-class ByteListWriteBuffer : ByteWriteBuffer {
+class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
     @PublishedApi
-    internal val innerBuffer = ArrayList<Byte>()
+    internal var innerBuffer = ByteArray(capacity)
 
     /**
      * Position within the internal buffer. This signifies how many bytes have been written to the
      * buffer
      */
-    override val position: Int get() = innerBuffer.size
+    override var position: Int = 0
+        internal set
 
-    override val remaining: Int get() = Int.MAX_VALUE - innerBuffer.size
+    /** The number of bytes available for writing before the buffer is filled */
+    override val remaining: Int get() = innerBuffer.size - position
 
-    override fun set(position: Int, byte: Byte) {
-        require(position < innerBuffer.size) {
-            "Cannot write to a location that has not already been written"
+    private fun checkOverflow(requiredSpace: Int) {
+        if (remaining < requiredSpace) {
+            throw BufferOverflow(requiredSpace, remaining)
         }
-        innerBuffer[position] = byte
     }
 
     /**
@@ -33,7 +34,15 @@ class ByteListWriteBuffer : ByteWriteBuffer {
      * this operation
      */
     override fun writeByte(byte: Byte) {
-        innerBuffer.add(byte)
+        checkOverflow(1)
+        innerBuffer[position++] = byte
+    }
+
+    override fun set(position: Int, byte: Byte) {
+        require(position <= this.position) {
+            "Cannot write to a location that has not already been written"
+        }
+        innerBuffer[position] = byte
     }
 
     /**
@@ -43,8 +52,9 @@ class ByteListWriteBuffer : ByteWriteBuffer {
      * this operation
      */
     override fun writeShort(short: Short) {
-        innerBuffer.add((short.toInt() ushr 8 and 0xff).toByte())
-        innerBuffer.add((short.toInt() and 0xff).toByte())
+        checkOverflow(2)
+        innerBuffer[position++] = (short.toInt() ushr 8 and 0xff).toByte()
+        innerBuffer[position++] = (short.toInt() and 0xff).toByte()
     }
 
     /**
@@ -54,10 +64,11 @@ class ByteListWriteBuffer : ByteWriteBuffer {
      * this operation
      */
     override fun writeInt(int: Int) {
-        innerBuffer.add((int ushr 24 and 0xff).toByte())
-        innerBuffer.add((int ushr 16 and 0xff).toByte())
-        innerBuffer.add((int ushr 8 and 0xff).toByte())
-        innerBuffer.add((int and 0xff).toByte())
+        checkOverflow(4)
+        innerBuffer[position++] = (int ushr 24 and 0xff).toByte()
+        innerBuffer[position++] = (int ushr 16 and 0xff).toByte()
+        innerBuffer[position++] = (int ushr 8 and 0xff).toByte()
+        innerBuffer[position++] = (int and 0xff).toByte()
     }
 
     /**
@@ -67,14 +78,37 @@ class ByteListWriteBuffer : ByteWriteBuffer {
      * this operation
      */
     override fun writeLong(long: Long) {
-        innerBuffer.add((long ushr 56 and 0xffL).toByte())
-        innerBuffer.add((long ushr 48 and 0xffL).toByte())
-        innerBuffer.add((long ushr 40 and 0xffL).toByte())
-        innerBuffer.add((long ushr 32 and 0xffL).toByte())
-        innerBuffer.add((long ushr 24 and 0xffL).toByte())
-        innerBuffer.add((long ushr 16 and 0xffL).toByte())
-        innerBuffer.add((long ushr 8 and 0xffL).toByte())
-        innerBuffer.add((long and 0xffL).toByte())
+        checkOverflow(8)
+        innerBuffer[position++] = (long ushr 56 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 48 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 40 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 32 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 24 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 16 and 0xffL).toByte()
+        innerBuffer[position++] = (long ushr 8 and 0xffL).toByte()
+        innerBuffer[position++] = (long and 0xffL).toByte()
+    }
+
+    /**
+     * Write a single [float] (4 bytes) to the buffer
+     *
+     * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
+     * this operation
+     */
+    override fun writeFloat(float: Float) {
+        checkOverflow(4)
+        super.writeFloat(float)
+    }
+
+    /**
+     * Write a single [double] (8 bytes) to the buffer
+     *
+     * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
+     * this operation
+     */
+    override fun writeDouble(double: Double) {
+        checkOverflow(8)
+        super.writeDouble(double)
     }
 
     /**
@@ -91,14 +125,14 @@ class ByteListWriteBuffer : ByteWriteBuffer {
             "The supplied offset = $offset and length = $length is not valid for a ByteArray of " +
                     "size = ${byteArray.size}"
         }
-        for (i in offset..<(offset + length)) {
-            innerBuffer.add(byteArray[i])
-        }
+        checkOverflow(length)
+        byteArray.copyInto(innerBuffer, position, offset, offset + length)
+        position += length
     }
 
     /** Reset the buffer to its initial state allowing the buffer to be reused */
     override fun release() {
-        innerBuffer.clear()
+        position = 0
     }
 
     /**
@@ -117,11 +151,17 @@ class ByteListWriteBuffer : ByteWriteBuffer {
     override fun copyFrom(buffer: ByteWriteBuffer) {
         when (buffer) {
             is ByteArrayWriteBuffer -> {
+                checkOverflow(buffer.position)
                 for (i in 0..<buffer.position) {
-                    innerBuffer.add(buffer.innerBuffer[i])
+                    innerBuffer[position++] = buffer.innerBuffer[i]
                 }
             }
-            is ByteListWriteBuffer -> innerBuffer.addAll(buffer.innerBuffer)
+            is ByteListWriteBuffer -> {
+                checkOverflow(buffer.position)
+                for (i in 0..<buffer.position) {
+                    innerBuffer[position++] = buffer.innerBuffer[i]
+                }
+            }
         }
         buffer.release()
     }

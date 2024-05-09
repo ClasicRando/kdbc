@@ -1,35 +1,26 @@
 package io.github.clasicrando.kdbc.core.buffer
 
 import io.github.clasicrando.kdbc.core.AutoRelease
-import java.io.OutputStream
 import java.nio.charset.Charset
 
-/**
- * Buffer that only allows for writing to the inner buffer of a fixed capacity, where the capacity
- * is specified in the constructor but defaults to 2048 (2MB). The recommendation with this kind of
- * write buffer is for a single IO object instance (e.g. socket) you will reuse this buffer for
- * each write since the underling resource is reset when [release] is called rather than cleaned
- * up.
- */
-class ByteWriteBuffer2(capacity: Int) : AutoRelease {
-    @PublishedApi
-    internal var innerBuffer = ByteArray(capacity)
+sealed interface ByteWriteBuffer : AutoRelease {
 
     /**
      * Position within the internal buffer. This signifies how many bytes have been written to the
      * buffer
      */
-    var position: Int = 0
-        internal set
+    val position: Int
 
-    /** The number of bytes available for writing before the buffer is filled */
-    val remaining: Int get() = innerBuffer.size - position
+    val remaining: Int
 
-    private fun checkOverflow(requiredSpace: Int) {
-        if (remaining < requiredSpace) {
-            throw BufferOverflow(requiredSpace, remaining)
-        }
-    }
+    /**
+     * Write a single [byte] to the buffer at the random access location. It is only valid to
+     * overwrite a location that has already been written.
+     *
+     * @throws IllegalArgumentException if the [position] is not a position that has already been
+     * written
+     */
+    operator fun set(position: Int, byte: Byte)
 
     /**
      * Write a single [byte] to the buffer
@@ -37,10 +28,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
      * this operation
      */
-    fun writeByte(byte: Byte) {
-        checkOverflow(1)
-        innerBuffer[position++] = byte
-    }
+    fun writeByte(byte: Byte)
 
     /**
      * Write a single [short] (2 bytes) to the buffer
@@ -48,11 +36,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
      * this operation
      */
-    fun writeShort(short: Short) {
-        checkOverflow(2)
-        innerBuffer[position++] = (short.toInt() ushr 8 and 0xff).toByte()
-        innerBuffer[position++] = (short.toInt() and 0xff).toByte()
-    }
+    fun writeShort(short: Short)
 
     /**
      * Write a single [int] (4 bytes) to the buffer
@@ -60,13 +44,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
      * this operation
      */
-    fun writeInt(int: Int) {
-        checkOverflow(4)
-        innerBuffer[position++] = (int ushr 24 and 0xff).toByte()
-        innerBuffer[position++] = (int ushr 16 and 0xff).toByte()
-        innerBuffer[position++] = (int ushr 8 and 0xff).toByte()
-        innerBuffer[position++] = (int and 0xff).toByte()
-    }
+    fun writeInt(int: Int)
 
     /**
      * Write a single [long] (8 bytes) to the buffer
@@ -74,17 +52,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
      * this operation
      */
-    fun writeLong(long: Long) {
-        checkOverflow(8)
-        innerBuffer[position++] = (long ushr 56 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 48 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 40 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 32 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 24 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 16 and 0xffL).toByte()
-        innerBuffer[position++] = (long ushr 8 and 0xffL).toByte()
-        innerBuffer[position++] = (long and 0xffL).toByte()
-    }
+    fun writeLong(long: Long)
 
     /**
      * Write a single [float] (4 bytes) to the buffer
@@ -93,7 +61,6 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * this operation
      */
     fun writeFloat(float: Float) {
-        checkOverflow(4)
         writeInt(float.toBits())
     }
 
@@ -104,7 +71,6 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * this operation
      */
     fun writeDouble(double: Double) {
-        checkOverflow(8)
         writeLong(double.toBits())
     }
 
@@ -117,15 +83,7 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
      * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
      * this operation
      */
-    fun writeBytes(byteArray: ByteArray, offset: Int, length: Int) {
-        require(byteArray.size >= offset + length) {
-            "The supplied offset = $offset and length = $length is not valid for a ByteArray of " +
-                    "size = ${byteArray.size}"
-        }
-        for (i in offset..<(offset + length)) {
-            innerBuffer[position++] = byteArray[i]
-        }
-    }
+    fun writeBytes(byteArray: ByteArray, offset: Int, length: Int)
 
     /**
      * Write the entire contents of the supplied [byteArray] to the buffer
@@ -174,71 +132,44 @@ class ByteWriteBuffer2(capacity: Int) : AutoRelease {
         writeByte(0)
     }
 
-    /** Reset the buffer to its initial state allowing the buffer to be reused */
-    override fun release() {
-        position = 0
-    }
-
     /**
      * Copy the all previously written bytes of this buffer into a [ByteArray]. This leaves the
      * buffer in an initialized state after completing, as if [release] was called.
      */
-    fun copyToArray(): ByteArray {
-        val array = ByteArray(position)
-        for (i in array.indices) {
-            array[i] = innerBuffer[i]
-        }
-        release()
-        return array
-    }
+    fun copyToArray(): ByteArray
 
-    /**
-     * Write to this buffer, keeping track of the number of bytes written within the [block] to
-     * prefix the bytes written with the number of bytes written as an [Int]. By default, the
-     * number of bytes used to write the length value to the buffer is not included in the length
-     * value but this can be overridden by supplying true for [includeLength].
-     *
-     * This operation works by capturing the pre-write buffer position, writing a placeholder [Int]
-     * of 0 to the buffer, executing the [block] to perform the desired write operations,
-     * calculating the number of bytes written (excluding the length bytes if [includeLength] is
-     * false) and finally updating the previously written [Int] length with the calculated value.
-     * As a consequence of not knowing how many bytes may be written there is no way to verify the
-     * buffer has the remaining capacity to successfully write all required bytes, meaning the
-     * operation is not transactional and will perform write operations until the buffer
-     * overflows or the [block] completes. This should be kept in mind if you attempt to dump the
-     * buffer contents when encountering an error.
-     *
-     * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
-     * this operation.
-     */
-    inline fun writeLengthPrefixed(
-        includeLength: Boolean = false,
-        block: ByteWriteBuffer2.() -> Unit,
-    ) {
-        var startIndex = position
-        writeInt(0)
-        this.block()
-        val length = position - startIndex - if (includeLength) 0 else 4
-        innerBuffer[startIndex++] = (length ushr 24 and 0xff).toByte()
-        innerBuffer[startIndex++] = (length ushr 16 and 0xff).toByte()
-        innerBuffer[startIndex++] = (length ushr 8 and 0xff).toByte()
-        innerBuffer[startIndex] = (length and 0xff).toByte()
-    }
+    fun copyFrom(buffer: ByteWriteBuffer)
+}
 
-    /**
-     * Create a wrapper [OutputStream] for this buffer. Calls the [writeByte] method when the
-     * [OutputStream.write] method is called. Calls the [writeBytes] method when
-     * [OutputStream.write] is called.
-     */
-    fun outputStream(): OutputStream = object : OutputStream() {
-        override fun write(b: Int) {
-            this@ByteWriteBuffer2.writeByte(b.toByte())
-        }
-
-        override fun write(b: ByteArray, off: Int, len: Int) {
-            this@ByteWriteBuffer2.writeBytes(byteArray = b, offset = off, length = len)
-        }
-
-        override fun close() {}
-    }
+/**
+ * Write to this buffer, keeping track of the number of bytes written within the [block] to
+ * prefix the bytes written with the number of bytes written as an [Int]. By default, the
+ * number of bytes used to write the length value to the buffer is not included in the length
+ * value but this can be overridden by supplying true for [includeLength].
+ *
+ * This operation works by capturing the pre-write buffer position, writing a placeholder [Int]
+ * of 0 to the buffer, executing the [block] to perform the desired write operations,
+ * calculating the number of bytes written (excluding the length bytes if [includeLength] is
+ * false) and finally updating the previously written [Int] length with the calculated value.
+ * As a consequence of not knowing how many bytes may be written there is no way to verify the
+ * buffer has the remaining capacity to successfully write all required bytes, meaning the
+ * operation is not transactional and will perform write operations until the buffer
+ * overflows or the [block] completes. This should be kept in mind if you attempt to dump the
+ * buffer contents when encountering an error.
+ *
+ * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
+ * this operation.
+ */
+inline fun ByteWriteBuffer.writeLengthPrefixed(
+    includeLength: Boolean = false,
+    block: ByteWriteBuffer.() -> Unit,
+) {
+    var startIndex = position
+    writeInt(0)
+    this.block()
+    val length = position - startIndex - if (includeLength) 0 else 4
+    this[startIndex++] = (length ushr 24 and 0xff).toByte()
+    this[startIndex++] = (length ushr 16 and 0xff).toByte()
+    this[startIndex++] = (length ushr 8 and 0xff).toByte()
+    this[startIndex] = (length and 0xff).toByte()
 }

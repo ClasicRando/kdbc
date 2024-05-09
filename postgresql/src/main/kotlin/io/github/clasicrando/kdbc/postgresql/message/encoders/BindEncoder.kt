@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 

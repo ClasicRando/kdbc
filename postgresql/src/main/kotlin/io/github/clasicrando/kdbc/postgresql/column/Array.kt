@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.ArrayLiteralParser
@@ -111,7 +112,7 @@ abstract class ArrayTypeDescription<T : Any>(
             tableOid = 0,
             columnAttribute = 0,
             dataTypeSize = 0,
-            pgType = PgType.ByOid(elementTypeOid),
+            pgType = PgType.fromOid(elementTypeOid),
             typeModifier = 0,
             formatCode = 1,
         )

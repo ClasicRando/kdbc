@@ -1,7 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.statement
 
 import io.github.clasicrando.kdbc.core.AutoRelease
+import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.postgresql.column.BigIntArrayTypeDescription
 import io.github.clasicrando.kdbc.postgresql.column.BigIntTypeDescription
@@ -115,7 +117,7 @@ class PgEncodeBuffer(
     private val metadata: List<PgColumnDescription>,
     private val typeCache: PgTypeCache,
 ) : AutoRelease {
-    internal val innerBuffer: ByteWriteBuffer = ByteWriteBuffer()
+    internal val innerBuffer: ByteWriteBuffer = ByteListWriteBuffer()
     var paramCount = 0
         private set
     private val innerTypes = mutableListOf<Int>()

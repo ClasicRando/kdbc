@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.message.SizedMessage
@@ -52,7 +53,7 @@ internal class PgStream(
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
-    private val messageSendBuffer = ByteWriteBuffer()
+    private val messageSendBuffer: ByteWriteBuffer = ByteArrayWriteBuffer(SEND_BUFFER_SIZE)
 
     override val resourceType: String = RESOURCE_TYPE
 
@@ -309,7 +310,7 @@ internal class PgStream(
         try {
             messageSendBuffer.release()
             flow.collect {
-                if (messageSendBuffer.position >= SEND_BUFFER_SIZE) {
+                if (messageSendBuffer.remaining < it.size) {
                     asyncStream.writeBuffer(messageSendBuffer)
                     messageSendBuffer.release()
                 }

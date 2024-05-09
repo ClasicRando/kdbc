@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import kotlin.reflect.typeOf
 
@@ -116,7 +117,7 @@ private fun String.getOrThrow(index: Int): Char {
  * [Byte] value in the format of "x{first}{second}{third}".
  */
 private fun decodeWithoutPrefix(value: String): ByteArray {
-    val buffer = ByteWriteBuffer()
+    val buffer = ByteListWriteBuffer()
     val maxIndex = value.length - 1
     var index = 0
 
