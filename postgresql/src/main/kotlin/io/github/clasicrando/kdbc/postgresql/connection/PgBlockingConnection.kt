@@ -8,6 +8,7 @@ import io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
+import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.resourceLogger
@@ -44,7 +45,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlin.reflect.KType
 
 private val logger = KotlinLogging.logger {}
 
@@ -445,7 +445,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun prepareStatement(
         query: String,
-        parameters: List<Pair<Any?, KType>>,
+        parameters: List<QueryParameter>,
     ): PgPreparedStatement {
         val statement = getOrCachePreparedStatement(query)
 
@@ -462,7 +462,7 @@ class PgBlockingConnection internal constructor(
         if (!statement.prepared) {
             executeStatementPrepare(
                 query = query,
-                parameterTypes = parameters.map { typeCache.getTypeHint(it.first, it.second).oid },
+                parameterTypes = parameters.map { typeCache.getTypeHint(it).oid },
                 statement = statement,
             )
         }
@@ -522,7 +522,7 @@ class PgBlockingConnection internal constructor(
      */
     internal fun sendExtendedQuery(
         query: String,
-        parameters: List<Pair<Any?, KType>>,
+        parameters: List<QueryParameter>,
     ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
@@ -594,7 +594,7 @@ class PgBlockingConnection internal constructor(
      * @see pipelineQueries
      */
     fun pipelineQueriesSyncAll(
-        vararg queries: Pair<String, List<Pair<Any?, KType>>>,
+        vararg queries: Pair<String, List<QueryParameter>>,
     ): StatementResult {
         return pipelineQueries(queries = queries)
     }
@@ -638,7 +638,7 @@ class PgBlockingConnection internal constructor(
      */
     fun pipelineQueries(
         syncAll: Boolean = true,
-        vararg queries: Pair<String, List<Pair<Any?, KType>>>,
+        vararg queries: Pair<String, List<QueryParameter>>,
     ): StatementResult = lock.withLock {
         val statements = Array(queries.size) { i ->
             val (queryText, queryParams) = queries[i]

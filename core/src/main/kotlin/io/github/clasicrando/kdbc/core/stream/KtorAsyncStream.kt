@@ -13,9 +13,11 @@ import io.ktor.network.sockets.SocketAddress
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
+import io.ktor.util.cio.writer
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Buffer
@@ -59,9 +61,8 @@ class KtorAsyncStream(
 
     override suspend fun writeBuffer(buffer: ByteWriteBuffer) {
         check(isConnected) { "Cannot write to a stream that is not connected" }
-        for (byte in buffer.innerBuffer) {
-            writeChannel.writeByte(byte)
-        }
+        val bytes = buffer.copyToArray()
+        writeChannel.writeFully(bytes)
         writeChannel.flush()
     }
 

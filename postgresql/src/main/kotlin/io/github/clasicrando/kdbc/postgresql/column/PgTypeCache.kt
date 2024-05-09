@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
 import io.github.clasicrando.kdbc.core.datetime.DateTime
+import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
@@ -181,8 +182,8 @@ class PgTypeCache {
         addTypeDescription(enumArrayTypeDescription)
     }
 
-    fun getTypeHint(value: Any?, kType: KType): PgType {
-        return when (value) {
+    fun getTypeHint(parameter: QueryParameter): PgType {
+        return when (parameter.value) {
             null -> PgType.Unspecified
             is String -> PgType.Text
             is Boolean -> PgType.Bool
@@ -212,7 +213,7 @@ class PgTypeCache {
             is PgMacAddress -> PgType.Macaddr
             is PgMoney -> PgType.Money
             is PgInet -> PgType.Inet
-            is PgRange<*> -> when (kType) {
+            is PgRange<*> -> when (parameter.parameterType) {
                 Int8RangeTypeDescription.kType -> PgType.Int8Range
                 Int4RangeTypeDescription.kType -> PgType.Int4Range
                 TsRangeTypeDescription.kType -> PgType.TsRange
@@ -221,7 +222,7 @@ class PgTypeCache {
                 NumRangeTypeDescription.kType -> PgType.NumRange
                 else -> PgType.Unspecified
             }
-            is List<*> -> when (kType) {
+            is List<*> -> when (parameter.parameterType) {
                 VarcharArrayTypeDescription.kType -> PgType.TextArray
                 ByteaArrayTypeDescription.kType -> PgType.ByteaArray
                 CharArrayTypeDescription.kType -> PgType.CharArray
@@ -256,9 +257,9 @@ class PgTypeCache {
                 TsTzRangeArrayTypeDescription.kType -> PgType.TstzRangeArray
                 DateRangeArrayTypeDescription.kType -> PgType.DateRangeArray
                 NumRangeArrayTypeDescription.kType -> PgType.NumRangeArray
-                else -> typeHintLookup[kType] ?: PgType.Unspecified
+                else -> typeHintLookup[parameter.parameterType] ?: PgType.Unspecified
             }
-            else -> typeHintLookup[kType] ?: PgType.Unspecified
+            else -> typeHintLookup[parameter.parameterType] ?: PgType.Unspecified
         }
     }
 

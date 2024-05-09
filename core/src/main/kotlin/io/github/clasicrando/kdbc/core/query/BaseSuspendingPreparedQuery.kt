@@ -12,9 +12,9 @@ abstract class BaseSuspendingPreparedQuery<C : SuspendingConnection>(
     sql: String,
 ) : BaseSuspendingQuery<C>(connection = connection, sql = sql), SuspendingPreparedQuery {
     /** Internal list of parameters that are bound to this [SuspendingPreparedQuery] */
-    protected val innerParameters: MutableList<Pair<Any?, KType>> = mutableListOf()
+    protected val innerParameters: MutableList<QueryParameter> = mutableListOf()
 
-    override val parameters: List<Pair<Any?, KType>> get() = innerParameters
+    override val parameters: List<QueryParameter> get() = innerParameters
 
     /**
      * Bind a next [parameter] to the [SuspendingPreparedQuery]. This adds the parameter to the
@@ -23,8 +23,8 @@ abstract class BaseSuspendingPreparedQuery<C : SuspendingConnection>(
      *
      * Returns a reference to the [SuspendingPreparedQuery] to allow for method chaining.
      */
-    final override fun bind(parameter: Any?, kType: KType): SuspendingPreparedQuery {
-        innerParameters += parameter to kType
+    final override fun bind(parameter: QueryParameter): SuspendingPreparedQuery {
+        innerParameters += parameter
         return this
     }
 

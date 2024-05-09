@@ -12,9 +12,9 @@ abstract class BaseBlockingPreparedQuery<C : BlockingConnection>(
     sql: String,
 ) : BaseBlockingQuery<C>(connection = connection, sql = sql), BlockingPreparedQuery {
     /** Internal list of parameters that are bound to this [BlockingPreparedQuery] */
-    protected val innerParameters: MutableList<Pair<Any?, KType>> = mutableListOf()
+    protected val innerParameters: MutableList<QueryParameter> = mutableListOf()
 
-    override val parameters: List<Pair<Any?, KType>> get() = innerParameters
+    override val parameters: List<QueryParameter> get() = innerParameters
 
     /**
      * Bind a next [parameter] to the [BlockingPreparedQuery]. This adds the parameter to the
@@ -23,8 +23,8 @@ abstract class BaseBlockingPreparedQuery<C : BlockingConnection>(
      *
      * Returns a reference to the [BlockingPreparedQuery] to allow for method chaining.
      */
-    final override fun bind(parameter: Any?, kType: KType): BlockingPreparedQuery {
-        innerParameters += parameter to kType
+    final override fun bind(parameter: QueryParameter): BlockingPreparedQuery {
+        innerParameters += parameter
         return this
     }
 

@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
+import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.SuspendingQuery
@@ -45,7 +46,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlin.reflect.KType
 
 private val logger = KotlinLogging.logger {}
 
@@ -465,7 +465,7 @@ class PgSuspendingConnection internal constructor(
      */
     private suspend fun prepareStatement(
         query: String,
-        parameters: List<Pair<Any?, KType>>,
+        parameters: List<QueryParameter>,
     ): PgPreparedStatement {
         val statement = getOrCachePreparedStatement(query)
 
@@ -478,12 +478,9 @@ class PgSuspendingConnection internal constructor(
         }
 
         if (!statement.prepared) {
-            val parameterTypes = parameters.map {
-                typeCache.getTypeHint(it.first, it.second).oid
-            }
             executeStatementPrepare(
                 query = query,
-                parameterTypes = parameterTypes,
+                parameterTypes = parameters.map { typeCache.getTypeHint(it).oid },
                 statement = statement,
             )
         }
@@ -543,7 +540,7 @@ class PgSuspendingConnection internal constructor(
      */
     internal suspend fun sendExtendedQuery(
         query: String,
-        parameters: List<Pair<Any?, KType>>,
+        parameters: List<QueryParameter>,
     ): StatementResult  {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
@@ -616,7 +613,7 @@ class PgSuspendingConnection internal constructor(
      * @see pipelineQueries
      */
     internal suspend fun pipelineQueriesSyncAll(
-        vararg queries: Pair<String, List<Pair<Any?, KType>>>,
+        vararg queries: Pair<String, List<QueryParameter>>,
     ): Iterable<QueryResult> {
         return pipelineQueries(queries = queries)
     }
@@ -660,7 +657,7 @@ class PgSuspendingConnection internal constructor(
      */
     internal suspend fun pipelineQueries(
         syncAll: Boolean = true,
-        vararg queries: Pair<String, List<Pair<Any?, KType>>>,
+        vararg queries: Pair<String, List<QueryParameter>>,
     ): StatementResult {
         return mutex.withLock {
             val statements = Array(queries.size) { i ->

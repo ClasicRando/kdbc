@@ -11,6 +11,15 @@ import io.github.clasicrando.kdbc.core.use
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlin.reflect.KClass
+import kotlin.reflect.typeOf
+
+inline fun <reified T : Any, Q : PreparedQuery<Q>> PreparedQuery<Q>.bind(parameter: T?): Q {
+    return bind(QueryParameter(parameter, typeOf<T>()))
+}
+
+inline fun <reified T : Any, Q: PreparedQuery<Q>> PreparedQuery<Q>.bind(parameter: List<T?>): Q {
+    return bind(QueryParameter(parameter, typeOf<List<T?>>()))
+}
 
 /**
  * Execute this query by calling [SuspendingQuery.execute], always closing the [SuspendingQuery]
