@@ -34,8 +34,12 @@ class SocketBlockingStream(
 
     override fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        val buffer = ByteReadBuffer(inputStream.readNBytes(4))
-        return buffer.readInt()
+        val bytes = inputStream.readNBytes(4)
+        return (
+            (bytes[0].toInt() and 0xff shl 24)
+            or (bytes[1].toInt() and 0xff shl 16)
+            or (bytes[2].toInt() and 0xff shl 8)
+            or (bytes[3].toInt() and 0xff))
     }
 
     override fun readBuffer(count: Int): ByteReadBuffer {

@@ -247,6 +247,17 @@ internal class PgBlockingStream(
     }
 
     /** Write multiple [messages] to the [PgBlockingStream] using [PgMessageEncoders.encode] */
+    inline fun writeManyToStream(
+        crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
+    ) {
+        writeToBuffer { buffer ->
+            for (message in sequence { messages() }) {
+                PgMessageEncoders.encode(message, buffer)
+            }
+        }
+    }
+
+    /** Write multiple [messages] to the [PgBlockingStream] using [PgMessageEncoders.encode] */
     fun writeManyToStream(vararg messages: PgMessage) {
         writeToBuffer { buffer ->
             for (message in messages) {

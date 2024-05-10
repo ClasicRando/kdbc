@@ -118,7 +118,7 @@ suspend fun <T : Any, R : RowParser<T>> SuspendingQuery.fetchAll(rowParser: R): 
             throw NoResultFound(sql)
         }
         statementResult.first()
-            .use { queryResult -> queryResult.extractAll(rowParser).toList() }
+            .use { queryResult -> queryResult.extractAll(rowParser) }
     }
 }
 
@@ -255,7 +255,7 @@ fun <T : Any, R : RowParser<T>> BlockingQuery.fetchAll(rowParser: R): List<T> = 
             throw NoResultFound(sql)
         }
         statementResult.first()
-            .use { queryResult -> queryResult.extractAll(rowParser).toList() }
+            .use { queryResult -> queryResult.extractAll(rowParser) }
     }
 }
 

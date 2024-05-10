@@ -482,20 +482,23 @@ class PgBlockingConnection internal constructor(
         parameters: PgEncodeBuffer,
         sendSync: Boolean = true,
     ) {
-        val bindMessage = PgMessage.Bind(
-            portal = null,
-            statementName = statement.statementName,
-            encodeBuffer = parameters,
-        )
-        val executeMessage = PgMessage.Execute(
-            portalName = null,
-            maxRowCount = 0,
-        )
-        val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
-        stream.writeManyToStream(bindMessage, executeMessage, closePortalMessage)
-
-        if (sendSync) {
-            stream.writeToStream(PgMessage.Sync)
+        stream.writeManyToStream {
+            val bindMessage = PgMessage.Bind(
+                portal = null,
+                statementName = statement.statementName,
+                encodeBuffer = parameters,
+            )
+            yield(bindMessage)
+            val executeMessage = PgMessage.Execute(
+                portalName = null,
+                maxRowCount = 0,
+            )
+            yield(executeMessage)
+            val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
+            yield(closePortalMessage)
+            if (sendSync) {
+                yield(PgMessage.Sync)
+            }
         }
         statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {

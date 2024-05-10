@@ -79,17 +79,16 @@ open class QueryResult(
      * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
      * [RowParseError] are wrapped into a [RowParseError]
      */
-    fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): Sequence<T> {
-        return rows.asSequence()
-            .map { row ->
-                try {
-                    rowParser.fromRow(row)
-                } catch (ex: RowParseError) {
-                    throw ex
-                } catch (ex: Throwable) {
-                    throw RowParseError(rowParser, ex)
-                }
+    fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): List<T> {
+        return rows.map { row ->
+            try {
+                rowParser.fromRow(row)
+            } catch (ex: RowParseError) {
+                throw ex
+            } catch (ex: Throwable) {
+                throw RowParseError(rowParser, ex)
             }
+        }
     }
 
     companion object {
