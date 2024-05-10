@@ -13,17 +13,8 @@ import java.nio.charset.Charset
  * [position] property keeps track of the relative position within the buffer and reads against the
  * buffer increments the [position] value based the number of bytes requested.
  */
-class ByteReadBuffer(
-    private var innerBuffer: ByteArray,
-    private val offset: Int = 0,
-    private val size: Int = innerBuffer.size,
-) : AutoRelease {
+class ByteReadBuffer(private var innerBuffer: ByteArray) : AutoRelease {
     private var position: Int = 0
-
-    /** Move cursor forward the exact amount specified by [byteCount] */
-    fun skip(byteCount: Int) {
-        position += byteCount
-    }
 
     /**
      * Create a sub slice of this [ByteReadBuffer], starting at the current position and having a
@@ -41,11 +32,13 @@ class ByteReadBuffer(
             "Cannot slice a buffer with a length ($length) that is more than the remaining " +
                     "bytes ($remaining)"
         }
-        return ByteReadBuffer(innerBuffer, position + offset, length)
+        val result = ByteReadBuffer(innerBuffer.copyOfRange(position, position + length))
+        position += length
+        return result
     }
 
     /** Number of bytes remaining as readable within the buffer */
-    val remaining: Int get() = size - position
+    val remaining: Int get() = innerBuffer.size - position
 
     private fun checkRemaining(required: Int) {
         if (remaining < required) {
@@ -60,7 +53,7 @@ class ByteReadBuffer(
      */
     fun readByte(): Byte {
         checkRemaining(1)
-        return innerBuffer[offset + position++]
+        return innerBuffer[position++]
     }
 
     /**
@@ -71,8 +64,8 @@ class ByteReadBuffer(
     fun readShort(): Short {
         checkRemaining(2)
         val result = (
-            innerBuffer[offset + position++].toInt() and 0xff shl 8
-            or (innerBuffer[offset + position++].toInt() and 0xff))
+            innerBuffer[position++].toInt() and 0xff shl 8
+            or (innerBuffer[position++].toInt() and 0xff))
         return result.toShort()
     }
 
@@ -84,10 +77,10 @@ class ByteReadBuffer(
     fun readInt(): Int {
         checkRemaining(4)
         val result = (
-            (innerBuffer[offset + position++].toInt() and 0xff shl 24)
-            or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
-            or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
-            or (innerBuffer[offset + position++].toInt() and 0xff))
+            (innerBuffer[position++].toInt() and 0xff shl 24)
+            or (innerBuffer[position++].toInt() and 0xff shl 16)
+            or (innerBuffer[position++].toInt() and 0xff shl 8)
+            or (innerBuffer[position++].toInt() and 0xff))
         return result
     }
 
@@ -99,14 +92,14 @@ class ByteReadBuffer(
     fun readLong(): Long {
         checkRemaining(8)
         val result = (
-            (innerBuffer[offset + position++].toLong() and 0xffL shl 56)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 48)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 40)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 32)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 24)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 16)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 8)
-            or (innerBuffer[offset + position++].toLong() and 0xffL))
+            (innerBuffer[position++].toLong() and 0xffL shl 56)
+            or (innerBuffer[position++].toLong() and 0xffL shl 48)
+            or (innerBuffer[position++].toLong() and 0xffL shl 40)
+            or (innerBuffer[position++].toLong() and 0xffL shl 32)
+            or (innerBuffer[position++].toLong() and 0xffL shl 24)
+            or (innerBuffer[position++].toLong() and 0xffL shl 16)
+            or (innerBuffer[position++].toLong() and 0xffL shl 8)
+            or (innerBuffer[position++].toLong() and 0xffL))
         return result
     }
 
@@ -135,7 +128,7 @@ class ByteReadBuffer(
      */
     fun readBytes(length: Int): ByteArray {
         checkRemaining(length)
-        val start = offset + position
+        val start = position
         position += length
         return this.innerBuffer.copyOfRange(start, start + length)
     }
@@ -143,8 +136,8 @@ class ByteReadBuffer(
     /** Read all remaining bytes into a [ByteArray]. This can result in an empty array. */
     fun readBytes(): ByteArray {
         val currentPosition = position
-        position = size
-        return this.innerBuffer.copyOfRange(offset + currentPosition, offset + size)
+        position = innerBuffer.size
+        return this.innerBuffer.copyOfRange(currentPosition, innerBuffer.size)
     }
 
     /**
@@ -169,7 +162,7 @@ class ByteReadBuffer(
         val buffer = ArrayList<Byte>()
 
         while (remaining > 0) {
-            val nextByte = innerBuffer[offset + position++]
+            val nextByte = innerBuffer[position++]
             if (nextByte == ZERO_BYTE) {
                 break
             }

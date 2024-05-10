@@ -24,7 +24,6 @@ internal class PgResultSet(
                 return@Array null
             }
             val slice = buffer.slice(length)
-            buffer.skip(length)
             val columnType = columnMapping[it]
             when (columnType.formatCode) {
                 0.toShort() -> PgValue.Text(slice, columnType)
@@ -34,9 +33,9 @@ internal class PgResultSet(
                 )
             }
         }
+        buffer.release()
 
         val row = PgDataRow(
-            rowBuffer = buffer,
             pgValues = pgValues,
             columnMapping = columnMapping,
             customTypeDescriptionCache = typeCache,

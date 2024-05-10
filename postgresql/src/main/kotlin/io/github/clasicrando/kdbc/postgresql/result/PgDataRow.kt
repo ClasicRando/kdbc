@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.BigIntArrayTypeDescription
@@ -96,11 +95,9 @@ import io.github.clasicrando.kdbc.postgresql.column.XmlArrayTypeDescription
 import io.github.clasicrando.kdbc.postgresql.column.XmlTypeDescription
 
 /**
- * Postgresql specific implementation for a [DataRow]. Uses the [rowBuffer] to extract data
- * returned from the postgresql server.
+ * Postgresql specific implementation for a [DataRow].
  */
 class PgDataRow(
-    private val rowBuffer: ByteReadBuffer?,
     private var pgValues: Array<PgValue?>,
     private val columnMapping: List<PgColumnDescription>,
     private val customTypeDescriptionCache: PgTypeCache,
@@ -266,7 +263,6 @@ class PgDataRow(
     }
 
     override fun release() {
-        rowBuffer?.release()
         pgValues = emptyArray()
     }
 }

@@ -109,11 +109,9 @@ abstract class BaseCompositeTypeDescription<T : Any>(
                 return@Array null
             }
             val slice = value.bytes.slice(attributeLength)
-            value.bytes.skip(attributeLength)
             PgValue.Binary(slice, columnMapping[it])
         }
         val dataRow = PgDataRow(
-            rowBuffer = value.bytes,
             pgValues = attributes,
             columnMapping = columnMapping,
             customTypeDescriptionCache = customTypeDescriptionCache,
@@ -141,7 +139,6 @@ abstract class BaseCompositeTypeDescription<T : Any>(
             .toList()
             .toTypedArray<PgValue?>()
         val dataRow = PgDataRow(
-            rowBuffer = null,
             pgValues = attributes,
             columnMapping = columnMapping,
             customTypeDescriptionCache = customTypeDescriptionCache,
