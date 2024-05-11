@@ -11,14 +11,18 @@ import io.github.clasicrando.kdbc.core.use
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlin.reflect.KClass
-import kotlin.reflect.typeOf
 
 inline fun <reified T : Any, Q : PreparedQuery<Q>> PreparedQuery<Q>.bind(parameter: T?): Q {
-    return bind(QueryParameter(parameter, typeOf<T>()))
+    return bind(QueryParameter(parameter))
 }
 
+@JvmName("QueryParameterNonNullItem")
 inline fun <reified T : Any, Q: PreparedQuery<Q>> PreparedQuery<Q>.bind(parameter: List<T?>): Q {
-    return bind(QueryParameter(parameter, typeOf<List<T?>>()))
+    return bind(QueryParameter(parameter))
+}
+
+inline fun <reified T : Any, Q: PreparedQuery<Q>> PreparedQuery<Q>.bind(parameter: List<T>): Q {
+    return bind(QueryParameter(parameter))
 }
 
 /**
