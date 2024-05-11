@@ -1,12 +1,12 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 
 data class PostDataClass(
     val id: Int,
     val text: String,
-    val creationDate: LocalDateTime,
-    val lastChangeDate: LocalDateTime,
+    val creationDate: Instant,
+    val lastChangeDate: Instant,
     val counter1: Int?,
     val counter2: Int?,
     val counter3: Int?,

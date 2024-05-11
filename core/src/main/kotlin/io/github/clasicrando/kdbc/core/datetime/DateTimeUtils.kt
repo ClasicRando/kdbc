@@ -1,10 +1,12 @@
 package io.github.clasicrando.kdbc.core.datetime
 
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toLocalTime
@@ -57,6 +59,23 @@ fun LocalTime.Companion.tryFromString(value: String): LocalTime {
             .toLocalTime()
     } catch (ex: IllegalArgumentException) {
         throw InvalidDateString(value, LocalTime::class)
+    }
+}
+
+/**
+ * Attempt to convert the string [value] provided into a [Instant]. This will replace space
+ * characters with 'T' and pad the end with 'Z' if no offset is present.
+ *
+ * @throws InvalidDateString if the conversion fails
+ */
+fun Instant.Companion.tryFromString(value: String): Instant {
+    return try {
+        value.trim()
+            .replace(oldChar = ' ',newChar = 'T')
+            .padEnd(length = 20, padChar = 'Z')
+            .toInstant()
+    } catch (ex: IllegalArgumentException) {
+        throw InvalidDateString(value, Instant::class)
     }
 }
 

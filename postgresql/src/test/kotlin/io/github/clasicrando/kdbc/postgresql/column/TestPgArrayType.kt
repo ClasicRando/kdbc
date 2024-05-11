@@ -11,6 +11,8 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
@@ -56,7 +58,7 @@ class TestPgArrayType {
         val result = TimestampArrayTypeDescription.decode(pgValue)
 
         Assertions.assertIterableEquals(
-            listOf(LocalDateTime(2023, 1, 1, 22, 2, 59)),
+            listOf(LocalDateTime(2023, 1, 1, 22, 2, 59).toInstant(TimeZone.UTC)),
             result,
         )
     }

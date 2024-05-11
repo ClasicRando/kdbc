@@ -26,6 +26,7 @@ import io.github.clasicrando.kdbc.postgresql.type.PgRange
 import io.github.clasicrando.kdbc.postgresql.type.PgTimeTz
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.DateTimePeriod
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -198,6 +199,7 @@ class PgTypeCache {
             is LocalTime -> PgType.Time
             is LocalDate -> PgType.Date
             is LocalDateTime -> PgType.Timestamp
+            is Instant -> PgType.Timestamp
             is PgTimeTz -> PgType.Timetz
             is DateTime -> PgType.Timestamptz
             is DateTimePeriod -> PgType.Interval

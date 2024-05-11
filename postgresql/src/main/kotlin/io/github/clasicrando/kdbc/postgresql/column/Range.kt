@@ -7,8 +7,8 @@ import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.postgresql.type.Bound
 import io.github.clasicrando.kdbc.postgresql.type.PgRange
 import io.github.clasicrando.kdbc.postgresql.type.PgRangeLiteralParser
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 import java.math.BigDecimal
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
@@ -213,13 +213,13 @@ object Int4RangeArrayTypeDescription : ArrayTypeDescription<Int4Range>(
     innerType = Int4RangeTypeDescription,
 )
 
-typealias TsRange = PgRange<LocalDateTime>
+typealias TsRange = PgRange<Instant>
 
 /**
  * Implementation of a [PgTypeDescription] for the [TsRange] type. This maps to the `tsrange`
  * type in a postgresql database.
  */
-object TsRangeTypeDescription : RangeTypeDescription<LocalDateTime>(
+object TsRangeTypeDescription : RangeTypeDescription<Instant>(
     pgType = PgType.TsRange,
     typeDescription = TimestampTypeDescription,
 )

@@ -1,10 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,8 +22,8 @@ class TestBlockingExtendedSuspendingQuerySpec {
             val result = it.sendExtendedQuery(
                 QUERY_SERIES,
                 listOf(
-                    1 to typeOf<Int>(),
-                    10 to typeOf<Int>(),
+                    QueryParameter(1),
+                    QueryParameter(10),
                 )
             ).toList()
             assertEquals(1, result.size)
@@ -45,9 +44,9 @@ class TestBlockingExtendedSuspendingQuerySpec {
         PgConnectionHelper.defaultBlockingConnection().use {
             val param1 = 2
             val param2 = "start"
-            val params = listOf<Pair<Any?, KType>>(
-                param1 to typeOf<Int>(),
-                param2 to typeOf<String>(),
+            val params = listOf(
+                QueryParameter(param1),
+                QueryParameter(param2),
             )
             val result = it.sendExtendedQuery(
                 "CALL public.test_proc_ext($1::int, $2::text)",

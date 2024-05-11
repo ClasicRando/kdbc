@@ -106,9 +106,12 @@ import io.github.clasicrando.kdbc.postgresql.type.PgPolygon
 import io.github.clasicrando.kdbc.postgresql.type.PgRange
 import io.github.clasicrando.kdbc.postgresql.type.PgTimeTz
 import kotlinx.datetime.DateTimePeriod
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.uuid.UUID
 import java.math.BigDecimal
 import kotlin.reflect.KType
@@ -315,7 +318,7 @@ class PgEncodeBuffer(
                 buffer = innerBuffer,
             )
             TimestampArrayTypeDescription.kType -> TimestampArrayTypeDescription.encode(
-                value = value as List<LocalDateTime?>,
+                value = value as List<Instant?>,
                 buffer = innerBuffer,
             )
             TimeTzArrayTypeDescription.kType -> TimeTzArrayTypeDescription.encode(
@@ -434,7 +437,11 @@ class PgEncodeBuffer(
                 is BigDecimal -> NumericTypeDescription.encode(value, innerBuffer)
                 is LocalTime -> TimeTypeDescription.encode(value, innerBuffer)
                 is LocalDate -> DateTypeDescription.encode(value, innerBuffer)
-                is LocalDateTime -> TimestampTypeDescription.encode(value, innerBuffer)
+                is LocalDateTime -> TimestampTypeDescription.encode(
+                    value.toInstant(TimeZone.UTC),
+                    innerBuffer
+                )
+                is Instant -> TimestampTypeDescription.encode(value, innerBuffer)
                 is PgTimeTz -> TimeTzTypeDescription.encode(value, innerBuffer)
                 is DateTime -> TimestampTzTypeDescription.encode(value, innerBuffer)
                 is DateTimePeriod -> IntervalTypeDescription.encode(value, innerBuffer)
