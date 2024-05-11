@@ -1,6 +1,5 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import kotlinx.datetime.toKotlinLocalDateTime
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -38,32 +37,14 @@ open class JdbcBenchmark {
         if (id >= 5000) id = 1
     }
 
-//    @Benchmark
+    @Benchmark
     open fun queryData() {
         step()
         connection.prepareStatement(jdbcQuery).use { preparedStatement ->
             preparedStatement.setInt(1, id)
             preparedStatement.setInt(2, id + 10)
             preparedStatement.executeQuery().use { resultSet ->
-                val items = mutableListOf<PostDataClass>()
-                while (resultSet.next()) {
-                    val item = PostDataClass(
-                        resultSet.getInt(1),
-                        resultSet.getString(2),
-                        resultSet.getObject(3, java.time.LocalDateTime::class.java).toKotlinLocalDateTime(),
-                        resultSet.getObject(4, java.time.LocalDateTime::class.java).toKotlinLocalDateTime(),
-                        resultSet.getInt(5),
-                        resultSet.getInt(6),
-                        resultSet.getInt(7),
-                        resultSet.getInt(8),
-                        resultSet.getInt(9),
-                        resultSet.getInt(10),
-                        resultSet.getInt(11),
-                        resultSet.getInt(12),
-                        resultSet.getInt(13),
-                    )
-                    items.add(item)
-                }
+                extractPostDataClassListFromResultSet(resultSet)
             }
         }
     }

@@ -7,6 +7,7 @@ import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.datetime.toKotlinInstant
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 import org.apache.commons.dbcp2.DriverManagerConnectionFactory
@@ -15,6 +16,7 @@ import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
 import java.sql.DriverManager
+import java.sql.ResultSet
 import java.sql.Connection as JdbcConnection
 
 val jdbcQuerySingle = """
@@ -130,3 +132,26 @@ fun initializeThreadPoolBlockingConnections(): PgConnectOptions {
 }
 
 const val concurrencyLimit = 100
+
+fun extractPostDataClassListFromResultSet(resultSet: ResultSet): List<PostDataClass> {
+    val items = ArrayList<PostDataClass>()
+    while (resultSet.next()) {
+        val item = PostDataClass(
+            resultSet.getInt(1),
+            resultSet.getString(2),
+            resultSet.getTimestamp(3).toInstant().toKotlinInstant(),
+            resultSet.getTimestamp(4).toInstant().toKotlinInstant(),
+            resultSet.getInt(5),
+            resultSet.getInt(6),
+            resultSet.getInt(7),
+            resultSet.getInt(8),
+            resultSet.getInt(9),
+            resultSet.getInt(10),
+            resultSet.getInt(11),
+            resultSet.getInt(12),
+            resultSet.getInt(13),
+        )
+        items.add(item)
+    }
+    return items
+}

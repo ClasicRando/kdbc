@@ -52,25 +52,7 @@ open class JdbcBenchmarkConcurrentSingle {
                     it.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
                         preparedStatement.setInt(1, stepId)
                         preparedStatement.executeQuery().use { resultSet ->
-                            val items = mutableListOf<PostDataClass>()
-                            while (resultSet.next()) {
-                                val item = PostDataClass(
-                                    resultSet.getInt(1),
-                                    resultSet.getString(2),
-                                    resultSet.getObject(3, java.time.LocalDateTime::class.java).toKotlinLocalDateTime(),
-                                    resultSet.getObject(4, java.time.LocalDateTime::class.java).toKotlinLocalDateTime(),
-                                    resultSet.getInt(5),
-                                    resultSet.getInt(6),
-                                    resultSet.getInt(7),
-                                    resultSet.getInt(8),
-                                    resultSet.getInt(9),
-                                    resultSet.getInt(10),
-                                    resultSet.getInt(11),
-                                    resultSet.getInt(12),
-                                    resultSet.getInt(13),
-                                )
-                                items.add(item)
-                            }
+                            extractPostDataClassListFromResultSet(resultSet)
                         }
                     }
                 }
