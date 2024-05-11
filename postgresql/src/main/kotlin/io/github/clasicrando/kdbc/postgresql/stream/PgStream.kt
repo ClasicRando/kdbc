@@ -6,8 +6,8 @@ import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
+import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.SizedMessage
-import io.github.clasicrando.kdbc.core.resourceLogger
 import io.github.clasicrando.kdbc.core.stream.AsyncStream
 import io.github.clasicrando.kdbc.core.stream.StreamConnectError
 import io.github.clasicrando.kdbc.core.stream.StreamReadError
@@ -85,7 +85,7 @@ internal class PgStream(
      * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
     internal inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
-        logger.resourceLogger(this, level, block)
+        logWithResource(logger, level, block)
     }
 
     /**

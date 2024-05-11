@@ -3,7 +3,7 @@ package io.github.clasicrando.kdbc.core.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.resourceLogger
+import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.network.selector.SelectorManager
@@ -13,7 +13,6 @@ import io.ktor.network.sockets.SocketAddress
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
-import io.ktor.util.cio.writer
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readAvailable
@@ -46,14 +45,14 @@ class KtorAsyncStream(
                 aSocket(selectorManager).tcp().connect(address).connection()
             }
         } catch (ex: Throwable) {
-            logger.resourceLogger(this, Level.TRACE) {
+            logWithResource(logger, Level.TRACE) {
                 message = "Failed to connect to {address}"
                 payload = mapOf("address" to address)
                 cause = ex
             }
             throw StreamConnectError(address, ex)
         }
-        logger.resourceLogger(this, Level.TRACE) {
+        logWithResource(logger, Level.TRACE) {
             message = "Successfully connected to {address}"
             payload = mapOf("address" to address)
         }
@@ -72,7 +71,7 @@ class KtorAsyncStream(
             val bytesRead = try {
                 readChannel.readAvailable(tempBuffer)
             } catch (ex: Throwable) {
-                logger.resourceLogger(this, Level.TRACE) {
+                logWithResource(logger, Level.TRACE) {
                     message = "Failed to read from socket"
                     cause = ex
                 }
@@ -80,12 +79,12 @@ class KtorAsyncStream(
             }
             buffer.write(tempBuffer, 0, bytesRead)
             if (bytesRead == -1) {
-                logger.resourceLogger(this, Level.TRACE) {
+                logWithResource(logger, Level.TRACE) {
                     message = "Unexpectedly reached end of stream"
                 }
                 throw EndOfStream()
             }
-            logger.resourceLogger(this, Level.TRACE) {
+            logWithResource(logger, Level.TRACE) {
                 message = "Received {count} bytes from {address}"
                 payload = mapOf("count" to bytesRead, "address" to address)
             }

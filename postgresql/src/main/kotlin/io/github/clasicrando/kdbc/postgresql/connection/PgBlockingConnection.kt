@@ -11,7 +11,7 @@ import io.github.clasicrando.kdbc.core.query.BlockingQuery
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
-import io.github.clasicrando.kdbc.core.resourceLogger
+import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.result.AbstractMutableResultSet
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
@@ -28,7 +28,9 @@ import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingConnectionPool
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQuery
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingQuery
-import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
+import io.github.clasicrando.kdbc.postgresql.result.CopyInResultCollector
+import io.github.clasicrando.kdbc.postgresql.result.QueryResultCollector
+import io.github.clasicrando.kdbc.postgresql.result.StatementPrepareRequestCollector
 import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
@@ -86,7 +88,7 @@ class PgBlockingConnection internal constructor(
      * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
     private inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
-        logger.resourceLogger(this, level, block)
+        logWithResource(logger, level, block)
     }
 
     /**
@@ -193,44 +195,19 @@ class PgBlockingConnection internal constructor(
         isAutoCommit: Boolean,
         statements: Array<PgPreparedStatement> = emptyArray(),
     ): StatementResult {
-        val builder = StatementResult.Builder()
-        val errors = mutableListOf<Throwable>()
+        val queryResultCollector = QueryResultCollector(this, typeCache)
         for (preparedStatement in statements) {
-            val result = PgResultSet(typeCache, preparedStatement.resultMetadata)
-            stream.processMessageLoop { message ->
-                when (message) {
-                    is PgMessage.ErrorResponse -> {
-                        errors.add(GeneralPostgresError(message))
-                        Loop.Continue
-                    }
-
-                    is PgMessage.DataRow -> {
-                        result.addRow(message.rowBuffer)
-                        Loop.Continue
-                    }
-
-                    is PgMessage.CommandComplete -> {
-                        val queryResult = QueryResult(message.rowCount, message.message, result)
-                        builder.addQueryResult(queryResult)
-                        Loop.Continue
-                    }
-
-                    is PgMessage.ReadyForQuery -> {
-                        handleTransactionStatus(message.transactionStatus)
-                        Loop.Break
-                    }
-
-                    else -> logUnexpectedMessage(message)
-                }
-            }.onFailure {
-                errors.add(it)
-            }
-            if (errors.isNotEmpty() && !isAutoCommit) {
+            queryResultCollector.processNextStatement(preparedStatement)
+            stream.processMessageLoop(queryResultCollector::processNextMessage)
+                .onFailure(queryResultCollector.errors::add)
+            if (queryResultCollector.errors.isNotEmpty() && !isAutoCommit) {
                 break
             }
         }
+        queryResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
-        val error = errors.reduceToSingleOrNull() ?: return builder.build()
+        val error = queryResultCollector.errors.reduceToSingleOrNull()
+            ?: return queryResultCollector.buildStatementResult()
         log(Level.ERROR) {
             message = "Error during single query execution"
             cause = error
@@ -262,40 +239,14 @@ class PgBlockingConnection internal constructor(
     private fun collectResult(
         statement: PgPreparedStatement? = null,
     ): StatementResult {
-        val errors = mutableListOf<Throwable>()
-        var result = PgResultSet(typeCache, statement?.resultMetadata ?: listOf())
-        val results = StatementResult.Builder()
-        stream.processMessageLoop { message ->
-            when (message) {
-                is PgMessage.ErrorResponse -> {
-                    errors.add(GeneralPostgresError(message))
-                    Loop.Continue
-                }
-                is PgMessage.RowDescription -> {
-                    statement?.resultMetadata = message.fields
-                    result = PgResultSet(typeCache, message.fields)
-                    Loop.Continue
-                }
-                is PgMessage.DataRow -> {
-                    result.addRow(message.rowBuffer)
-                    Loop.Continue
-                }
-                is PgMessage.CommandComplete -> {
-                    val queryResult = QueryResult(message.rowCount, message.message, result)
-                    results.addQueryResult(queryResult)
-                    Loop.Continue
-                }
-                is PgMessage.ReadyForQuery -> {
-                    handleTransactionStatus(message.transactionStatus)
-                    Loop.Break
-                }
-                else -> logUnexpectedMessage(message)
-            }
-        }.onFailure {
-            errors.add(it)
-        }
+        val queryResultCollector = QueryResultCollector(this, typeCache)
+        queryResultCollector.processNextStatement(statement)
+        stream.processMessageLoop(queryResultCollector::processNextMessage)
+            .onFailure(queryResultCollector.errors::add)
+        queryResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
-        val error = errors.reduceToSingleOrNull() ?: return results.build()
+        val error = queryResultCollector.errors.reduceToSingleOrNull()
+            ?: return queryResultCollector.buildStatementResult()
         log(Level.ERROR) {
             message = "Error during single query execution"
             cause = error
@@ -326,10 +277,7 @@ class PgBlockingConnection internal constructor(
             return sendExtendedQuery(query, emptyList())
         }
         return lock.withLock {
-            logger.resourceLogger(
-                this@PgBlockingConnection,
-                connectOptions.logSettings.statementLevel,
-            ) {
+            log(connectOptions.logSettings.statementLevel) {
                 message = STATEMENT_TEMPLATE
                 payload = mapOf("query" to query)
             }
@@ -348,49 +296,27 @@ class PgBlockingConnection internal constructor(
         parameterTypes: List<Int>,
         statement: PgPreparedStatement,
     ) {
-        val parseMessage = PgMessage.Parse(
-            preparedStatementName = statement.statementName,
-            query = query,
-            parameterTypes = parameterTypes,
-        )
-        val describeMessage = PgMessage.Describe(
-            target = MessageTarget.PreparedStatement,
-            name = statement.statementName,
-        )
-        stream.writeManyToStream(parseMessage, describeMessage, PgMessage.Sync)
-
-        val errors = mutableListOf<Throwable>()
-        stream.processMessageLoop { message ->
-            when (message) {
-                is PgMessage.ErrorResponse -> {
-                    errors.add(GeneralPostgresError(message))
-                    Loop.Continue
-                }
-                is PgMessage.ParseComplete -> {
-                    statement.prepared = true
-                    Loop.Continue
-                }
-                is PgMessage.RowDescription -> {
-                    statement.resultMetadata = message.fields.map { it.copy(formatCode = 1) }
-                    Loop.Continue
-                }
-                is PgMessage.ParameterDescription -> {
-                    statement.parameterTypeOids = message.parameterDataTypes
-                    Loop.Continue
-                }
-                is PgMessage.NoData -> {
-                    statement.resultMetadata = emptyList()
-                    Loop.Continue
-                }
-                is PgMessage.ReadyForQuery -> {
-                    handleTransactionStatus(message.transactionStatus)
-                    Loop.Break
-                }
-                else -> logUnexpectedMessage(message)
-            }
+        stream.writeManyToStream {
+            val parseMessage = PgMessage.Parse(
+                preparedStatementName = statement.statementName,
+                query = query,
+                parameterTypes = parameterTypes,
+            )
+            yield(parseMessage)
+            val describeMessage = PgMessage.Describe(
+                target = MessageTarget.PreparedStatement,
+                name = statement.statementName,
+            )
+            yield(describeMessage)
+            yield(PgMessage.Sync)
         }
 
-        val error = errors.reduceToSingleOrNull() ?: return
+        val prepareRequestCollector = StatementPrepareRequestCollector(this, statement)
+        stream.processMessageLoop(prepareRequestCollector::processNextMessage)
+            .onFailure(prepareRequestCollector.errors::add)
+        prepareRequestCollector.transactionStatus?.let(::handleTransactionStatus)
+
+        val error = prepareRequestCollector.errors.reduceToSingleOrNull() ?: return
         log(Level.ERROR) {
             message = "Error during prepared statement creation"
             cause = error
@@ -669,64 +595,27 @@ class PgBlockingConnection internal constructor(
         try {
             stream.writeManySized(data.map { PgMessage.CopyData(it) })
             stream.writeToStream(PgMessage.CopyDone)
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             if (stream.isConnected) {
                 wasFailed = true
                 stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
             }
         }
 
-        var completeMessage: PgMessage.CommandComplete? = null
-        val errors = mutableListOf<Throwable>()
-        stream.processMessageLoop { message ->
-            when (message) {
-                is PgMessage.ErrorResponse -> {
-                    if (wasFailed) {
-                        completeMessage = PgMessage.CommandComplete(
-                            rowCount = 0,
-                            message = "CopyFail Issued by client",
-                        )
-                        log(Level.WARN) {
-                            this.message = "CopyIn operation failed by client"
-                        }
-                        return@processMessageLoop Loop.Continue
-                    }
-                    val error = GeneralPostgresError(message)
-                    log(Level.ERROR) {
-                        this.message = "Error during copy in operation"
-                        cause = error
-                    }
-                    errors.add(error)
-                    Loop.Continue
-                }
-                is PgMessage.CommandComplete -> {
-                    completeMessage = message
-                    Loop.Continue
-                }
-                is PgMessage.ReadyForQuery -> {
-                    handleTransactionStatus(message.transactionStatus)
-                    Loop.Break
-                }
-                else -> {
-                    log(Level.TRACE) {
-                        this.message = "Ignoring {message} since it's not an error or the desired type"
-                        payload = mapOf("message" to message)
-                    }
-                    Loop.Continue
-                }
-            }
-        }.onFailure {
-            errors.add(it)
-        }
+        val copyInResultCollector = CopyInResultCollector(this, wasFailed)
+        stream.processMessageLoop(copyInResultCollector::processMessage)
+            .onFailure(copyInResultCollector.errors::add)
+        copyInResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
-        val error = errors.reduceToSingleOrNull()
+        val error = copyInResultCollector.errors.reduceToSingleOrNull()
         if (error != null) {
             throw error
         }
 
         return QueryResult(
-            rowsAffected = completeMessage?.rowCount ?: 0,
-            message = completeMessage?.message ?: "Default copy in complete message",
+            rowsAffected = copyInResultCollector.completeMessage?.rowCount ?: 0,
+            message = copyInResultCollector.completeMessage?.message
+                ?: "Default copy in complete message",
         )
     }
 
@@ -748,41 +637,31 @@ class PgBlockingConnection internal constructor(
         return lock.withLock { copyInInternal(copyQuery, data) }
     }
 
-    private fun copyOutInternal(copyQuery: String): Sequence<ByteArray> = sequence {
+    private fun copyOutInternal(copyQuery: String): Sequence<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyQuery)
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyOutResponse>()
-        stream.processMessageLoop { message ->
-            when (message) {
-                is PgMessage.ErrorResponse -> {
-                    throw GeneralPostgresError(message)
-                }
-
-                is PgMessage.CopyData -> {
-                    yield(message.data)
-                    Loop.Continue
-                }
-
-                is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
-                is PgMessage.ReadyForQuery -> {
-                    handleTransactionStatus(message.transactionStatus)
-                    Loop.Break
-                }
-
-                else -> {
-                    log(Level.TRACE) {
-                        this.message =
-                            "Ignoring {message} since it's not an error or the desired type"
-                        payload = mapOf("message" to message)
+        return sequence {
+            stream.processMessageLoop { message ->
+                when (message) {
+                    is PgMessage.ErrorResponse -> {
+                        throw GeneralPostgresError(message)
                     }
-                    Loop.Continue
+                    is PgMessage.CopyData -> {
+                        yield(message.data)
+                        Loop.Continue
+                    }
+                    is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
+                    is PgMessage.ReadyForQuery -> {
+                        handleTransactionStatus(message.transactionStatus)
+                        Loop.Break
+                    }
+                    else -> logUnexpectedMessage(message)
                 }
-            }
-        }.onFailure {
-            throw it
+            }.getOrThrow()
         }
     }
 
