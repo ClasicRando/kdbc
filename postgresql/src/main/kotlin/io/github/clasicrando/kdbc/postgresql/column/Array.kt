@@ -123,6 +123,7 @@ abstract class ArrayTypeDescription<T : Any>(
                 return@List null
             }
             val slice = value.bytes.slice(elementLength)
+            value.bytes.skip(elementLength)
             innerType.decode(PgValue.Binary(slice, fieldDescription))
         }
     }
