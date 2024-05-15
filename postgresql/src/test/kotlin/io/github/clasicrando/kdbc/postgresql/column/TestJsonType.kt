@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgJson
@@ -9,6 +10,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.assertEquals
@@ -21,7 +24,8 @@ class TestJsonType {
     @ParameterizedTest
     @ValueSource(booleans = [true, false])
     fun `encode should accept PgJson when querying postgresql`(isJsonB: Boolean) = runBlocking {
-        val query = "SELECT $1::${if (isJsonB) "jsonb" else "json"} json_col;"
+        val tableName = if (isJsonB) JSONB_TEST_TABLE else JSON_TEST_TABLE
+        val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
 
         PgConnectionHelper.defaultSuspendingConnection().use { conn ->
             val pgJson = conn.createPreparedQuery(query)
@@ -62,5 +66,27 @@ class TestJsonType {
         private val jsonValue = JsonType(584.5269, "PgJson test")
         private val pgJsonValue = PgJson.fromValue(jsonValue)
         private val JSON_STRING = Json.encodeToString(jsonValue)
+        private const val JSON_TEST_TABLE = "json_test"
+        private const val JSONB_TEST_TABLE = "jsonb_test"
+
+        @BeforeAll
+        @JvmStatic
+        fun createObjects() {
+            PgConnectionHelper.defaultBlockingConnection().use {
+                it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
+                it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
+                it.createQuery("CREATE TABLE public.$JSON_TEST_TABLE(column_1 json)").executeClosing()
+                it.createQuery("CREATE TABLE public.$JSONB_TEST_TABLE(column_1 jsonb)").executeClosing()
+            }
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun cleanObjects() {
+            PgConnectionHelper.defaultBlockingConnection().use {
+                it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
+                it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
+            }
+        }
     }
 }
