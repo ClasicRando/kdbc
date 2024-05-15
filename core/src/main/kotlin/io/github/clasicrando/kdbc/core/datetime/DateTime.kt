@@ -29,7 +29,11 @@ data class DateTime(val datetime: Instant, val offset: UtcOffset) {
     }
 
     override fun toString(): String {
-        return "$datetime $offset"
+        return buildString {
+            append(datetime)
+            deleteCharAt(length - 1)
+            append(offset)
+        }
     }
 
     companion object {

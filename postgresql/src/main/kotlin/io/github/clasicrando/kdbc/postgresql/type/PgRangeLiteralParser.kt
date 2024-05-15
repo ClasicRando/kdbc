@@ -7,11 +7,12 @@ object PgRangeLiteralParser {
         var quoted = false
         var inQuotes = false
         var inEscape = false
-        var prevChar = '\u0000'
+        var prevChar: Char
         val iter = literal.iterator()
 
         while (!isDone) {
             buffer.clear()
+            prevChar = '\u0000'
 
             while (iter.hasNext()) {
                 val currentChar = iter.nextChar()
@@ -39,7 +40,7 @@ object PgRangeLiteralParser {
                 }
                 prevChar = currentChar
             }
-            isDone = iter.hasNext()
+            isDone = !iter.hasNext()
             yield(buffer.toString().takeIf { !(it.isEmpty() && !quoted) })
         }
     }

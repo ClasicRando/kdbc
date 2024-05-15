@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
@@ -53,13 +54,13 @@ abstract class BaseRangeTypeDescription<T : Any>(
     final override fun encode(value: PgRange<T>, buffer: ByteWriteBuffer) {
         var flags = zeroRangeFlags
 
-        flags = flags or when (value.start) {
+        flags = flags or when (value.lower) {
             is Bound.Excluded -> zeroRangeFlags
             is Bound.Included -> lowerBoundInclusiveRangeFlagMask
             is Bound.Unbounded -> lowerBoundInfiniteRangeFlagMask
         }
 
-        flags = flags or when (value.end) {
+        flags = flags or when (value.upper) {
             is Bound.Excluded -> zeroRangeFlags
             is Bound.Included -> upperBoundInclusiveRangeFlagMask
             is Bound.Unbounded -> upperBoundInfiniteRangeFlagMask
@@ -67,15 +68,23 @@ abstract class BaseRangeTypeDescription<T : Any>(
 
         buffer.writeByte(flags.toByte())
 
-        when (value.start) {
-            is Bound.Excluded -> typeDescription.encode(value.start.value, buffer)
-            is Bound.Included -> typeDescription.encode(value.start.value, buffer)
+        when (value.lower) {
+            is Bound.Excluded -> buffer.writeLengthPrefixed {
+                typeDescription.encode(value.lower.value, buffer)
+            }
+            is Bound.Included -> buffer.writeLengthPrefixed {
+                typeDescription.encode(value.lower.value, buffer)
+            }
             is Bound.Unbounded -> {}
         }
 
-        when (value.end) {
-            is Bound.Excluded -> typeDescription.encode(value.end.value, buffer)
-            is Bound.Included -> typeDescription.encode(value.end.value, buffer)
+        when (value.upper) {
+            is Bound.Excluded -> buffer.writeLengthPrefixed {
+                typeDescription.encode(value.upper.value, buffer)
+            }
+            is Bound.Included -> buffer.writeLengthPrefixed {
+                typeDescription.encode(value.upper.value, buffer)
+            }
             is Bound.Unbounded -> {}
         }
     }
@@ -110,7 +119,14 @@ abstract class BaseRangeTypeDescription<T : Any>(
         }
 
         if (!rangeFlagContains(flags, lowerBoundInfiniteRangeFlagMask)) {
-            val lowerBoundValue = typeDescription.decodeBytes(value)
+            val lowerBoundValueLength = value.bytes.readInt()
+            val lowerBoundPgValue = PgValue.Binary(
+                bytes = value.bytes.slice(lowerBoundValueLength),
+                typeData = PgColumnDescription.dummyDescription(typeDescription.pgType, 1)
+            )
+            value.bytes.skip(lowerBoundValueLength)
+
+            val lowerBoundValue = typeDescription.decodeBytes(lowerBoundPgValue)
             start = if (rangeFlagContains(flags, lowerBoundInclusiveRangeFlagMask)) {
                 Bound.Included(lowerBoundValue)
             } else {
@@ -119,15 +135,22 @@ abstract class BaseRangeTypeDescription<T : Any>(
         }
 
         if (!rangeFlagContains(flags, upperBoundInfiniteRangeFlagMask)) {
-            val lowerBoundValue = typeDescription.decodeBytes(value)
+            val upperBoundValueLength = value.bytes.readInt()
+            val upperBoundPgValue = PgValue.Binary(
+                bytes = value.bytes.slice(upperBoundValueLength),
+                typeData = PgColumnDescription.dummyDescription(typeDescription.pgType, 1)
+            )
+            value.bytes.skip(upperBoundValueLength)
+
+            val upperBoundValue = typeDescription.decodeBytes(upperBoundPgValue)
             end = if (rangeFlagContains(flags, upperBoundInclusiveRangeFlagMask)) {
-                Bound.Included(lowerBoundValue)
+                Bound.Included(upperBoundValue)
             } else {
-                Bound.Excluded(lowerBoundValue)
+                Bound.Excluded(upperBoundValue)
             }
         }
 
-        return PgRange(start = start, end = end)
+        return PgRange(lower = start, upper = end)
     }
 
     private fun decodeBound(char: Char, value: T): Bound<T> {
@@ -169,13 +192,13 @@ abstract class BaseRangeTypeDescription<T : Any>(
                 decodeBound(lower, lowerBoundValue)
             }
             ?: Bound.Unbounded()
-        val end = bounds.getOrNull(0)
+        val end = bounds.getOrNull(1)
             ?.let {
                 val upperBoundValue = typeDescription.decodeText(PgValue.Text(it, value.typeData))
                 decodeBound(upper, upperBoundValue)
             }
             ?: Bound.Unbounded()
-        return PgRange(start = start, end = end)
+        return PgRange(lower = start, upper = end)
     }
 }
 
