@@ -51,7 +51,7 @@ object BoolTypeDescription : PgTypeDescription<Boolean>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Boolean]. This maps to the `boolean[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [Boolean]. This maps to the `boolean[]` type in a
  * postgresql database.
  */
 object BoolArrayTypeDescription : ArrayTypeDescription<Boolean>(

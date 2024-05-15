@@ -71,8 +71,8 @@ open class QueryResult(
     }
 
     /**
-     * Return the all rows as a [Sequence] where each row is parsed as the type [T] by the supplied
-     * [rowParser]. Returns an empty [Sequence] when no rows are returned.
+     * Return the all rows as a [List] where each row is parsed as the type [T] by the supplied
+     * [rowParser]. Returns an empty [List] when no rows are returned.
      *
      * @throws IllegalStateException if the query has already been closed
      * @throws NoResultFound if the execution result yields no [QueryResult]

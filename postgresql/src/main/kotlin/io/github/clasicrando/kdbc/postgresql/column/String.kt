@@ -34,7 +34,7 @@ abstract class AbstractVarcharTypeDescription(pgType: PgType) : PgTypeDescriptio
 object TextTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Text)
 
 /**
- * Implementation of a [ArrayTypeDescription] for [String]. This maps to the `text[]` types in a
+ * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `text[]` types in a
  * postgresql database.
  */
 object TextArrayTypeDescription : ArrayTypeDescription<String>(
@@ -49,7 +49,7 @@ object TextArrayTypeDescription : ArrayTypeDescription<String>(
 object VarcharTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Varchar)
 
 /**
- * Implementation of a [ArrayTypeDescription] for [String]. This maps to the `varchar[]` types in a
+ * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `varchar[]` types in a
  * postgresql database.
  */
 object VarcharArrayTypeDescription : ArrayTypeDescription<String>(
@@ -64,7 +64,7 @@ object VarcharArrayTypeDescription : ArrayTypeDescription<String>(
 object XmlTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Xml)
 
 /**
- * Implementation of a [ArrayTypeDescription] for [String]. This maps to the `xml[]` types in a
+ * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `xml[]` types in a
  * postgresql database.
  */
 object XmlArrayTypeDescription : ArrayTypeDescription<String>(
@@ -79,7 +79,7 @@ object XmlArrayTypeDescription : ArrayTypeDescription<String>(
 object NameTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Name)
 
 /**
- * Implementation of a [ArrayTypeDescription] for [String]. This maps to the `name[]` types in a
+ * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `name[]` types in a
  * postgresql database.
  */
 object NameArrayTypeDescription : ArrayTypeDescription<String>(
@@ -94,7 +94,7 @@ object NameArrayTypeDescription : ArrayTypeDescription<String>(
 object BpcharTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Bpchar)
 
 /**
- * Implementation of a [ArrayTypeDescription] for [String]. This maps to the `bpchar[]` types in a
+ * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `bpchar[]` types in a
  * postgresql database.
  */
 object BpcharArrayTypeDescription : ArrayTypeDescription<String>(

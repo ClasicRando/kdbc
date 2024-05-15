@@ -88,7 +88,8 @@ fun Instant.Companion.tryFromString(value: String): Instant {
  */
 fun UtcOffset.Companion.tryFromString(value: String): UtcOffset {
     val timeZoneStr = value.dropWhile { it != '+' }
-        .takeIf { it.isNotBlank() } ?: return UtcOffset(0)
+        .takeIf { it.isNotBlank() }
+        ?: return UtcOffset(0)
     return timeZoneStr.toIntOrNull()
         ?.let { UtcOffset(hours = it) }
         ?: throw InvalidDateString(timeZoneStr, TimeZone::class)

@@ -34,14 +34,24 @@ import kotlinx.uuid.UUID
 import java.math.BigDecimal
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
-import kotlin.reflect.full.createType
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Type cache for custom postgresql types as well as a lookup for the [PgType] of standard and
+ * custom types (as a type hint when creating prepared statements). Instances of this class are
+ * shared within connection pools so the contents and methods are thread-safe. This is accomplished
+ * using [AtomicMutableMap]s for the lookup maps.
+ */
 class PgTypeCache {
     private val customTypeDescriptions: MutableMap<PgType, PgTypeDescription<*>> = AtomicMutableMap()
     private val typeHintLookup: MutableMap<KType, PgType> = AtomicMutableMap()
 
+    /**
+     * Return the custom type description for the provided [pgType]
+     *
+     * @throws IllegalStateException if the [pgType] cannot be found in the lookup table
+     */
     @Suppress("UNCHECKED_CAST")
     fun <T : Any> getTypeDescription(pgType: PgType): PgTypeDescription<T>? {
         val typeDescription = customTypeDescriptions[pgType]
@@ -49,20 +59,37 @@ class PgTypeCache {
         return typeDescription as? PgTypeDescription<T>
     }
 
-    @Suppress("UNCHECKED_CAST")
+    /**
+     * Return the custom type description for the provided [kType]. Looks up the [kType] provided
+     * to find a [PgType] then calls [getTypeDescription].
+     *
+     * @throws IllegalStateException if the [kType] cannot be found in the lookup table
+     */
     fun <T : Any> getTypeDescription(kType: KType): PgTypeDescription<T>? {
         val pgType = typeHintLookup[kType]
             ?: error("Could not find type description for kType = $kType")
-        val typeDescription = customTypeDescriptions[pgType]
-            ?: error("Could not find type description for kType = $kType")
-        return typeDescription as? PgTypeDescription<T>
+        return getTypeDescription(pgType)
     }
 
+    /** Add a custom [typeDescription] to the lookup tables */
     private fun <T : Any> addTypeDescription(typeDescription: PgTypeDescription<T>) {
         customTypeDescriptions[typeDescription.pgType] = typeDescription
         typeHintLookup[typeDescription.kType] = typeDescription.pgType
     }
 
+    /**
+     * Add a new composite type description to the type cache. Uses the supplied [connection] to
+     * query the database for metadata of the composite type (searching by [name]) for encoding and
+     * decoding purposes. The generated [PgTypeDescription] is reflection based and has 2 checked
+     * requirements:
+     *
+     * 1. [T] must be a data class
+     * 2. The number of parameters supplied to [T] must match the number of attributes defined for
+     * the composite type.
+     *
+     * The other requirements (such as the composite attribute types matching the data class) are
+     * not checked at runtime so the class definer responsible for verifying them.
+     */
     suspend fun <T : Any> addCompositeType(
         connection: PgSuspendingConnection,
         name: String,
@@ -91,10 +118,16 @@ class PgTypeCache {
         addTypeDescription(compositeArrayTypeDescription)
     }
 
+    /**
+     * Add a new enum type definition to the type cache. Uses the supplied [connection] to get the
+     * enums labels found in the database to compare against the supplied [enumValues]. This is the
+     * only check that is required since the decoding and encoding is just reading and writing the
+     * enum variants [Enum.name] value.
+     */
     suspend fun <E : Enum<E>> addEnumType(
         connection: PgSuspendingConnection,
         name: String,
-        cls: KClass<E>,
+        kType: KType,
         enumValues: Array<E>,
     ) {
         val verifiedOid = checkEnumDbTypeByName(connection, name)
@@ -108,7 +141,7 @@ class PgTypeCache {
 
         val enumTypeDescription = EnumTypeDescription(
             pgType = PgType.ByOid(oid = verifiedOid),
-            kType = cls.createType(),
+            kType = kType,
             values = enumValues,
         )
         addTypeDescription(enumTypeDescription)
@@ -123,6 +156,19 @@ class PgTypeCache {
         addTypeDescription(enumArrayTypeDescription)
     }
 
+    /**
+     * Add a new composite type description to the type cache. Uses the supplied [connection] to
+     * query the database for metadata of the composite type (searching by [name]) for encoding and
+     * decoding purposes. The generated [PgTypeDescription] is reflection based and has 2 checked
+     * requirements:
+     *
+     * 1. [T] must be a data class
+     * 2. The number of parameters supplied to [T] must match the number of attributes defined for
+     * the composite type.
+     *
+     * The other requirements (such as the composite attribute types matching the data class) are
+     * not checked at runtime so the class definer responsible for verifying them.
+     */
     fun <T : Any> addCompositeType(
         connection: PgBlockingConnection,
         name: String,
@@ -151,10 +197,16 @@ class PgTypeCache {
         addTypeDescription(compositeArrayTypeDescription)
     }
 
+    /**
+     * Add a new enum type definition to the type cache. Uses the supplied [connection] to get the
+     * enums labels found in the database to compare against the supplied [enumValues]. This is the
+     * only check that is required since the decoding and encoding is just reading and writing the
+     * enum variants [Enum.name] value.
+     */
     fun <E : Enum<E>> addEnumType(
         connection: PgBlockingConnection,
         name: String,
-        cls: KClass<E>,
+        kType: KType,
         enumValues: Array<E>,
     ) {
         val verifiedOid = checkEnumDbTypeByName(connection, name)
@@ -168,7 +220,7 @@ class PgTypeCache {
 
         val enumTypeDescription = EnumTypeDescription(
             pgType = PgType.ByOid(oid = verifiedOid),
-            kType = cls.createType(),
+            kType = kType,
             values = enumValues,
         )
         addTypeDescription(enumTypeDescription)
@@ -183,6 +235,12 @@ class PgTypeCache {
         addTypeDescription(enumArrayTypeDescription)
     }
 
+    /**
+     * Get the [PgType] hint for the current [parameter]. This first checks the type of the value
+     * to find easy matches to standard types, falling back to specialized methods for complex
+     * types such as [PgRange] and [List], and as a last resort, checking the custom type lookup
+     * by [KType] to find a type hint.
+     */
     fun getTypeHint(parameter: QueryParameter): PgType {
         return when (parameter.value) {
             null -> PgType.Unspecified
@@ -565,6 +623,7 @@ class PgTypeCache {
             return arrayOid
         }
 
+        /** [RowParser] for parsing the query result of composite type attributes */
         object CompositeAttributeDataRowParser : RowParser<PgColumnDescription> {
             override fun fromRow(row: DataRow): PgColumnDescription {
                 return PgColumnDescription(
@@ -579,6 +638,7 @@ class PgTypeCache {
             }
         }
 
+        /** [RowParser] for parsing the query result of enum type labels */
         object EnumLabelRowParser : RowParser<String> {
             override fun fromRow(row: DataRow): String {
                 return row.getAsNonNull("enumlabel")

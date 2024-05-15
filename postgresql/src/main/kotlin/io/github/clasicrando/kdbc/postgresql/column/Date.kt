@@ -57,13 +57,13 @@ object DateTypeDescription : PgTypeDescription<LocalDate>(
         return try {
             LocalDate.tryFromString(value.text)
         } catch (ex: InvalidDateString) {
-            columnDecodeError<LocalDate>(type = value.typeData, reason = ex.message ?: "")
+            columnDecodeError<LocalDate>(type = value.typeData, cause = ex)
         }
     }
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [LocalDate]. This maps to the `date[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [LocalDate]. This maps to the `date[]` type in a
  * postgresql database.
  */
 object DateArrayTypeDescription : ArrayTypeDescription<LocalDate>(

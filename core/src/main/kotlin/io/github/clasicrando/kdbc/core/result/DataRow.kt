@@ -7,8 +7,8 @@ import kotlin.reflect.typeOf
 
 /**
  * Representation of a [ResultSet] row. Allows for fetching of each field's value by index or
- * column name. Once a value has been fetched from the row (by index or name) the value cannot be
- * fetched again. Doing as such will throw an [IllegalArgumentException].
+ * column name. Fields can be read multiple times since implementors use the data backing each
+ * field in a copy and reset type behaviour.
  *
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
@@ -45,7 +45,7 @@ interface DataRow : AutoRelease {
 /**
  * Get the value stored within the field at the [index] specified and return the value if it
  * matches the type [T] required. If the type cannot be successfully cast, an exception is thrown.
- * If the value is null, this will never fail but just return null.
+ * If the value is null, null is returned without checking types.
  *
  * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
  * already been decoded
@@ -56,16 +56,15 @@ inline fun <reified T : Any> DataRow.getAs(index: Int): T? {
     if (value is T) {
         return value
     }
-    throw ColumnExtractError(typeOf<T>(), value, value::class)
+    throw ColumnExtractError(typeOf<T>(), value)
 }
 
 /**
  * Get the value stored within the field at the [index] specified and return the value if it
  * matches the type [T] required. If the type cannot be successfully cast, an exception is thrown.
- * If the value is null, this will never fail but just return null.
+ * If the value is null, null is returned without checking types.
  *
- * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
- * already been decoded
+ * @throws IllegalArgumentException if the [index] is out of range of the row
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
 inline fun <reified T : Any> DataRow.getAsNonNull(index: Int): T {
@@ -75,10 +74,9 @@ inline fun <reified T : Any> DataRow.getAsNonNull(index: Int): T {
 /**
  * Get the value stored within the field at the [column] specified and return the value if it
  * matches the type [T] required. If the type cannot be successfully cast, an exception is thrown.
- * If the value is null, this will never fail but just return null.
+ * If the value is null, null is returned without checking types.
  *
- * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
- * already been decoded
+ * @throws IllegalArgumentException if the [column] is out of range of the row
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
 inline fun <reified T : Any> DataRow.getAs(column: String): T? = getAs(indexFromColumn(column))
@@ -86,10 +84,9 @@ inline fun <reified T : Any> DataRow.getAs(column: String): T? = getAs(indexFrom
 /**
  * Get the value stored within the field at the [column] specified and return the value if it
  * matches the type [T] required. If the type cannot be successfully cast, an exception is thrown.
- * If the value is null, this will never fail but just return null.
+ * If the value is null, null is returned without checking types.
  *
- * @throws IllegalArgumentException if the [column] is out of range of the row or the field has
- * already been decoded
+ * @throws IllegalArgumentException if the [column] is out of range of the row
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
 inline fun <reified T : Any> DataRow.getAsNonNull(column: String): T {

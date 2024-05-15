@@ -2,9 +2,7 @@ package io.github.clasicrando.kdbc.core.connection
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 
-/**
- * Base properties of a database connection
- */
+/** Base properties of a database connection */
 interface Connection : UniqueResourceId {
     /**
      * Returns true if the underlining connection is still active and false if the connection has

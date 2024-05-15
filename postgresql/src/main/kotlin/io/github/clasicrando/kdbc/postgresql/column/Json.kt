@@ -16,9 +16,11 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
     kType = typeOf<PgJson>(),
 ) {
     /**
-     * Calls [PgJson.writeToBuffer] which encodes the json data into the buffer.
+     * Writes a single [Byte] of 1, then calls [PgJson.writeToBuffer] which encodes the json data
+     * into the buffer. This assumes that it is always writing a jsonb type because postgres
+     * databases appear to always call `jsonb_recv` when the format type is binary.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L150)
+     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonb.c#L93)
      */
     override fun encode(value: PgJson, buffer: ByteWriteBuffer) {
         buffer.writeByte(1)
@@ -26,7 +28,7 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
     }
 
     /**
-     * Create a new [PgJson] by reading the binary data as a [String] and parsing then parsing to a
+     * Create a new [PgJson] by reading the binary data as a [String] then parsing to a
      * [JsonElement]. If the value is a `jsonb` then read the first byte to the get the jsonb
      * version. Currently, the only accepted value is 1 and all other values will throw a
      * [ColumnDecodeError]. If the value is `json` then no header values are expected. After
@@ -40,7 +42,7 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
      * be decoded as a [JsonElement]
      */
     override fun decodeBytes(value: PgValue.Binary): PgJson {
-        if (value.typeData.pgType == PgType.Jsonb) {
+        if (value.typeData.pgType.oid == PgType.JSONB) {
             val version = value.bytes.readByte()
             checkOrColumnDecodeError<PgJson>(
                 check = version == 1.toByte(),
@@ -54,7 +56,8 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
         } catch (ex: SerializationException) {
             columnDecodeError<PgJson>(
                 type = value.typeData,
-                reason = "Could not parse the '$jsonString' into a json value. ${ex.message}",
+                reason = "Could not parse the '$jsonString' into a json value",
+                cause = ex,
             )
         }
     }
@@ -72,7 +75,8 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
         } catch (ex: SerializationException) {
             columnDecodeError<PgJson>(
                 type = value.typeData,
-                reason = "Could not parse the '${value.text}' into a json value. ${ex.message}",
+                reason = "Could not parse the '${value.text}' into a json value",
+                cause = ex,
             )
         }
     }
@@ -85,7 +89,7 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
 object JsonTypeDescription : AbstractJsonTypeDescription(pgType = PgType.Json)
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgJson]. This maps to the `json[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `json[]` type in a
  * postgresql database.
  */
 object JsonArrayTypeDescription : ArrayTypeDescription<PgJson>(
@@ -100,7 +104,7 @@ object JsonArrayTypeDescription : ArrayTypeDescription<PgJson>(
 object JsonbTypeDescription : AbstractJsonTypeDescription(pgType = PgType.Jsonb)
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgJson]. This maps to the `jsonb[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `jsonb[]` type in a
  * postgresql database.
  */
 object JsonbArrayTypeDescription : ArrayTypeDescription<PgJson>(
@@ -109,8 +113,8 @@ object JsonbArrayTypeDescription : ArrayTypeDescription<PgJson>(
 )
 
 /**
- * Implementation of a [PgTypeDescription] for the [String] type. This maps to the `jsonpath` type
- * in a postgresql database.
+ * Implementation of a [PgTypeDescription] for the `jsonpath` type in a postgresql database. This
+ * maps to the [String] type for convenience.
  */
 object JsonPathTypeDescription : PgTypeDescription<String>(
     pgType = PgType.Jsonpath,
@@ -139,7 +143,7 @@ object JsonPathTypeDescription : PgTypeDescription<String>(
         checkOrColumnDecodeError<PgJson>(
             check = version == 1L,
             type = value.typeData,
-        ) { "Unsupported JSONB format version $version. Only version 1 is supported" }
+        ) { "Unsupported JSONPATH format version $version. Only version 1 is supported" }
 
         return value.bytes.readText()
     }
@@ -155,7 +159,7 @@ object JsonPathTypeDescription : PgTypeDescription<String>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgJson]. This maps to the `jsonpath[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `jsonpath[]` type in a
  * postgresql database.
  */
 object JsonPathArrayTypeDescription : ArrayTypeDescription<String>(

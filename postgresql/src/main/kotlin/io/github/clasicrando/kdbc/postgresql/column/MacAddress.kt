@@ -7,6 +7,7 @@ import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
 import kotlin.reflect.typeOf
 
+/** Implementation of a [PgTypeDescription] for the [PgMacAddress] type */
 abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescription<PgMacAddress>(
     pgType = pgType,
     kType = typeOf<PgMacAddress>(),
@@ -71,21 +72,38 @@ abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescrip
         } catch (ex: Exception) {
             columnDecodeError<PgMacAddress>(
                 type = value.typeData,
-                reason = "Could not parse string literal to PgMacAddress value. ${ex.message}"
+                reason = "Could not parse string literal to PgMacAddress value",
+                cause = ex,
             )
         }
     }
 }
 
+/**
+ * Implementation of a [PgTypeDescription] for the [PgMacAddress] type. This maps to the `macaddr`
+ * type in a postgresql database.
+ */
 object MacAddressTypeDescription : AbstractMacAddressTypeDescription(pgType = PgType.Macaddr)
 
+/**
+ * Implementation of an [ArrayTypeDescription] for [PgMacAddress]. This maps to the `macaddr[]`
+ * type in a postgresql database.
+ */
 object MacAddressArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
     pgType = PgType.MacaddrArray,
     innerType = MacAddressTypeDescription,
 )
 
+/**
+ * Implementation of a [PgTypeDescription] for the [PgMacAddress] type. This maps to the `macaddr8`
+ * type in a postgresql database.
+ */
 object MacAddress8TypeDescription : AbstractMacAddressTypeDescription(pgType = PgType.Macaddr8)
 
+/**
+ * Implementation of an [ArrayTypeDescription] for [PgMacAddress]. This maps to the `macaddr8[]`
+ * type in a postgresql database.
+ */
 object MacAddress8ArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
     pgType = PgType.Macaddr8Array,
     innerType = MacAddress8TypeDescription,

@@ -1,5 +1,10 @@
 package io.github.clasicrando.kdbc.core.query
 
+/**
+ * Extension interface for queries that include parameters (usually called prepared statements by
+ * database vendors). This does not explicitly dictate query execution behaviour but is always
+ * implemented for classes/interfaces that already have query execution behaviour.
+ */
 interface PreparedQuery<Q : PreparedQuery<Q>> {
     /**
      * Read-only [List] of the parameters already bound to this statement. The order in the [List]

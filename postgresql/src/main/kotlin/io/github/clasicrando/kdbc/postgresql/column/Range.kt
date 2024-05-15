@@ -13,23 +13,29 @@ import java.math.BigDecimal
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 
-const val zeroRangeFlags = 0x00
+private const val zeroRangeFlags = 0x00
 
 // https://github.com/postgres/postgres/blob/master/src/include/utils/rangetypes.h#L38-L45
-const val emptyRangeFlagMask = 0x01
-const val lowerBoundInclusiveRangeFlagMask = 0x02
-const val upperBoundInclusiveRangeFlagMask = 0x04
-const val lowerBoundInfiniteRangeFlagMask = 0x08
-const val upperBoundInfiniteRangeFlagMask = 0x10
-//const val lowerBoundNullRangeFlagMask = 0x20
-//const val upperBoundNullRangeFlagMask = 0x40
-//const val containEmptyRangeFlagMask = 0x80
+private const val emptyRangeFlagMask = 0x01
+private const val lowerBoundInclusiveRangeFlagMask = 0x02
+private const val upperBoundInclusiveRangeFlagMask = 0x04
+private const val lowerBoundInfiniteRangeFlagMask = 0x08
+private const val upperBoundInfiniteRangeFlagMask = 0x10
+//private const val lowerBoundNullRangeFlagMask = 0x20
+//private const val upperBoundNullRangeFlagMask = 0x40
+//private const val containEmptyRangeFlagMask = 0x80
 
 private fun rangeFlagContains(flags: Int, mask: Int): Boolean {
     return (mask and flags) == mask
 }
 
-abstract class RangeTypeDescription<T : Any>(
+/**
+ * Base implementation of a [PgTypeDescription] for [PgRange] types that map to the respective
+ * range types in a postgresql database.
+ *
+ * [pg docs](https://www.postgresql.org/docs/16/rangetypes.html)
+ */
+abstract class BaseRangeTypeDescription<T : Any>(
     pgType: PgType,
     private val typeDescription: PgTypeDescription<T>,
 ) : PgTypeDescription<PgRange<T>>(
@@ -38,7 +44,7 @@ abstract class RangeTypeDescription<T : Any>(
         .createType(arguments = listOf(KTypeProjection.invariant(typeDescription.kType))),
 ) {
     /**
-     * Writes the range flags as a single [Byte], followed by the [PgRange.start] and [PgRange.end]
+     * Writes the range flags as a single [Byte], followed by the [PgRange.lower] and [PgRange.upper]
      * if either value is not [Bound.Unbounded]. Range flags as bitmask [Int] values from for if
      * the upper/lower bounds are inclusive or infinite (i.e. unbounded).
      *
@@ -179,7 +185,7 @@ typealias Int8Range = PgRange<Long>
  * Implementation of a [PgTypeDescription] for the [Int8Range] type. This maps to the `int8range`
  * type in a postgresql database.
  */
-object Int8RangeTypeDescription : RangeTypeDescription<Long>(
+object Int8RangeTypeDescription : BaseRangeTypeDescription<Long>(
     pgType = PgType.Int8Range,
     typeDescription = BigIntTypeDescription,
 )
@@ -199,7 +205,7 @@ typealias Int4Range = PgRange<Int>
  * Implementation of a [PgTypeDescription] for the [Int4Range] type. This maps to the `int4range`
  * type in a postgresql database.
  */
-object Int4RangeTypeDescription : RangeTypeDescription<Int>(
+object Int4RangeTypeDescription : BaseRangeTypeDescription<Int>(
     pgType = PgType.Int4Range,
     typeDescription = IntTypeDescription,
 )
@@ -219,7 +225,7 @@ typealias TsRange = PgRange<Instant>
  * Implementation of a [PgTypeDescription] for the [TsRange] type. This maps to the `tsrange`
  * type in a postgresql database.
  */
-object TsRangeTypeDescription : RangeTypeDescription<Instant>(
+object TsRangeTypeDescription : BaseRangeTypeDescription<Instant>(
     pgType = PgType.TsRange,
     typeDescription = TimestampTypeDescription,
 )
@@ -239,7 +245,7 @@ typealias TsTzRange = PgRange<DateTime>
  * Implementation of a [PgTypeDescription] for the [TsTzRange] type. This maps to the `tstzrange`
  * type in a postgresql database.
  */
-object TsTzRangeTypeDescription : RangeTypeDescription<DateTime>(
+object TsTzRangeTypeDescription : BaseRangeTypeDescription<DateTime>(
     pgType = PgType.TstzRange,
     typeDescription = TimestampTzTypeDescription,
 )
@@ -259,7 +265,7 @@ typealias DateRange = PgRange<LocalDate>
  * Implementation of a [PgTypeDescription] for the [DateRange] type. This maps to the `daterange`
  * type in a postgresql database.
  */
-object DateRangeTypeDescription : RangeTypeDescription<LocalDate>(
+object DateRangeTypeDescription : BaseRangeTypeDescription<LocalDate>(
     pgType = PgType.DateRange,
     typeDescription = DateTypeDescription,
 )
@@ -279,8 +285,8 @@ typealias NumRange = PgRange<BigDecimal>
  * Implementation of a [PgTypeDescription] for the [NumRange] type. This maps to the `numrange`
  * type in a postgresql database.
  */
-object NumRangeTypeDescription : RangeTypeDescription<BigDecimal>(
-    pgType = PgType.DateRange,
+object NumRangeTypeDescription : BaseRangeTypeDescription<BigDecimal>(
+    pgType = PgType.NumRange,
     typeDescription = NumericTypeDescription,
 )
 
@@ -289,6 +295,6 @@ object NumRangeTypeDescription : RangeTypeDescription<BigDecimal>(
  * `numrange[]` type in a postgresql database.
  */
 object NumRangeArrayTypeDescription : ArrayTypeDescription<NumRange>(
-    pgType = PgType.DateRangeArray,
+    pgType = PgType.NumRangeArray,
     innerType = NumRangeTypeDescription,
 )

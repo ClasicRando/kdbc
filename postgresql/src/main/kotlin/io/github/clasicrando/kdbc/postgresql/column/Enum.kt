@@ -60,6 +60,7 @@ class EnumTypeDescription<E : Enum<E>>(
     }
 }
 
+/** Implementation of an [ArrayTypeDescription] for custom enum types in a postgresql database */
 class EnumArrayTypeDescription<E : Enum<E>>(
     pgType: PgType,
     innerType: EnumTypeDescription<E>,

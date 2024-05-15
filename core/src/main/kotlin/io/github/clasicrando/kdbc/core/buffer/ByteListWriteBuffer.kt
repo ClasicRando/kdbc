@@ -114,15 +114,27 @@ class ByteListWriteBuffer : ByteWriteBuffer {
         return array
     }
 
-    override fun copyFrom(buffer: ByteWriteBuffer) {
-        when (buffer) {
+    /**
+     * Copy contents from another [otherBuffer] into this buffer. For other [ByteListWriteBuffer]
+     * instances, all elements are added to this [innerBuffer] using a bulk append operation. For
+     * [ByteArrayWriteBuffer] instances, the contents of the list are copied by iterating over the
+     * array and appending to this buffer's [innerBuffer].
+     *
+     * After a successful copy, the [otherBuffer] has [release] called to free the resources/reset
+     * the buffer.
+     *
+     * @throws BufferOverflow if the buffer does not enough bytes available to complete this
+     * operation
+     */
+    override fun copyFrom(otherBuffer: ByteWriteBuffer) {
+        when (otherBuffer) {
             is ByteArrayWriteBuffer -> {
-                for (i in 0..<buffer.position) {
-                    innerBuffer.add(buffer.innerBuffer[i])
+                for (i in 0..<otherBuffer.position) {
+                    innerBuffer.add(otherBuffer.innerBuffer[i])
                 }
             }
-            is ByteListWriteBuffer -> innerBuffer.addAll(buffer.innerBuffer)
+            is ByteListWriteBuffer -> innerBuffer.addAll(otherBuffer.innerBuffer)
         }
-        buffer.release()
+        otherBuffer.release()
     }
 }

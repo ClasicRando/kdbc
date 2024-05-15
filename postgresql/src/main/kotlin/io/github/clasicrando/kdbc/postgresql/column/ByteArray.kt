@@ -46,7 +46,7 @@ object ByteaTypeDescription : PgTypeDescription<ByteArray>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [ByteArray]. This maps to the `bytea[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [ByteArray]. This maps to the `bytea[]` type in a
  * postgresql database.
  */
 object ByteaArrayTypeDescription : ArrayTypeDescription<ByteArray>(

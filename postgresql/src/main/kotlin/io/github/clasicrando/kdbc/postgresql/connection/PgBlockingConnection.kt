@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
+import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
@@ -11,8 +12,6 @@ import io.github.clasicrando.kdbc.core.query.BlockingQuery
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
-import io.github.clasicrando.kdbc.core.logWithResource
-import io.github.clasicrando.kdbc.core.result.AbstractMutableResultSet
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
@@ -34,7 +33,6 @@ import io.github.clasicrando.kdbc.postgresql.result.StatementPrepareRequestColle
 import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
-import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
@@ -42,9 +40,8 @@ import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.locks.ReentrantLock
 import kotlinx.atomicfu.locks.withLock
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.datetime.Clock
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -84,7 +81,7 @@ class PgBlockingConnection internal constructor(
     private var nextStatementId = 1u
 
     /**
-     * Created a log message at the specified [level], applying the [block] to the
+     * Create a log message at the specified [level], applying the [block] to the
      * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
     private inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
@@ -147,6 +144,10 @@ class PgBlockingConnection internal constructor(
         }
     }
 
+    /**
+     * Log a [message] that is processed but ignored since it's not important during the current
+     * operation
+     */
     private fun logUnexpectedMessage(message: PgMessage): Loop {
         log(Level.TRACE) {
             this.message = "Ignoring {message} since it's not an error or the desired type"
@@ -155,6 +156,13 @@ class PgBlockingConnection internal constructor(
         return Loop.Continue
     }
 
+    /**
+     * Process the contents of a [PgMessage.ReadyForQuery] message (i.e. a [TransactionStatus])
+     * that was received at the end of a flow of query responses. If the [transactionStatus] is
+     * [TransactionStatus.FailedTransaction] and the connection options specify auto rollback for
+     * failed transactions (default value of [PgConnectOptions.autoRollbackOnFailedTransaction])
+     * then a [rollback] operation is initiated.
+     */
     private fun handleTransactionStatus(transactionStatus: TransactionStatus) {
         if (transactionStatus == TransactionStatus.FailedTransaction
             && connectOptions.autoRollbackOnFailedTransaction)
@@ -174,11 +182,11 @@ class PgBlockingConnection internal constructor(
     }
 
     /**
-     * Collect all [QueryResult]s for the executed [statements] as a buffered [Flow].
+     * Collect all [QueryResult]s for the executed [statements] as a single [StatementResult].
      *
      * This iterates over all [statements], updating the [PgPreparedStatement] with the received
      * metadata (if any), collecting each row received, and exiting the current iteration once a
-     * query done message is received. The collector only emits a [QueryResult] for the iteration
+     * query done message is received. The collector only stores a [QueryResult] for the iteration
      * if a [PgMessage.CommandComplete] message is received.
      *
      * If an error message is received during result collection and [isAutoCommit] is false
@@ -187,9 +195,9 @@ class PgBlockingConnection internal constructor(
      * terminated. If [isAutoCommit] was true, then each result is processed with all errors also
      * collected into a list for evaluation later.
      *
-     * Once the iteration over [statements] is completed (successfully or with errors), the
-     * collection of errors is checked and aggregated into one [Throwable] (if any) and thrown.
-     * Otherwise, the [flow] exits with all [QueryResult]s yielded.
+     * Once completing the iteration over [statements] (successfully or with errors), the
+     * collection of errors is reduced into one [Throwable] (if any) and thrown. Otherwise, the
+     * method exits with all [QueryResult] packed into a single [StatementResult].
      */
     private fun collectResults(
         isAutoCommit: Boolean,
@@ -216,25 +224,15 @@ class PgBlockingConnection internal constructor(
     }
 
     /**
-     * Collect all [QueryResult]s for the query as a buffered [Flow].
+     * Collect all [QueryResult]s for the query as a single [StatementResult].
      *
-     * This allows for multiple results sets from a single query to be collected by continuously
-     * looping over server messages through [PgStream.processMessageLoop], exiting only once a
-     * query done message is received. There will only ever be multiple results if the
-     * [statement] parameter is null (i.e. it's a simple query).
+     * This allows for multiple [QueryResult]s from a single query to be collected by continuously
+     * passing backend messages to a [QueryResultCollector] for processing with
+     * [QueryResultCollector.processNextMessage].
      *
-     * Within the message loop, it receives messages that are:
-     * - error -> packing into error collection
-     * - row description -> updating the [statement], if any, and creating a new
-     * [AbstractMutableResultSet]
-     * - data row -> pack the row into the current [AbstractMutableResultSet]
-     * - command complete -> emitting a new [QueryResult] from the [flow]
-     * - query done -> enabling others to query against this connection and exiting the
-     * selectLoop
-     *
-     * After the query collection, the collection of errors is checked and aggregated into one
-     * [Throwable] (if any) and thrown. Otherwise, the [flow] exits with all [QueryResult]s
-     * yielded.
+     * After the query result collection, the collection of errors is checked and aggregated into
+     * one [Throwable] (if any) and thrown. Otherwise, the method exits with all [QueryResult]s
+     * packed into a single [StatementResult].
      */
     private fun collectResult(
         statement: PgPreparedStatement? = null,
@@ -259,9 +257,10 @@ class PgBlockingConnection internal constructor(
      * [PgMessage.Query] message with the raw SQL query with no parameters. The database then
      * responds with zero or more [QueryResult]s that are packages into a [StatementResult].
      *
-     * **Note**: This method will defer to [sendExtendedQuery] if the [query] does not contain a
-     * semicolon and the [PgConnectOptions.useExtendedProtocolForSimpleQueries] is true (the
-     * default value).
+     * **Note**
+     *
+     * This method will defer to [sendExtendedQuery] if the [query] does not contain a semicolon
+     * and the [PgConnectOptions.useExtendedProtocolForSimpleQueries] is true (the default value).
      *
      * [postgres docs](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-SIMPLE-QUERY)
      *
@@ -398,7 +397,6 @@ class PgBlockingConnection internal constructor(
      * Send all required messages to the server for prepared [statement] execution.
      *
      * - [PgMessage.Bind] with statement name + current [parameters]
-     * - If the statement has not received metadata, [PgMessage.Describe] is sent
      * - [PgMessage.Execute] with the statement name
      * - [PgMessage.Close] with the statement name
      * - If [sendSync] is true, [PgMessage.Sync] is sent
@@ -583,6 +581,23 @@ class PgBlockingConnection internal constructor(
         collectResults(syncAll, statements)
     }
 
+    /**
+     * Internal method for executing a `COPY IN` command. Steps are:
+     *
+     * 1. Execute the [copyQuery]
+     * 2. Wait for a [PgMessage.CopyInResponse] exiting if a [PgMessage.ErrorResponse] is received
+     * 3. Write all elements in the [data] sequence as [PgMessage.CopyData] to the backend
+     * 4. Writing a [PgMessage.CopyDone] message to instruct the backend to parse the data sent
+     * 5. Collect the result messages using a [CopyInResultCollector]
+     * 6. Process the [TransactionStatus] response from the backend
+     * 7. Collect errors sent from the server during message collection
+     * 8. Return a [QueryResult] with the number of rows impacted and message sent from the backend
+     *
+     * Any unexpected errors during result collection will be aggregated and thrown before
+     * returning. However, if an exception is thrown while sending/creating [PgMessage.CopyData]
+     * messages, the expected [PgMessage.ErrorResponse] received from the server will be treated as
+     * a result message and not an error.
+     */
     private fun copyInInternal(copyQuery: String, data: Sequence<ByteArray>): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
@@ -637,6 +652,14 @@ class PgBlockingConnection internal constructor(
         return lock.withLock { copyInInternal(copyQuery, data) }
     }
 
+    /**
+     * Internal method for executing a `COPY OUT` command. Steps are:
+     *
+     * 1. Execute the [copyQuery]
+     * 2. Wait for a [PgMessage.CopyOutResponse] exiting if a [PgMessage.ErrorResponse] is received
+     * 3. Process all incoming messages by yielding a [Sequence] of [ByteArray] instances from
+     * [PgMessage.CopyData] messages. Exit the loop when [PgMessage.ReadyForQuery] is received.
+     */
     private fun copyOutInternal(copyQuery: String): Sequence<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
@@ -719,7 +742,7 @@ class PgBlockingConnection internal constructor(
         typeCache.addEnumType(
             connection = this,
             name = type,
-            cls = E::class,
+            kType = typeOf<E>(),
             enumValues = enumValues<E>(),
         )
     }

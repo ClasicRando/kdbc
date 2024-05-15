@@ -14,7 +14,14 @@ data class PgMacAddress(
         return "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x".format(a, b, c, d, e, f, g, h)
     }
 
+    fun toMacAddr(): PgMacAddress {
+        return copy(d = DEFAULT_D, e = DEFAULT_E)
+    }
+
     companion object {
+        const val DEFAULT_D = 0xFF.toByte()
+        const val DEFAULT_E = 0xFE.toByte()
+
         fun fromString(value: String): PgMacAddress {
             val hexBytes = value
                 .splitToSequence(':')
@@ -28,8 +35,8 @@ data class PgMacAddress(
                 a = hexBytes[index++],
                 b = hexBytes[index++],
                 c = hexBytes[index++],
-                d = if (hexBytes.size == 6) 0xFF.toByte() else hexBytes[index++],
-                e = if (hexBytes.size == 6) 0xFE.toByte() else hexBytes[index++],
+                d = if (hexBytes.size == 6) DEFAULT_D else hexBytes[index++],
+                e = if (hexBytes.size == 6) DEFAULT_E else hexBytes[index++],
                 f = hexBytes[index++],
                 g = hexBytes[index++],
                 h = hexBytes[index],

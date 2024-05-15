@@ -68,7 +68,7 @@ object IntervalTypeDescription : PgTypeDescription<DateTimePeriod>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [DateTimePeriod]. This maps to the `interval[]`
+ * Implementation of an [ArrayTypeDescription] for [DateTimePeriod]. This maps to the `interval[]`
  * type in a postgresql database.
  */
 object IntervalArrayTypeDescription : ArrayTypeDescription<DateTimePeriod>(

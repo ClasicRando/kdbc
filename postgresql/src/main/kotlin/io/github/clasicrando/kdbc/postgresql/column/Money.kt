@@ -52,7 +52,7 @@ object MoneyTypeDescription : PgTypeDescription<PgMoney>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgMoney]. This maps to the `money[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgMoney]. This maps to the `money[]` type in a
  * postgresql database.
  */
 object MoneyArrayTypeDescription : ArrayTypeDescription<PgMoney>(

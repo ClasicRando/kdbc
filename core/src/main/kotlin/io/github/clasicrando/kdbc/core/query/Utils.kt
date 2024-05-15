@@ -12,15 +12,29 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlin.reflect.KClass
 
+/**
+ * Extension method to call [PreparedQuery.bind] and construct the [QueryParameter] using the
+ * utility methods that construct the required type data implicitly.
+ */
 inline fun <reified T : Any, Q : PreparedQuery<Q>> PreparedQuery<Q>.bind(parameter: T?): Q {
     return bind(QueryParameter(parameter))
 }
 
+/**
+ * Extension method to call [PreparedQuery.bind] and construct the [QueryParameter] using the
+ * utility methods that construct the required type data implicitly. Special case for a [List] of
+ * nullable elements.
+ */
 @JvmName("QueryParameterNonNullItem")
 inline fun <reified T : Any, Q: PreparedQuery<Q>> PreparedQuery<Q>.bind(parameter: List<T?>): Q {
     return bind(QueryParameter(parameter))
 }
 
+/**
+ * Extension method to call [PreparedQuery.bind] and construct the [QueryParameter] using the
+ * utility methods that construct the required type data implicitly. Special case for a [List] of
+ * non-null elements.
+ */
 inline fun <reified T : Any, Q: PreparedQuery<Q>> PreparedQuery<Q>.bind(parameter: List<T>): Q {
     return bind(QueryParameter(parameter))
 }

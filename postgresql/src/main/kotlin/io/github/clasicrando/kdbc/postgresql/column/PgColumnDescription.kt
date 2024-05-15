@@ -29,4 +29,18 @@ data class PgColumnDescription(
     override val dataType: Int get() = pgType.oid
     override val typeName: String = fieldName
     override val typeSize: Long = dataTypeSize.toLong()
+
+    companion object {
+        fun dummyDescription(pgType: PgType, formatCode: Short): PgColumnDescription {
+            return PgColumnDescription(
+                fieldName = "",
+                tableOid = 0,
+                columnAttribute = 0,
+                pgType = pgType,
+                dataTypeSize = 0,
+                typeModifier = 0,
+                formatCode = formatCode,
+            )
+        }
+    }
 }

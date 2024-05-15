@@ -60,7 +60,7 @@ object CharTypeDescription : PgTypeDescription<Byte>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Byte]. This maps to the `"char"[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [Byte]. This maps to the `"char"[]` type in a
  * postgresql database.
  */
 object CharArrayTypeDescription : ArrayTypeDescription<Byte>(

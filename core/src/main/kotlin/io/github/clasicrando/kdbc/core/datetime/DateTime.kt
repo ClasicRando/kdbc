@@ -12,7 +12,7 @@ import kotlinx.datetime.toInstant
  * Type storing a [Instant] as well the corresponding [TimeZone] to clarify the UTC offset of the
  * datetime. kotlinx-datetime does not have a native type for storing an offset datetime so this is
  * supplementary to be a parallel to `timestamp with timezone`, `datetime` or other database types
- * that store a [datetime] and the [offset] offset.
+ * that stored a [datetime] and the [offset].
  */
 data class DateTime(val datetime: Instant, val offset: UtcOffset) {
     constructor(date: LocalDate, time: LocalTime, offset: UtcOffset)
@@ -21,7 +21,7 @@ data class DateTime(val datetime: Instant, val offset: UtcOffset) {
             : this(localDateTime.toInstant(offset), offset)
 
     /**
-     * Return a new [DateTime] instance with the same absolute timestamp value, but with the new
+     * Return a new [DateTime] instance with the same scalar timestamp value, but with the new
      * [offset] applied to the [datetime] and the new [offset] stored in the result.
      */
     fun withOffset(offset: UtcOffset): DateTime {
@@ -34,8 +34,8 @@ data class DateTime(val datetime: Instant, val offset: UtcOffset) {
 
     companion object {
         /**
-         * Convert the supplied string [value] to be converted to a [DateTime] instance. The only
-         * supported datetime format is ISO-8601.
+         * Convert the supplied string [value] to a [DateTime] instance. The only supported
+         * datetime format is ISO-8601.
          */
         fun fromString(value: String): DateTime {
             return DateTime(

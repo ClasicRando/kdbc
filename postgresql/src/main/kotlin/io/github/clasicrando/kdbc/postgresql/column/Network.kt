@@ -105,7 +105,8 @@ abstract class NetworkTypeDescription(
         } catch (ex: Throwable) {
             columnDecodeError<PgInet>(
                 type = value.typeData,
-                reason = "Cannot parse a PgInet from '${value.text}'"
+                reason = "Cannot parse a PgInet from '${value.text}'",
+                cause = ex,
             )
         }
     }
@@ -124,7 +125,7 @@ object InetTypeDescription : NetworkTypeDescription(pgType = PgType.Inet)
 object CidrTypeDescription : NetworkTypeDescription(pgType = PgType.Cidr)
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgInet]. This maps to the `inet[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgInet]. This maps to the `inet[]` type in a
  * postgresql database.
  */
 object InetArrayTypeDescription : ArrayTypeDescription<PgInet>(
@@ -133,7 +134,7 @@ object InetArrayTypeDescription : ArrayTypeDescription<PgInet>(
 )
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgInet]. This maps to the `cidr[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgInet]. This maps to the `cidr[]` type in a
  * postgresql database.
  */
 object CidrArrayTypeDescription : ArrayTypeDescription<PgInet>(

@@ -76,7 +76,8 @@ abstract class BaseCompositeTypeDescription<T : Any>(
             columnDecodeError(
                 kType = kType,
                 type = typeData,
-                reason = "Could not construct composite type. ${ex.message}",
+                reason = "Could not construct composite type",
+                cause = ex,
             )
         }
     }
@@ -150,6 +151,14 @@ abstract class BaseCompositeTypeDescription<T : Any>(
     }
 }
 
+/**
+ * Implementation of a [BaseCompositeTypeDescription] that uses reflection to [extractValues] from
+ * instances of [T] and create new instances of [T] by calling the primary constructor. This class
+ * only works for data class definitions and will throw an [IllegalArgumentException] during the
+ * constructor call if that is not the case. It also requires that the number of constructor
+ * parameters matches the supplied columns mapping. Other requirements (such as the composite
+ * type's attributes matching the expected data class properties) are up to the class definer.
+ */
 class ReflectionCompositeTypeDescription<T : Any>(
     typeOid: Int,
     columnMapping: List<PgColumnDescription>,
@@ -187,7 +196,7 @@ class ReflectionCompositeTypeDescription<T : Any>(
     }
 }
 
-/** Implementation of a [ArrayTypeDescription] for composite types */
+/** Implementation of an [ArrayTypeDescription] for composite types */
 class CompositeArrayTypeDescription<T : Any>(
     pgType: PgType,
     innerType: BaseCompositeTypeDescription<T>,

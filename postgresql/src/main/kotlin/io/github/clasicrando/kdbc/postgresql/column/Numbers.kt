@@ -39,7 +39,7 @@ object SmallIntTypeDescription : PgTypeDescription<Short>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Short]. This maps to the `int2[]`/`smallint[]`
+ * Implementation of an [ArrayTypeDescription] for [Short]. This maps to the `int2[]`/`smallint[]`
  * type in a postgresql database.
  */
 object SmallIntArrayTypeDescription : ArrayTypeDescription<Short>(
@@ -81,8 +81,8 @@ object IntTypeDescription : PgTypeDescription<Int>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Int]. This maps to the `int4[]`/`integer[]` type
- * in a postgresql database.
+ * Implementation of an [ArrayTypeDescription] for [Int]. This maps to the `int4[]`/`integer[]`
+ * type in a postgresql database.
  */
 object IntArrayTypeDescription : ArrayTypeDescription<Int>(
     pgType = PgType.Int4Array,
@@ -123,7 +123,7 @@ object OidTypeDescription : PgTypeDescription<Int>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Int]. This maps to the `oid[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [Int]. This maps to the `oid[]` type in a
  * postgresql database.
  */
 object OidArrayTypeDescription : ArrayTypeDescription<Int>(
@@ -165,8 +165,8 @@ object BigIntTypeDescription : PgTypeDescription<Long>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Long]. This maps to the `int8[]`/`bigint[]` type
- * in a postgresql database.
+ * Implementation of an [ArrayTypeDescription] for [Long]. This maps to the `int8[]`/`bigint[]`
+ * type in a postgresql database.
  */
 object BigIntArrayTypeDescription : ArrayTypeDescription<Long>(
     pgType = PgType.Int8Array,
@@ -207,7 +207,7 @@ object RealTypeDescription : PgTypeDescription<Float>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Float]. This maps to the `float4[]`/`real[]`
+ * Implementation of an [ArrayTypeDescription] for [Float]. This maps to the `float4[]`/`real[]`
  * type in a postgresql database.
  */
 object RealArrayTypeDescription : ArrayTypeDescription<Float>(
@@ -249,7 +249,7 @@ object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Double]. This maps to the
+ * Implementation of an [ArrayTypeDescription] for [Double]. This maps to the
  * `float8[]`/`double precision[]` type in a postgresql database.
  */
 object DoublePrecisionArrayTypeDescription : ArrayTypeDescription<Double>(

@@ -76,13 +76,13 @@ object TimestampTypeDescription : PgTypeDescription<Instant>(
         return try {
             Instant.tryFromString(value.text.replace(' ', 'T'))
         } catch (ex: InvalidDateString) {
-            columnDecodeError<Instant>(type = value.typeData, reason = ex.message ?: "")
+            columnDecodeError<Instant>(type = value.typeData, cause = ex)
         }
     }
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [Instant]. This maps to the `timestamp[]`
+ * Implementation of an [ArrayTypeDescription] for [Instant]. This maps to the `timestamp[]`
  * type in a postgresql database.
  */
 object TimestampArrayTypeDescription : ArrayTypeDescription<Instant>(
@@ -133,13 +133,13 @@ object TimestampTzTypeDescription : PgTypeDescription<DateTime>(
         return try {
             DateTime.fromString(value.text.replace(' ', 'T'))
         } catch (ex: InvalidDateString) {
-            columnDecodeError<DateTime>(type = value.typeData, reason = ex.message ?: "")
+            columnDecodeError<DateTime>(type = value.typeData, cause = ex)
         }
     }
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [DateTime]. This maps to the `timestamptz[]` type
+ * Implementation of an [ArrayTypeDescription] for [DateTime]. This maps to the `timestamptz[]` type
  * in a postgresql database.
  */
 object TimestampTzArrayTypeDescription : ArrayTypeDescription<DateTime>(

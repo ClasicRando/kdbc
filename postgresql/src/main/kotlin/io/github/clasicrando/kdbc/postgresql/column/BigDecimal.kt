@@ -40,7 +40,7 @@ object NumericTypeDescription : PgTypeDescription<BigDecimal>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [BigDecimal]. This maps to the `numeric[]` type
+ * Implementation of an [ArrayTypeDescription] for [BigDecimal]. This maps to the `numeric[]` type
  * in a postgresql database.
  */
 object NumericArrayTypeDescription : ArrayTypeDescription<BigDecimal>(

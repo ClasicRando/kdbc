@@ -30,7 +30,7 @@ object UuidTypeDescription : PgTypeDescription<UUID>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [UUID]. This maps to the `uuid[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [UUID]. This maps to the `uuid[]` type in a
  * postgresql database.
  */
 object UuidArrayTypeDescription : ArrayTypeDescription<UUID>(

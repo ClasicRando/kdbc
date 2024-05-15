@@ -74,7 +74,7 @@ object PointTypeDescription : PgTypeDescription<PgPoint>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgPoint]. This maps to the `point[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgPoint]. This maps to the `point[]` type in a
  * postGIS enabled postgresql database.
  */
 object PointArrayTypeDescription : ArrayTypeDescription<PgPoint>(
@@ -151,7 +151,7 @@ object LineTypeDescription : PgTypeDescription<PgLine>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgLine]. This maps to the `line[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgLine]. This maps to the `line[]` type in a
  * postGIS enabled postgresql database.
  */
 object LineArrayTypeDescription : ArrayTypeDescription<PgLine>(
@@ -192,7 +192,7 @@ object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
     /**
      * Extracts 2 [PgPoint] values the 2 points that define the bounds of the line segment. The
      * format of the string literal is '({point1},{point2})' so we split by the comma that
-     * separates the 2 points and pass each point to [PgPoint.fromStr].
+     * separates the 2 points and pass each point to [PointTypeDescription].
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2081)
      *
@@ -212,7 +212,7 @@ object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgLineSegment]. This maps to the `lseg[]` type
+ * Implementation of an [ArrayTypeDescription] for [PgLineSegment]. This maps to the `lseg[]` type
  * in a postGIS enabled postgresql database.
  */
 object LineSegmentArrayTypeDescription : ArrayTypeDescription<PgLineSegment>(
@@ -272,7 +272,7 @@ object BoxTypeDescription : PgTypeDescription<PgBox>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgBox]. This maps to the `box[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgBox]. This maps to the `box[]` type in a
  * postGIS enabled postgresql database.
  */
 object BoxArrayTypeDescription : ArrayTypeDescription<PgBox>(
@@ -348,7 +348,7 @@ object PathTypeDescription : PgTypeDescription<PgPath>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgPath]. This maps to the `path[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgPath]. This maps to the `path[]` type in a
  * postGIS enabled postgresql database.
  */
 object PathArrayTypeDescription : ArrayTypeDescription<PgPath>(
@@ -424,7 +424,7 @@ object PolygonTypeDescription : PgTypeDescription<PgPolygon>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgPolygon]. This maps to the `polygon[]` type in
+ * Implementation of an [ArrayTypeDescription] for [PgPolygon]. This maps to the `polygon[]` type in
  * a postGIS enabled postgresql database.
  */
 object PolygonArrayTypeDescription : ArrayTypeDescription<PgPolygon>(
@@ -494,7 +494,7 @@ object CircleTypeDescription : PgTypeDescription<PgCircle>(
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgCircle]. This maps to the `circle[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgCircle]. This maps to the `circle[]` type in a
  * postGIS enabled postgresql database.
  */
 object CircleArrayTypeDescription : ArrayTypeDescription<PgCircle>(

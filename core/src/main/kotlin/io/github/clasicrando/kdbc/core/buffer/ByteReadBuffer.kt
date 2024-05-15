@@ -9,9 +9,9 @@ import java.nio.charset.Charset
  * slice over the original buffer. This is done using a size and offset property that are
  * originally set to the [ByteArray.size] property of the backing buffer and 0, respectively. If
  * the instance is constructed using the [slice] method, the new slice's size is the length
- * requested and the offset is calculated current [position] and the pre-slice buffer's offset. The
- * [position] property keeps track of the relative position within the buffer and reads against the
- * buffer increments the [position] value based the number of bytes requested.
+ * requested and the offset is calculated using the current [position] and the pre-slice buffer's
+ * offset. The [position] property keeps track of the relative position within the buffer and reads
+ * against the buffer increments the [position] value based the number of bytes requested.
  */
 class ByteReadBuffer(
     private var innerBuffer: ByteArray,
@@ -47,6 +47,13 @@ class ByteReadBuffer(
     /** Number of bytes remaining as readable within the buffer */
     val remaining: Int get() = size - position
 
+    /**
+     * Check to confirm that the required number of bytes are available within the buffer. If the
+     * [remaining] value is not greater than or equal to the [required] byte count,
+     * [BufferExhausted] if thrown.
+     *
+     * @throws [BufferExhausted] if the buffer does not have the required number of bytes available
+     */
     private fun checkRemaining(required: Int) {
         if (remaining < required) {
             throw BufferExhausted()

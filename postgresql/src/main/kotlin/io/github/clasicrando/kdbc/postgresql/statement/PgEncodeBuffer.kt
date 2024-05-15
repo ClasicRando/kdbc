@@ -128,9 +128,9 @@ class PgEncodeBuffer(
 
     private fun encodeJson(value: PgJson) {
         val metadata = metadata[paramCount]
-        when (metadata.pgType) {
-            is PgType.Json -> JsonTypeDescription.encode(value, innerBuffer)
-            is PgType.Jsonb -> JsonbTypeDescription.encode(value, innerBuffer)
+        when (metadata.pgType.oid) {
+            PgType.JSON -> JsonTypeDescription.encode(value, innerBuffer)
+            PgType.JSONB -> JsonbTypeDescription.encode(value, innerBuffer)
             else -> error(
                 "Supplied parameter is PgJson but the parameter should be ${metadata.pgType}"
             )
@@ -139,9 +139,9 @@ class PgEncodeBuffer(
 
     private fun encodeMacAddress(value: PgMacAddress) {
         val metadata = metadata[paramCount]
-        when (metadata.pgType) {
-            is PgType.Macaddr -> MacAddressTypeDescription.encode(value, innerBuffer)
-            is PgType.Macaddr8 -> MacAddress8TypeDescription.encode(value, innerBuffer)
+        when (metadata.pgType.oid) {
+            PgType.MACADDR -> MacAddressTypeDescription.encode(value, innerBuffer)
+            PgType.MACADDR8 -> MacAddress8TypeDescription.encode(value, innerBuffer)
             else -> error(
                 "Supplied parameter is PgMacAddress but the parameter should be ${metadata.pgType}"
             )
@@ -150,9 +150,9 @@ class PgEncodeBuffer(
 
     private fun encodeInet(value: PgInet) {
         val metadata = metadata[paramCount]
-        when (metadata.pgType) {
-            is PgType.Inet -> InetTypeDescription.encode(value, innerBuffer)
-            is PgType.Cidr -> CidrTypeDescription.encode(value, innerBuffer)
+        when (metadata.pgType.oid) {
+            PgType.INET -> InetTypeDescription.encode(value, innerBuffer)
+            PgType.CIDR -> CidrTypeDescription.encode(value, innerBuffer)
             else -> error(
                 "Supplied parameter is PgInet but the parameter should be ${metadata.pgType}"
             )
@@ -221,12 +221,12 @@ class PgEncodeBuffer(
 
     private fun encodeJsonList(value: List<PgJson?>) {
         val metadata = metadata[paramCount]
-        when (metadata.pgType) {
-            PgType.JsonArray -> JsonArrayTypeDescription.encode(
+        when (metadata.pgType.oid) {
+            PgType.JSON_ARRAY -> JsonArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
-            PgType.JsonbArray -> JsonbArrayTypeDescription.encode(
+            PgType.JSONB_ARRAY -> JsonbArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
@@ -239,12 +239,12 @@ class PgEncodeBuffer(
 
     private fun encodeMacAddressList(value: List<PgMacAddress?>) {
         val metadata = metadata[paramCount]
-        when (metadata.pgType) {
-            PgType.MacaddrArray -> MacAddressArrayTypeDescription.encode(
+        when (metadata.pgType.oid) {
+            PgType.MACADDR_ARRAY -> MacAddressArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
-            PgType.Macaddr8Array -> MacAddress8ArrayTypeDescription.encode(
+            PgType.MACADDR8_ARRAY -> MacAddress8ArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
@@ -257,12 +257,12 @@ class PgEncodeBuffer(
 
     private fun encodeInetList(value: List<PgInet?>) {
         val metadata = metadata[paramCount]
-        when (metadata.pgType) {
-            is PgType.InetArray -> InetArrayTypeDescription.encode(
+        when (metadata.pgType.oid) {
+            PgType.INET_ARRAY -> InetArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
-            is PgType.CidrArray -> CidrArrayTypeDescription.encode(
+            PgType.CIDR_ARRAY -> CidrArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )

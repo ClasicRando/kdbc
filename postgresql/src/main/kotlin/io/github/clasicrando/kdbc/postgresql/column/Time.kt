@@ -56,13 +56,13 @@ object TimeTypeDescription : PgTypeDescription<LocalTime>(
         return try {
             LocalTime.tryFromString(value.text)
         } catch (ex: InvalidDateString) {
-            columnDecodeError<LocalTime>(type = value.typeData, reason = ex.message ?: "")
+            columnDecodeError<LocalTime>(type = value.typeData, cause = ex)
         }
     }
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [LocalTime]. This maps to the `time[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [LocalTime]. This maps to the `time[]` type in a
  * postgresql database.
  */
 object TimeArrayTypeDescription : ArrayTypeDescription<LocalTime>(
@@ -118,13 +118,13 @@ object TimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
         return try {
             PgTimeTz.fromString(value.text)
         } catch (ex: InvalidDateString) {
-            columnDecodeError<PgTimeTz>(type = value.typeData, reason = ex.message ?: "")
+            columnDecodeError<PgTimeTz>(type = value.typeData, cause = ex)
         }
     }
 }
 
 /**
- * Implementation of a [ArrayTypeDescription] for [PgTimeTz]. This maps to the `timetz[]` type in a
+ * Implementation of an [ArrayTypeDescription] for [PgTimeTz]. This maps to the `timetz[]` type in a
  * postgresql database.
  */
 object TimeTzArrayTypeDescription : ArrayTypeDescription<PgTimeTz>(

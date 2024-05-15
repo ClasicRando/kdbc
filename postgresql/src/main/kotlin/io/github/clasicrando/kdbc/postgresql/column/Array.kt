@@ -11,8 +11,7 @@ import kotlin.reflect.full.createType
 import kotlin.reflect.full.withNullability
 
 /** Dummy [PgColumnDescription] to create a [PgValue.Text] instance for text decoding */
-@PublishedApi
-internal val dummyFieldDescription = PgColumnDescription(
+private val dummyFieldDescription = PgColumnDescription(
     fieldName = "",
     tableOid = 0,
     columnAttribute = 0,
@@ -21,9 +20,6 @@ internal val dummyFieldDescription = PgColumnDescription(
     typeModifier = 0,
     formatCode = 1,
 )
-
-private const val ARRAY_LITERAL_CHECK_MESSAGE =
-    "An array literal value must start and end with a curly brace"
 
 /**
  * Implementation of a [PgTypeDescription] for array types. Data supplied is the [PgType] of the
@@ -143,7 +139,7 @@ abstract class ArrayTypeDescription<T : Any>(
             check = value.text.startsWith('{') && value.text.endsWith('}'),
             kType = kType,
             type = value.typeData,
-        ) { ARRAY_LITERAL_CHECK_MESSAGE }
+        ) { "An array literal value must start and end with a curly brace" }
 
         return ArrayLiteralParser.parse(value.text)
             .map {
