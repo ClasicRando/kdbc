@@ -18,6 +18,7 @@ abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescrip
      * placeholder values.
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L140)
+     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac8.c#L253)
      */
     override fun encode(value: PgMacAddress, buffer: ByteWriteBuffer) {
         buffer.writeByte(value.a)

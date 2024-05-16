@@ -270,7 +270,7 @@ class PgTypeCache {
             is PgPolygon -> PgType.Polygon
             is PgCircle -> PgType.Circle
             is PgJson -> PgType.Jsonb
-            is PgMacAddress -> PgType.Macaddr
+            is PgMacAddress -> PgType.Macaddr8
             is PgMoney -> PgType.Money
             is PgInet -> PgType.Inet
             is PgRange<*> -> when (parameter.parameterType) {
