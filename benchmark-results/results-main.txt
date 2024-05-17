@@ -1,10 +1,10 @@
 Benchmark                                        Mode  Cnt     Score    Error  Units
-JdbcBenchmark.queryData                          avgt   40    38.238 ±  0.106  us/op
-JdbcBenchmarkSingle.queryData                    avgt   40    22.448 ±  0.222  us/op
-JdbcBenchmarkThreadPoolSingle.queryData          avgt   40   762.535 ± 44.548  us/op
-KdbcBenchmark.queryData                          avgt   40    63.745 ±  0.416  us/op
-KdbcBenchmarkBlocking.queryData                  avgt   40    53.413 ±  0.585  us/op
-KdbcBenchmarkBlockingSingle.queryData            avgt   40    28.386 ±  0.425  us/op
-KdbcBenchmarkBlockingThreadPoolSingle.queryData  avgt   40   690.427 ±  3.639  us/op
-KdbcBenchmarkConcurrentSingle.queryData          avgt   40  1027.841 ± 32.955  us/op
-KdbcBenchmarkSingle.queryData                    avgt   40    32.115 ±  0.830  us/op
+JdbcBenchmark.queryData                          avgt   40    59.406 ±  3.502  us/op
+JdbcBenchmarkSingle.queryData                    avgt   40    25.895 ±  1.164  us/op
+JdbcBenchmarkThreadPoolSingle.queryData          avgt   40   822.016 ± 86.537  us/op
+KdbcBenchmark.queryData                          avgt   40    63.448 ±  0.291  us/op
+KdbcBenchmarkBlocking.queryData                  avgt   40    46.206 ±  0.226  us/op
+KdbcBenchmarkBlockingSingle.queryData            avgt   40    25.743 ±  0.274  us/op
+KdbcBenchmarkBlockingThreadPoolSingle.queryData  avgt   40   634.879 ±  5.162  us/op
+KdbcBenchmarkConcurrentSingle.queryData          avgt   40  1013.955 ± 30.542  us/op
+KdbcBenchmarkSingle.queryData                    avgt   40    31.735 ±  0.628  us/op
