@@ -16,7 +16,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object CopyFailEncoder : MessageEncoder<PgMessage.CopyFail> {
     override fun encode(value: PgMessage.CopyFail, buffer: ByteWriteBuffer) {
-        buffer.writeCode(value)
+        buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.message)
         }

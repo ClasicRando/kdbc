@@ -20,7 +20,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object SaslInitialResponseEncoder : MessageEncoder<PgMessage.SaslInitialResponse> {
     override fun encode(value: PgMessage.SaslInitialResponse, buffer: ByteWriteBuffer) {
-        buffer.writeCode(value)
+        buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.mechanism)
             writeInt(value.saslData.length)

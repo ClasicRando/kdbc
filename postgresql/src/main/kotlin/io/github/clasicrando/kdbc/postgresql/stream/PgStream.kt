@@ -97,7 +97,7 @@ internal class PgStream(
         val format = asyncStream.readByte()
         val size = asyncStream.readInt()
         val buffer = asyncStream.readBuffer(size - 4)
-        val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
+        val rawMessage = RawMessage(format = format, size = size, contents = buffer)
         return PgMessageDecoders.decode(rawMessage)
     }
 

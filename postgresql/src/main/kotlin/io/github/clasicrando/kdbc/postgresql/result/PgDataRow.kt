@@ -140,8 +140,9 @@ class PgDataRow(
         deserializer: PgTypeDescription<T>,
     ): T? {
         val pgValue = pgValues[index] ?: return null
-        return when (val columnPgType = pgValue.typeData.pgType) {
-            deserializer.pgType -> deserializer.decode(pgValue)
+        val columnPgType = pgValue.typeData.pgType
+        return when (columnPgType.oid) {
+            deserializer.pgType.oid -> deserializer.decode(pgValue)
             else -> columnDecodeError<Any>(
                 type = pgValue.typeData,
                 reason = "PgType of deserializer does not match the current column. " +
@@ -251,15 +252,15 @@ class PgDataRow(
             PgType.UUID -> checkAndDecode(index, UuidTypeDescription)
             PgType.UUID_ARRAY -> checkAndDecode(index, UuidArrayTypeDescription)
             PgType.VOID -> Unit
+            PgType.RECORD, PgType.RECORD -> error("Cannot decode record/record[] types")
+            PgType.UNKNOWN, PgType.UNSPECIFIED -> error("Backend doesn't know the data's type")
+            PgType.BIT, PgType.BIT_ARRAY, PgType.VARBIT, PgType.VARBIT_ARRAY -> error("Bit types are not supported")
             else -> when (pgType) {
                 is PgType.ByOid -> {
                     val typeDescription = customTypeDescriptionCache.getTypeDescription<Any>(pgType)
                         ?: error("Could not get type description from custom type cache")
                     return checkAndDecode(index, typeDescription)
                 }
-                PgType.Record, PgType.RecordArray -> error("Cannot decode record/record[] types")
-                PgType.Unknown, PgType.Unspecified -> error("Backend doesn't know the data's type")
-                PgType.Bit, PgType.BitArray, PgType.Varbit, PgType.VarbitArray -> error("Bit types are not supported")
                 else -> error("Could not find type description for PgType = $pgType")
             }
         }

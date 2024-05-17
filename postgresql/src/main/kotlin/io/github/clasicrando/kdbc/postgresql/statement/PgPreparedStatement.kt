@@ -7,7 +7,7 @@ import kotlinx.datetime.Instant
 /** Postgresql implementation of a [PreparedStatement] */
 internal class PgPreparedStatement(
     override val query: String,
-    override val statementId: UInt,
+    override val statementId: Int,
 ) : PreparedStatement {
     override val paramCount = PARAM_COUNT_REGEX.findAll(query).count()
     override var prepared = false

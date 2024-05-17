@@ -18,7 +18,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object ExecuteEncoder : MessageEncoder<PgMessage.Execute> {
     override fun encode(value: PgMessage.Execute, buffer: ByteWriteBuffer) {
-        buffer.writeCode(value)
+        buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.portalName ?: "")
             writeInt(value.maxRowCount)

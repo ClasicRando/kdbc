@@ -22,11 +22,6 @@ class ByteReadBuffer(
     @PublishedApi
     internal var position: Int = 0
 
-    /** Move cursor forward the exact amount specified by [byteCount] */
-    fun skip(byteCount: Int) {
-        position += byteCount
-    }
-
     /**
      * Create a sub slice of this [ByteReadBuffer], starting at the current position and having a
      * size as the specified [length].
@@ -41,7 +36,7 @@ class ByteReadBuffer(
     fun slice(length: Int): ByteReadBuffer {
         checkRemaining(length)
         val slice = ByteReadBuffer(innerBuffer, position + offset, length)
-        skip(length)
+        position += length
         return slice
     }
 

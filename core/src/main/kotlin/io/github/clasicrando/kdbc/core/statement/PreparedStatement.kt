@@ -10,7 +10,7 @@ interface PreparedStatement {
     /** Query backing this prepared statement */
     val query: String
     /** Unique identifier for each statement to keep track of a prepared statement cache */
-    val statementId: UInt
+    val statementId: Int
     /** Number of parameters required for the prepared statement */
     val paramCount: Int
     /** Flag indicating if the statement has been prepared by the server */

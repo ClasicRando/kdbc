@@ -25,7 +25,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
     override fun encode(value: PgMessage.Bind, buffer: ByteWriteBuffer) {
-        buffer.writeCode(value)
+        buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.portal ?: "")
             writeCString(value.statementName)

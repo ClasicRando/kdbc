@@ -313,6 +313,7 @@ sealed class PgType(
         const val XML = 142
         const val XML_ARRAY = 143
         const val VOID = 2278
+        const val UNSPECIFIED = 0
 
         /**
          * Attempt to the match the [oid] to a static type, otherwise, [ByOid] is returned storing

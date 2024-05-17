@@ -92,7 +92,7 @@ class PgSuspendingConnection internal constructor(
      */
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = mutableMapOf()
     /** ID of the next prepared statement executed. Incremented after each statement is created */
-    private var nextStatementId = 1u
+    private var nextStatementId = 1
 
     /**
      * Create a log message at the specified [level], applying the [block] to the

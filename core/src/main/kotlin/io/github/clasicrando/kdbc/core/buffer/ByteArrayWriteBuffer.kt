@@ -73,11 +73,11 @@ class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
     }
 
     override fun writeBytes(byteArray: ByteArray, offset: Int, length: Int) {
+        checkOverflow(length)
         require(byteArray.size >= offset + length) {
             "The supplied offset = $offset and length = $length is not valid for a ByteArray of " +
                     "size = ${byteArray.size}"
         }
-        checkOverflow(length)
         byteArray.copyInto(innerBuffer, position, offset, offset + length)
         position += length
     }
@@ -118,6 +118,7 @@ class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
                     startIndex = 0,
                     endIndex = otherBuffer.position,
                 )
+                position += otherBuffer.position
             }
             is ByteListWriteBuffer -> {
                 checkOverflow(otherBuffer.position)

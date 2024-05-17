@@ -73,7 +73,7 @@ internal class PgBlockingStream(
         val format = blockingStream.readByte()
         val size = blockingStream.readInt()
         val buffer = blockingStream.readBuffer(size - 4)
-        val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
+        val rawMessage = RawMessage(format = format, size = size, contents = buffer)
         return PgMessageDecoders.decode(rawMessage)
     }
 
