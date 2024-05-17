@@ -16,9 +16,11 @@ import java.nio.charset.Charset
 class ByteReadBuffer(
     private var innerBuffer: ByteArray,
     private val offset: Int = 0,
-    private val size: Int = innerBuffer.size,
+    @PublishedApi
+    internal val size: Int = innerBuffer.size,
 ) : AutoRelease {
-    private var position: Int = 0
+    @PublishedApi
+    internal var position: Int = 0
 
     /** Move cursor forward the exact amount specified by [byteCount] */
     fun skip(byteCount: Int) {
@@ -37,15 +39,17 @@ class ByteReadBuffer(
      * [remaining] in the buffer
      */
     fun slice(length: Int): ByteReadBuffer {
-        require(length <= remaining) {
-            "Cannot slice a buffer with a length ($length) that is more than the remaining " +
-                    "bytes ($remaining)"
-        }
-        return ByteReadBuffer(innerBuffer, position + offset, length)
+        checkRemaining(length)
+        val slice = ByteReadBuffer(innerBuffer, position + offset, length)
+        skip(length)
+        return slice
     }
 
     /** Number of bytes remaining as readable within the buffer */
-    val remaining: Int get() = size - position
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun remaining(): Int {
+        return size - position
+    }
 
     /**
      * Check to confirm that the required number of bytes are available within the buffer. If the
@@ -55,7 +59,7 @@ class ByteReadBuffer(
      * @throws [BufferExhausted] if the buffer does not have the required number of bytes available
      */
     private fun checkRemaining(required: Int) {
-        if (remaining < required) {
+        if (remaining() < required) {
             throw BufferExhausted()
         }
     }
@@ -175,7 +179,7 @@ class ByteReadBuffer(
     fun readCString(charset: Charset = Charsets.UTF_8): String {
         val buffer = ArrayList<Byte>()
 
-        while (remaining > 0) {
+        while (remaining() > 0) {
             val nextByte = innerBuffer[offset + position++]
             if (nextByte == ZERO_BYTE) {
                 break

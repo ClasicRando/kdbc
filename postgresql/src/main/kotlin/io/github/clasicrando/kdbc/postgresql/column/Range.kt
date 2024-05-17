@@ -124,7 +124,6 @@ abstract class BaseRangeTypeDescription<T : Any>(
                 bytes = value.bytes.slice(lowerBoundValueLength),
                 typeData = PgColumnDescription.dummyDescription(typeDescription.pgType, 1)
             )
-            value.bytes.skip(lowerBoundValueLength)
 
             val lowerBoundValue = typeDescription.decodeBytes(lowerBoundPgValue)
             start = if (rangeFlagContains(flags, lowerBoundInclusiveRangeFlagMask)) {
@@ -140,7 +139,6 @@ abstract class BaseRangeTypeDescription<T : Any>(
                 bytes = value.bytes.slice(upperBoundValueLength),
                 typeData = PgColumnDescription.dummyDescription(typeDescription.pgType, 1)
             )
-            value.bytes.skip(upperBoundValueLength)
 
             val upperBoundValue = typeDescription.decodeBytes(upperBoundPgValue)
             end = if (rangeFlagContains(flags, upperBoundInclusiveRangeFlagMask)) {

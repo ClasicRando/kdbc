@@ -139,7 +139,7 @@ class PgDataRow(
         index: Int,
         deserializer: PgTypeDescription<T>,
     ): T? {
-        val pgValue = getPgValue(index) ?: return null
+        val pgValue = pgValues[index] ?: return null
         return when (val columnPgType = pgValue.typeData.pgType) {
             deserializer.pgType -> deserializer.decode(pgValue)
             else -> columnDecodeError<Any>(

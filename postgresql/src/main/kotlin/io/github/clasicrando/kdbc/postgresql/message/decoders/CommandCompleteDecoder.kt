@@ -18,12 +18,8 @@ internal object CommandCompleteDecoder : MessageDecoder<PgMessage.CommandComplet
         val words = message.split(" ")
         val rowCount = when {
             words.size <= 1 -> 0
-            words[0] == "INSERT" -> {
-                words.drop(2).firstOrNull()?.toLongOrNull() ?: 0
-            }
-            else -> {
-                words[1].toLongOrNull() ?: 0
-            }
+            words[0] == "INSERT" -> words.getOrNull(2)?.toLongOrNull() ?: 0
+            else -> words[1].toLongOrNull() ?: 0
         }
         return PgMessage.CommandComplete(rowCount, message)
     }

@@ -297,7 +297,7 @@ internal class PgBlockingStream(
         try {
             messageSendBuffer.release()
             for (message in flow) {
-                if (messageSendBuffer.remaining <= message.size) {
+                if (messageSendBuffer.remaining() <= message.size) {
                     blockingStream.writeBuffer(messageSendBuffer)
                     messageSendBuffer.release()
                 }

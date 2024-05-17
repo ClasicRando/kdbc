@@ -15,8 +15,11 @@ class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
 
     override val remaining: Int get() = innerBuffer.size - position
 
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun remaining() = innerBuffer.size - position
+
     private fun checkOverflow(requiredSpace: Int) {
-        if (remaining < requiredSpace) {
+        if (remaining() < requiredSpace) {
             throw BufferOverflow(requiredSpace, remaining)
         }
     }

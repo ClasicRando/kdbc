@@ -24,7 +24,6 @@ internal class PgResultSet(
                 return@Array null
             }
             val slice = buffer.slice(length)
-            buffer.skip(length)
             val columnType = columnMapping[it]
             when (columnType.formatCode) {
                 0.toShort() -> PgValue.Text(slice, columnType)

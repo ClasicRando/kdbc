@@ -110,7 +110,6 @@ abstract class BaseCompositeTypeDescription<T : Any>(
                 return@Array null
             }
             val slice = value.bytes.slice(attributeLength)
-            value.bytes.skip(attributeLength)
             PgValue.Binary(slice, columnMapping[it])
         }
         val dataRow = PgDataRow(
