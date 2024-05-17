@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 
@@ -24,13 +25,14 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
     override fun encode(value: PgMessage.Bind, buffer: ByteWriteBuffer) {
-        buffer.writeCode(value)
+        buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.portal ?: "")
             writeCString(value.statementName)
             writeShort(1)
             writeShort(1)
-            value.parameters.writeToBuffer(this)
+            writeShort(value.encodeBuffer.paramCount.toShort())
+            copyFrom(value.encodeBuffer.innerBuffer)
             writeShort(1)
             writeShort(1)
         }

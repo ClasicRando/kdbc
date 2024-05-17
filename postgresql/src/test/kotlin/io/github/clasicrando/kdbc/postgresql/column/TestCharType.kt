@@ -1,8 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getByte
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.RowParser
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.DataRow
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
@@ -18,32 +22,30 @@ class TestCharType {
     fun `encode should accept Byte when querying postgresql`(value: Byte) = runBlocking {
         val query = "SELECT $1 char_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(value)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getByte("char_col") }.first())
-            }
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            val char = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<Byte>()
+            assertEquals(value, char)
         }
+    }
+
+    object CharTestRowParser : RowParser<Byte> {
+        override fun fromRow(row: DataRow): Byte = row.getAsNonNull(0)
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT char_field FROM char_test ORDER BY char_field;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+            val chars = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(3, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(3, rows.size)
-                Assertions.assertArrayEquals(bytes, rows.map { it.getByte(0)!! }.toByteArray())
+                conn.createQuery(query)
             }
+                .fetchAll(CharTestRowParser)
+                .toByteArray()
+            Assertions.assertArrayEquals(bytes, chars)
         }
     }
 
@@ -63,8 +65,8 @@ class TestCharType {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { connection ->
-                connection.sendQuery("""
+            PgConnectionHelper.defaultSuspendingConnection().use { connection ->
+                connection.sendSimpleQuery("""
                     DROP TABLE IF EXISTS public.char_test;
                     CREATE TABLE public.char_test(char_field "char" not null);
                     INSERT INTO public.char_test(char_field)

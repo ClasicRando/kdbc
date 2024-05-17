@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgTimeTz
 import kotlinx.coroutines.runBlocking
@@ -16,36 +16,24 @@ class TestTimeTzType {
     fun `encode should accept PgTimeTz when querying postgresql`() = runBlocking {
         val query = "SELECT $1 timetz_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(timeTz)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(
-                    expected = timeTz,
-                    actual = rows.map { it.getAs<PgTimeTz>("timetz_col") }.first(),
-                )
-            }
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            val value = conn.createPreparedQuery(query)
+                .bind(timeTz)
+                .fetchScalar<PgTimeTz>()
+            assertEquals(expected = timeTz, actual = value)
         }
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '05:25:51+02:00'::timetz;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                val value = rows.map { it.getAs<PgTimeTz>(0)!! }.first()
-                assertEquals(timeTz, value)
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgTimeTz>()
+            assertEquals(timeTz, value)
         }
     }
 

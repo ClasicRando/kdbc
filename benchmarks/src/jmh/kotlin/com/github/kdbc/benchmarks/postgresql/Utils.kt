@@ -1,15 +1,13 @@
 package com.github.kdbc.benchmarks.postgresql
 
-import com.github.jasync.sql.db.pool.ConnectionPool
-import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
-import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
-import io.github.clasicrando.kdbc.core.connection.Connection
+import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.datetime.toKotlinInstant
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 import org.apache.commons.dbcp2.DriverManagerConnectionFactory
@@ -18,6 +16,7 @@ import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
 import java.sql.DriverManager
+import java.sql.ResultSet
 import java.sql.Connection as JdbcConnection
 
 val jdbcQuerySingle = """
@@ -81,12 +80,6 @@ private const val missingEnvironmentVariableMessage = "To run benchmarks the env
 private val connectionString = System.getenv("JDBC_PG_CONNECTION_STRING")
     ?: throw IllegalStateException(missingEnvironmentVariableMessage)
 
-private const val missingLocalEnvironmentVariableMessage = "To run benchmarks the " +
-        "environment variable JDBC_PG_CONNECTION_STRING must be available"
-
-private val localConnectionString = System.getenv("JDBC_LOCAL_PG_CONNECTION_STRING")
-    ?: throw IllegalStateException(missingEnvironmentVariableMessage)
-
 fun getJdbcConnection(): JdbcConnection = DriverManager.getConnection(connectionString)
 
 fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
@@ -97,83 +90,68 @@ fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     return PoolingDataSource(connectionPool)
 }
 
-private val defaultLocalConnectOptions = PgConnectOptions(
+private val kdbcConnectOptions = PgConnectOptions(
     host = "127.0.0.1",
     port = 5432U,
     username = "postgres",
-    password = System.getenv("PG_LOCAL_BENCHMARK_PASSWORD")
-        ?: error("To run benchmarks the environment variable PG_LOCAL_BENCHMARK_PASSWORD must be available"),
-    database = "test",
-    applicationName = "KdbcTests",
-    logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
-)
-
-private val defaultConnectOptions = PgConnectOptions(
-    host = "192.168.2.15",
-    port = 5430U,
-    username = "em_admin",
     password = System.getenv("PG_BENCHMARK_PASSWORD")
         ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
-    database = "enviro_manager",
-    applicationName = "KdbcTests",
+    database = "postgres",
+    applicationName = "KdbcTests${UUID.generateUUID()}",
     logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
 )
 
-suspend fun getKdbcConnection(): Connection {
-    return Postgres.connection(connectOptions = defaultConnectOptions)
+suspend fun getKdbcConnection(): SuspendingConnection {
+    return Postgres.suspendingConnection(connectOptions = kdbcConnectOptions)
 }
 
 suspend fun initializeConcurrentConnections(): PgConnectOptions {
-    val options = PgConnectOptions(
-        host = "192.168.2.15",
-        port = 5430U,
-        username = "em_admin",
-        password = System.getenv("PG_BENCHMARK_PASSWORD")
-            ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
-        database = "enviro_manager",
-        applicationName = "KdbcTests${UUID.generateUUID()}",
-        logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
+    val options = kdbcConnectOptions.copy(
         poolOptions = PoolOptions(
             maxConnections = 10,
             minConnections = 8,
-        ),
+        )
     )
-    Postgres.connection(connectOptions = options).close()
+    Postgres.suspendingConnection(connectOptions = options).close()
     return options
 }
 
 fun getKdbcBlockingConnection(): BlockingConnection {
-    return Postgres.blockingConnection(connectOptions = defaultConnectOptions)
+    return Postgres.blockingConnection(connectOptions = kdbcConnectOptions)
 }
 
 fun initializeThreadPoolBlockingConnections(): PgConnectOptions {
-    val options = PgConnectOptions(
-        host = "192.168.2.15",
-        port = 5430U,
-        username = "em_admin",
-        password = System.getenv("PG_BENCHMARK_PASSWORD")
-            ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
-        database = "enviro_manager",
-        applicationName = "KdbcTests${UUID.generateUUID()}",
-        logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
+    val options = kdbcConnectOptions.copy(
         poolOptions = PoolOptions(
             maxConnections = 10,
             minConnections = 8,
-        ),
+        )
     )
     Postgres.blockingConnection(connectOptions = options).close()
     return options
 }
 
-fun getJasyncPool(): ConnectionPool<PostgreSQLConnection> {
-    return PostgreSQLConnectionBuilder.createConnectionPool {
-        host = "192.168.0.12"
-        port = 5430
-        database = "enviro_manager"
-        username = "em_admin"
-        password = System.getenv("PG_BENCHMARK_PASSWORD")
-            ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available")
-    }
-}
+const val concurrencyLimit = 100
 
-const val concurrencyLimit: Int = 100
+fun extractPostDataClassListFromResultSet(resultSet: ResultSet): List<PostDataClass> {
+    val items = ArrayList<PostDataClass>()
+    while (resultSet.next()) {
+        val item = PostDataClass(
+            resultSet.getInt(1),
+            resultSet.getString(2),
+            resultSet.getTimestamp(3).toInstant().toKotlinInstant(),
+            resultSet.getTimestamp(4).toInstant().toKotlinInstant(),
+            resultSet.getInt(5),
+            resultSet.getInt(6),
+            resultSet.getInt(7),
+            resultSet.getInt(8),
+            resultSet.getInt(9),
+            resultSet.getInt(10),
+            resultSet.getInt(11),
+            resultSet.getInt(12),
+            resultSet.getInt(13),
+        )
+        items.add(item)
+    }
+    return items
+}

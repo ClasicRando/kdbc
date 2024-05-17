@@ -1,10 +1,12 @@
 package io.github.clasicrando.kdbc.core.datetime
 
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toLocalTime
@@ -61,6 +63,23 @@ fun LocalTime.Companion.tryFromString(value: String): LocalTime {
 }
 
 /**
+ * Attempt to convert the string [value] provided into a [Instant]. This will replace space
+ * characters with 'T' and pad the end with 'Z' if no offset is present.
+ *
+ * @throws InvalidDateString if the conversion fails
+ */
+fun Instant.Companion.tryFromString(value: String): Instant {
+    return try {
+        value.trim()
+            .replace(oldChar = ' ',newChar = 'T')
+            .padEnd(length = 20, padChar = 'Z')
+            .toInstant()
+    } catch (ex: IllegalArgumentException) {
+        throw InvalidDateString(value, Instant::class)
+    }
+}
+
+/**
  * Attempt to extract a [TimeZone] from the date string [value] provided. If the extraction fails,
  * an [InvalidDateString] exception will be returns within the [Result]. If there is no timezone
  * information in the string, [TimeZone.UTC] is returned.
@@ -69,7 +88,8 @@ fun LocalTime.Companion.tryFromString(value: String): LocalTime {
  */
 fun UtcOffset.Companion.tryFromString(value: String): UtcOffset {
     val timeZoneStr = value.dropWhile { it != '+' }
-        .takeIf { it.isNotBlank() } ?: return UtcOffset(0)
+        .takeIf { it.isNotBlank() }
+        ?: return UtcOffset(0)
     return timeZoneStr.toIntOrNull()
         ?.let { UtcOffset(hours = it) }
         ?: throw InvalidDateString(timeZoneStr, TimeZone::class)

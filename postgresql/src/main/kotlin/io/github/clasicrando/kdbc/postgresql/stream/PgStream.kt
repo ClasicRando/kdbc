@@ -3,10 +3,11 @@ package io.github.clasicrando.kdbc.postgresql.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
+import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.SizedMessage
-import io.github.clasicrando.kdbc.core.resourceLogger
 import io.github.clasicrando.kdbc.core.stream.AsyncStream
 import io.github.clasicrando.kdbc.core.stream.StreamConnectError
 import io.github.clasicrando.kdbc.core.stream.StreamReadError
@@ -17,7 +18,7 @@ import io.github.clasicrando.kdbc.postgresql.authentication.PgAuthenticationErro
 import io.github.clasicrando.kdbc.postgresql.authentication.saslAuthFlow
 import io.github.clasicrando.kdbc.postgresql.authentication.simplePasswordAuthFlow
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.decoders.PgMessageDecoders
 import io.github.clasicrando.kdbc.postgresql.message.encoders.PgMessageEncoders
@@ -41,8 +42,8 @@ private const val RESOURCE_TYPE = "PgStream"
 
 /**
  * [AsyncStream] wrapper class for facilitating postgresql specific message protocol behaviour.
- * A [PgConnection] will own a [PgStream] and utilize it's public methods to process incoming
- * server messages.
+ * A [PgSuspendingConnection] will own a [PgStream] and utilize it's public methods to process
+ * incoming server messages.
  */
 internal class PgStream(
     scope: CoroutineScope,
@@ -52,7 +53,7 @@ internal class PgStream(
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
-    private val messageSendBuffer = ByteWriteBuffer(SEND_BUFFER_SIZE)
+    private val messageSendBuffer: ByteWriteBuffer = ByteArrayWriteBuffer(SEND_BUFFER_SIZE)
 
     override val resourceType: String = RESOURCE_TYPE
 
@@ -84,7 +85,7 @@ internal class PgStream(
      * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
     internal inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
-        logger.resourceLogger(this, level, block)
+        logWithResource(logger, level, block)
     }
 
     /**
@@ -96,7 +97,7 @@ internal class PgStream(
         val format = asyncStream.readByte()
         val size = asyncStream.readInt()
         val buffer = asyncStream.readBuffer(size - 4)
-        val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
+        val rawMessage = RawMessage(format = format, size = size, contents = buffer)
         return PgMessageDecoders.decode(rawMessage)
     }
 
@@ -164,32 +165,26 @@ internal class PgStream(
      * [PgMessage.CopyData] messages. You can wait for that message or errors, proceeding if the
      * [Result] is successful.
      */
-    suspend inline fun <reified T : PgMessage> waitForOrError(): Result<T> {
-        try {
-            while (isActive && isConnected) {
-                when (val message = messagesChannel.receive()) {
-                    is PgMessage.NoticeResponse -> onNotice(message)
-                    is PgMessage.NotificationResponse -> onNotification(message)
-                    is PgMessage.ParameterStatus -> onParameterStatus(message)
-                    is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                    is PgMessage.ErrorResponse -> return Result.failure(GeneralPostgresError(message))
-                    is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
-                    is T -> return Result.success(message)
-                    else -> {
-                        log(Level.TRACE) {
-                            this.message =
-                                "Ignoring {message} since it's not an error or the desired type"
-                            payload = mapOf("message" to message)
-                        }
+    suspend inline fun <reified T : PgMessage> waitForOrError(): T {
+        while (isActive && isConnected) {
+            when (val message = messagesChannel.receive()) {
+                is PgMessage.NoticeResponse -> onNotice(message)
+                is PgMessage.NotificationResponse -> onNotification(message)
+                is PgMessage.ParameterStatus -> onParameterStatus(message)
+                is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
+                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                is T -> return message
+                else -> {
+                    log(Level.TRACE) {
+                        this.message =
+                            "Ignoring {message} since it's not an error or the desired type"
+                        payload = mapOf("message" to message)
                     }
                 }
             }
-        } catch (ex: CancellationException) {
-            throw ex
-        } catch (ex: Throwable) {
-            return Result.failure(ex)
         }
-        return Result.failure(ExitOfProcessingLoop(T::class.qualifiedName!!))
+        throw ExitOfProcessingLoop(T::class.qualifiedName!!)
     }
 
     /**
@@ -461,7 +456,7 @@ internal class PgStream(
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()
-            stream.waitForOrError<PgMessage.ReadyForQuery>().getOrThrow()
+            stream.waitForOrError<PgMessage.ReadyForQuery>()
             return stream
             /***
              * TODO

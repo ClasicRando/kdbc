@@ -17,7 +17,7 @@ internal abstract class InformationResponseDecoder<T : PgMessage> : MessageDecod
     fun decodeToInformationResponse(buffer: ByteReadBuffer): InformationResponse {
         return buffer.use { buf ->
             val map = buildMap {
-                while (buf.remaining > 0) {
+                while (buf.remaining() > 0) {
                     val kind = buf.readByte()
                     if (kind != ByteReadBuffer.ZERO_BYTE) {
                         put(kind, buf.readCString())

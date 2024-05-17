@@ -1,13 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestPgByteArrayType {
     private val fieldDescription = PgColumnDescription(
@@ -30,7 +29,7 @@ class TestPgByteArrayType {
         }
 
         val pgValue = PgValue.Text(byteString, fieldDescription)
-        val result = byteArrayTypeDecoder.decode(pgValue)
+        val result = ByteaTypeDescription.decode(pgValue)
 
         Assertions.assertArrayEquals(bytes, result)
     }
@@ -46,7 +45,7 @@ class TestPgByteArrayType {
         }
 
         val pgValue = PgValue.Text(byteString, fieldDescription)
-        val result = byteArrayTypeDecoder.decode(pgValue)
+        val result = ByteaTypeDescription.decode(pgValue)
 
         Assertions.assertArrayEquals(bytes, result)
     }
@@ -56,17 +55,11 @@ class TestPgByteArrayType {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
         val query = "SELECT $1 bytea_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(expectedResult)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                Assertions.assertArrayEquals(
-                    expectedResult,
-                    rows.map { it.getAs<ByteArray>("bytea_col") }.first(),
-                )
-            }
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            val value = conn.createPreparedQuery(query)
+                .bind(expectedResult)
+                .fetchScalar<ByteArray>()
+            Assertions.assertArrayEquals(expectedResult, value)
         }
     }
 
@@ -74,21 +67,13 @@ class TestPgByteArrayType {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
         val query = "SELECT decode('4f5a90', 'hex') bytea_col;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                Assertions.assertArrayEquals(
-                    expectedResult,
-                    rows.map { it.getAs<ByteArray>("bytea_col") }.first(),
-                )
-            }
+                conn.createQuery(query)
+            }.fetchScalar<ByteArray>()
+            Assertions.assertArrayEquals(expectedResult, value)
         }
     }
 

@@ -2,6 +2,8 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.connection.useCatching
+import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
@@ -17,7 +19,7 @@ class TestBlockingCopySpec {
     @Test
     fun `copyIn should copy all rows`() {
         PgConnectionHelper.defaultBlockingConnection().use {
-            it.sendQuery("TRUNCATE public.copy_in_test;")
+            it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement(
                 tableName = "copy_in_test",
                 schemaName = "public",
@@ -30,17 +32,16 @@ class TestBlockingCopySpec {
             )
             assertEquals(ROW_COUNT, copyResult.rowsAffected)
             assertEquals("COPY $ROW_COUNT", copyResult.message)
-            val results = it.sendQuery("SELECT COUNT(*) FROM public.copy_in_test").toList()
-            assertEquals(1, results.size)
-            assertEquals(1, results[0].rowsAffected)
-            assertEquals(ROW_COUNT, results[0].rows.first().getLong(0))
+            val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
+                .fetchScalar<Long>()
+            assertEquals(ROW_COUNT, count)
         }
     }
 
     @Test
     fun `copyIn should throw exception when improperly formatted rows`() {
         val result = PgConnectionHelper.defaultBlockingConnection().useCatching {
-            it.sendQuery("TRUNCATE public.copy_in_test;")
+            it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement(
                 tableName = "copy_in_test",
                 schemaName = "public",
@@ -55,10 +56,9 @@ class TestBlockingCopySpec {
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is GeneralPostgresError)
         PgConnectionHelper.defaultBlockingConnection().use {
-            val results = it.sendQuery("SELECT COUNT(*) FROM public.copy_in_test;").toList()
-            assertEquals(1, results.size)
-            assertEquals(1, results[0].rowsAffected)
-            assertEquals(0, results[0].rows.first().getLong(0))
+            val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test;")
+                .fetchScalar<Long>()
+            assertEquals(0, count)
         }
     }
 
@@ -98,8 +98,8 @@ class TestBlockingCopySpec {
         @BeforeAll
         fun setup() {
             PgConnectionHelper.defaultBlockingConnection().use {
-                it.sendQuery(CREATE_COPY_TARGET_TABLE)
-                it.sendQuery(CREATE_COPY_FROM_TABLE)
+                it.sendSimpleQuery(CREATE_COPY_TARGET_TABLE)
+                it.sendSimpleQuery(CREATE_COPY_FROM_TABLE)
             }
         }
     }

@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
@@ -10,7 +9,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.encodeToStream
 
 /**
  * Postgresql `json` or `jsonb` type. Stores the [json] data as an abstract [JsonElement] value.
@@ -20,9 +18,10 @@ import kotlinx.serialization.json.encodeToStream
 @Serializable
 data class PgJson(val json: JsonElement) {
     /** Write the underlining [json] value to the [buffer] */
-    @OptIn(ExperimentalSerializationApi::class)
     fun writeToBuffer(buffer: ByteWriteBuffer) {
-        Json.encodeToStream(json, buffer.outputStream())
+        val bytes = Json.encodeToString(json)
+            .encodeToByteArray()
+        buffer.writeBytes(bytes)
     }
 
     /**
@@ -53,7 +52,7 @@ data class PgJson(val json: JsonElement) {
          * @throws SerializationException if the [buffer] data is not valid JSON
          */
         fun fromBytes(buffer: ByteReadBuffer): PgJson {
-            val jsonString = String(bytes = buffer.readBytes())
+            val jsonString = buffer.readText()
             return PgJson(Json.parseToJsonElement(jsonString))
         }
 

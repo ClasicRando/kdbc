@@ -3,7 +3,7 @@ package io.github.clasicrando.kdbc.core.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.resourceLogger
+import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.withTimeout
@@ -43,7 +43,7 @@ class Nio2AsyncStream(
                 }
             }
         } catch (ex: Throwable) {
-            logger.resourceLogger(this, Level.TRACE) {
+            logWithResource(logger, Level.TRACE) {
                 message = "Failed to connect to {address}"
                 payload = mapOf("address" to address)
                 cause = ex
@@ -53,7 +53,7 @@ class Nio2AsyncStream(
                 ex,
             )
         }
-        logger.resourceLogger(this, Level.TRACE) {
+        logWithResource(logger, Level.TRACE) {
             message = "Successfully connected to {address}"
             payload = mapOf("address" to address)
         }
@@ -67,14 +67,14 @@ class Nio2AsyncStream(
                     socket.write(byteBuffer, null, SuspendCompletionHandler(continuation))
                 }
             } catch (ex: Throwable) {
-                logger.resourceLogger(this, Level.TRACE) {
+                logWithResource(logger, Level.TRACE) {
                     message = ""
                     payload = mapOf()
                     cause = ex
                 }
                 throw StreamWriteError(ex)
             }
-            logger.resourceLogger(this, Level.TRACE) {
+            logWithResource(logger, Level.TRACE) {
                 message = "Wrote {count} bytes to {address}"
                 payload = mapOf("count" to bytes, "address" to address)
             }
@@ -89,19 +89,19 @@ class Nio2AsyncStream(
                     socket.read(readBuffer, null, SuspendCompletionHandler(continuation))
                 }
             } catch (ex: Throwable) {
-                logger.resourceLogger(this, Level.TRACE) {
+                logWithResource(logger, Level.TRACE) {
                     message = "Failed to read from socket"
                     cause = ex
                 }
                 throw StreamReadError(ex)
             }
             if (bytesRead == -1) {
-                logger.resourceLogger(this, Level.TRACE) {
+                logWithResource(logger, Level.TRACE) {
                     message = "Unexpectedly reached end of stream"
                 }
                 throw EndOfStream()
             }
-            logger.resourceLogger(this, Level.TRACE) {
+            logWithResource(logger, Level.TRACE) {
                 message = "Received {count} bytes from {address}"
                 payload = mapOf("count" to bytesRead, "address" to address)
             }

@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.uuid.UUID
@@ -16,14 +16,11 @@ class TestUuidType {
         val uuid = UUID.generateUUID()
         val query = "SELECT $1 uuid_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(uuid)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(uuid, rows.map { it.getAs<UUID>("uuid_col") }.first())
-            }
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            val value = conn.createPreparedQuery(query)
+                .bind(uuid)
+                .fetchScalar<UUID>()
+            assertEquals(uuid, value)
         }
     }
 
@@ -31,18 +28,13 @@ class TestUuidType {
         val uuid = UUID.generateUUID()
         val query = "SELECT '$uuid'::uuid;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(uuid, rows.map { it.getAs<UUID>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<UUID>()
+            assertEquals(uuid, value)
         }
     }
 

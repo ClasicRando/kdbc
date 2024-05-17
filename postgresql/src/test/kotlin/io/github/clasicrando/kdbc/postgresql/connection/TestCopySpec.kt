@@ -2,6 +2,8 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.connection.useCatching
+import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
@@ -18,8 +20,8 @@ import kotlin.test.assertTrue
 class TestCopySpec {
     @Test
     fun `copyIn should copy all rows`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
-            it.sendQuery("TRUNCATE public.copy_in_test;")
+        PgConnectionHelper.defaultSuspendingConnection().use {
+            it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement(
                 tableName = "copy_in_test",
                 schemaName = "public",
@@ -31,17 +33,16 @@ class TestCopySpec {
             )
             assertEquals(ROW_COUNT, copyResult.rowsAffected)
             assertEquals("COPY $ROW_COUNT", copyResult.message)
-            val results = it.sendQuery("SELECT COUNT(*) FROM public.copy_in_test").toList()
-            assertEquals(1, results.size)
-            assertEquals(1, results[0].rowsAffected)
-            assertEquals(ROW_COUNT, results[0].rows.first().getLong(0))
+            val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
+                .fetchScalar<Long>()
+            assertEquals(ROW_COUNT, count)
         }
     }
 
     @Test
     fun `copyIn should throw exception when improperly formatted rows`(): Unit = runBlocking {
-        val result = PgConnectionHelper.defaultConnection().useCatching {
-            it.sendQuery("TRUNCATE public.copy_in_test;")
+        val result = PgConnectionHelper.defaultSuspendingConnection().useCatching {
+            it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement(
                 tableName = "copy_in_test",
                 schemaName = "public",
@@ -54,17 +55,16 @@ class TestCopySpec {
         }
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is GeneralPostgresError)
-        PgConnectionHelper.defaultConnection().use {
-            val results = it.sendQuery("SELECT COUNT(*) FROM public.copy_in_test;").toList()
-            assertEquals(1, results.size)
-            assertEquals(1, results[0].rowsAffected)
-            assertEquals(0, results[0].rows.first().getLong(0))
+        PgConnectionHelper.defaultSuspendingConnection().use {
+            val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test;")
+                .fetchScalar<Long>()
+            assertEquals(0, count)
         }
     }
 
     @Test
     fun `copyOut should supply all rows from table`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
+        PgConnectionHelper.defaultSuspendingConnection().use {
             var rowIndex = 0L
             val copyOutStatement = CopyStatement(
                 tableName = "copy_out_test",
@@ -98,9 +98,9 @@ class TestCopySpec {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                it.sendQuery(CREATE_COPY_TARGET_TABLE)
-                it.sendQuery(CREATE_COPY_FROM_TABLE)
+            PgConnectionHelper.defaultSuspendingConnection().use {
+                it.createQuery(CREATE_COPY_TARGET_TABLE).executeClosing()
+                it.createQuery(CREATE_COPY_FROM_TABLE).executeClosing()
             }
         }
     }

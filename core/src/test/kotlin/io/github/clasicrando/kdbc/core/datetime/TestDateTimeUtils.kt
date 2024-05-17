@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.core.datetime
 
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -60,5 +61,27 @@ class TestDateTimeUtils {
     ])
     fun `LocalTime_tryFromString should return failure when invalid string`(value: String) {
         assertThrows<InvalidDateString> { LocalTime.tryFromString(value) }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = [
+        "2020-05-19T06:59:19-03",
+        "2020-05-19T06:59:19+09",
+        "2020-05-19 06:59:19",
+        "2023-01-01T23:56:45Z",
+        "2023-01-01T23:56:45Z",
+    ])
+    fun `Instant_tryFromString should return success when valid iso-8601 string`(value: String) {
+        assertDoesNotThrow { Instant.tryFromString(value) }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = [
+        "Test",
+        "2020-05-1906:59:19",
+        "2023-01-01Z08:09:57-08",
+    ])
+    fun `Instant_tryFromString should return failure when invalid string`(value: String) {
+        assertThrows<InvalidDateString> { Instant.tryFromString(value) }
     }
 }

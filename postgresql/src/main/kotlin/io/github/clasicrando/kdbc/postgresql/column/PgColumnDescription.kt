@@ -15,7 +15,7 @@ data class PgColumnDescription(
     val columnAttribute: Short,
     /** OID of the field's data type */
     val pgType: PgType,
-    /** Size of the data type. Negative values denote a variable with type. */
+    /** Size of the data type. Negative values denote a variable width type. */
     val dataTypeSize: Short,
     /**
      * Modifier of the data type (see
@@ -29,4 +29,18 @@ data class PgColumnDescription(
     override val dataType: Int get() = pgType.oid
     override val typeName: String = fieldName
     override val typeSize: Long = dataTypeSize.toLong()
+
+    companion object {
+        fun dummyDescription(pgType: PgType, formatCode: Short): PgColumnDescription {
+            return PgColumnDescription(
+                fieldName = "",
+                tableOid = 0,
+                columnAttribute = 0,
+                pgType = pgType,
+                dataTypeSize = 0,
+                typeModifier = 0,
+                formatCode = formatCode,
+            )
+        }
+    }
 }

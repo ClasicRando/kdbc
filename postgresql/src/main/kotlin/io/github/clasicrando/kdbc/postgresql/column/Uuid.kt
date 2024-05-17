@@ -1,29 +1,39 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import kotlinx.uuid.UUID
 import kotlinx.uuid.encodeToByteArray
+import kotlin.reflect.typeOf
 
 /**
- * Implementation of [PgTypeEncoder] for [UUID]. This maps to the `uuid` type in a postgresql
- * database. Simply writes the bytes of the [UUID] into the argument buffer.
+ * Implementation of a [PgTypeDescription] for the [UUID] type. This maps to the `uuid` type in a
+ * postgresql database.
  */
-val uuidTypeEncoder = PgTypeEncoder<UUID>(PgType.Uuid) { value, buffer ->
-    buffer.writeBytes(value.encodeToByteArray())
-}
+object UuidTypeDescription : PgTypeDescription<UUID>(
+    pgType = PgType.Uuid,
+    kType = typeOf<UUID>(),
+) {
+    /** Simply writes the bytes of the [UUID] into the argument buffer */
+    override fun encode(value: UUID, buffer: ByteWriteBuffer) {
+        buffer.writeBytes(value.encodeToByteArray())
+    }
 
-/**
- * Implementation of [PgTypeDecoder] for [UUID]. This maps to the `uuid` type in a postgresql
- * database.
- *
- * ### Binary
- * Read all bytes and pass to the [UUID] constructor.
- *
- * ### Text
- * Pass the [String] value to the [UUID] for parsing into a [UUID] instance.
- */
-val uuidTypeDecoder = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> UUID(value.bytes.readBytes())
-        is PgValue.Text -> UUID(value.text)
+    /** Read all bytes and pass to the [UUID] constructor */
+    override fun decodeBytes(value: PgValue.Binary): UUID {
+        return UUID(value.bytes.readBytes())
+    }
+
+    /** Pass the [String] value to the [UUID] for parsing into a [UUID] instance */
+    override fun decodeText(value: PgValue.Text): UUID {
+        return UUID(value.text)
     }
 }
+
+/**
+ * Implementation of an [ArrayTypeDescription] for [UUID]. This maps to the `uuid[]` type in a
+ * postgresql database.
+ */
+object UuidArrayTypeDescription : ArrayTypeDescription<UUID>(
+    pgType = PgType.UuidArray,
+    innerType = UuidTypeDescription,
+)

@@ -1,7 +1,9 @@
 package com.github.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import kotlinx.coroutines.async
@@ -31,8 +33,8 @@ open class KdbcBenchmarkConcurrentSingle {
 
     @Setup
     open fun start(): Unit = runBlocking {
-        Postgres.connection(connectOptions = options).use {
-            it.sendQuery(setupQuery)
+        Postgres.suspendingConnection(connectOptions = options).use {
+            it.createQuery(setupQuery).executeClosing()
         }
     }
 
@@ -43,34 +45,14 @@ open class KdbcBenchmarkConcurrentSingle {
     }
 
     private suspend fun executeQuery(stepId: Int): List<PostDataClass> {
-        return Postgres.connection(connectOptions = options).use { conn ->
-            conn.sendPreparedStatement(kdbcQuerySingle, listOf(stepId)).use {
-                val result = it.firstOrNull()
-                    ?: throw Exception("No records returned from $kdbcQuerySingle, id = $stepId")
-                result.use { qr ->
-                    qr.rows.map { row ->
-                        PostDataClass(
-                            row.getInt(0)!!,
-                            row.getString(1)!!,
-                            row.getLocalDateTime(2)!!,
-                            row.getLocalDateTime(3)!!,
-                            row.getInt(4),
-                            row.getInt(5),
-                            row.getInt(6),
-                            row.getInt(7),
-                            row.getInt(8),
-                            row.getInt(9),
-                            row.getInt(10),
-                            row.getInt(11),
-                            row.getInt(12),
-                        )
-                    }
-                }
-            }
+        return Postgres.suspendingConnection(connectOptions = options).use { conn ->
+            conn.createPreparedQuery(kdbcQuerySingle)
+                .bind(stepId)
+                .fetchAll(PostDataClassRowParser)
         }
     }
 
-//    @Benchmark
+    @Benchmark
     open fun queryData() = runBlocking {
         val results = List(concurrencyLimit) {
             val stepId = step()

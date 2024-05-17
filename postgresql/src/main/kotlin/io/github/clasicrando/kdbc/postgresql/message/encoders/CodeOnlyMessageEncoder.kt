@@ -12,7 +12,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object CodeOnlyMessageEncoder : MessageEncoder<PgMessage> {
     override fun encode(value: PgMessage, buffer: ByteWriteBuffer) {
-        buffer.writeCode(value)
+        buffer.writeByte(value.code)
         buffer.writeInt(4)
     }
 }

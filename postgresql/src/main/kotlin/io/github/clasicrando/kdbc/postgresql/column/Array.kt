@@ -1,67 +1,40 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
-import io.github.clasicrando.kdbc.postgresql.array.ArrayLiteralParser
+import io.github.clasicrando.kdbc.postgresql.type.ArrayLiteralParser
 import kotlin.reflect.KType
-import kotlin.reflect.typeOf
+import kotlin.reflect.KTypeProjection
+import kotlin.reflect.full.createType
+import kotlin.reflect.full.withNullability
+
+/** Dummy [PgColumnDescription] to create a [PgValue.Text] instance for text decoding */
+private val dummyFieldDescription = PgColumnDescription(
+    fieldName = "",
+    tableOid = 0,
+    columnAttribute = 0,
+    dataTypeSize = 0,
+    pgType = PgType.Unknown,
+    typeModifier = 0,
+    formatCode = 1,
+)
 
 /**
- * Function for creating new [PgArrayTypeEncoder] instances. Requires an inner [encoder], the
- * [pgType] of the array and all [compatibleTypes] of the array.
+ * Implementation of a [PgTypeDescription] for array types. Data supplied is the [PgType] of the
+ * array type, the [KType] of the
  */
-inline fun <reified T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
-    encoder: E,
+abstract class ArrayTypeDescription<T : Any>(
     pgType: PgType,
-    compatibleTypes: Array<PgType>? = null,
-): PgTypeEncoder<List<T?>> {
-    return PgArrayTypeEncoder(
-        encoder = encoder,
-        pgType = pgType,
-        compatibleTypes = compatibleTypes,
-        encodeTypes = listOf(typeOf<List<T?>>()),
-    )
-}
-
-/**
- * Special function to create new [PgArrayTypeEncoder] instances without the use of an inline
- * function. This requires the caller to provide the correct [KType] as an argument rather than
- * generating the type using the type [T] as a reified argument.
- */
-internal fun <T : Any, E : PgTypeEncoder<T>> arrayTypeEncoder(
-    encoder: E,
-    pgType: PgType,
-    arrayType: KType,
-    compatibleTypes: Array<PgType>? = null,
-): PgTypeEncoder<List<T?>> {
-    return PgArrayTypeEncoder(
-        encoder = encoder,
-        pgType = pgType,
-        compatibleTypes = compatibleTypes,
-        encodeTypes = listOf(arrayType),
-    )
-}
-
-/**
- * Implementation of [PgTypeEncoder] for a [List] of [T]. This maps to an array type in a
- * postgresql database and requires an [encoder] of the [List] item type to allow for encoding of
- * the items into the argument buffer. The 1 limitation of the array encoder is that it does not
- * allow for multidimensional arrays (i.e. [encoder] is a [PgArrayTypeEncoder]).
- */
-@PublishedApi
-internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
-    private val encoder: E,
-    override var pgType: PgType,
-    override val compatibleTypes: Array<PgType>?,
-    override val encodeTypes: List<KType>,
-) : PgTypeEncoder<List<T?>> {
-    init {
-        require(encoder !is PgArrayTypeEncoder<*, *>) {
-            "Multi dimensional arrays are not supported"
-        }
-    }
-
+    private val innerType: PgTypeDescription<T>,
+) : PgTypeDescription<List<T?>>(
+    pgType = pgType,
+    kType = List::class
+        .createType(arguments = listOf(
+            KTypeProjection.invariant(innerType.kType.withNullability(nullable = true))
+        )),
+) {
     /**
      * Encode a [List] of [T] into the argument [buffer]. This writes:
      *  1. The number of dimensions (always 1)
@@ -76,7 +49,7 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
     override fun encode(value: List<T?>, buffer: ByteWriteBuffer) {
         buffer.writeInt(1)
         buffer.writeInt(0)
-        buffer.writeInt(encoder.pgType.oid)
+        buffer.writeInt(innerType.pgType.oid)
         buffer.writeInt(value.size)
         buffer.writeInt(1)
         for (item in value) {
@@ -85,137 +58,97 @@ internal class PgArrayTypeEncoder<T : Any, E : PgTypeEncoder<T>>(
                 continue
             }
             buffer.writeLengthPrefixed {
-                encoder.encode(item, this)
+                innerType.encode(item, this)
             }
         }
     }
-}
 
-/** Dummy [PgColumnDescription] to create a [PgValue.Text] instance for text decoding */
-@PublishedApi
-internal val dummyFieldDescription = PgColumnDescription(
-    fieldName = "",
-    tableOid = 0,
-    columnAttribute = 0,
-    dataTypeSize = 0,
-    pgType = PgType.Unknown,
-    typeModifier = 0,
-    formatCode = 1,
-)
-
-/**
- * Dummy [PgColumnDescription] to create dummy instances of [PgValue.Binary] with the supplied
- * [typeOid]
- */
-@PublishedApi
-internal fun dummyTypedFieldDescription(typeOid: Int) = PgColumnDescription(
-    fieldName = "",
-    tableOid = 0,
-    columnAttribute = 0,
-    dataTypeSize = 0,
-    pgType = PgType.ByOid(typeOid),
-    typeModifier = 0,
-    formatCode = 1,
-)
-
-/**
- * Function for creating new [PgTypeDecoder] instances that decode into a [List] of [T]. Requires
- * the [List] item's type [decoder].
- */
-inline fun <reified T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
-    decoder: D,
-): PgTypeDecoder<List<T?>> {
-    return arrayTypeDecoder(decoder, typeOf<List<T?>>())
-}
-
-private const val ARRAY_LITERAL_CHECK_MESSAGE =
-    "An array literal value must start and end with a curly brace"
-
-/**
- * Returns an implementation of a [PgTypeDecoder] that decodes a [PgValue] into a [List] of [T].
- *
- * ### Binary
- * Message contains:
- *  1. [Int] - Number of dimensions for the array. Must be 1 or an [IllegalArgumentException] is
- *  thrown
- *  2. [Int] - Array header flags (discarded)
- *  3. [Int] - Array item type OID
- *  4. [Int] - Length of the array
- *  5. [Int] - Lower bound of the array. Must be 1 or an [IllegalArgumentException] is thrown
- *  6. Dynamic - All items of the array as the number of bytes ([Int]) followed by that number of
- *  bytes
- *
- * ### Text
- * Message is a text representation of the array (also called an array literal). Must be wrapped in
- * curly braces and each item is separated by a comma. For details see [ArrayLiteralParser]. With
- * all the items in text format, push each [String] item into a [PgValue.Text] and decode into the
- * resulting [List].
- *
- * [pg source code binary](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1549)
- * [pg source code text](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1017)
- *
- * @throws columnDecodeError if the decode operation fails (reason supplied in [Exception])
- */
-@PublishedApi
-internal fun <T : Any, D : PgTypeDecoder<T>> arrayTypeDecoder(
-    decoder : D,
-    arrayType: KType,
-): PgTypeDecoder<List<T?>> = PgTypeDecoder { value ->
-    when (value) {
-        is PgValue.Binary -> {
-            val dimensions = value.bytes.readInt()
-            if (dimensions == 0) {
-                return@PgTypeDecoder listOf()
-            }
-            checkOrColumnDecodeError(
-                check = dimensions == 1,
-                kType = arrayType,
-                type = value.typeData,
-            ) {
-                "Attempted to decode an array of $dimensions dimensions. Only 1-dimensional " +
-                        "arrays are supported"
-            }
-            // Discard flags value. No longer in use
-            value.bytes.readInt()
-
-            val elementTypeOid = value.bytes.readInt()
-            val length = value.bytes.readInt()
-            val lowerBound = value.bytes.readInt()
-            checkOrColumnDecodeError(
-                check = lowerBound == 1,
-                kType = arrayType,
-                type = value.typeData,
-            ) { "Attempted to read an array with a lower bound other than 1. Got $lowerBound" }
-
-            val fieldDescription = dummyTypedFieldDescription(elementTypeOid)
-            List(length) {
-                // Read length value but don't use it since a ReadBufferSlice cannot be constructed
-                val elementLength = value.bytes.readInt()
-                if (elementLength == -1) {
-                    return@List null
-                }
-                val slice = value.bytes.slice(elementLength)
-                value.bytes.skip(elementLength)
-                decoder.decode(PgValue.Binary(slice, fieldDescription))
-            }
+    /**
+     * Message contains:
+     *  1. [Int] - Number of dimensions for the array. Must be 1 or an [IllegalArgumentException]
+     *  is thrown
+     *  2. [Int] - Array header flags (discarded)
+     *  3. [Int] - Array item type OID
+     *  4. [Int] - Length of the array
+     *  5. [Int] - Lower bound of the array. Must be 1 or an [IllegalArgumentException] is thrown
+     *  6. Dynamic - All items of the array as the number of bytes ([Int]) followed by that number
+     *  of bytes
+     *
+     * [pg source code](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1549)
+     *
+     * @throws columnDecodeError if the decode operation fails (reason supplied in [Exception])
+     */
+    override fun decodeBytes(value: PgValue.Binary): List<T?> {
+        val dimensions = value.bytes.readInt()
+        if (dimensions == 0) {
+            return listOf()
         }
-        is PgValue.Text -> {
-            checkOrColumnDecodeError(
-                check = value.text.startsWith('{') && value.text.endsWith('}'),
-                kType = arrayType,
-                type = value.typeData,
-            ) { ARRAY_LITERAL_CHECK_MESSAGE }
+        checkOrColumnDecodeError(
+            check = dimensions == 1,
+            kType = kType,
+            type = value.typeData,
+        ) {
+            "Attempted to decode an array of $dimensions dimensions. Only 1-dimensional " +
+                    "arrays are supported"
+        }
+        // Discard flags value. No longer in use
+        value.bytes.readInt()
 
-            ArrayLiteralParser.parse(value.text)
-                .map {
-                    when {
-                        it == null -> null
-                        else -> {
-                            val innerValue = PgValue.Text(it, dummyFieldDescription)
-                            decoder.decode(innerValue)
-                        }
+        val elementTypeOid = value.bytes.readInt()
+        val length = value.bytes.readInt()
+        val lowerBound = value.bytes.readInt()
+        checkOrColumnDecodeError(
+            check = lowerBound == 1,
+            kType = kType,
+            type = value.typeData,
+        ) { "Attempted to read an array with a lower bound other than 1. Got $lowerBound" }
+
+        val fieldDescription = PgColumnDescription(
+            fieldName = "",
+            tableOid = 0,
+            columnAttribute = 0,
+            dataTypeSize = 0,
+            pgType = PgType.fromOid(elementTypeOid),
+            typeModifier = 0,
+            formatCode = 1,
+        )
+        return List(length) {
+            // Read length value but don't use it since a ReadBufferSlice cannot be constructed
+            val elementLength = value.bytes.readInt()
+            if (elementLength == -1) {
+                return@List null
+            }
+            val slice = value.bytes.slice(elementLength)
+            innerType.decode(PgValue.Binary(slice, fieldDescription))
+        }
+    }
+
+    /**
+     * Message is a text representation of the array (also called an array literal). Must be
+     * wrapped in curly braces and each item is separated by a comma. For details see
+     * [ArrayLiteralParser]. With all the items in text format, push each [String] item into a
+     * [PgValue.Text] and decode into the resulting [List].
+     *
+     * [pg source code](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1017)
+     *
+     * @throws columnDecodeError if the decode operation fails (reason supplied in [Exception])
+     */
+    override fun decodeText(value: PgValue.Text): List<T?> {
+        checkOrColumnDecodeError(
+            check = value.text.startsWith('{') && value.text.endsWith('}'),
+            kType = kType,
+            type = value.typeData,
+        ) { "An array literal value must start and end with a curly brace" }
+
+        return ArrayLiteralParser.parse(value.text)
+            .map {
+                when {
+                    it == null -> null
+                    else -> {
+                        val innerValue = PgValue.Text(it, dummyFieldDescription)
+                        innerType.decode(innerValue)
                     }
-                }.toList()
-        }
+                }
+            }.toList()
     }
 }

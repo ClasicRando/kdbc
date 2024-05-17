@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgMoney
 import kotlinx.coroutines.runBlocking
@@ -109,32 +109,24 @@ class TestPgMoney {
     fun `encode should accept PgMoney when querying postgresql`() = runBlocking {
         val query = "SELECT $1 money_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            conn.sendPreparedStatement(query, listOf(moneyValue)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(moneyValue, rows.map { it.getAs<PgMoney>("money_col") }.first())
-            }
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            val money = conn.createPreparedQuery(query)
+                .bind(moneyValue)
+                .fetchScalar<PgMoney>()
+            assertEquals(moneyValue, money)
         }
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+            val money = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(moneyValue, rows.map { it.getAs<PgMoney>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgMoney>()
+            assertEquals(moneyValue, money)
         }
     }
 

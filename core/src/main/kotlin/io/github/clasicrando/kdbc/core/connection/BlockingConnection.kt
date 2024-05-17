@@ -1,11 +1,8 @@
 package io.github.clasicrando.kdbc.core.connection
 
-import io.github.clasicrando.kdbc.core.UniqueResourceId
+import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
+import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
-import io.github.clasicrando.kdbc.core.query.BlockingQueryBatch
-import io.github.clasicrando.kdbc.core.query.DefaultBlockingQueryBatch
-import io.github.clasicrando.kdbc.core.result.QueryResult
-import io.github.clasicrando.kdbc.core.result.StatementResult
 
 private const val RESOURCE_TYPE = "BlockingConnection"
 
@@ -18,75 +15,61 @@ private const val RESOURCE_TYPE = "BlockingConnection"
  *
  * To keep the [BlockingConnection] resources from leaking, the recommended usage of
  * [BlockingConnection] instances is to utilize the [use] and [transaction] methods which always
- * clean up [Connection] resources before exiting. This does implicitly close the connection so if
- * you intend to hold a [BlockingConnection] for a long period of time (e.g. outside the scope of a
- * single method) you should find a way to always close the [BlockingConnection].
+ * clean up [BlockingConnection] resources before exiting. This does implicitly close the
+ * connection so if you intend to hold a [BlockingConnection] for a long period of time (e.g.
+ * outside the scope of a single method) you should find a way to always close the
+ * [BlockingConnection].
  */
-interface BlockingConnection : UniqueResourceId {
-
+interface BlockingConnection : Connection {
     override val resourceType: String get() = RESOURCE_TYPE
 
     /**
-     * Returns true if the underlining connection is still active and false if the connection has
-     * been closed or a fatal error has occurred causing the connection to be aborted
-     */
-    val isConnected: Boolean
-
-    /**
-     * Returns true if the connection is currently within a transaction. This is set to true after
-     * [begin] is called and reverts to false if [commit] or [rollback] is called.
-     */
-    val inTransaction: Boolean
-
-    /**
      * Method called to close the connection and free any resources that are held by the
-     * connection. Once this has been called, the [Connection] instance should not be used.
+     * connection. Once this has been called, the [BlockingConnection] instance should not be used.
      */
     fun close()
 
     /**
-     * Request that the database start a new transaction. This will fail if the [Connection] is
-     * already within a transaction.
+     * Request that the database start a new transaction. This will fail if the
+     * [BlockingConnection] is already within a transaction.
      */
     fun begin()
 
     /**
-     * Commit the current transaction. This will fail if the [Connection] was not within a
+     * Commit the current transaction. This will fail if the [BlockingConnection] was not within a
      * transaction
      */
     fun commit()
 
     /**
-     * Rollback the current transaction. This will fail if the [Connection] was not within a
-     * transaction
+     * Rollback the current transaction. This will fail if the [BlockingConnection] was not within
+     * a transaction
      */
     fun rollback()
 
     /**
-     * Send a raw query with no parameters, returning a [StatementResult] containing zero or more
-     * [QueryResult]s
+     * Create a new [BlockingQuery] for this [BlockingConnection] with the specified [query]
+     * string. [BlockingQuery] instances are for SQL queries that do not accept parameters and
+     * aren't executed frequently enough to require a precomputed query plan that is generated with
+     * a [BlockingPreparedQuery]. This means that even if your query doesn't accept parameters, a
+     * [BlockingPreparedQuery] is recommended when frequently executing a static query.
      */
-    fun sendQuery(query: String): StatementResult
+    fun createQuery(query: String): BlockingQuery
 
     /**
-     * Send a prepared statement with [parameters], returning a [StatementResult] containing zero
-     * or more [QueryResult]s
+     * Create a new [BlockingPreparedQuery] for this [BlockingConnection] with the specified
+     * [query] string. [BlockingPreparedQuery] are for SQL queries that either accept parameters or
+     * are executed frequently so a precomputed query plan is best.
      */
-    fun sendPreparedStatement(query: String, parameters: List<Any?>): StatementResult
+    fun createPreparedQuery(query: String): BlockingPreparedQuery
 
     /**
-     * Manually release a prepared statement for the provided [query]. This will not error if the
-     * query is not attached to a prepared statement.
-     *
-     * Only call this method if you are sure you need it.
+     * Create a new [BlockingPreparedQueryBatch] for this [BlockingConnection]. This allows
+     * executing 1 or more [BlockingPreparedQuery] instances within a single batch of commands.
+     * This is not guaranteed to improve performance but some databases provide optimized protocols
+     * for sending multiple queries at the same time.
      */
-    fun releasePreparedStatement(query: String)
-
-    /** Create a new [BlockingQuery] for this [BlockingConnection] with the specified [query] string */
-    fun createQuery(query: String): BlockingQuery = BlockingQuery(query, this)
-
-    /** Create a new [BlockingQueryBatch] for this [BlockingConnection] */
-    fun createQueryBatch(): BlockingQueryBatch = DefaultBlockingQueryBatch(this)
+    fun createPreparedQueryBatch(): BlockingPreparedQueryBatch
 }
 
 /**

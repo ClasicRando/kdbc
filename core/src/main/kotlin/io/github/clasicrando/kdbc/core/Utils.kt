@@ -23,17 +23,17 @@ sealed interface Loop {
  * the [block] within the context of the [resource] provided. This makes each event include the
  * [resourceId][UniqueResourceId.resourceId] in each event as a key value pair.
  */
-inline fun KLogger.resourceLogger(
-    resource: UniqueResourceId,
+inline fun UniqueResourceId.logWithResource(
+    logger: KLogger,
     level: Level,
     crossinline block: KLoggingEventBuilder.() -> Unit,
 ) {
-    val autoPayload = mapOf(
-        "resourceId" to resource.resourceIdAsString,
-        "resourceType" to resource.resourceType,
-    )
-    at(level) {
+    logger.at(level) {
         block()
+        val autoPayload = mapOf(
+            "resourceId" to this@logWithResource.resourceIdAsString,
+            "resourceType" to this@logWithResource.resourceType,
+        )
         payload = payload?.plus(autoPayload) ?: autoPayload
     }
 }

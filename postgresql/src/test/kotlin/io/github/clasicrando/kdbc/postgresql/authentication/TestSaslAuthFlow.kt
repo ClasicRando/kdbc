@@ -8,8 +8,8 @@ import kotlin.test.Test
 class TestSaslAuthFlow {
     @Test
     fun `saslAuthFlow should succeed when valid login`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use {
-            it.sendQuery("SELECT 1")
+        PgConnectionHelper.defaultSuspendingConnection().use {
+            it.sendSimpleQuery("SELECT 1")
         }
     }
 }

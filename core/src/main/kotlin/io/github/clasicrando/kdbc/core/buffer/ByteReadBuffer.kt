@@ -9,21 +9,18 @@ import java.nio.charset.Charset
  * slice over the original buffer. This is done using a size and offset property that are
  * originally set to the [ByteArray.size] property of the backing buffer and 0, respectively. If
  * the instance is constructed using the [slice] method, the new slice's size is the length
- * requested and the offset is calculated current [position] and the pre-slice buffer's offset. The
- * [position] property keeps track of the relative position within the buffer and reads against the
- * buffer increments the [position] value based the number of bytes requested.
+ * requested and the offset is calculated using the current [position] and the pre-slice buffer's
+ * offset. The [position] property keeps track of the relative position within the buffer and reads
+ * against the buffer increments the [position] value based the number of bytes requested.
  */
 class ByteReadBuffer(
     private var innerBuffer: ByteArray,
     private val offset: Int = 0,
-    private val size: Int = innerBuffer.size,
+    @PublishedApi
+    internal val size: Int = innerBuffer.size,
 ) : AutoRelease {
-    private var position: Int = 0
-
-    /** Move cursor forward the exact amount specified by [byteCount] */
-    fun skip(byteCount: Int) {
-        position += byteCount
-    }
+    @PublishedApi
+    internal var position: Int = 0
 
     /**
      * Create a sub slice of this [ByteReadBuffer], starting at the current position and having a
@@ -37,18 +34,27 @@ class ByteReadBuffer(
      * [remaining] in the buffer
      */
     fun slice(length: Int): ByteReadBuffer {
-        require(length <= remaining) {
-            "Cannot slice a buffer with a length ($length) that is more than the remaining " +
-                    "bytes ($remaining)"
-        }
-        return ByteReadBuffer(innerBuffer, position + offset, length)
+        checkRemaining(length)
+        val slice = ByteReadBuffer(innerBuffer, position + offset, length)
+        position += length
+        return slice
     }
 
     /** Number of bytes remaining as readable within the buffer */
-    val remaining: Int get() = size - position
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun remaining(): Int {
+        return size - position
+    }
 
-    private fun checkExhausted() {
-        if (position >= size || offset + position >= innerBuffer.size) {
+    /**
+     * Check to confirm that the required number of bytes are available within the buffer. If the
+     * [remaining] value is not greater than or equal to the [required] byte count,
+     * [BufferExhausted] if thrown.
+     *
+     * @throws [BufferExhausted] if the buffer does not have the required number of bytes available
+     */
+    private fun checkRemaining(required: Int) {
+        if (remaining() < required) {
             throw BufferExhausted()
         }
     }
@@ -59,7 +65,7 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readByte(): Byte {
-        checkExhausted()
+        checkRemaining(1)
         return innerBuffer[offset + position++]
     }
 
@@ -69,9 +75,10 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readShort(): Short {
+        checkRemaining(2)
         val result = (
-            this.readByte().toInt() and 0xff shl 8
-            or (this.readByte().toInt() and 0xff))
+            innerBuffer[offset + position++].toInt() and 0xff shl 8
+            or (innerBuffer[offset + position++].toInt() and 0xff))
         return result.toShort()
     }
 
@@ -81,11 +88,12 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readInt(): Int {
+        checkRemaining(4)
         val result = (
-            (this.readByte().toInt() and 0xff shl 24)
-            or (this.readByte().toInt() and 0xff shl 16)
-            or (this.readByte().toInt() and 0xff shl 8)
-            or (this.readByte().toInt() and 0xff))
+            (innerBuffer[offset + position++].toInt() and 0xff shl 24)
+            or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
+            or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
+            or (innerBuffer[offset + position++].toInt() and 0xff))
         return result
     }
 
@@ -95,15 +103,16 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted
      */
     fun readLong(): Long {
+        checkRemaining(8)
         val result = (
-            (this.readByte().toLong() and 0xffL shl 56)
-            or (this.readByte().toLong() and 0xffL shl 48)
-            or (this.readByte().toLong() and 0xffL shl 40)
-            or (this.readByte().toLong() and 0xffL shl 32)
-            or (this.readByte().toLong() and 0xffL shl 24)
-            or (this.readByte().toLong() and 0xffL shl 16)
-            or (this.readByte().toLong() and 0xffL shl 8)
-            or (this.readByte().toLong() and 0xffL))
+            (innerBuffer[offset + position++].toLong() and 0xffL shl 56)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 48)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 40)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 32)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 24)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 16)
+            or (innerBuffer[offset + position++].toLong() and 0xffL shl 8)
+            or (innerBuffer[offset + position++].toLong() and 0xffL))
         return result
     }
 
@@ -131,15 +140,17 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
     fun readBytes(length: Int): ByteArray {
-        if (remaining < length) {
-            throw BufferExhausted()
-        }
-        return ByteArray(length) { this.readByte() }
+        checkRemaining(length)
+        val start = offset + position
+        position += length
+        return this.innerBuffer.copyOfRange(start, start + length)
     }
 
     /** Read all remaining bytes into a [ByteArray]. This can result in an empty array. */
     fun readBytes(): ByteArray {
-        return ByteArray(remaining) { this.readByte() }
+        val currentPosition = position
+        position = size
+        return this.innerBuffer.copyOfRange(offset + currentPosition, offset + size)
     }
 
     /**
@@ -153,18 +164,30 @@ class ByteReadBuffer(
     }
 
     /**
-     * Read bytes until 0 is returned from [readByte] indicating the end of a CString (null
-     * terminated char array). These bytes are then converted to a [String] using the specified
-     * [charset]. By default, the bytes are read using [Charsets.UTF_8].
+     * Read bytes until 0 is found in the current relative [position] indicating the end of a
+     * CString (null terminated char array). These bytes are then converted to a [String] using the
+     * specified [charset]. By default, the bytes are read using [Charsets.UTF_8].
      *
      * @throws BufferExhausted if the buffer has been exhausted before finding a zero byte
      * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
      */
     fun readCString(charset: Charset = Charsets.UTF_8): String {
-        return generateSequence { this@ByteReadBuffer.readByte().takeIf { it != ZERO_BYTE } }
-            .toList()
-            .toByteArray()
-            .toString(charset = charset)
+        val buffer = ArrayList<Byte>()
+
+        while (remaining() > 0) {
+            val nextByte = innerBuffer[offset + position++]
+            if (nextByte == ZERO_BYTE) {
+                break
+            }
+
+            buffer.add(nextByte)
+        }
+        return String(bytes = buffer.toByteArray(), charset = charset)
+    }
+
+    /** Reset this buffer to it's initial reading position so the value can be read again */
+    fun reset() {
+        position = 0
     }
 
     /**
@@ -172,7 +195,7 @@ class ByteReadBuffer(
      * leaves the buffer in an unusable state
      */
     override fun release() {
-        position = 0
+        reset()
         innerBuffer = ByteArray(0)
     }
 

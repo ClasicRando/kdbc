@@ -11,20 +11,45 @@ class ColumnDecodeError(
     columnName: String,
     decodeType: KType,
     reason: String,
+    cause: Throwable?,
 ) : KdbcException(
     "Could not decode bytes into desired type. Actual Type: $typeName($dataType), " +
             "Column: '$columnName', " +
-            "Desired Output: $decodeType" + if (reason.isNotBlank()) ", Reason: $reason" else ""
+            "Desired Output: $decodeType" + if (reason.isNotBlank()) ", Reason: $reason" else "",
+    cause,
 )
 
 /** Throw a [ColumnDecodeError] for the [kType] with the [type] */
-fun columnDecodeError(kType: KType, type: ColumnData, reason: String = ""): Nothing {
-    throw ColumnDecodeError(type.dataType, type.typeName, type.fieldName, kType, reason)
+fun columnDecodeError(
+    kType: KType,
+    type: ColumnData,
+    reason: String = "",
+    cause: Throwable? = null,
+): Nothing {
+    throw ColumnDecodeError(
+        dataType = type.dataType,
+        typeName = type.typeName,
+        columnName = type.fieldName,
+        decodeType = kType,
+        reason = reason,
+        cause = cause,
+    )
 }
 
 /** Throw a [ColumnDecodeError] for the type [T] with the [type] */
-inline fun <reified T> columnDecodeError(type: ColumnData, reason: String = ""): Nothing {
-    throw ColumnDecodeError(type.dataType, type.typeName, type.fieldName, typeOf<T>(), reason)
+inline fun <reified T> columnDecodeError(
+    type: ColumnData,
+    reason: String = "",
+    cause: Throwable? = null,
+): Nothing {
+    throw ColumnDecodeError(
+        dataType = type.dataType,
+        typeName = type.typeName,
+        columnName = type.fieldName,
+        decodeType = typeOf<T>(),
+        reason = reason,
+        cause = cause,
+    )
 }
 
 /** Evaluate the [check] parameter and if it's false throw a [ColumnDecodeError] */
@@ -34,7 +59,7 @@ inline fun <reified T> checkOrColumnDecodeError(
     reason: () -> String = { "" },
 ) {
     if (!check) {
-        columnDecodeError<T>(type, reason())
+        columnDecodeError<T>(type = type, reason = reason())
     }
 }
 
@@ -47,6 +72,6 @@ inline fun checkOrColumnDecodeError(
 ) {
     if (!check) {
         val text = reason()
-        columnDecodeError(kType, type, text)
+        columnDecodeError(kType = kType, type = type, reason = text)
     }
 }

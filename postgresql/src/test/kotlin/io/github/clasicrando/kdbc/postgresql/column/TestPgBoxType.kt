@@ -1,7 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgBox
@@ -16,34 +18,24 @@ class TestPgBoxType {
     fun `encode should accept PgBox when querying postgresql`() = runBlocking {
         val query = "SELECT $1 box_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            conn.includePostGisTypes()
-            conn.sendPreparedStatement(query, listOf(value)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<PgBox>("box_col") }.first())
-            }
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            val box = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<PgBox>()
+            assertEquals(value, box)
         }
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::box;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            conn.includePostGisTypes()
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+            val box = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<PgBox>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgBox>()
+            assertEquals(value, box)
         }
     }
 
@@ -73,9 +65,9 @@ class TestPgBoxType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn ->
-                conn.sendQuery(POST_GIS_QUERY).use {
-                    check(it.first().rows.first().getBoolean(0) == true)
+            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+                conn.sendSimpleQuery(POST_GIS_QUERY).use {
+                    check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }
             }
         }

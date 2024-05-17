@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.datetime.DateTime
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
@@ -22,13 +22,10 @@ class TestCompositeType {
 
         PgConnectionHelper.defaultBlockingConnection().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
-            conn.sendPreparedStatement(query, listOf(type)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(type, rows.map { it.getAs<CompositeType>("composite_col") }.first())
-            }
+            val value = conn.createPreparedQuery(query)
+                .bind(type)
+                .fetchScalar<CompositeType>()
+            assertEquals(type, value)
         }
     }
 
@@ -37,17 +34,12 @@ class TestCompositeType {
 
         PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(type, rows.map { it.getAs<CompositeType>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<CompositeType>()
+            assertEquals(type, value)
         }
     }
 
@@ -65,34 +57,26 @@ class TestCompositeType {
     fun `encode should accept CompositeTest when querying postgresql`() = runBlocking {
         val query = "SELECT $1 composite_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
-            conn.sendPreparedStatement(query, listOf(type)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(type, rows.map { it.getAs<CompositeType>("composite_col") }.first())
-            }
+            val value = conn.createPreparedQuery(query)
+                .bind(type)
+                .fetchScalar<CompositeType>()
+            assertEquals(type, value)
         }
     }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT row(1,'Composite Type','2024-02-25T05:25:51Z')::composite_type;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(type, rows.map { it.getAs<CompositeType>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<CompositeType>()
+            assertEquals(type, value)
         }
     }
 
@@ -120,8 +104,8 @@ class TestCompositeType {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { connection ->
-                connection.sendQuery("""
+            PgConnectionHelper.defaultSuspendingConnection().use { connection ->
+                connection.sendSimpleQuery("""
                     DROP TYPE IF EXISTS public.composite_type;
                     CREATE TYPE public.composite_type AS
                     (

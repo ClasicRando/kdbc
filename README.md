@@ -39,10 +39,11 @@ val connectOptions = PgConnectOptions(
       password = "yourSecretPassword",
       applicationName = "MyFirstKdbcProject"
 )
-val connection = Postgres.connection(connectOption = connectOptions)
-val text: String = connection.query("SELECT 'KDBC Docs'").fetchScalar()
+val connection = Postgres.suspendingConnection(connectOption = connectOptions)
+val text: String = connection.createQuery("SELECT 'KDBC Docs'")
+    .fetchScalar()
 println(text) // KDBC Docs
-connection.query("CALL your_stored_procedure($1, $2)")
+connection.createPreparedQuery("CALL your_stored_procedure($1, $2)")
     .bind(1)
     .bind("KDBC Docs")
     .execute()

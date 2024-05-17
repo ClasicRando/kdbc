@@ -3,10 +3,11 @@ package io.github.clasicrando.kdbc.postgresql.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.message.SizedMessage
-import io.github.clasicrando.kdbc.core.resourceLogger
+import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.stream.BlockingStream
 import io.github.clasicrando.kdbc.core.stream.StreamConnectError
 import io.github.clasicrando.kdbc.core.stream.StreamReadError
@@ -48,7 +49,7 @@ internal class PgBlockingStream(
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
-    private val messageSendBuffer = ByteWriteBuffer(SEND_BUFFER_SIZE)
+    private val messageSendBuffer = ByteArrayWriteBuffer(SEND_BUFFER_SIZE)
 
     override val resourceType: String = RESOURCE_TYPE
 
@@ -60,7 +61,7 @@ internal class PgBlockingStream(
      * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
     internal inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
-        logger.resourceLogger(this, level, block)
+        logWithResource(logger, level, block)
     }
 
     /**
@@ -72,7 +73,7 @@ internal class PgBlockingStream(
         val format = blockingStream.readByte()
         val size = blockingStream.readInt()
         val buffer = blockingStream.readBuffer(size - 4)
-        val rawMessage = RawMessage(format = format, size = size.toUInt(), contents = buffer)
+        val rawMessage = RawMessage(format = format, size = size, contents = buffer)
         return PgMessageDecoders.decode(rawMessage)
     }
 
@@ -296,7 +297,7 @@ internal class PgBlockingStream(
         try {
             messageSendBuffer.release()
             for (message in flow) {
-                if (messageSendBuffer.remaining < message.size) {
+                if (messageSendBuffer.remaining() <= message.size) {
                     blockingStream.writeBuffer(messageSendBuffer)
                     messageSendBuffer.release()
                 }

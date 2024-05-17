@@ -1,7 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.connection.use
-import io.github.clasicrando.kdbc.core.result.getAs
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgPath
@@ -19,15 +21,11 @@ class TestPgPathType {
         val value = getPath(isClosed)
         val query = "SELECT $1 path_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            conn.includePostGisTypes()
-            conn.sendPreparedStatement(query, listOf(value)).use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<PgPath>("path_col") }.first())
-            }
+        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            val path = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<PgPath>()
+            assertEquals(value, path)
         }
     }
 
@@ -35,19 +33,13 @@ class TestPgPathType {
         val value = getPath(isClosed)
         val query = "SELECT '${value.postGisLiteral}'::path;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            conn.includePostGisTypes()
-            if (isPrepared) {
-                conn.sendPreparedStatement(query, emptyList())
+        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+            val path = if (isPrepared) {
+                conn.createPreparedQuery(query)
             } else {
-                conn.sendQuery(query)
-            }.use { results ->
-                assertEquals(1, results.size)
-                assertEquals(1, results[0].rowsAffected)
-                val rows = results[0].rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(value, rows.map { it.getAs<PgPath>(0)!! }.first())
-            }
+                conn.createQuery(query)
+            }.fetchScalar<PgPath>()
+            assertEquals(value, path)
         }
     }
 
@@ -82,9 +74,9 @@ class TestPgPathType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn ->
-                conn.sendQuery(POST_GIS_QUERY).use {
-                    check(it.first().rows.first().getBoolean(0) == true)
+            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+                conn.sendSimpleQuery(POST_GIS_QUERY).use {
+                    check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }
             }
         }
