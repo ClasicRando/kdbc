@@ -106,10 +106,7 @@ class ByteListWriteBuffer : ByteWriteBuffer {
      * buffer in an initialized state after completing, as if [release] was called.
      */
     override fun copyToArray(): ByteArray {
-        val array = ByteArray(position)
-        for (i in array.indices) {
-            array[i] = innerBuffer[i]
-        }
+        val array = innerBuffer.toByteArray()
         release()
         return array
     }

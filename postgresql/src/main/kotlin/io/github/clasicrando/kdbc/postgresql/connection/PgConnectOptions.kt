@@ -17,7 +17,7 @@ data class PgConnectOptions(
     /** Host name or IP address of the postgresql server */
     val host: String,
     /** Port on the host machine of the postgresql server */
-    val port: UShort,
+    val port: Int,
     /** Name of the user to log in to the postgresql server */
     val username: String,
     /** Optional application name to set as part of the connection context */
@@ -42,7 +42,7 @@ data class PgConnectOptions(
      */
     val queryTimeout: Duration = Duration.INFINITE,
     /** Size of the cache storing prepared statement on the client side */
-    val statementCacheCapacity: UShort = 100U,
+    val statementCacheCapacity: Int = 100,
     /**
      * Flag allowing the connection to override a call to send a simple query to send a prepared
      * statement instead, so binary data transfer can be used. To make things simple, a connection

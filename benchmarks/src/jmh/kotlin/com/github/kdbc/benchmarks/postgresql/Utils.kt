@@ -92,7 +92,7 @@ fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
 
 private val kdbcConnectOptions = PgConnectOptions(
     host = "127.0.0.1",
-    port = 5432U,
+    port = 5432,
     username = "postgres",
     password = System.getenv("PG_BENCHMARK_PASSWORD")
         ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),

@@ -18,7 +18,7 @@ internal class PgSuspendingConnectionProvider(
 ) : SuspendingConnectionProvider<PgSuspendingConnection> {
     override suspend fun create(pool: SuspendingConnectionPool<PgSuspendingConnection>): PgSuspendingConnection {
         pool as PgSuspendingConnectionPool
-        val address = InetSocketAddress(connectOptions.host, connectOptions.port.toInt())
+        val address = InetSocketAddress(connectOptions.host, connectOptions.port)
         val asyncStream = KtorAsyncStream(address, pool.selectorManager)
         var stream: PgStream? = null
         try {
