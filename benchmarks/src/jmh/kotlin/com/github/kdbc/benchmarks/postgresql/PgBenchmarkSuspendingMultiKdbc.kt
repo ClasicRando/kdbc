@@ -6,6 +6,9 @@ import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -16,9 +19,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.Executor
-import java.util.concurrent.ExecutorCompletionService
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -27,17 +27,14 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class KdbcBenchmarkBlockingThreadPoolSingle {
+open class PgBenchmarkSuspendingMultiKdbc {
     private var id = 0
-    private val options: PgConnectOptions =  initializeThreadPoolBlockingConnections()
-    private val executor: Executor = Executors.newWorkStealingPool()
-    private val completionService = ExecutorCompletionService<Unit>(executor)
+    private val options: PgConnectOptions = runBlocking { initializeConcurrentConnections() }
 
     @Setup
-    open fun start() {
-        Postgres.blockingConnection(connectOptions = options).use {
-            it.createQuery(setupQuery)
-                .executeClosing()
+    open fun start(): Unit = runBlocking {
+        Postgres.suspendingConnection(connectOptions = options).use {
+            it.createQuery(setupQuery).executeClosing()
         }
     }
 
@@ -47,8 +44,8 @@ open class KdbcBenchmarkBlockingThreadPoolSingle {
         return id
     }
 
-    private fun executeQuery(stepId: Int): List<PostDataClass> {
-        return Postgres.blockingConnection(connectOptions = options).use { conn ->
+    private suspend fun executeQuery(stepId: Int): List<PostDataClass> {
+        return Postgres.suspendingConnection(connectOptions = options).use { conn ->
             conn.createPreparedQuery(kdbcQuerySingle)
                 .bind(stepId)
                 .fetchAll(PostDataClassRowParser)
@@ -56,17 +53,11 @@ open class KdbcBenchmarkBlockingThreadPoolSingle {
     }
 
     @Benchmark
-    open fun queryData() {
-        val taskCount = concurrencyLimit
-        for (i in 1..taskCount) {
+    open fun querySingleRow() = runBlocking {
+        val results = List(concurrencyLimit) {
             val stepId = step()
-            completionService.submit { executeQuery(stepId) }
+            async { executeQuery(stepId) }
         }
-        var received = 0
-        while (received < taskCount) {
-            val future = completionService.take()
-            future.get()
-            received++
-        }
+        results.awaitAll()
     }
 }

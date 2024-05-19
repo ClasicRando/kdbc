@@ -1,5 +1,11 @@
 package com.github.kdbc.benchmarks.postgresql
 
+import io.github.clasicrando.kdbc.core.connection.use
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.postgresql.Postgres
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -9,7 +15,6 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorCompletionService
@@ -22,18 +27,17 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class JdbcBenchmarkThreadPoolSingle {
+open class PgBenchmarkBlockingMultiKdbc {
     private var id = 0
-    private val dataSource = getJdbcDataSource()
+    private val options: PgConnectOptions =  initializeThreadPoolBlockingConnections()
     private val executor: Executor = Executors.newWorkStealingPool()
     private val completionService = ExecutorCompletionService<Unit>(executor)
 
     @Setup
     open fun start() {
-        dataSource.connection.use { connection ->
-            connection.createStatement().use { statement ->
-                statement.execute(setupQuery)
-            }
+        Postgres.blockingConnection(connectOptions = options).use {
+            it.createQuery(setupQuery)
+                .executeClosing()
         }
     }
 
@@ -43,21 +47,18 @@ open class JdbcBenchmarkThreadPoolSingle {
         return id
     }
 
-    private fun executeQuery(stepId: Int) {
-        dataSource.connection.use {
-            it.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
-                preparedStatement.setInt(1, stepId)
-                preparedStatement.executeQuery().use { resultSet ->
-                    extractPostDataClassListFromResultSet(resultSet)
-                }
-            }
+    private fun executeQuery(stepId: Int): List<PostDataClass> {
+        return Postgres.blockingConnection(connectOptions = options).use { conn ->
+            conn.createPreparedQuery(kdbcQuerySingle)
+                .bind(stepId)
+                .fetchAll(PostDataClassRowParser)
         }
     }
 
     @Benchmark
-    open fun queryData() {
+    open fun querySingleRow() {
         val taskCount = concurrencyLimit
-        for (i in 1..taskCount) {
+        (1..taskCount).forEach { i ->
             val stepId = step()
             completionService.submit { executeQuery(stepId) }
         }
@@ -67,10 +68,5 @@ open class JdbcBenchmarkThreadPoolSingle {
             future.get()
             received++
         }
-    }
-
-    @TearDown
-    fun destroy() {
-        dataSource.close()
     }
 }

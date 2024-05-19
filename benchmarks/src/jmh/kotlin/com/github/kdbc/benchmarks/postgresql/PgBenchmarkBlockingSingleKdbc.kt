@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class KdbcBenchmarkBlockingSingle {
+open class PgBenchmarkBlockingSingleKdbc {
     private var id = 0
     private val connection: BlockingConnection = getKdbcBlockingConnection()
 
@@ -33,16 +33,31 @@ open class KdbcBenchmarkBlockingSingle {
             .executeClosing()
     }
 
-    private fun step() {
+    private fun singleStep(): Int {
         id++
         if (id > 5000) id = 1
+        return id
+    }
+
+    private fun multiStep() {
+        id += 10
+        if (id >= 5000) id = 1
     }
 
     @Benchmark
-    open fun queryData() {
-        step()
+    open fun querySingleRow() {
+        singleStep()
         connection.createPreparedQuery(kdbcQuerySingle)
             .bind(id)
+            .fetchAll(PostDataClassRowParser)
+    }
+
+    @Benchmark
+    open fun queryMultipleRows() {
+        multiStep()
+        connection.createPreparedQuery(kdbcQuery)
+            .bind(id)
+            .bind(id + 10)
             .fetchAll(PostDataClassRowParser)
     }
 
