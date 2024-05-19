@@ -4,7 +4,7 @@ podman pull docker.io/postgis/postgis
 dir="/home/$USER/kdbc-test-dbs"
 mkdir -p "$dir/postgresql"
 
-postgresPassword = "${POSTGRES_PASSWORD}"
+postgresPassword="${POSTGRES_PASSWORD}"
 if [[ -z "${postgresPassword}" ]]; then
   read -s -p "Postgres Password: " postgresPassword
   echo ""
