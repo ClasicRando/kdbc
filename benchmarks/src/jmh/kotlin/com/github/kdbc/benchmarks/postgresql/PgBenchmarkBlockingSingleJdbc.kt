@@ -26,10 +26,8 @@ open class PgBenchmarkBlockingSingleJdbc {
 
     @Setup
     open fun start() {
-        connection.use { connection ->
-            connection.createStatement().use { statement ->
-                statement.execute(setupQuery)
-            }
+        connection.createStatement().use { statement ->
+            statement.execute(setupQuery)
         }
     }
 
