@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
@@ -40,7 +39,8 @@ abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescrip
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L161)
      *
-     * @throws ColumnDecodeError if the number of available bytes are not 6 or 8
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the number of available
+     * bytes are not 6 or 8
      */
     override fun decodeBytes(value: PgValue.Binary): PgMacAddress {
         val byteCount = value.bytes.remaining()
@@ -65,7 +65,8 @@ abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescrip
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L121)
      *
-     * @throws ColumnDecodeError if the string is not formatted as expected
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the string is not
+     * formatted as expected
      */
     override fun decodeText(value: PgValue.Text): PgMacAddress {
         return try {

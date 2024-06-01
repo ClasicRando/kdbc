@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
@@ -44,7 +43,7 @@ data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
          * Convert the [value] into the [LocalTime] and [UtcOffset] components that make up a new
          * [PgTimeTz].
          *
-         * @throws InvalidDateString
+         * @throws io.github.clasicrando.kdbc.core.datetime.InvalidDateString
          */
         fun fromString(value: String): PgTimeTz {
             return PgTimeTz(

@@ -1,16 +1,13 @@
 package io.github.clasicrando.kdbc.core.query
 
 import io.github.clasicrando.kdbc.core.exceptions.EmptyQueryResult
-import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
 import io.github.clasicrando.kdbc.core.exceptions.NoResultFound
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.exceptions.TooManyRows
-import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.core.use
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlin.reflect.KClass
 
 /**
  * Extension method to call [PreparedQuery.bind] and construct the [QueryParameter] using the
@@ -53,9 +50,11 @@ suspend fun SuspendingQuery.executeClosing(): StatementResult = use { execute() 
  * before returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
- * @throws IncorrectScalarType if the scalar value is not an instance of the type [T], this
- * checked by [KClass.isInstance] on the first value
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
+ * @throws io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType if the scalar value is
+ * not an instance of the type [T], this checked by [kotlin.reflect.KClass.isInstance] on the
+ * first value
  */
 suspend inline fun <reified T : Any> SuspendingQuery.fetchScalar(): T? = use {
     execute().use { statementResult ->
@@ -75,7 +74,8 @@ suspend inline fun <reified T : Any> SuspendingQuery.fetchScalar(): T? = use {
  * before returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */
@@ -97,11 +97,13 @@ suspend fun <T : Any, R : RowParser<T>> SuspendingQuery.fetchFirst(rowParser: R)
  * before returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  * @throws EmptyQueryResult if the query returns no rows
- * @throws TooManyRows if the [QueryResult.rowsAffected] value > 1
+ * @throws TooManyRows if the [io.github.clasicrando.kdbc.core.result.QueryResult.rowsAffected]
+ * value > 1
  */
 suspend fun <T : Any, R : RowParser<T>> SuspendingQuery.fetchSingle(rowParser: R): T = use {
     execute().use { statementResult ->
@@ -126,7 +128,8 @@ suspend fun <T : Any, R : RowParser<T>> SuspendingQuery.fetchSingle(rowParser: R
  * before returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */
@@ -149,7 +152,8 @@ suspend fun <T : Any, R : RowParser<T>> SuspendingQuery.fetchAll(rowParser: R): 
  * before returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */
@@ -190,9 +194,11 @@ fun BlockingQuery.executeClosing(): StatementResult = use { execute() }
  * returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
- * @throws IncorrectScalarType if the scalar value is not an instance of the type [T], this
- * checked by [KClass.isInstance] on the first value
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
+ * @throws io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType if the scalar value is
+ * not an instance of the type [T], this checked by [kotlin.reflect.KClass.isInstance] on the first
+ * value
  */
 inline fun <reified T : Any> BlockingQuery.fetchScalar(): T? = use {
     execute().use { statementResult ->
@@ -212,7 +218,8 @@ inline fun <reified T : Any> BlockingQuery.fetchScalar(): T? = use {
  * returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */
@@ -234,11 +241,13 @@ fun <T : Any, R : RowParser<T>> BlockingQuery.fetchFirst(rowParser: R): T? = use
  * returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  * @throws EmptyQueryResult if the query returns no rows
- * @throws TooManyRows if the [QueryResult.rowsAffected] value > 1
+ * @throws TooManyRows if the [io.github.clasicrando.kdbc.core.result.QueryResult.rowsAffected]
+ * value > 1
  */
 fun <T : Any, R : RowParser<T>> BlockingQuery.fetchSingle(rowParser: R): T = use {
     execute().use { statementResult ->
@@ -263,7 +272,8 @@ fun <T : Any, R : RowParser<T>> BlockingQuery.fetchSingle(rowParser: R): T = use
  * returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */
@@ -286,7 +296,8 @@ fun <T : Any, R : RowParser<T>> BlockingQuery.fetchAll(rowParser: R): List<T> = 
  * returning
  *
  * @throws IllegalStateException if the query has already been closed
- * @throws NoResultFound if the execution result yields no [QueryResult]
+ * @throws NoResultFound if the execution result yields no
+ * [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */

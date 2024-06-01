@@ -1,23 +1,20 @@
 package io.github.clasicrando.kdbc.postgresql.stream
 
+import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
-import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.core.logWithResource
+import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.core.stream.BlockingStream
-import io.github.clasicrando.kdbc.core.stream.StreamConnectError
-import io.github.clasicrando.kdbc.core.stream.StreamReadError
-import io.github.clasicrando.kdbc.core.stream.StreamWriteError
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.authentication.Authentication
 import io.github.clasicrando.kdbc.postgresql.authentication.PgAuthenticationError
 import io.github.clasicrando.kdbc.postgresql.authentication.saslAuthFlow
 import io.github.clasicrando.kdbc.postgresql.authentication.simplePasswordAuthFlow
-import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.UnexpectedMessage
@@ -39,13 +36,13 @@ private const val RESOURCE_TYPE = "PgBlockingStream"
 
 /**
  * [BlockingStream] wrapper class for facilitating postgresql specific message protocol behaviour.
- * A [PgBlockingConnection] will own a [PgBlockingStream] and utilize it's public methods to
- * process incoming server messages.
+ * A [io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection] will own a
+ * [PgBlockingStream] and utilize it's public methods to process incoming server messages.
  */
 internal class PgBlockingStream(
     private val blockingStream: BlockingStream,
     internal val connectOptions: PgConnectOptions,
-) : DefaultUniqueResourceId(), AutoCloseable {
+) : DefaultUniqueResourceId(), AutoRelease {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
@@ -87,7 +84,7 @@ internal class PgBlockingStream(
             val task = FutureTask { receiveNextServerMessage() }
             val message = try {
                 task.get(500, TimeUnit.MILLISECONDS)
-            } catch (ex: TimeoutException) {
+            } catch (_: TimeoutException) {
                 break
             }
             when (message) {
@@ -311,7 +308,7 @@ internal class PgBlockingStream(
         }
     }
 
-    override fun close() {
+    override fun release() {
         messageSendBuffer.release()
         if (blockingStream.isConnected) {
             blockingStream.release()
@@ -423,11 +420,12 @@ internal class PgBlockingStream(
          * [PgBlockingStream] object is closed and an exception is thrown.
          *
          * @throws PgAuthenticationError if the authentication fails
-         * @throws StreamConnectError if the underling [BlockingStream] fails to connect
-         * @throws StreamReadError if any authentication message or the final ready for query
-         * message fails
-         * @throws StreamWriteError if the startup message or any authentication message written to
-         * the stream fails
+         * @throws io.github.clasicrando.kdbc.core.stream.StreamConnectError if the underling
+         * [BlockingStream] fails to connect
+         * @throws io.github.clasicrando.kdbc.core.stream.StreamReadError if any authentication
+         * message or the final ready for query message fails
+         * @throws io.github.clasicrando.kdbc.core.stream.StreamWriteError if the startup message
+         * or any authentication message written to the stream fails
          * @throws ExitOfProcessingLoop if waiting for [PgMessage.ReadyForQuery] or error after
          * authentication exits the processing loop unexpectedly
          */

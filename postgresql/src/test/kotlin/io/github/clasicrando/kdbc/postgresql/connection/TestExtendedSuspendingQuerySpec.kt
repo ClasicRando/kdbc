@@ -44,7 +44,7 @@ class TestExtendedSuspendingQuerySpec {
         PgConnectionHelper.defaultSuspendingConnection().use {
             val param1 = 2
             val param2 = "start"
-            val params = listOf(QueryParameter(param1), QueryParameter(param2),)
+            val params = listOf(QueryParameter(param1), QueryParameter(param2))
             val result = it.sendExtendedQuery(
                 "CALL public.test_proc_ext($1::int, $2::text)",
                 params,

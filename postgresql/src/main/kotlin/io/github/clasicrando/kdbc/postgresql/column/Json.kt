@@ -1,13 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.PgJson
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [PgJson] type */
@@ -29,17 +27,19 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
 
     /**
      * Create a new [PgJson] by reading the binary data as a [String] then parsing to a
-     * [JsonElement]. If the value is a `jsonb` then read the first byte to the get the jsonb
-     * version. Currently, the only accepted value is 1 and all other values will throw a
-     * [ColumnDecodeError]. If the value is `json` then no header values are expected. After
-     * processing the possible header [Byte], the remaining bytes in the buffer are passed to
-     * [PgJson.fromBytes] for decoding into a new [PgJson] instance.
+     * [kotlinx.serialization.json.JsonElement]. If the value is a `jsonb` then read the first byte
+     * to the get the jsonb version. Currently, the only accepted value is 1 and all other values
+     * will throw a [io.github.clasicrando.kdbc.core.column.ColumnDecodeError]. If the value is
+     * `json` then no header values are expected. After processing the possible header [Byte], the
+     * remaining bytes in the buffer are passed to [PgJson.fromBytes] for decoding into a new
+     * [PgJson] instance.
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L136)
      *
      * @throws SerializationException if the bytes are not valid JSON
-     * @throws ColumnDecodeError if the JSONB format is not version = 1 or the binary data cannot
-     * be decoded as a [JsonElement]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the JSONB format is not
+     * version = 1 or the binary data cannot be decoded as a
+     * [kotlinx.serialization.json.JsonElement]
      */
     override fun decodeBytes(value: PgValue.Binary): PgJson {
         if (value.typeData.pgType.oid == PgType.JSONB) {
@@ -67,7 +67,7 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L124)
      *
-     * @throws ColumnDecodeError if the header value
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the header value
      */
     override fun decodeText(value: PgValue.Text): PgJson {
         return try {
@@ -136,7 +136,8 @@ object JsonPathTypeDescription : PgTypeDescription<String>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L145)
      *
-     * @throws ColumnDecodeError if the jsonpath format is not version = 1
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the jsonpath format is
+     * not version = 1
      */
     override fun decodeBytes(value: PgValue.Binary): String {
         val version = value.bytes.readLong()

@@ -3,7 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.authentication
 import io.github.clasicrando.kdbc.postgresql.PasswordHelper
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
-import io.github.clasicrando.kdbc.postgresql.stream.PgStream
+import io.github.clasicrando.kdbc.postgresql.stream.PgSuspendingStream
 import io.github.oshai.kotlinlogging.Level
 
 /** Create a new simple password message, hashing the password if a [salt] provided */
@@ -36,7 +36,7 @@ private fun createSimplePasswordMessage(
  * @throws PgAuthenticationError if the authentication flow failed for any reason. All other
  * [Throwable]s are also caught and added to a [PgAuthenticationError] as a suppressed error
  */
-internal suspend fun PgStream.simplePasswordAuthFlow(
+internal suspend fun PgSuspendingStream.simplePasswordAuthFlow(
     username: String,
     password: String,
     salt: ByteArray? = null,

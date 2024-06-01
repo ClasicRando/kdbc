@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.stream
 
+import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
@@ -42,14 +43,14 @@ private const val RESOURCE_TYPE = "PgStream"
 
 /**
  * [AsyncStream] wrapper class for facilitating postgresql specific message protocol behaviour.
- * A [PgSuspendingConnection] will own a [PgStream] and utilize it's public methods to process
- * incoming server messages.
+ * A [PgSuspendingConnection] will own a [PgSuspendingStream] and utilize it's public methods to
+ * process incoming server messages.
  */
-internal class PgStream(
+internal class PgSuspendingStream(
     scope: CoroutineScope,
     private val asyncStream: AsyncStream,
     internal val connectOptions: PgConnectOptions,
-) : DefaultUniqueResourceId(), CoroutineScope, AutoCloseable {
+) : DefaultUniqueResourceId(), CoroutineScope, AutoRelease {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
@@ -243,14 +244,14 @@ internal class PgStream(
         }
     }
 
-    /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
+    /** Write a single [message] to the [PgSuspendingStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeToStream(message: PgMessage) {
         writeToBuffer { buffer ->
             PgMessageEncoders.encode(message, buffer)
         }
     }
 
-    /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
+    /** Write multiple [messages] to the [PgSuspendingStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeManyToStream(
         crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
     ) {
@@ -261,7 +262,7 @@ internal class PgStream(
         }
     }
 
-    /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
+    /** Write multiple [messages] to the [PgSuspendingStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeManyToStream(vararg messages: PgMessage) {
         writeToBuffer { buffer ->
             for (message in messages) {
@@ -324,7 +325,7 @@ internal class PgStream(
         }
     }
 
-    override fun close() {
+    override fun release() {
         messageSendBuffer.release()
         closeChannels()
         if (asyncStream.isConnected) {
@@ -428,14 +429,14 @@ internal class PgStream(
 
         /**
          * Create a new TCP connection with the Postgresql database targeted by the
-         * [connectOptions] provided. This creates the new [PgStream] instance which in turn starts
+         * [connectOptions] provided. This creates the new [PgSuspendingStream] instance which in turn starts
          * the background message writer job and lazily starts the [messageReaderJob].
          *
          * To initiate the Postgresql connection, a [PgMessage.StartupMessage] is sent and the
          * response is handled using [handleAuthFlow]. After the connection has been authenticated
          * The method waits for a [PgMessage.ReadyForQuery] server response. In the case that the
          * server rejects the connection (by sending a [PgMessage.ErrorResponse]) the new
-         * [PgStream] object is closed and an exception is thrown.
+         * [PgSuspendingStream] object is closed and an exception is thrown.
          *
          * @throws PgAuthenticationError if the authentication fails
          * @throws StreamConnectError if the underling [AsyncStream] fails to connect
@@ -450,9 +451,9 @@ internal class PgStream(
             scope: CoroutineScope,
             asyncStream: AsyncStream,
             connectOptions: PgConnectOptions,
-        ): PgStream {
+        ): PgSuspendingStream {
             asyncStream.connect(connectOptions.connectionTimeout)
-            val stream = PgStream(scope, asyncStream, connectOptions)
+            val stream = PgSuspendingStream(scope, asyncStream, connectOptions)
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             stream.writeToStream(startupMessage)
             stream.handleAuthFlow()

@@ -14,7 +14,6 @@ import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
-import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyType
@@ -31,7 +30,7 @@ import io.github.clasicrando.kdbc.postgresql.result.QueryResultCollector
 import io.github.clasicrando.kdbc.postgresql.result.StatementPrepareRequestCollector
 import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
-import io.github.clasicrando.kdbc.postgresql.stream.PgStream
+import io.github.clasicrando.kdbc.postgresql.stream.PgSuspendingStream
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
@@ -51,16 +50,16 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * [SuspendingConnection] object for a Postgresql database. A new instance cannot be created but
- * rather the [Postgres.suspendingConnection] method should be called to receive a new
- * [PgSuspendingConnection] ready for user usage. This method will use connection pooling behind
- * the scenes as to reduce unnecessary tcp connection creation to the server when an application
- * creates and closes connections frequently.
+ * rather the [io.github.clasicrando.kdbc.postgresql.Postgres.suspendingConnection] method should
+ * be called to receive a new [PgSuspendingConnection] ready for user usage. This method will use
+ * connection pooling behind the scenes as to reduce unnecessary tcp connection creation to the
+ * server when an application creates and closes connections frequently.
  */
 class PgSuspendingConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
     private val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
-    private val stream: PgStream,
+    private val stream: PgSuspendingStream,
     /** Reference to the connection pool that owns this connection */
     private val pool: PgSuspendingConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
@@ -530,7 +529,7 @@ class PgSuspendingConnection internal constructor(
                 cause = ex
             }
         } finally {
-            stream.close()
+            stream.release()
         }
         preparedStatements.clear()
     }
@@ -814,7 +813,7 @@ class PgSuspendingConnection internal constructor(
          */
         internal suspend fun connect(
             connectOptions: PgConnectOptions,
-            stream: PgStream,
+            stream: PgSuspendingStream,
             pool: PgSuspendingConnectionPool,
         ): PgSuspendingConnection {
             var connection: PgSuspendingConnection? = null

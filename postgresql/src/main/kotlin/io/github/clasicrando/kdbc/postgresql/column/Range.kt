@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.postgresql.type.Bound
@@ -167,8 +166,8 @@ abstract class BaseRangeTypeDescription<T : Any>(
      * to [Bound.Unbounded]. After the 2 bounds have been decoded, combine into a new [PgRange]
      * instance.
      *
-     * @throws ColumnDecodeError if the number of bounds in the range literal is > 2 or the inner
-     * [typeDescription] throws an error
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the number of bounds in
+     * the range literal is > 2 or the inner [typeDescription] throws an error
      */
     //https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L137
     final override fun decodeText(value: PgValue.Text): PgRange<T> {

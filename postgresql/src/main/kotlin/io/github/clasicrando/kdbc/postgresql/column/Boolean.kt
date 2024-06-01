@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import kotlin.reflect.typeOf
 
@@ -27,7 +26,8 @@ object BoolTypeDescription : PgTypeDescription<Boolean>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/bool.c#L187)
      *
-     * @throws ColumnDecodeError if the [String] values provided is not "t" or "f"
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] values
+     * provided is not "t" or "f"
      */
     override fun decodeBytes(value: PgValue.Binary): Boolean {
         return value.bytes.readByte() != 0.toByte()
@@ -35,11 +35,12 @@ object BoolTypeDescription : PgTypeDescription<Boolean>(
 
     /**
      * Interpret the [String] value as "t" for true and "f" as false. Otherwise, throw a
-     * [ColumnDecodeError].
+     * [io.github.clasicrando.kdbc.core.column.ColumnDecodeError].
      *
      * [pg source code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/bool.c#L126)
      *
-     * @throws ColumnDecodeError if the [String] values provided is not "t" or "f"
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] values
+     * provided is not "t" or "f"
      */
     override fun decodeText(value: PgValue.Text): Boolean {
         return when (value.text) {

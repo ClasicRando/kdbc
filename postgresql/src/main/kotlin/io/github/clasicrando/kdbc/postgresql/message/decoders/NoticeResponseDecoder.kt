@@ -1,15 +1,14 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse
 
 /**
- * [MessageDecoder] for [PgMessage.NoticeResponse]. This message is sent when the backend wants to
- * send a non-error message to the frontend. The contents of the message is a common
- * [InformationResponse] packet that is using
- * [InformationResponseDecoder.decodeToInformationResponse].
+ * [io.github.clasicrando.kdbc.core.message.MessageDecoder] for [PgMessage.NoticeResponse]. This
+ * message is sent when the backend wants to send a non-error message to the frontend. The contents
+ * of the message is a common
+ * [io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse] packet that is
+ * using [InformationResponseDecoder.decodeToInformationResponse].
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-NOTICERESPONSE)
  */

@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.result.DataRow
@@ -64,10 +63,12 @@ abstract class BaseCompositeTypeDescription<T : Any>(
 
     /**
      * Pipe the [attributes] to the [fromRow] method implemented by all composite type definitions.
-     * If any exception is thrown, it will be converted to a [ColumnDecodeError] with the original
-     * exceptions message included.
+     * If any exception is thrown, it will be converted to a
+     * [io.github.clasicrando.kdbc.core.column.ColumnDecodeError] with the original exceptions
+     * message included.
      *
-     * @throws ColumnDecodeError if the [fromRow] method throws an exception
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [fromRow] method
+     * throws an exception
      */
     private fun decodeAsDataRow(attributes: PgDataRow, typeData: PgColumnDescription): T {
         return try {
@@ -98,7 +99,8 @@ abstract class BaseCompositeTypeDescription<T : Any>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L688)
      *
-     * @throws ColumnDecodeError if parsing in [fromRow] fails
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if parsing in [fromRow]
+     * fails
      */
     final override fun decodeBytes(value: PgValue.Binary): T {
         val length = value.bytes.readInt()
@@ -128,7 +130,8 @@ abstract class BaseCompositeTypeDescription<T : Any>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L330)
      *
-     * @throws ColumnDecodeError if parsing in [fromRow] fails
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if parsing in [fromRow]
+     * fails
      */
     final override fun decodeText(value: PgValue.Text): T {
         val attributes = PgCompositeLiteralParser

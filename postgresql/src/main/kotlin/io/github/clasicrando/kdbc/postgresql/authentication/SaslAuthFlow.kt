@@ -5,14 +5,14 @@ import com.ongres.scram.client.ScramSession
 import com.ongres.scram.common.stringprep.StringPreparations
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
-import io.github.clasicrando.kdbc.postgresql.stream.PgStream
+import io.github.clasicrando.kdbc.postgresql.stream.PgSuspendingStream
 import io.github.oshai.kotlinlogging.Level
 
 /**
  * Using the provided [authMechanisms], initialize a [ScramClient] and create a [ScramSession] for
  * creating the first client message as well as the final client message sent in a later step.
  */
-private suspend fun PgStream.sendScramInit(
+private suspend fun PgSuspendingStream.sendScramInit(
     authMechanisms: Array<String>,
 ): ScramSession {
     log(Level.TRACE) { message = "Starting Scram Client" }
@@ -35,7 +35,7 @@ private suspend fun PgStream.sendScramInit(
  * Wait for the next server message, returning the [Authentication.SaslContinue] message if the
  * server sent back the expected message.
  */
-private suspend fun PgStream.receiveContinueMessage(): Authentication.SaslContinue {
+private suspend fun PgSuspendingStream.receiveContinueMessage(): Authentication.SaslContinue {
     val continueMessage = this.messages.receive()
     if (continueMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
@@ -63,7 +63,7 @@ private suspend fun PgStream.receiveContinueMessage(): Authentication.SaslContin
  * Using the supplied [continueAuthMessage] and scram [session], process the server's first message
  * and send the required client final message.
  */
-private suspend fun PgStream.sendClientFinalMessage(
+private suspend fun PgSuspendingStream.sendClientFinalMessage(
     continueAuthMessage: Authentication.SaslContinue,
     session: ScramSession,
 ): ScramSession.ClientFinalProcessor {
@@ -80,7 +80,7 @@ private suspend fun PgStream.sendClientFinalMessage(
  * Wait for the next server message, returning the [Authentication.SaslFinal] message if the server
  * sent back the expected message.
  */
-private suspend fun PgStream.receiveFinalAuthMessage(): Authentication.SaslFinal {
+private suspend fun PgSuspendingStream.receiveFinalAuthMessage(): Authentication.SaslFinal {
     val finalMessage = this.messages.receive()
     if (finalMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
@@ -105,7 +105,7 @@ private suspend fun PgStream.receiveFinalAuthMessage(): Authentication.SaslFinal
  * Wait for the next server message, expecting an [Authentication.Ok]. If that is not the case,
  * throw a [PgAuthenticationError]
  */
-private suspend fun PgStream.receiveOkAuthMessage() {
+private suspend fun PgSuspendingStream.receiveOkAuthMessage() {
     val okMessage = this.messages.receive()
     if (okMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
@@ -139,12 +139,12 @@ private suspend fun PgStream.receiveOkAuthMessage() {
  * 5. Validate that the final server response was correct
  * 6. Wait for and process the server response expecting an Authentication OK message.
  *
- * If all steps have been followed then the [PgStream] has been authenticated.
+ * If all steps have been followed then the [PgSuspendingStream] has been authenticated.
  *
  * @throws PgAuthenticationError if the authentication flow failed for any reason. All other
  * [Throwable]s are also caught and added to a [PgAuthenticationError] as a suppressed error
  */
-internal suspend fun PgStream.saslAuthFlow(auth: Authentication.Sasl) {
+internal suspend fun PgSuspendingStream.saslAuthFlow(auth: Authentication.Sasl) {
     try {
         val session = this.sendScramInit(auth.authMechanisms.toTypedArray())
 
@@ -302,7 +302,7 @@ private fun PgBlockingStream.receiveOkAuthMessage() {
  * 5. Validate that the final server response was correct
  * 6. Wait for and process the server response expecting an Authentication OK message.
  *
- * If all steps have been followed then the [PgStream] has been authenticated.
+ * If all steps have been followed then the [PgSuspendingStream] has been authenticated.
  *
  * @throws PgAuthenticationError if the authentication flow failed for any reason. All other
  * [Throwable]s are also caught and added to a [PgAuthenticationError] as a suppressed error

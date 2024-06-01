@@ -5,7 +5,7 @@ import io.github.clasicrando.kdbc.core.pool.SuspendingConnectionProvider
 import io.github.clasicrando.kdbc.core.stream.KtorAsyncStream
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
-import io.github.clasicrando.kdbc.postgresql.stream.PgStream
+import io.github.clasicrando.kdbc.postgresql.stream.PgSuspendingStream
 import io.ktor.network.sockets.InetSocketAddress
 
 /**
@@ -20,9 +20,9 @@ internal class PgSuspendingConnectionProvider(
         pool as PgSuspendingConnectionPool
         val address = InetSocketAddress(connectOptions.host, connectOptions.port)
         val asyncStream = KtorAsyncStream(address, pool.selectorManager)
-        var stream: PgStream? = null
+        var stream: PgSuspendingStream? = null
         try {
-            stream = PgStream.connect(
+            stream = PgSuspendingStream.connect(
                 scope = pool,
                 asyncStream = asyncStream,
                 connectOptions = connectOptions,
@@ -33,7 +33,7 @@ internal class PgSuspendingConnectionProvider(
                 pool = pool,
             )
         } catch (ex: Throwable) {
-            stream?.close()
+            stream?.release()
             throw ex
         }
     }

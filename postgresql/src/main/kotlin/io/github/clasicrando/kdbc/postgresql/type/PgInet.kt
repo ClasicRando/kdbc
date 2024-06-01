@@ -5,7 +5,6 @@ import io.github.clasicrando.kdbc.postgresql.type.PgInet.Ipv6
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
-import java.net.UnknownHostException
 
 /**
  * Postgresql `inet` type storing the [address] and [prefix] of a given [Ipv4] or [Ipv6] address.
@@ -71,7 +70,7 @@ sealed class PgInet(val address: ByteArray, val prefix: UByte) {
          * (if available). These 2 values are then passed to [fromInetAddress].
          *
          * @throws IllegalArgumentException the string contains more than 1 '/' character
-         * @throws UnknownHostException if [InetAddress.getByName] fails
+         * @throws java.net.UnknownHostException if [InetAddress.getByName] fails
          */
         fun parse(address: String): PgInet {
             val parts = address.split('/')

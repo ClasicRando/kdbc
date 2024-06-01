@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import kotlin.reflect.typeOf
 
@@ -23,7 +22,8 @@ object CharTypeDescription : PgTypeDescription<Byte>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/char.c#L105)
      *
-     * @throws ColumnDecodeError if the text representation is too long
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text representation
+     * is too long
      */
     override fun decodeBytes(value: PgValue.Binary): Byte {
         return if (value.bytes.remaining() > 0) value.bytes.readByte() else 0
@@ -35,11 +35,12 @@ object CharTypeDescription : PgTypeDescription<Byte>(
      * accommodate non-ascii char values, see pg code for more details explanation
      * - when 1, the [Byte] is just the ascii representation of the character
      * - when 0, return 0
-     * - otherwise, thrown a [ColumnDecodeError] is thrown
+     * - otherwise, thrown a [io.github.clasicrando.kdbc.core.column.ColumnDecodeError] is thrown
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/char.c#L64)
      *
-     * @throws ColumnDecodeError if the text representation is too long
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text representation
+     * is too long
      */
     override fun decodeText(value: PgValue.Text): Byte {
         return when (value.text.length) {

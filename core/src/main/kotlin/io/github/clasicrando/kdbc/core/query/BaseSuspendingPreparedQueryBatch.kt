@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.query
 
 import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
-import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 
 /**
@@ -21,7 +20,7 @@ abstract class BaseSuspendingPreparedQueryBatch<C : SuspendingConnection>(
 
     /**
      * Execute all provided queries into a single [StatementResult] and allow for processing each
-     * [QueryResult] returned.
+     * [io.github.clasicrando.kdbc.core.result.QueryResult] returned.
      */
     final override suspend fun executeQueries(): StatementResult {
         checkNotNull(connection) { "QueryBatch already released its Connection" }

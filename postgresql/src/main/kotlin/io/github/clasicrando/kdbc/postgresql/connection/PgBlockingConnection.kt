@@ -5,7 +5,6 @@ import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
-import io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
@@ -15,7 +14,6 @@ import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
-import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyType
@@ -38,7 +36,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
-import kotlinx.atomicfu.locks.ReentrantLock
+import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
 import kotlinx.datetime.Clock
 import kotlin.reflect.typeOf
@@ -47,12 +45,12 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * [BlockingConnection] object for a Postgresql database. A new instance cannot be created but
- * rather the [Postgres.blockingConnection] method should be called to receive a new
- * [PgBlockingConnection] ready for user usage. This method will use connection pooling behind the
- * scenes as to reduce unnecessary TCP connection creation to the server when an application
- * creates and closes connections frequently.
+ * rather the [io.github.clasicrando.kdbc.postgresql.Postgres.blockingConnection] method should be
+ * called to receive a new [PgBlockingConnection] ready for user usage. This method will use
+ * connection pooling behind the scenes as to reduce unnecessary TCP connection creation to the
+ * server when an application creates and closes connections frequently.
  *
- * This type is thread-safe due to an internal [ReentrantLock] but that means that only 1 thread
+ * This type is thread-safe due to an internal [reentrantLock] but that means that only 1 thread
  * can execute operations against the connection at a given time. If another thread attempts to
  * execute a command, the thread will block until the lock is freed.
  */
@@ -61,7 +59,10 @@ class PgBlockingConnection internal constructor(
     private val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
     private val stream: PgBlockingStream,
-    /** Reference to the [BlockingConnectionPool] that owns this [PgBlockingConnection] */
+    /**
+     * Reference to the [io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool] that owns
+     * this [PgBlockingConnection]
+     */
     private val pool: PgBlockingConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
     @PublishedApi internal val typeCache: PgTypeCache = pool.typeCache,
@@ -70,7 +71,7 @@ class PgBlockingConnection internal constructor(
     override val inTransaction: Boolean get() = _inTransaction.value
 
     /** Lock keeping multiple threads from executing calls to the database */
-    private val lock = ReentrantLock(true)
+    private val lock = reentrantLock()
     /**
      * Cache of [PgPreparedStatement] where the key is the query that initiated the prepared
      * statement. This is not thread safe, therefore it should only be accessed after querying
@@ -498,7 +499,7 @@ class PgBlockingConnection internal constructor(
                 cause = ex
             }
         } finally {
-            stream.close()
+            stream.release()
         }
         preparedStatements.clear()
     }

@@ -4,13 +4,12 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.toInstant
 
 /**
- * Type storing a [Instant] as well the corresponding [TimeZone] to clarify the UTC offset of the
- * datetime. kotlinx-datetime does not have a native type for storing an offset datetime so this is
+ * Type storing a [Instant] as well the corresponding [UtcOffset] to qualify the datetime.
+ * kotlinx-datetime does not have a native type for storing an offset datetime so this is
  * supplementary to be a parallel to `timestamp with timezone`, `datetime` or other database types
  * that stored a [datetime] and the [offset].
  */

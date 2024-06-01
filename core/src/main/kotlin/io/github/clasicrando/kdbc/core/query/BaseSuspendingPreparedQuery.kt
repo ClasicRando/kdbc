@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.query
 
 import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
-import kotlin.reflect.KType
 
 /**
  * Base implementation of a [SuspendingPreparedQuery]. Extends [BaseSuspendingQuery] so each vendor

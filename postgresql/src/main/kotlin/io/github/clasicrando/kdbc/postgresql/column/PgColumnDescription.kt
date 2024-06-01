@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.column.ColumnData
+import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 
 /**
- * Postgresql specified implementation of [ColumnData]. Provides the required fields using data
+ * Postgresql specified implementation of [ColumnMetadata]. Provides the required fields using data
  * provided from row description messages sent from the postgres backend. Other fields as also
  * included that related to postgres specific properties.
  */
@@ -25,7 +25,7 @@ data class PgColumnDescription(
     val typeModifier: Int,
     /** Format code of the field. Currently, this value will be either 0 (text) or 1 (binary). */
     val formatCode: Short,
-) : ColumnData {
+) : ColumnMetadata {
     override val dataType: Int get() = pgType.oid
     override val typeName: String = fieldName
     override val typeSize: Long = dataTypeSize.toLong()

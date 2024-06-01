@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.query
 
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
-import kotlin.reflect.KType
 
 /**
  * Base implementation of a [BlockingPreparedQuery]. Extends [BaseBlockingQuery] so each vendor

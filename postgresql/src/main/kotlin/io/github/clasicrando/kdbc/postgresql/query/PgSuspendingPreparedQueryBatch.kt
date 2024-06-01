@@ -1,16 +1,14 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
-import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.query.BaseSuspendingPreparedQueryBatch
-import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
 
 /**
- * Postgresql implementation of a [SuspendingPreparedQueryBatch]. Uses query pipelining to execute all
- * prepared statements as a pipeline to optimize round trips to the server. This allows for sending
- * multiple prepared queries at once to the server, so you do not need to wait for previous queries
- * to complete to request another result.
+ * Postgresql implementation of a [io.github.clasicrando.kdbc.core.connection.SuspendingConnection].
+ * Uses query pipelining to execute all prepared statements as a pipeline to optimize round trips
+ * to the server. This allows for sending multiple prepared queries at once to the server, so you
+ * do not need to wait for previous queries to complete to request another result.
  *
  * ```
  * Regular Pipelined
@@ -37,8 +35,9 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
  * If you are sure each one of your statements do not impact each other and can be handled in
  * separate transactions, keep the [syncAll] as default and catch exception thrown during
  * query execution. Alternatively, you can also manually begin a transaction using
- * [SuspendingConnection.begin] and handle the transaction state of your connection yourself. In
- * that case, any sync message sent to the server does not cause implicit transactional behaviour.
+ * [io.github.clasicrando.kdbc.core.connection.SuspendingConnection.begin] and handle the
+ * transaction state of your connection yourself. In that case, any sync message sent to the server
+ * does not cause implicit transactional behaviour.
  *
  * @see PgSuspendingConnection.pipelineQueries
  */

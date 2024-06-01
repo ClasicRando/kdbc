@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.stream.RawMessage
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -10,10 +9,11 @@ private val logger = KotlinLogging.logger {}
 /** Common entry point for decoding backend [PgMessage]s */
 internal object PgMessageDecoders {
     /**
-     * Decode the [RawMessage] into a [PgMessage] by looking up the appropriate [MessageDecoder]
-     * and calling [MessageDecoder.decode]. In the case that the [RawMessage.format] does not match
-     * a known format code, [PgMessage.UnknownMessage] will be returned and subsequent methods
-     * processing messages should ignore the message.
+     * Decode the [RawMessage] into a [PgMessage] by looking up the appropriate
+     * [io.github.clasicrando.kdbc.core.message.MessageDecoder] and calling
+     * [io.github.clasicrando.kdbc.core.message.MessageDecoder.decode]. In the case that the
+     * [RawMessage.format] does not match a known format code, [PgMessage.UnknownMessage] will be
+     * returned and subsequent methods processing messages should ignore the message.
      */
     fun decode(rawMessage: RawMessage): PgMessage {
         val contents = rawMessage.contents

@@ -2,11 +2,9 @@ package io.github.clasicrando.kdbc.core.result
 
 import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
-import io.github.clasicrando.kdbc.core.exceptions.NoResultFound
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.use
-import kotlin.reflect.KClass
 
 /**
  * Container class for the data returned upon completion of a query. Every query must have the
@@ -35,7 +33,8 @@ open class QueryResult(
      * the return value is null or the query result has no rows.
      *
      * @throws IllegalStateException if the query has already been closed
-     * @throws NoResultFound if the execution result yields no [QueryResult]
+     * @throws io.github.clasicrando.kdbc.core.exceptions.NoResultFound if the execution result
+     * yields no [QueryResult]
      * @throws IncorrectScalarType if the scalar value is not an instance of the type [T], this
      * checked by [KClass.isInstance] on the first value
      */
@@ -75,7 +74,8 @@ open class QueryResult(
      * [rowParser]. Returns an empty [List] when no rows are returned.
      *
      * @throws IllegalStateException if the query has already been closed
-     * @throws NoResultFound if the execution result yields no [QueryResult]
+     * @throws io.github.clasicrando.kdbc.core.exceptions.NoResultFound if the execution result
+     * yields no [QueryResult]
      * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
      * [RowParseError] are wrapped into a [RowParseError]
      */

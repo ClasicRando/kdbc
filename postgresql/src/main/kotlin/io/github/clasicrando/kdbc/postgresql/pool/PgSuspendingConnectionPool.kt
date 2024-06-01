@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.pool
 
 import io.github.clasicrando.kdbc.core.pool.AbstractDefaultSuspendingConnectionPool
-import io.github.clasicrando.kdbc.core.pool.SuspendingConnectionPool
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
@@ -10,8 +9,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Postgresql specific implementation of a [SuspendingConnectionPool], keeping reference to the
- * pool's [typeCache] and providing the custom [disposeConnection] method that simple calls
+ * Postgresql specific implementation of a
+ * [io.github.clasicrando.kdbc.core.pool.SuspendingConnectionPool], keeping reference to the pool's
+ * [typeCache] and providing the custom [disposeConnection] method that simple calls
  * [PgSuspendingConnection.dispose].
  */
 class PgSuspendingConnectionPool(

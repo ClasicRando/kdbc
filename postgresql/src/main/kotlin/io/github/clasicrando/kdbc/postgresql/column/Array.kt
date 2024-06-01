@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
-import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.ArrayLiteralParser
 import kotlin.reflect.KType
 import kotlin.reflect.KTypeProjection
@@ -23,7 +22,7 @@ private val dummyFieldDescription = PgColumnDescription(
 
 /**
  * Implementation of a [PgTypeDescription] for array types. Data supplied is the [PgType] of the
- * array type, the [KType] of the
+ * array type and the [PgTypeDescription] of the array items.
  */
 abstract class ArrayTypeDescription<T : Any>(
     pgType: PgType,
@@ -76,7 +75,8 @@ abstract class ArrayTypeDescription<T : Any>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1549)
      *
-     * @throws columnDecodeError if the decode operation fails (reason supplied in [Exception])
+     * @throws io.github.clasicrando.kdbc.core.column.columnDecodeError if the decode operation
+     * fails (reason supplied in [Exception])
      */
     override fun decodeBytes(value: PgValue.Binary): List<T?> {
         val dimensions = value.bytes.readInt()
@@ -131,7 +131,8 @@ abstract class ArrayTypeDescription<T : Any>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1017)
      *
-     * @throws columnDecodeError if the decode operation fails (reason supplied in [Exception])
+     * @throws io.github.clasicrando.kdbc.core.column.columnDecodeError if the decode operation
+     * fails (reason supplied in [Exception])
      */
     override fun decodeText(value: PgValue.Text): List<T?> {
         checkOrColumnDecodeError(

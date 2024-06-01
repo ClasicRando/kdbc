@@ -19,8 +19,8 @@ sealed interface Loop {
 }
 
 /**
- * [KLogger] extension method to log at the specified [level] using the event builder set up using
- * the [block] within the context of the [resource] provided. This makes each event include the
+ * [UniqueResourceId] extension method to log using the [logger] supplied at the specified [level]
+ * using the event builder set up using the [block]. This makes each event include the
  * [resourceId][UniqueResourceId.resourceId] in each event as a key value pair.
  */
 inline fun UniqueResourceId.logWithResource(
