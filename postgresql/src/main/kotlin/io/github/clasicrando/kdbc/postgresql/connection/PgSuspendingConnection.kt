@@ -9,14 +9,17 @@ import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.SuspendingQuery
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
+import io.github.clasicrando.kdbc.postgresql.copy.CopyOutCollector
+import io.github.clasicrando.kdbc.postgresql.copy.CopyOutTableMetadata
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
-import io.github.clasicrando.kdbc.postgresql.copy.CopyType
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
@@ -38,12 +41,15 @@ import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import java.nio.file.Files
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -57,7 +63,7 @@ private val logger = KotlinLogging.logger {}
  */
 class PgSuspendingConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
-    private val connectOptions: PgConnectOptions,
+    internal val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
     private val stream: PgSuspendingStream,
     /** Reference to the connection pool that owns this connection */
@@ -681,12 +687,12 @@ class PgSuspendingConnection internal constructor(
      * with the server reverts to regular queries.
      */
     suspend fun copyIn(
-        copyInStatement: CopyStatement,
+        copyInStatement: CopyStatement.From,
         data: Flow<ByteArray>,
     ): QueryResult {
         checkConnected()
 
-        val copyQuery = copyInStatement.toStatement(CopyType.From)
+        val copyQuery = copyInStatement.toQuery()
         return mutex.withLock { copyInInternal(copyQuery, data) }
     }
 
@@ -698,7 +704,9 @@ class PgSuspendingConnection internal constructor(
      * 3. Process all incoming messages by yielding a [Sequence] of [ByteArray] instances from
      * [PgMessage.CopyData] messages. Exit the loop when [PgMessage.ReadyForQuery] is received.
      */
-    private suspend fun copyOutInternal(copyQuery: String): Flow<ByteArray> {
+    private suspend fun copyOutInternal(
+        copyQuery: String,
+    ): Flow<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyQuery)
@@ -735,25 +743,56 @@ class PgSuspendingConnection internal constructor(
      * a [List].
      */
     suspend fun copyOut(
-        copyOutStatement: CopyStatement,
-    ): Flow<ByteArray> {
+        copyOutStatement: CopyStatement.To,
+    ): QueryResult {
         checkConnected()
 
-        val copyQuery = copyOutStatement.toStatement(CopyType.To)
-        return mutex.withLock { copyOutInternal(copyQuery) }
+        val copyQuery = copyOutStatement.toQuery()
+        val fields = when (copyOutStatement) {
+            is CopyStatement.CopyTable -> {
+                val schemaName = copyOutStatement.schemaName.trim()
+                val metadata = createPreparedQuery(CopyOutTableMetadata.QUERY)
+                    .bind(copyOutStatement.tableName)
+                    .bind(schemaName)
+                    .fetchAll(CopyOutTableMetadata.Companion)
+                CopyOutTableMetadata.getFields(copyOutStatement.format, metadata)
+            }
+            is CopyStatement.CopyQuery -> {
+                val statement = prepareStatement(copyOutStatement.query, emptyList())
+                statement.resultMetadata
+            }
+            else -> error("Received an invalid `CopyStatement.To`. This should never happen")
+        }
+
+        return mutex.withLock {
+            val flow = copyOutInternal(copyQuery)
+            return CopyOutCollector(copyOutStatement, fields)
+                .collectSuspending(this, flow)
+        }
     }
 
     /**
-     * Allows for providing a synchronous [Sequence] to [copyIn] by converting the [data] into a
-     * [Flow].
-     *
-     * @see [copyIn]
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
+     * each row returned from the query to th [outputPath] supplied
      */
-    suspend fun copyInSequence(
-        copyInStatement: CopyStatement,
-        data: Sequence<ByteArray>,
-    ): QueryResult {
-        return copyIn(copyInStatement, data.asFlow())
+    suspend fun copyOut(
+        copyOutStatement: CopyStatement.To,
+        outputPath: Path,
+    ) {
+        checkConnected()
+        if (!SystemFileSystem.exists(outputPath)) {
+            val parent = java.nio.file.Path.of(outputPath.parent!!.toString())
+            Files.createDirectories(parent)
+            Files.createFile(parent.resolve(outputPath.name))
+        }
+
+        val copyQuery = copyOutStatement.toQuery()
+        mutex.withLock {
+            val flow = copyOutInternal(copyQuery)
+            SystemFileSystem.sink(outputPath).buffered().use { sink ->
+                flow.collect(sink::write)
+            }
+        }
     }
 
     /**

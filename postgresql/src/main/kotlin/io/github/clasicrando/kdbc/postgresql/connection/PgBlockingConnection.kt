@@ -9,14 +9,17 @@ import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
 import io.github.clasicrando.kdbc.core.query.QueryParameter
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
+import io.github.clasicrando.kdbc.postgresql.copy.CopyOutCollector
+import io.github.clasicrando.kdbc.postgresql.copy.CopyOutTableMetadata
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
-import io.github.clasicrando.kdbc.postgresql.copy.CopyType
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
@@ -39,6 +42,10 @@ import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
 import kotlinx.datetime.Clock
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import java.nio.file.Files
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -56,7 +63,7 @@ private val logger = KotlinLogging.logger {}
  */
 class PgBlockingConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
-    private val connectOptions: PgConnectOptions,
+    internal val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
     private val stream: PgBlockingStream,
     /**
@@ -646,10 +653,10 @@ class PgBlockingConnection internal constructor(
      * the message will be captured and thrown after completing the COPY process and the connection
      * with the server reverts to regular queries.
      */
-    fun copyIn(copyInStatement: CopyStatement, data: Sequence<ByteArray>): QueryResult {
+    fun copyIn(copyInStatement: CopyStatement.From, data: Sequence<ByteArray>): QueryResult {
         checkConnected()
 
-        val copyQuery = copyInStatement.toStatement(CopyType.From)
+        val copyQuery = copyInStatement.toQuery()
         return lock.withLock { copyInInternal(copyQuery, data) }
     }
 
@@ -666,6 +673,7 @@ class PgBlockingConnection internal constructor(
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyQuery)
         }
+
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyOutResponse>()
         return sequence {
@@ -696,12 +704,56 @@ class PgBlockingConnection internal constructor(
      * collect or iterate over the [Sequence] as soon as possible to not hold up the connection
      */
     fun copyOut(
-        copyOutStatement: CopyStatement,
-    ): Sequence<ByteArray> {
+        copyOutStatement: CopyStatement.To,
+    ): QueryResult {
         checkConnected()
 
-        val copyQuery = copyOutStatement.toStatement(CopyType.To)
-        return lock.withLock { copyOutInternal(copyQuery) }
+        val copyQuery = copyOutStatement.toQuery()
+        val fields = when {
+            copyOutStatement is CopyStatement.CopyTable -> {
+                val schemaName = copyOutStatement.schemaName.trim()
+                val metadata = createPreparedQuery(CopyOutTableMetadata.QUERY)
+                    .bind(copyOutStatement.tableName)
+                    .bind(schemaName)
+                    .fetchAll(CopyOutTableMetadata.Companion)
+                CopyOutTableMetadata.getFields(copyOutStatement.format, metadata)
+            }
+            copyOutStatement is CopyStatement.CopyQuery -> {
+                val statement = prepareStatement(copyOutStatement.query, emptyList())
+                statement.resultMetadata
+            }
+            else -> error("Received an invalid `CopyStatement.To`. This should never happen")
+        }
+
+        return lock.withLock {
+            val sequence = copyOutInternal(copyQuery)
+            return CopyOutCollector(copyOutStatement, fields)
+                .collectBlocking(this, sequence)
+        }
+    }
+
+    /**
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
+     * each row returned from the query to th [outputPath] supplied
+     */
+    fun copyOut(
+        copyOutStatement: CopyStatement.To,
+        outputPath: Path,
+    ) {
+        checkConnected()
+        if (!SystemFileSystem.exists(outputPath)) {
+            val parent = java.nio.file.Path.of(outputPath.parent!!.toString())
+            Files.createDirectories(parent)
+            Files.createFile(parent.resolve(outputPath.name))
+        }
+
+        val copyQuery = copyOutStatement.toQuery()
+        lock.withLock {
+            val sequence = copyOutInternal(copyQuery)
+            SystemFileSystem.sink(outputPath).buffered().use { sink ->
+                sequence.forEach(sink::write)
+            }
+        }
     }
 
     /**
