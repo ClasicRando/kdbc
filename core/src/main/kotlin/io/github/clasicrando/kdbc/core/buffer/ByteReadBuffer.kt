@@ -55,7 +55,7 @@ class ByteReadBuffer(
      */
     private fun checkRemaining(required: Int) {
         if (remaining() < required) {
-            throw BufferExhausted()
+            throw BufferExhausted(requested = required, remaining = remaining())
         }
     }
 

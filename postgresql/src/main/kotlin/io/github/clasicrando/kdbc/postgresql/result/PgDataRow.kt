@@ -123,18 +123,6 @@ class PgDataRow(
         return columnMapping[index].pgType
     }
 
-    /**
-     * Get a [PgValue] for the specified [index], returning null if the value sent from the server
-     * was a database NULL. The format code of the column specified by [index] decides if the value
-     * returned is a [PgValue.Text] or [PgValue.Binary].
-     *
-     * @throws IllegalArgumentException if the [index] can not be found in the [columnMapping]
-     */
-    private fun getPgValue(index: Int): PgValue? {
-        checkIndex(index)
-        return pgValues[index]
-    }
-
     private fun <T : Any> checkAndDecode(
         index: Int,
         deserializer: PgTypeDescription<T>,
