@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.connection
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.chunk
 import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
@@ -750,8 +751,8 @@ class PgSuspendingConnection internal constructor(
         }
         return copyIn(
             copyInStatement = copyInStatement,
-            data = data.map { row ->
-                writer.openAsync(outputStream) { writeRow(row.values) }
+            data = data.chunk(size = 100).map { chunk ->
+                writer.openAsync(outputStream) { writeRows(chunk.map { it.values }) }
                 val bytes = outputStream.toByteArray()
                 outputStream.reset()
                 bytes

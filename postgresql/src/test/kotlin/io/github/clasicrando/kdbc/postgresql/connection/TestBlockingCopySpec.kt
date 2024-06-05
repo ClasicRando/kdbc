@@ -66,7 +66,7 @@ class TestBlockingCopySpec {
     }
 
     @Test
-    fun `copyIn should copy all PgCsvRow values as csv`() {
+    fun `copyIn should copy all PgCsvCopyRow values`() {
         PgConnectionHelper.defaultBlockingConnection().use {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement.TableFromCsv(
@@ -87,7 +87,7 @@ class TestBlockingCopySpec {
     }
 
     @Test
-    fun `copyIn should copy all PgCsvRow values as binary`() {
+    fun `copyIn should copy all PgBinaryCopyRow values`() {
         PgConnectionHelper.defaultBlockingConnection().use {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement.TableFromBinary(

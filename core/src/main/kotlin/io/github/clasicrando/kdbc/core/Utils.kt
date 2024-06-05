@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.core
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlin.time.Duration
 
 const val zeroByte: Byte = 0
@@ -83,3 +85,19 @@ fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
 fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""
 
 fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration.ZERO
+
+fun <T> Flow<T>.chunk(size: Int): Flow<List<T>> {
+    return flow {
+        val buffer = ArrayList<T>(size)
+        this@chunk.collect {
+            buffer.add(it)
+            if (buffer.size == size) {
+                emit(buffer)
+                buffer.clear()
+            }
+        }
+        if (buffer.isNotEmpty()) {
+            emit(buffer)
+        }
+    }
+}
