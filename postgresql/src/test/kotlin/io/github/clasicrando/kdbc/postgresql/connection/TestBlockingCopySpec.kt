@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
+import io.github.clasicrando.kdbc.core.IoUtils
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.connection.useCatching
 import io.github.clasicrando.kdbc.core.query.executeClosing
@@ -10,7 +11,6 @@ import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
@@ -145,7 +145,7 @@ class TestBlockingCopySpec {
 
     @Test
     fun `copyOut should write all rows from table when csv`() {
-        val path = Path("./temp/blocking-copy-out.csv")
+        val path = Path(".", "temp", "blocking-copy-out.csv")
         try {
             PgConnectionHelper.defaultBlockingConnection().use {
                 var rowIndex = 0
@@ -164,7 +164,7 @@ class TestBlockingCopySpec {
                 assertEquals(ROW_COUNT, rowIndex)
             }
         } finally {
-            SystemFileSystem.delete(path, mustExist = false)
+            IoUtils.delete(path = path, mustExist = false)
         }
     }
 

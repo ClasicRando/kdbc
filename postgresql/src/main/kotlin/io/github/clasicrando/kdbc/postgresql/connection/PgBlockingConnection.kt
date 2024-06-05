@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
+import io.github.clasicrando.kdbc.core.IoUtils
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
@@ -51,7 +52,6 @@ import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import java.io.ByteArrayOutputStream
-import java.nio.file.Files
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -681,7 +681,7 @@ class PgBlockingConnection internal constructor(
      */
     fun copyIn(copyInStatement: CopyStatement.From, path: Path): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
-        return SystemFileSystem.source(path).buffered().use { source ->
+        return IoUtils.source(path).buffered().use { source ->
             copyIn(
                 copyInStatement = copyInStatement,
                 data = generateSequence {
@@ -827,11 +827,7 @@ class PgBlockingConnection internal constructor(
         outputPath: Path,
     ) {
         checkConnected()
-        if (!SystemFileSystem.exists(outputPath)) {
-            val parent = java.nio.file.Path.of(outputPath.parent!!.toString())
-            Files.createDirectories(parent)
-            Files.createFile(parent.resolve(outputPath.name))
-        }
+        IoUtils.createIfNotExists(outputPath)
 
         val copyQuery = copyOutStatement.toQuery()
         lock.withLock {
