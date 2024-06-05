@@ -83,7 +83,7 @@ sealed interface CopyStatement {
     sealed interface To : CopyStatement
     sealed interface From : CopyStatement
 
-    class QueryToCsv(
+    data class QueryToCsv(
         override val query: String,
         override val delimiter: Char = ',',
         override val nullString: String = "",
@@ -111,7 +111,7 @@ sealed interface CopyStatement {
         }
     }
 
-    class TableToCsv(
+    data class TableToCsv(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -142,7 +142,7 @@ sealed interface CopyStatement {
         }
     }
 
-    class QueryToText(
+    data class QueryToText(
         override val query: String,
         override val delimiter: Char = '\t',
         override val nullString: String = "\\N",
@@ -157,7 +157,7 @@ sealed interface CopyStatement {
         }
     }
 
-    class TableToText(
+    data class TableToText(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -181,7 +181,7 @@ sealed interface CopyStatement {
         }
     }
 
-    class QueryToBinary(override val query: String) : To, CopyQuery {
+    data class QueryToBinary(override val query: String) : To, CopyQuery {
         override val format: CopyFormat = CopyFormat.Binary
 
         override fun toQuery(): String = buildString {
@@ -189,7 +189,7 @@ sealed interface CopyStatement {
         }
     }
 
-    class TableToBinary(
+    data class TableToBinary(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -208,7 +208,7 @@ sealed interface CopyStatement {
         }
     }
 
-    class TableFromCsv(
+    data class TableFromCsv(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -251,7 +251,7 @@ sealed interface CopyStatement {
         }
     }
 
-    class TableFromText(
+    data class TableFromText(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -275,7 +275,7 @@ sealed interface CopyStatement {
         }
     }
 
-    class TableFromBinary(
+    data class TableFromBinary(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -337,3 +337,26 @@ private fun CopyStatement.CopyText.appendTextOptions(builder: StringBuilder) = b
     }
     append(')')
 }
+
+val pgBinaryCopyHeader = byteArrayOf(
+    'P'.code.toByte(),
+    'G'.code.toByte(),
+    'C'.code.toByte(),
+    'O'.code.toByte(),
+    'P'.code.toByte(),
+    'Y'.code.toByte(),
+    0x0A,
+    -1,
+    0x0D,
+    0x0A,
+    0x00,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+)
+val pgBinaryCopyTrailer = byteArrayOf(-1, -1)

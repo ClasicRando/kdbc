@@ -85,6 +85,7 @@ subprojects {
     }
 
     tasks.test {
+        workingDir = project.rootDir
         testLogging {
             setExceptionFormat("full")
             events = setOf(

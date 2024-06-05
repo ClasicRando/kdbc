@@ -41,6 +41,69 @@ class TestBlockingCopySpec {
     }
 
     @Test
+    fun `copyIn should copy all rows from file`() {
+        val testFilePath = Path(".", "test-files", "blocking-copy-in.csv")
+        PgConnectionHelper.defaultBlockingConnection().use {
+            it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+            val copyInStatement = CopyStatement.TableFromCsv(
+                schemaName = "public",
+                tableName = "copy_in_test",
+            )
+            val copyResult = it.copyIn(
+                copyInStatement,
+                testFilePath,
+            )
+            assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
+            assertEquals("COPY $ROW_COUNT", copyResult.message)
+            val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
+                .fetchScalar<Long>()
+            assertEquals(ROW_COUNT_LONG, count)
+        }
+    }
+
+    @Test
+    fun `copyIn should copy all PgCsvRow values as csv`() {
+        PgConnectionHelper.defaultBlockingConnection().use {
+            it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+            val copyInStatement = CopyStatement.TableFromCsv(
+                schemaName = "public",
+                tableName = "copy_in_test",
+            )
+            val copyResult = it.copyIn(
+                copyInStatement,
+                (1..ROW_COUNT).asSequence()
+                    .map { i -> CopyInTestRow(id = i, textValue = "$i Value") },
+            )
+            assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
+            assertEquals("COPY $ROW_COUNT", copyResult.message)
+            val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
+                .fetchScalar<Long>()
+            assertEquals(ROW_COUNT_LONG, count)
+        }
+    }
+
+    @Test
+    fun `copyIn should copy all PgCsvRow values as binary`() {
+        PgConnectionHelper.defaultBlockingConnection().use {
+            it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+            val copyInStatement = CopyStatement.TableFromBinary(
+                schemaName = "public",
+                tableName = "copy_in_test",
+            )
+            val copyResult = it.copyIn(
+                copyInStatement,
+                (1..ROW_COUNT).asSequence()
+                    .map { i -> CopyInTestRow(id = i, textValue = "$i Value") },
+            )
+            assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
+            assertEquals("COPY $ROW_COUNT", copyResult.message)
+            val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
+                .fetchScalar<Long>()
+            assertEquals(ROW_COUNT_LONG, count)
+        }
+    }
+
+    @Test
     fun `copyIn should throw exception when improperly formatted rows`() {
         val result = PgConnectionHelper.defaultBlockingConnection().useCatching {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()

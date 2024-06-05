@@ -115,6 +115,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.uuid.UUID
 import java.math.BigDecimal
 import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 class PgEncodeBuffer(
     private val metadata: List<PgColumnDescription>,
@@ -472,6 +473,10 @@ class PgEncodeBuffer(
         }
         encodeNonNullValue(value, kType)
         paramCount++
+    }
+
+    inline fun <reified T : Any> encodeValue(value: T?) {
+        encodeValue(value, typeOf<T>())
     }
 
     override fun release() {

@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
+import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
@@ -18,8 +19,12 @@ import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.copy.CopyOutCollector
-import io.github.clasicrando.kdbc.postgresql.copy.CopyOutTableMetadata
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
+import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata
+import io.github.clasicrando.kdbc.postgresql.copy.PgBinaryCopyRow
+import io.github.clasicrando.kdbc.postgresql.copy.PgCsvCopyRow
+import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyHeader
+import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyTrailer
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
@@ -39,16 +44,21 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
+import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import kotlin.reflect.typeOf
 
@@ -386,7 +396,7 @@ class PgSuspendingConnection internal constructor(
      * entry is added to the cache for the current [query].
      */
     private suspend fun getOrCachePreparedStatement(query: String): PgPreparedStatement {
-        while (preparedStatements.size >= connectOptions.statementCacheCapacity.toInt()) {
+        while (preparedStatements.size >= connectOptions.statementCacheCapacity) {
             removeOldestPreparedStatement()
         }
         return preparedStatements.getOrPut(query) {
@@ -695,6 +705,85 @@ class PgSuspendingConnection internal constructor(
         val copyQuery = copyInStatement.toQuery()
         return mutex.withLock { copyInInternal(copyQuery, data) }
     }
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * the contents of the file at [path]. The data within the file must be a text based (i.e.
+     * txt/csv file).
+     *
+     * If the server sends an error message during or at completion of streaming the copy [path],
+     * the message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
+     * @throws kotlinx.io.files.FileNotFoundException if a file cannot be found at [path]
+     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
+     */
+    suspend fun copyIn(copyInStatement: CopyStatement.From, path: Path): QueryResult {
+        require(copyInStatement is CopyStatement.CopyText)
+        return SystemFileSystem.source(path).buffered().use { source ->
+            copyIn(
+                copyInStatement = copyInStatement,
+                data = generateSequence {
+                    val bytes = ByteArray(1024)
+                    when (val bytesRead = source.readAtMostTo(bytes)) {
+                        -1, 0 -> null
+                        bytes.size -> bytes
+                        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+                    }
+                }.asFlow()
+            )
+        }
+    }
+
+    suspend fun copyIn(
+        copyInStatement: CopyStatement.TableFromCsv,
+        data: Flow<PgCsvCopyRow>,
+    ): QueryResult {
+        val outputStream = ByteArrayOutputStream()
+        val writer = csvWriter {
+            delimiter = copyInStatement.delimiter
+            quote {
+                char = copyInStatement.quote
+            }
+            lineTerminator = "\n"
+            nullCode = copyInStatement.nullString
+        }
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = data.map { row ->
+                writer.openAsync(outputStream) { writeRow(row.values) }
+                val bytes = outputStream.toByteArray()
+                outputStream.reset()
+                bytes
+            }
+        )
+    }
+
+    suspend fun copyIn(
+        copyInStatement: CopyStatement.TableFromBinary,
+        data: Flow<PgBinaryCopyRow>,
+    ): QueryResult {
+        val schemaName = copyInStatement.schemaName.trim()
+        val metadata = createPreparedQuery(CopyTableMetadata.QUERY)
+            .bind(copyInStatement.tableName)
+            .bind(schemaName)
+            .fetchAll(CopyTableMetadata.Companion)
+        val fields = CopyTableMetadata.getFields(copyInStatement.format, metadata)
+        val buffer = PgEncodeBuffer(metadata = fields, typeCache = typeCache)
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = flow<ByteArray> {
+                emit(pgBinaryCopyHeader)
+                val mappedFlow = data.map {
+                    buffer.innerBuffer.writeShort(it.valueCount)
+                    it.encodeValues(buffer)
+                    buffer.innerBuffer.copyToArray()
+                }
+                emitAll(mappedFlow)
+                emit(pgBinaryCopyTrailer)
+            }
+        )
+    }
 
     /**
      * Internal method for executing a `COPY OUT` command. Steps are:
@@ -751,11 +840,11 @@ class PgSuspendingConnection internal constructor(
         val fields = when (copyOutStatement) {
             is CopyStatement.CopyTable -> {
                 val schemaName = copyOutStatement.schemaName.trim()
-                val metadata = createPreparedQuery(CopyOutTableMetadata.QUERY)
+                val metadata = createPreparedQuery(CopyTableMetadata.QUERY)
                     .bind(copyOutStatement.tableName)
                     .bind(schemaName)
-                    .fetchAll(CopyOutTableMetadata.Companion)
-                CopyOutTableMetadata.getFields(copyOutStatement.format, metadata)
+                    .fetchAll(CopyTableMetadata.Companion)
+                CopyTableMetadata.getFields(copyOutStatement.format, metadata)
             }
             is CopyStatement.CopyQuery -> {
                 val statement = prepareStatement(copyOutStatement.query, emptyList())
@@ -766,7 +855,7 @@ class PgSuspendingConnection internal constructor(
 
         return mutex.withLock {
             val flow = copyOutInternal(copyQuery)
-            return CopyOutCollector(copyOutStatement, fields)
+            CopyOutCollector(copyOutStatement, fields)
                 .collectSuspending(this, flow)
         }
     }
@@ -782,8 +871,10 @@ class PgSuspendingConnection internal constructor(
         checkConnected()
         if (!SystemFileSystem.exists(outputPath)) {
             val parent = java.nio.file.Path.of(outputPath.parent!!.toString())
-            Files.createDirectories(parent)
-            Files.createFile(parent.resolve(outputPath.name))
+            withContext(Dispatchers.IO) {
+                Files.createDirectories(parent)
+                Files.createFile(parent.resolve(outputPath.name))
+            }
         }
 
         val copyQuery = copyOutStatement.toQuery()
