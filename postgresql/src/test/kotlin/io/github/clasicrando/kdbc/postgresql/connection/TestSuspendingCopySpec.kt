@@ -44,22 +44,26 @@ class TestSuspendingCopySpec {
 
     @Test
     fun `copyIn should copy all rows from file`() = runBlocking {
-        val testFilePath = Path(".", "test-files", "blocking-copy-in.csv")
-        PgConnectionHelper.defaultSuspendingConnection().use {
-            it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
-            val copyInStatement = CopyStatement.TableFromCsv(
-                schemaName = "public",
-                tableName = "copy_in_test",
-            )
-            val copyResult = it.copyIn(
-                copyInStatement,
-                testFilePath,
-            )
-            assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
-            assertEquals("COPY $ROW_COUNT", copyResult.message)
-            val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
-                .fetchScalar<Long>()
-            assertEquals(ROW_COUNT_LONG, count)
+        val testFilePath = createTempCsvForCopy(rowCount = ROW_COUNT)
+        try {
+            PgConnectionHelper.defaultSuspendingConnection().use {
+                it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+                val copyInStatement = CopyStatement.TableFromCsv(
+                    schemaName = "public",
+                    tableName = "copy_in_test",
+                )
+                val copyResult = it.copyIn(
+                    copyInStatement,
+                    testFilePath,
+                )
+                assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
+                assertEquals("COPY $ROW_COUNT", copyResult.message)
+                val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
+                    .fetchScalar<Long>()
+                assertEquals(ROW_COUNT_LONG, count)
+            }
+        } finally {
+            IoUtils.deleteCatching(path = testFilePath, mustExist = false)
         }
     }
 
