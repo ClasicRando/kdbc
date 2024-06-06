@@ -149,6 +149,22 @@ class TestSuspendingCopySpec {
     }
 
     @Test
+    fun `copyOut should supply all rows from query when csv`(): Unit = runBlocking {
+        PgConnectionHelper.defaultSuspendingConnection().use {
+            var rowIndex = 0
+            val copyOutStatement = CopyStatement.QueryToCsv(
+                query = "SELECT * FROM public.copy_out_test",
+            )
+            it.copyOut(copyOutStatement).rows.forEach { row ->
+                rowIndex++
+                assertEquals(rowIndex, row.getAsNonNull("id"))
+                assertEquals("$rowIndex Value", row.getAsNonNull("text_field"))
+            }
+            assertEquals(ROW_COUNT, rowIndex)
+        }
+    }
+
+    @Test
     fun `copyOut should write all rows from table when csv`(): Unit = runBlocking {
         val path = Path(".", "temp", "suspending-copy-out.csv")
         try {
