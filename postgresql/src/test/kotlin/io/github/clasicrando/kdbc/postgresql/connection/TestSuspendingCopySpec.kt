@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
-import io.github.clasicrando.kdbc.core.IoUtils
+import io.github.clasicrando.kdbc.core.IOUtils
 import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.connection.useCatching
 import io.github.clasicrando.kdbc.core.query.executeClosing
@@ -63,7 +63,7 @@ class TestSuspendingCopySpec {
                 assertEquals(ROW_COUNT_LONG, count)
             }
         } finally {
-            IoUtils.deleteCatching(path = testFilePath, mustExist = false)
+            IOUtils.deleteCatching(path = testFilePath, mustExist = false)
         }
     }
 
@@ -169,7 +169,7 @@ class TestSuspendingCopySpec {
                 assertEquals(ROW_COUNT, rowIndex)
             }
         } finally {
-            IoUtils.deleteCatching(path = path, mustExist = false)
+            IOUtils.deleteCatching(path = path, mustExist = false)
         }
     }
 

@@ -6,6 +6,12 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgType
 
+/**
+ * Query class for collecting table metadata before executing a `COPY FROM` operation that targets
+ * a table. The fields in this class are the columns of the [QUERY] included. The companion object
+ * includes the [RowParser] implementation to collect a [List] of [CopyTableMetadata] as the
+ * metadata fetched.
+ */
 internal data class CopyTableMetadata(
     val tableOid: Int,
     val columnName: String,
@@ -37,6 +43,11 @@ internal data class CopyTableMetadata(
             )
         }
 
+        /**
+         * Convert the [metadata] supplied as the table's entire column descriptions into a [List]
+         * of [PgColumnDescription]. Uses the [copyFormat] provided for every column to indicate
+         * the data format.
+         */
         fun getFields(
             copyFormat: CopyFormat,
             metadata: List<CopyTableMetadata>,

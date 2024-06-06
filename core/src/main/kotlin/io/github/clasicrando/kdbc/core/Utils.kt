@@ -86,10 +86,16 @@ fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""
 
 fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration.ZERO
 
-fun <T> Flow<T>.chunk(size: Int): Flow<List<T>> {
+/**
+ * Chunk a [Flow] of [T] into a [Flow] of [List] of [T]. This collects the original [Flow] and
+ * constructs a new cold flow where [List]s of the specified [size] are emitted as the flow items.
+ * Every item will be the [size] specified except for the final item which will be at most the
+ * [size] specified due to the dynamic size of the original [Flow].
+ */
+fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> {
     return flow {
         val buffer = ArrayList<T>(size)
-        this@chunk.collect {
+        this@chunked.collect {
             buffer.add(it)
             if (buffer.size == size) {
                 emit(buffer)

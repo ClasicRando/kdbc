@@ -2,7 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
-import io.github.clasicrando.kdbc.core.IoUtils
+import io.github.clasicrando.kdbc.core.IOUtils
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
@@ -621,10 +621,12 @@ class PgBlockingConnection internal constructor(
         stream.waitForOrError<PgMessage.CopyInResponse>()
 
         var wasFailed = false
+        var failureReason: Exception? = null
         try {
             stream.writeManySized(data.map { PgMessage.CopyData(it) })
             stream.writeToStream(PgMessage.CopyDone)
         } catch (ex: Exception) {
+            failureReason = ex
             if (stream.isConnected) {
                 wasFailed = true
                 stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
@@ -632,6 +634,7 @@ class PgBlockingConnection internal constructor(
         }
 
         val copyInResultCollector = CopyInResultCollector(this, wasFailed)
+        failureReason?.let { copyInResultCollector.errors.add(it) }
         stream.processMessageLoop(copyInResultCollector::processMessage)
             .onFailure(copyInResultCollector.errors::add)
         copyInResultCollector.transactionStatus?.let(::handleTransactionStatus)
@@ -681,11 +684,11 @@ class PgBlockingConnection internal constructor(
      */
     fun copyIn(copyInStatement: CopyStatement.From, path: Path): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
-        return IoUtils.source(path).buffered().use { source ->
+        return IOUtils.source(path).buffered().use { source ->
             copyIn(
                 copyInStatement = copyInStatement,
                 data = generateSequence {
-                    val bytes = ByteArray(1024)
+                    val bytes = ByteArray(2048)
                     when (val bytesRead = source.readAtMostTo(bytes)) {
                         -1, 0 -> null
                         bytes.size -> bytes
@@ -696,6 +699,19 @@ class PgBlockingConnection internal constructor(
         }
     }
 
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * each [PgCsvCopyRow] supplied to the COPY sink by using the [PgCsvCopyRow.values] as the
+     * CSV row contents. By default, the [Any.toString] method is called to convert the data into
+     * CSV rows.
+     *
+     * If the server sends an error message during or at completion of streaming the copy data, the
+     * message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.TableFromCsv]
+     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
+     */
     fun copyIn(
         copyInStatement: CopyStatement.TableFromCsv,
         data: Sequence<PgCsvCopyRow>,
@@ -711,7 +727,7 @@ class PgBlockingConnection internal constructor(
         }
         return copyIn(
             copyInStatement = copyInStatement,
-            data = data.chunked(100) { chunk ->
+            data = data.chunked(size = 50) { chunk ->
                 writer.open(outputStream) { writeRows(chunk.asSequence().map { it.values }) }
                 val bytes = outputStream.toByteArray()
                 outputStream.reset()
@@ -720,6 +736,18 @@ class PgBlockingConnection internal constructor(
         )
     }
 
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * each [PgBinaryCopyRow] supplied to the COPY sink by calling [PgBinaryCopyRow.encodeValues]
+     * with a [PgEncodeBuffer] to encode the table rows as binary values.
+     *
+     * If the server sends an error message during or at completion of streaming the copy data, the
+     * message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.TableFromCsv]
+     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
+     */
     fun copyIn(
         copyInStatement: CopyStatement.TableFromBinary,
         data: Sequence<PgBinaryCopyRow>,
@@ -735,9 +763,11 @@ class PgBlockingConnection internal constructor(
             copyInStatement = copyInStatement,
             data = sequence<ByteArray> {
                 yield(pgBinaryCopyHeader)
-                val mappedSequence = data.map {
-                    buffer.innerBuffer.writeShort(it.valueCount)
-                    it.encodeValues(buffer)
+                val mappedSequence = data.chunked(size = 50).map { chunk ->
+                    for (row in chunk) {
+                        buffer.innerBuffer.writeShort(row.valueCount)
+                        row.encodeValues(buffer)
+                    }
                     buffer.innerBuffer.copyToArray()
                 }
                 yieldAll(mappedSequence)
@@ -827,7 +857,7 @@ class PgBlockingConnection internal constructor(
         outputPath: Path,
     ) {
         checkConnected()
-        IoUtils.createIfNotExists(outputPath)
+        IOUtils.createFileIfNotExists(outputPath)
 
         val copyQuery = copyOutStatement.toQuery()
         lock.withLock {

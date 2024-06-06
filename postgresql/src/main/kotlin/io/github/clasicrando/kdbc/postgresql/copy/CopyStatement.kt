@@ -83,6 +83,10 @@ sealed interface CopyStatement {
     sealed interface To : CopyStatement
     sealed interface From : CopyStatement
 
+    /**
+     * [CopyStatement] implementation for copying to STDOUT as CSV data extracted from the query
+     * specified.
+     */
     data class QueryToCsv(
         override val query: String,
         override val delimiter: Char = ',',
@@ -111,6 +115,10 @@ sealed interface CopyStatement {
         }
     }
 
+    /**
+     * [CopyStatement] implementation for copying to STDOUT as CSV data extracted from the table
+     * specified.
+     */
     data class TableToCsv(
         override val schemaName: String,
         override val tableName: String,
@@ -142,6 +150,10 @@ sealed interface CopyStatement {
         }
     }
 
+    /**
+     * [CopyStatement] implementation for copying to STDOUT as text delimited data extracted from
+     * the query specified.
+     */
     data class QueryToText(
         override val query: String,
         override val delimiter: Char = '\t',
@@ -157,6 +169,10 @@ sealed interface CopyStatement {
         }
     }
 
+    /**
+     * [CopyStatement] implementation for copying to STDOUT as text delimited data extracted from
+     * the table specified.
+     */
     data class TableToText(
         override val schemaName: String,
         override val tableName: String,
@@ -181,6 +197,10 @@ sealed interface CopyStatement {
         }
     }
 
+    /**
+     * [CopyStatement] implementation for copying to STDOUT as binary data extracted from the query
+     * specified.
+     */
     data class QueryToBinary(override val query: String) : To, CopyQuery {
         override val format: CopyFormat = CopyFormat.Binary
 
@@ -189,6 +209,10 @@ sealed interface CopyStatement {
         }
     }
 
+    /**
+     * [CopyStatement] implementation for copying to STDOUT as binary data extracted from the table
+     * specified.
+     */
     data class TableToBinary(
         override val schemaName: String,
         override val tableName: String,
@@ -208,6 +232,9 @@ sealed interface CopyStatement {
         }
     }
 
+    /**
+     * [CopyStatement] implementation for copying from STDIN as CSV data into the table specified
+     */
     data class TableFromCsv(
         override val schemaName: String,
         override val tableName: String,
@@ -251,6 +278,10 @@ sealed interface CopyStatement {
         }
     }
 
+    /**
+     * [CopyStatement] implementation for copying from STDIN as text delimited into the table
+     * specified
+     */
     data class TableFromText(
         override val schemaName: String,
         override val tableName: String,
@@ -275,6 +306,10 @@ sealed interface CopyStatement {
         }
     }
 
+    /**
+     * [CopyStatement] implementation for copying from STDIN as binary data into the table
+     * specified
+     */
     data class TableFromBinary(
         override val schemaName: String,
         override val tableName: String,
@@ -338,6 +373,11 @@ private fun CopyStatement.CopyText.appendTextOptions(builder: StringBuilder) = b
     append(')')
 }
 
+/**
+ * Magic header value required at the start a binary COPY operation
+ *
+ * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
+ */
 val pgBinaryCopyHeader = byteArrayOf(
     'P'.code.toByte(),
     'G'.code.toByte(),
@@ -359,4 +399,10 @@ val pgBinaryCopyHeader = byteArrayOf(
     0,
     0,
 )
+
+/**
+ * Magic trailer value required before the end of a binary COPY operation
+ *
+ * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
+ */
 val pgBinaryCopyTrailer = byteArrayOf(-1, -1)

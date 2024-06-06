@@ -423,7 +423,7 @@ internal class PgSuspendingStream(
 //    }
 
     companion object {
-        private const val SEND_BUFFER_SIZE = 2048
+        private const val SEND_BUFFER_SIZE = 4096
         private const val TLS_REJECT_WARNING = "Preferred SSL mode was rejected by server. " +
                 "Continuing with non TLS connection"
 
