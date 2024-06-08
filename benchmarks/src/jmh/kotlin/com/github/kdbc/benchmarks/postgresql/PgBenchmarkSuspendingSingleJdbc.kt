@@ -2,7 +2,6 @@ package com.github.kdbc.benchmarks.postgresql
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -45,28 +44,24 @@ open class PgBenchmarkSuspendingSingleJdbc {
     }
 
     @Benchmark
-    open fun queryMultipleRows() = runBlocking {
+    open fun queryMultipleRows() = runBlocking(Dispatchers.IO) {
         multiStep()
         connection.prepareStatement(jdbcQuery).use { preparedStatement ->
             preparedStatement.setInt(1, id)
             preparedStatement.setInt(2, id + 10)
-            withContext(Dispatchers.IO) {
-                preparedStatement.executeQuery().use { resultSet ->
-                    extractPostDataClassListFromResultSet(resultSet)
-                }
+            preparedStatement.executeQuery().use { resultSet ->
+                extractPostDataClassListFromResultSet(resultSet)
             }
         }
     }
 
     @Benchmark
-    open fun querySingleRow() = runBlocking {
+    open fun querySingleRow() = runBlocking(Dispatchers.IO) {
         singleStep()
         connection.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
             preparedStatement.setInt(1, id)
-            withContext(Dispatchers.IO) {
-                preparedStatement.executeQuery().use { resultSet ->
-                    extractPostDataClassListFromResultSet(resultSet)
-                }
+            preparedStatement.executeQuery().use { resultSet ->
+                extractPostDataClassListFromResultSet(resultSet)
             }
         }
     }

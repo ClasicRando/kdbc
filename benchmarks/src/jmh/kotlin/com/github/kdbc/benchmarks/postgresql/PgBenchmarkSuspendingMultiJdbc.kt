@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -43,14 +42,12 @@ open class PgBenchmarkSuspendingMultiJdbc {
         return id
     }
 
-    private suspend fun executeQuery(stepId: Int) {
+    private fun executeQuery(stepId: Int) {
         dataSource.connection.use { conn ->
             conn.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
-                preparedStatement.setInt(1, stepId)
-                withContext(Dispatchers.IO) {
-                    preparedStatement.executeQuery().use { resultSet ->
-                        extractPostDataClassListFromResultSet(resultSet)
-                    }
+            preparedStatement.setInt(1, stepId)
+                preparedStatement.executeQuery().use { resultSet ->
+                    extractPostDataClassListFromResultSet(resultSet)
                 }
             }
         }
@@ -60,7 +57,7 @@ open class PgBenchmarkSuspendingMultiJdbc {
     open fun querySingleRow() = runBlocking {
         val results = List(concurrencyLimit) {
             val stepId = singleStep()
-            async { executeQuery(stepId) }
+            async(Dispatchers.IO) { executeQuery(stepId) }
         }
         results.awaitAll()
     }
