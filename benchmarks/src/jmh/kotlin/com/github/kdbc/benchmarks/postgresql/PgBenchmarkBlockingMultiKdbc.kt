@@ -58,7 +58,7 @@ open class PgBenchmarkBlockingMultiKdbc {
     @Benchmark
     open fun querySingleRow() {
         val taskCount = concurrencyLimit
-        (1..taskCount).forEach { i ->
+        repeat(taskCount) {
             val stepId = step()
             completionService.submit { executeQuery(stepId) }
         }

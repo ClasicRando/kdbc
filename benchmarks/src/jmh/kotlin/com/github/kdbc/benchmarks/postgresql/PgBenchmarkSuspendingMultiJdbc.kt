@@ -1,5 +1,10 @@
 package com.github.kdbc.benchmarks.postgresql
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -10,9 +15,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.Executor
-import java.util.concurrent.ExecutorCompletionService
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.sql.DataSource
 
@@ -22,15 +24,13 @@ import javax.sql.DataSource
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class PgBenchmarkBlockingMultiJdbc {
+open class PgBenchmarkSuspendingMultiJdbc {
     private var id = 0
     private val dataSource: DataSource = getJdbcDataSource()
-    private val executor: Executor = Executors.newWorkStealingPool()
-    private val completionService = ExecutorCompletionService<Unit>(executor)
 
     @Setup
     open fun start() {
-        getJdbcConnection().use { connection ->
+        dataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute(setupQuery)
             }
@@ -43,29 +43,25 @@ open class PgBenchmarkBlockingMultiJdbc {
         return id
     }
 
-    private fun executeQuery(stepId: Int) {
+    private suspend fun executeQuery(stepId: Int) {
         dataSource.connection.use { conn ->
             conn.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
                 preparedStatement.setInt(1, stepId)
-                preparedStatement.executeQuery().use { resultSet ->
-                    extractPostDataClassListFromResultSet(resultSet)
+                withContext(Dispatchers.IO) {
+                    preparedStatement.executeQuery().use { resultSet ->
+                        extractPostDataClassListFromResultSet(resultSet)
+                    }
                 }
             }
         }
     }
 
     @Benchmark
-    open fun querySingleRow() {
-        val taskCount = concurrencyLimit
-        repeat(taskCount) {
+    open fun querySingleRow() = runBlocking {
+        val results = List(concurrencyLimit) {
             val stepId = singleStep()
-            completionService.submit { executeQuery(stepId) }
+            async { executeQuery(stepId) }
         }
-        var received = 0
-        while (received < taskCount) {
-            val future = completionService.take()
-            future.get()
-            received++
-        }
+        results.awaitAll()
     }
 }
