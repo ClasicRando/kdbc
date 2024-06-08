@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class TestSuspendingListenNotifySpec {
     @Test
@@ -15,9 +16,9 @@ class TestSuspendingListenNotifySpec {
             it.listen(CHANNEL_NAME)
             it.createQuery("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')")
                 .executeClosing()
-            val notification = withTimeout(200) {
-                it.notifications.receive()
-            }
+            val notifications = withTimeout(200) { it.getNotifications() }
+            val notification = notifications.getOrNull(0)
+            assertNotNull(notification)
             assertEquals(CHANNEL_NAME, notification.channelName)
             assertEquals(PAYLOAD, notification.payload)
         }
@@ -30,9 +31,9 @@ class TestSuspendingListenNotifySpec {
             it.createQuery("LISTEN $CHANNEL_NAME")
                 .executeClosing()
             it.notify(CHANNEL_NAME, PAYLOAD)
-            val notification = withTimeout(200) {
-                it.notifications.receive()
-            }
+            val notifications = withTimeout(200) { it.getNotifications() }
+            val notification = notifications.getOrNull(0)
+            assertNotNull(notification)
             assertEquals(CHANNEL_NAME, notification.channelName)
             assertEquals(PAYLOAD, notification.payload)
         }

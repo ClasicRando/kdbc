@@ -46,7 +46,6 @@ import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emitAll
@@ -91,16 +90,6 @@ class PgSuspendingConnection internal constructor(
      * the connection.
      */
     private val mutex = Mutex()
-    /**
-     * [ReceiveChannel] for [PgNotification]s received from the server. Although this method is
-     * available to anyone who has a reference to this [PgSuspendingConnection], you should only
-     * have one coroutine that consumes this channel since messages are not duplicated for multiple
-     * receivers so messages are consumed fairly in a first come, first server basis. The
-     * recommended practice would then be to spawn a coroutine to read this channel until it closes
-     * or consume this channel as a flow and dispatch each [PgNotification] to the desired
-     * consumers, copying the [PgNotification] if needed.
-     */
-    val notifications: ReceiveChannel<PgNotification> get() = stream.notifications
     /**
      * Cache of [PgPreparedStatement] where the key is the query that initiated the prepared
      * statement. This is not thread safe, therefore it should only be accessed after querying
@@ -919,8 +908,8 @@ class PgSuspendingConnection internal constructor(
 
     /**
      * Execute a `LISTEN` command for the specified [channelName]. Allows this connection to
-     * receive notifications sent to this connection's current database. All received messages
-     * are accessible from the [notifications] [ReceiveChannel].
+     * receive notifications sent to this connection's current database. Notifications can be
+     * received using the [getNotifications] method.
      */
     suspend fun listen(channelName: String) {
         val query = "LISTEN ${channelName.quoteIdentifier()};"
@@ -934,6 +923,23 @@ class PgSuspendingConnection internal constructor(
     suspend fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
         sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
+    }
+
+    /**
+     * Returns all available [PgNotification]s from the message stream. Flushes the stream to
+     * obtain all pending messages sent from the server then pull every message from the
+     * notification queue.
+     */
+    suspend fun getNotifications(): List<PgNotification> {
+        checkConnected()
+        stream.flushMessages()
+        return generateSequence {
+            val result = stream.notifications.tryReceive()
+            when {
+                result.isClosed -> error("Attempted to read notifications from closed channel")
+                else -> result.getOrNull()
+            }
+        }.toList()
     }
 
     /**

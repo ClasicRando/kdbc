@@ -36,7 +36,7 @@ private suspend fun PgSuspendingStream.sendScramInit(
  * server sent back the expected message.
  */
 private suspend fun PgSuspendingStream.receiveContinueMessage(): Authentication.SaslContinue {
-    val continueMessage = this.messages.receive()
+    val continueMessage = this.receiveNextServerMessage()
     if (continueMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
             message = "Expected an Authentication message but got {code}"
@@ -81,7 +81,7 @@ private suspend fun PgSuspendingStream.sendClientFinalMessage(
  * sent back the expected message.
  */
 private suspend fun PgSuspendingStream.receiveFinalAuthMessage(): Authentication.SaslFinal {
-    val finalMessage = this.messages.receive()
+    val finalMessage = this.receiveNextServerMessage()
     if (finalMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
             message = "Expected an Authentication message but got {code}"
@@ -106,7 +106,7 @@ private suspend fun PgSuspendingStream.receiveFinalAuthMessage(): Authentication
  * throw a [PgAuthenticationError]
  */
 private suspend fun PgSuspendingStream.receiveOkAuthMessage() {
-    val okMessage = this.messages.receive()
+    val okMessage = this.receiveNextServerMessage()
     if (okMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
             message = "Expected an Authentication message but got {code}"

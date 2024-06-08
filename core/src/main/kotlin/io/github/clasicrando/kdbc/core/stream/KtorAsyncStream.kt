@@ -17,6 +17,7 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Buffer
@@ -44,7 +45,7 @@ class KtorAsyncStream(
             connection = withTimeout(timeout) {
                 aSocket(selectorManager).tcp().connect(address).connection()
             }
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             logWithResource(logger, Level.TRACE) {
                 message = "Failed to connect to {address}"
                 payload = mapOf("address" to address)
@@ -70,7 +71,9 @@ class KtorAsyncStream(
         while (true) {
             val bytesRead = try {
                 readChannel.readAvailable(tempBuffer)
-            } catch (ex: Throwable) {
+            } catch (ex: TimeoutCancellationException) {
+                throw ex
+            } catch (ex: Exception) {
                 logWithResource(logger, Level.TRACE) {
                     message = "Failed to read from socket"
                     cause = ex

@@ -49,7 +49,7 @@ internal suspend fun PgSuspendingStream.simplePasswordAuthFlow(
         )
         this.writeToStream(passwordMessage)
 
-        val response = this.messages.receive()
+        val response = this.receiveNextServerMessage()
         if (response !is PgMessage.Authentication) {
             this.log(Level.ERROR) {
                 message = "Expected an Authentication message but got {code}"

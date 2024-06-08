@@ -21,6 +21,7 @@ import io.github.clasicrando.kdbc.postgresql.authentication.simplePasswordAuthFl
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import io.github.clasicrando.kdbc.postgresql.message.UnexpectedMessage
 import io.github.clasicrando.kdbc.postgresql.message.decoders.PgMessageDecoders
 import io.github.clasicrando.kdbc.postgresql.message.encoders.PgMessageEncoders
 import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
@@ -35,7 +36,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
@@ -60,22 +61,6 @@ internal class PgSuspendingStream(
 
     override val coroutineContext: CoroutineContext = Job(parent = scope.coroutineContext.job)
 
-    /** [Channel] storing incoming messages that have been received and decoded to a [PgMessage] */
-    private val messagesChannel = Channel<PgMessage>(capacity = Channel.BUFFERED)
-    private val messageReaderJob = launch {
-        while (isActive && isConnected) {
-            val message = receiveNextServerMessage()
-            messagesChannel.send(message)
-        }
-    }
-    /**
-     * Read-only channel for messages received and decoded from the server as [PgMessage]s. This
-     * should only be used if you need to have fine-grained control over the incoming messages.
-     * The preferred way of processing incoming messages is through [processMessageLoop] or
-     * [waitForOrError].
-     */
-    val messages: ReceiveChannel<PgMessage> get() = messagesChannel
-
     /** [Channel] used to store all server notifications that have not been processed */
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
     /** [ReceiveChannel] used to store all server notifications that have not been processed */
@@ -94,12 +79,33 @@ internal class PgSuspendingStream(
      * all [RawMessage] data that is required can be fetched then decodes that [RawMessage] into a
      * [PgMessage] using [PgMessageDecoders.decode].
      */
-    private suspend fun receiveNextServerMessage(): PgMessage {
+    suspend fun receiveNextServerMessage(): PgMessage {
         val format = asyncStream.readByte()
         val size = asyncStream.readInt()
         val buffer = asyncStream.readBuffer(size - 4)
         val rawMessage = RawMessage(format = format, size = size, contents = buffer)
         return PgMessageDecoders.decode(rawMessage)
+    }
+
+    /**
+     * Flush message in stream until no more data is accessible
+     *
+     * @throws UnexpectedMessage if a non-asynchronous message is received during the flush
+     */
+    suspend fun flushMessages() {
+        while (true) {
+            val message = withTimeoutOrNull(10) { receiveNextServerMessage() } ?: break
+            when (message) {
+                is PgMessage.NoticeResponse -> onNotice(message)
+                is PgMessage.NotificationResponse -> onNotification(message)
+                is PgMessage.ParameterStatus -> onParameterStatus(message)
+                is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                else -> {
+                    throw UnexpectedMessage("Expected asynchronous message but found, $message")
+                }
+            }
+        }
     }
 
     /**
@@ -125,7 +131,7 @@ internal class PgSuspendingStream(
     suspend inline fun processMessageLoop(process: (PgMessage) -> Loop): Result<Unit> {
         try {
             while (isActive && isConnected) {
-                when (val message = messagesChannel.receive()) {
+                when (val message = receiveNextServerMessage()) {
                     is PgMessage.NoticeResponse -> onNotice(message)
                     is PgMessage.NotificationResponse -> onNotification(message)
                     is PgMessage.ParameterStatus -> onParameterStatus(message)
@@ -168,7 +174,7 @@ internal class PgSuspendingStream(
      */
     suspend inline fun <reified T : PgMessage> waitForOrError(): T {
         while (isActive && isConnected) {
-            when (val message = messagesChannel.receive()) {
+            when (val message = receiveNextServerMessage()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
                 is PgMessage.NotificationResponse -> onNotification(message)
                 is PgMessage.ParameterStatus -> onParameterStatus(message)
@@ -277,7 +283,6 @@ internal class PgSuspendingStream(
      */
     private fun closeChannels(throwable: Throwable? = null) {
         notificationsChannel.close(throwable)
-        messagesChannel.close(throwable)
     }
 
     /** Returns true if the underlining [asyncStream] is still connected */
@@ -346,7 +351,7 @@ internal class PgSuspendingStream(
      * @throws IllegalStateException if the [Authentication] type is not supported
      */
     private suspend fun handleAuthFlow() {
-        val message = messages.receive()
+        val message = receiveNextServerMessage()
         if (message is PgMessage.ErrorResponse) {
             throw GeneralPostgresError(message)
         }
