@@ -30,7 +30,9 @@ open class PgBenchmarkBlockingCopyJdbc {
 
     @Setup
     open fun start() {
-        Files.createFile(outputPath)
+        if (Files.notExists(outputPath)) {
+            Files.createFile(outputPath)
+        }
         createBenchmarkCsv(inputPath)
         getJdbcConnection().use { connection ->
             connection.createStatement().use { statement ->

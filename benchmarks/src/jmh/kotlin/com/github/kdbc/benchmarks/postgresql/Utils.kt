@@ -124,7 +124,7 @@ val copyInSetupQuery = """
 """.trimIndent()
 
 fun createBenchmarkCsv(outputPath: java.nio.file.Path) {
-    if (!Files.exists(outputPath)) {
+    if (Files.notExists(outputPath)) {
         Files.createFile(outputPath)
     }
     Files.newOutputStream(outputPath).use { stream ->
