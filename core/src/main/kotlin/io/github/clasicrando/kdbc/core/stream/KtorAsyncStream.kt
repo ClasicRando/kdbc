@@ -99,19 +99,17 @@ class KtorAsyncStream(
 
     override suspend fun readByte(): Byte {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        if (buffer.size >= 1L) {
-            return buffer.readByte()
+        if (buffer.size < 1L) {
+            readIntoBuffer(1)
         }
-        readIntoBuffer(1)
         return buffer.readByte()
     }
 
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        if (buffer.size >= 4) {
-            return buffer.readInt()
+        if (buffer.size < 4) {
+            readIntoBuffer(4)
         }
-        readIntoBuffer(4)
         return buffer.readInt()
     }
 
@@ -119,11 +117,9 @@ class KtorAsyncStream(
         check(isConnected) { "Cannot read from a stream that is not connected" }
         val destination = ByteArray(count)
 
-        if (buffer.size >= count) {
-            buffer.readTo(destination)
-            return ByteReadBuffer(destination)
+        if (buffer.size < count) {
+            readIntoBuffer(buffer.size - count)
         }
-        readIntoBuffer(count.toLong())
         buffer.readTo(destination)
         return ByteReadBuffer(destination)
     }

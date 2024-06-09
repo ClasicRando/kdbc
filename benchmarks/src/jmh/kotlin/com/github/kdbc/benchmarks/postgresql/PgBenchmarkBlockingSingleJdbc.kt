@@ -9,6 +9,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 import java.sql.Connection
 import java.util.concurrent.TimeUnit
@@ -62,5 +63,10 @@ open class PgBenchmarkBlockingSingleJdbc {
                 extractPostDataClassListFromResultSet(resultSet)
             }
         }
+    }
+
+    @TearDown
+    open fun tearDown() {
+        connection.close()
     }
 }

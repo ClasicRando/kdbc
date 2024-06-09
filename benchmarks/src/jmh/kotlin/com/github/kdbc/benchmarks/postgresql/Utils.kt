@@ -1,13 +1,18 @@
 package com.github.kdbc.benchmarks.postgresql
 
+import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.LogSettings
-import io.github.clasicrando.kdbc.core.connection.BlockingConnection
-import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
+import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
+import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toKotlinInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 import org.apache.commons.dbcp2.DriverManagerConnectionFactory
@@ -15,9 +20,10 @@ import org.apache.commons.dbcp2.PoolableConnection
 import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
+import org.postgresql.jdbc.PgConnection
+import java.nio.file.Files
 import java.sql.DriverManager
 import java.sql.ResultSet
-import java.sql.Connection as JdbcConnection
 
 val jdbcQuerySingle = """
     SELECT
@@ -74,13 +80,37 @@ val setupQuery = """
     FROM generate_series(1, 5000) t;
 """.trimIndent()
 
+fun createBenchmarkCsv(outputPath: java.nio.file.Path) {
+    if (!Files.exists(outputPath)) {
+        Files.createFile(outputPath)
+    }
+    Files.newOutputStream(outputPath).use { stream ->
+        csvWriter().open(stream) {
+            for (i in 1..50000) {
+                val currentTimestamp = Clock.System.now().toLocalDateTime(TimeZone.UTC)
+                writeRow(i, currentTimestamp, currentTimestamp, null, null, null, null, null, null, null, null, null)
+            }
+        }
+    }
+}
+
+fun createBenchmarkCsv(outputPath: kotlinx.io.files.Path) {
+    createBenchmarkCsv(java.nio.file.Path.of(outputPath.toString()))
+}
+
+val kdbcCopyOut = CopyStatement.TableToCsv(schemaName = "public", tableName = "posts")
+const val jdbcCopyOut = "COPY public.posts TO STDOUT WITH (FORMAT csv)"
+
+val kdbcCopyIn = CopyStatement.TableFromCsv(schemaName = "public", tableName = "posts")
+const val jdbcCopyIn = "COPY public.posts FROM STDIN WITH (FORMAT csv)"
+
 private const val missingEnvironmentVariableMessage = "To run benchmarks the environment " +
         "variable JDBC_PG_CONNECTION_STRING must be available"
 
 private val connectionString = System.getenv("JDBC_PG_CONNECTION_STRING")
     ?: throw IllegalStateException(missingEnvironmentVariableMessage)
 
-fun getJdbcConnection(): JdbcConnection = DriverManager.getConnection(connectionString)
+fun getJdbcConnection(): PgConnection = DriverManager.getConnection(connectionString).unwrap(PgConnection::class.java)
 
 fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     val connectionFactory = DriverManagerConnectionFactory(connectionString, null)
@@ -101,7 +131,7 @@ private val kdbcConnectOptions = PgConnectOptions(
     logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
 )
 
-suspend fun getKdbcConnection(): SuspendingConnection {
+suspend fun getKdbcConnection(): PgSuspendingConnection {
     return Postgres.suspendingConnection(connectOptions = kdbcConnectOptions)
 }
 
@@ -116,7 +146,7 @@ suspend fun initializeConcurrentConnections(): PgConnectOptions {
     return options
 }
 
-fun getKdbcBlockingConnection(): BlockingConnection {
+fun getKdbcBlockingConnection(): PgBlockingConnection {
     return Postgres.blockingConnection(connectOptions = kdbcConnectOptions)
 }
 
