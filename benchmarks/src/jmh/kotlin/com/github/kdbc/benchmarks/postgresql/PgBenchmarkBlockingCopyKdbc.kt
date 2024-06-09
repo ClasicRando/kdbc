@@ -32,7 +32,7 @@ open class PgBenchmarkBlockingCopyKdbc {
     open fun start() {
         IOUtils.createFileIfNotExists(outputPath)
         createBenchmarkCsv(inputPath)
-        connection.createQuery(setupQuery)
+        connection.createQuery(copySetupQuery)
             .executeClosing()
     }
 

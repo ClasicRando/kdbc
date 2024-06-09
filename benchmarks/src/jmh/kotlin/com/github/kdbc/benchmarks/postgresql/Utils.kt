@@ -80,6 +80,26 @@ val setupQuery = """
     FROM generate_series(1, 5000) t;
 """.trimIndent()
 
+val copySetupQuery = """
+    DROP TABLE IF EXISTS public.posts;
+    CREATE TABLE public.posts
+    (
+        id int primary key,
+        "text" text not null,
+        creation_date timestamp not null,
+        last_change_date timestamp not null,
+        counter1 int,
+        counter2 int,
+        counter3 int,
+        counter4 int,
+        counter5 int,
+        counter6 int,
+        counter7 int,
+        counter8 int,
+        counter9 int
+    );
+""".trimIndent()
+
 fun createBenchmarkCsv(outputPath: java.nio.file.Path) {
     if (!Files.exists(outputPath)) {
         Files.createFile(outputPath)
@@ -88,7 +108,7 @@ fun createBenchmarkCsv(outputPath: java.nio.file.Path) {
         csvWriter().open(stream) {
             for (i in 1..50000) {
                 val currentTimestamp = Clock.System.now().toLocalDateTime(TimeZone.UTC)
-                writeRow(i, currentTimestamp, currentTimestamp, null, null, null, null, null, null, null, null, null)
+                writeRow(i, "$i Value", currentTimestamp, currentTimestamp, null, null, null, null, null, null, null, null, null)
             }
         }
     }

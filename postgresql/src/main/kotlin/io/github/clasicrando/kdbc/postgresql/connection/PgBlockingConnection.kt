@@ -50,8 +50,8 @@ import kotlinx.atomicfu.locks.withLock
 import kotlinx.datetime.Clock
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
 import java.io.ByteArrayOutputStream
+import java.nio.file.Files
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -861,9 +861,9 @@ class PgBlockingConnection internal constructor(
 
         val copyQuery = copyOutStatement.toQuery()
         lock.withLock {
-            val sequence = copyOutInternal(copyQuery)
-            SystemFileSystem.sink(outputPath).buffered().use { sink ->
-                sequence.forEach(sink::write)
+            val path = java.nio.file.Path.of(outputPath.toString())
+            Files.newOutputStream(path).use { stream ->
+                copyOutInternal(copyQuery).forEach(stream::write)
             }
         }
     }

@@ -33,7 +33,7 @@ open class PgBenchmarkBlockingCopyJdbc {
         createBenchmarkCsv(inputPath)
         getJdbcConnection().use { connection ->
             connection.createStatement().use { statement ->
-                statement.execute(setupQuery)
+                statement.execute(copySetupQuery)
             }
         }
     }
