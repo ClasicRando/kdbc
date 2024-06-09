@@ -80,9 +80,32 @@ val setupQuery = """
     FROM generate_series(1, 5000) t;
 """.trimIndent()
 
-val copySetupQuery = """
-    DROP TABLE IF EXISTS public.posts;
-    CREATE TABLE public.posts
+val copyOutSetupQuery = """
+    DROP TABLE IF EXISTS public.copy_out_posts;
+    CREATE TABLE public.copy_out_posts
+    (
+        id int generated always as identity primary key,
+        "text" text not null,
+        creation_date timestamp not null,
+        last_change_date timestamp not null,
+        counter1 int,
+        counter2 int,
+        counter3 int,
+        counter4 int,
+        counter5 int,
+        counter6 int,
+        counter7 int,
+        counter8 int,
+        counter9 int
+    );
+    INSERT INTO public.copy_out_posts("text", creation_date, last_change_date)
+    SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
+    FROM generate_series(1, 5000) t;
+""".trimIndent()
+
+val copyInSetupQuery = """
+    DROP TABLE IF EXISTS public.copy_in_posts;
+    CREATE TABLE public.copy_in_posts
     (
         id int primary key,
         "text" text not null,
@@ -118,11 +141,11 @@ fun createBenchmarkCsv(outputPath: kotlinx.io.files.Path) {
     createBenchmarkCsv(java.nio.file.Path.of(outputPath.toString()))
 }
 
-val kdbcCopyOut = CopyStatement.TableToCsv(schemaName = "public", tableName = "posts")
-const val jdbcCopyOut = "COPY public.posts TO STDOUT WITH (FORMAT csv)"
+val kdbcCopyOut = CopyStatement.TableToCsv(schemaName = "public", tableName = "copy_out_posts")
+const val jdbcCopyOut = "COPY public.copy_out_posts TO STDOUT WITH (FORMAT csv)"
 
-val kdbcCopyIn = CopyStatement.TableFromCsv(schemaName = "public", tableName = "posts")
-const val jdbcCopyIn = "COPY public.posts FROM STDIN WITH (FORMAT csv)"
+val kdbcCopyIn = CopyStatement.TableFromCsv(schemaName = "public", tableName = "copy_in_posts")
+const val jdbcCopyIn = "COPY public.copy_in_posts FROM STDIN WITH (FORMAT csv)"
 
 private const val missingEnvironmentVariableMessage = "To run benchmarks the environment " +
         "variable JDBC_PG_CONNECTION_STRING must be available"

@@ -3,6 +3,7 @@ package com.github.kdbc.benchmarks.postgresql
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
+import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Mode
 import org.openjdk.jmh.annotations.OutputTimeUnit
@@ -33,7 +34,8 @@ open class PgBenchmarkBlockingCopyJdbc {
         createBenchmarkCsv(inputPath)
         getJdbcConnection().use { connection ->
             connection.createStatement().use { statement ->
-                statement.execute(copySetupQuery)
+                statement.execute(copyOutSetupQuery)
+                statement.execute(copyInSetupQuery)
             }
         }
     }
@@ -43,6 +45,11 @@ open class PgBenchmarkBlockingCopyJdbc {
         Files.newOutputStream(outputPath).use { stream ->
             connection.copyAPI.copyOut(jdbcCopyOut, stream)
         }
+    }
+
+    @TearDown(Level.Invocation)
+    open fun cleanUp() {
+        connection.execSQLQuery("TRUNCATE TABLE public.copy_in_posts")
     }
 
     @Benchmark

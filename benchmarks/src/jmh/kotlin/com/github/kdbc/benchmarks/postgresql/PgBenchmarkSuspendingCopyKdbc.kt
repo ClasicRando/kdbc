@@ -34,7 +34,7 @@ open class PgBenchmarkSuspendingCopyKdbc {
         IOUtils.createFileIfNotExists(outputPath)
         createBenchmarkCsv(inputPath)
         runBlocking {
-            connection.createQuery(copySetupQuery)
+            connection.createQuery(copyOutSetupQuery)
                 .executeClosing()
         }
     }

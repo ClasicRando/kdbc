@@ -7,6 +7,7 @@ import kotlinx.io.files.Path
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
+import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Mode
 import org.openjdk.jmh.annotations.OutputTimeUnit
@@ -32,8 +33,8 @@ open class PgBenchmarkBlockingCopyKdbc {
     open fun start() {
         IOUtils.createFileIfNotExists(outputPath)
         createBenchmarkCsv(inputPath)
-        connection.createQuery(copySetupQuery)
-            .executeClosing()
+        connection.createQuery(copyOutSetupQuery).executeClosing()
+        connection.createQuery(copyInSetupQuery).executeClosing()
     }
 
     @Benchmark
@@ -42,6 +43,11 @@ open class PgBenchmarkBlockingCopyKdbc {
             copyOutStatement = kdbcCopyOut,
             outputPath = outputPath,
         )
+    }
+
+    @TearDown(Level.Invocation)
+    open fun cleanUp() {
+        connection.createQuery("TRUNCATE TABLE public.copy_in_posts;").executeClosing()
     }
 
     @Benchmark
