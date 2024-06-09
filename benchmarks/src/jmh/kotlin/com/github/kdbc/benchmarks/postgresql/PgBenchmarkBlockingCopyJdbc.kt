@@ -51,7 +51,7 @@ open class PgBenchmarkBlockingCopyJdbc {
 
     @TearDown(Level.Invocation)
     open fun cleanUp() {
-        connection.execSQLQuery("TRUNCATE TABLE public.copy_in_posts")
+        connection.execSQLUpdate("TRUNCATE TABLE public.copy_in_posts")
     }
 
     @Benchmark
