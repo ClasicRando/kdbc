@@ -700,16 +700,33 @@ class PgSuspendingConnection internal constructor(
 
     /**
      * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
-     * the contents of the file at [path]. The data within the file must be a text based (i.e.
-     * txt/csv file).
+     * the contents of the [source]. The data within the [source] must be a text based (i.e.
+     * txt/csv file data).
      *
-     * If the server sends an error message during or at completion of streaming the copy [path],
+     * If the server sends an error message during or at completion of streaming the copy [source],
      * the message will be captured and thrown after completing the COPY process and the connection
      * with the server reverts to regular queries.
      *
      * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
-     * @throws kotlinx.io.files.FileNotFoundException if a file cannot be found at [path]
-     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
+     */
+    suspend fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
+        require(copyInStatement is CopyStatement.CopyText)
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = source.chunkedBytes().asFlow()
+        )
+    }
+
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * the contents of the [inputStream]. The data within the [inputStream] must be a text based
+     * (i.e. txt/csv file data).
+     *
+     * If the server sends an error message during or at completion of streaming the copy
+     * [inputStream], the message will be captured and thrown after completing the COPY process and
+     * the connection with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
      */
     suspend fun copyIn(
         copyInStatement: CopyStatement.From,
@@ -719,27 +736,6 @@ class PgSuspendingConnection internal constructor(
         return copyIn(
             copyInStatement = copyInStatement,
             data = inputStream.chunkedBytes().asFlow()
-        )
-    }
-    
-    /**
-     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
-     * the contents of the file at [path]. The data within the file must be a text based (i.e.
-     * txt/csv file).
-     *
-     * If the server sends an error message during or at completion of streaming the copy [path],
-     * the message will be captured and thrown after completing the COPY process and the connection
-     * with the server reverts to regular queries.
-     *
-     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
-     * @throws kotlinx.io.files.FileNotFoundException if a file cannot be found at [path]
-     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
-     */
-    suspend fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
-        require(copyInStatement is CopyStatement.CopyText)
-        return copyIn(
-            copyInStatement = copyInStatement,
-            data = source.chunkedBytes().asFlow()
         )
     }
 
@@ -897,7 +893,7 @@ class PgSuspendingConnection internal constructor(
 
     /**
      * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
-     * each row returned from the query to th [outputPath] supplied
+     * each row returned from the query to the [sink] supplied
      */
     suspend fun copyOut(
         copyOutStatement: CopyStatement.To,
@@ -913,7 +909,7 @@ class PgSuspendingConnection internal constructor(
 
     /**
      * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
-     * each row returned from the query to th [outputPath] supplied
+     * each row returned from the query to the [outputStream] supplied
      */
     suspend fun copyOut(
         copyOutStatement: CopyStatement.To,

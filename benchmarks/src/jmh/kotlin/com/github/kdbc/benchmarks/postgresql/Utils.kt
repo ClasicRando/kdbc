@@ -25,7 +25,6 @@ import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
 import org.postgresql.jdbc.PgConnection
-import java.nio.file.Files
 import java.sql.DriverManager
 import java.sql.ResultSet
 
