@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.query
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.result.StatementResult
 
 /**
@@ -12,7 +11,7 @@ import io.github.clasicrando.kdbc.core.result.StatementResult
  * recommended to use a [SuspendingPreparedQuery] since a [SuspendingQuery] is not guaranteed to
  * create or cache a query plan for future calls of this same SQL query.
  */
-interface SuspendingQuery : AutoRelease {
+interface SuspendingQuery : AutoCloseable {
     /** SQL query to be executed */
     val sql: String
 

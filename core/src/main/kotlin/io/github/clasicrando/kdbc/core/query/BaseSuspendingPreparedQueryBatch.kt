@@ -44,7 +44,7 @@ abstract class BaseSuspendingPreparedQueryBatch<C : SuspendingConnection>(
         return result
     }
 
-    override fun release() {
+    override fun close() {
         connection = null
     }
 }

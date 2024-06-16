@@ -23,7 +23,7 @@ abstract class BaseSuspendingQuery<C: SuspendingConnection>(
         return vendorExecuteQuery()
     }
 
-    override fun release() {
+    override fun close() {
         connection = null
     }
 }

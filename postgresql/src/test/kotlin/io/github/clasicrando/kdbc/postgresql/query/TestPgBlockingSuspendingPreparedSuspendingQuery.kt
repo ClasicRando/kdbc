@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.exceptions.EmptyQueryResult
 import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
@@ -14,7 +13,6 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.fetchSingle
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
-import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows

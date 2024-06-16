@@ -1,13 +1,12 @@
 package io.github.clasicrando.kdbc.core.buffer
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import java.nio.charset.Charset
 
 /**
  * Sealed class for [Byte] buffers that are write only, except where copying the contents to a
  * [ByteArray] for usage elsewhere.
  */
-sealed interface ByteWriteBuffer : AutoRelease {
+sealed interface ByteWriteBuffer : AutoCloseable {
     /**
      * Position within the buffer. This signifies how many bytes have been written to the buffer
      */
@@ -139,20 +138,23 @@ sealed interface ByteWriteBuffer : AutoRelease {
 
     /**
      * Copy the all previously written bytes of this buffer into a [ByteArray]. This leaves the
-     * buffer in an initialized state after completing, as if [release] was called.
+     * buffer in an initialized state after completing, as if [reset] was called.
      */
     fun copyToArray(): ByteArray
 
     /**
      * Copy contents from another [otherBuffer] into this buffer.
      *
-     * After a successful copy, the [otherBuffer] has [release] called to free the resources/reset
+     * After a successful copy, the [otherBuffer] has [reset] called to free the resources/reset
      * the buffer.
      *
      * @throws BufferOverflow if the buffer does not enough bytes available to complete this
      * operation
      */
     fun copyFrom(otherBuffer: ByteWriteBuffer)
+
+    /** Reset the buffer so all allocated resources within the buffer can be reused */
+    fun reset()
 }
 
 /**

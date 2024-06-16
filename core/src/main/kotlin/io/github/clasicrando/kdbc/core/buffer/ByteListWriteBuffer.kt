@@ -4,12 +4,12 @@ package io.github.clasicrando.kdbc.core.buffer
  * Buffer that only allows for writing to the inner buffer of a fixed capacity, where the capacity
  * is specified in the constructor but defaults to 2048 (2MB). The recommendation with this kind of
  * write buffer is for a single IO object instance (e.g. socket) you will reuse this buffer for
- * each write since the underling resource is reset when [release] is called rather than cleaned
+ * each write since the underling resource is reset when [reset] is called rather than cleaned
  * up.
  */
 class ByteListWriteBuffer : ByteWriteBuffer {
     @PublishedApi
-    internal val innerBuffer = ArrayList<Byte>()
+    internal var innerBuffer = ArrayList<Byte>()
 
     /**
      * Position within the internal buffer. This signifies how many bytes have been written to the
@@ -96,18 +96,13 @@ class ByteListWriteBuffer : ByteWriteBuffer {
         }
     }
 
-    /** Reset the buffer to its initial state allowing the buffer to be reused */
-    override fun release() {
-        innerBuffer.clear()
-    }
-
     /**
      * Copy the all previously written bytes of this buffer into a [ByteArray]. This leaves the
-     * buffer in an initialized state after completing, as if [release] was called.
+     * buffer in an initialized state after completing, as if [reset] was called.
      */
     override fun copyToArray(): ByteArray {
         val array = innerBuffer.toByteArray()
-        release()
+        reset()
         return array
     }
 
@@ -117,7 +112,7 @@ class ByteListWriteBuffer : ByteWriteBuffer {
      * [ByteArrayWriteBuffer] instances, the contents of the list are copied by iterating over the
      * array and appending to this buffer's [innerBuffer].
      *
-     * After a successful copy, the [otherBuffer] has [release] called to free the resources/reset
+     * After a successful copy, the [otherBuffer] has [reset] called to free the resources/reset
      * the buffer.
      *
      * @throws BufferOverflow if the buffer does not enough bytes available to complete this
@@ -132,6 +127,15 @@ class ByteListWriteBuffer : ByteWriteBuffer {
             }
             is ByteListWriteBuffer -> innerBuffer.addAll(otherBuffer.innerBuffer)
         }
-        otherBuffer.release()
+        otherBuffer.reset()
+    }
+
+    override fun reset() {
+        innerBuffer.clear()
+    }
+
+    /** Reset the buffer to its initial state allowing the buffer to be reused */
+    override fun close() {
+        innerBuffer = ArrayList()
     }
 }

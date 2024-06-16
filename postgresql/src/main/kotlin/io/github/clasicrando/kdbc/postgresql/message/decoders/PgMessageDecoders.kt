@@ -42,7 +42,7 @@ internal object PgMessageDecoders {
                     message = "Received message {format}"
                     payload = mapOf("format" to rawMessage.format)
                 }
-                rawMessage.contents.release()
+                rawMessage.contents.close()
                 PgMessage.UnknownMessage
             }
         }

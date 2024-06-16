@@ -33,7 +33,7 @@ internal class PgSuspendingConnectionProvider(
                 pool = pool,
             )
         } catch (ex: Throwable) {
-            stream?.release()
+            stream?.close()
             throw ex
         }
     }

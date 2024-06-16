@@ -52,7 +52,7 @@ class SocketBlockingStream(
         return result
     }
 
-    override fun release() {
+    override fun close() {
         if (this::inputStream.isInitialized) {
             inputStream.close()
         }

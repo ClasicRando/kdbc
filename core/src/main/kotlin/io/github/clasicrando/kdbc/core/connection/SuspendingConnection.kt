@@ -1,8 +1,11 @@
 package io.github.clasicrando.kdbc.core.connection
 
+import io.github.clasicrando.kdbc.core.AutoCloseableAsync
 import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.SuspendingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.SuspendingQuery
+import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.core.useCatching
 
 private const val RESOURCE_TYPE = "Connection"
 
@@ -20,14 +23,8 @@ private const val RESOURCE_TYPE = "Connection"
  * outside the scope of a single method) you should find a way to always close the
  * [SuspendingConnection].
  */
-interface SuspendingConnection : Connection {
+interface SuspendingConnection : Connection, AutoCloseableAsync {
     override val resourceType: String get() = RESOURCE_TYPE
-
-    /**
-     * Method called to close the connection and free any resources that are held by the
-     * connection. Once this has been called, the [SuspendingConnection] instance should not be used.
-     */
-    suspend fun close()
 
     /**
      * Request that the database start a new transaction. This will fail if the
@@ -73,57 +70,10 @@ interface SuspendingConnection : Connection {
 }
 
 /**
- * Use a [SuspendingConnection] within the specified [block], allowing for the
- * [SuspendingConnection] to always [SuspendingConnection.close], even if the block throws an
- * exception. This is similar to the functionality that [AutoCloseable] provides where the
- * resources are always cleaned up before returning from the function. Note, this does not catch
- * the exception, rather it rethrows after cleaning up resources if an exception was thrown.
- */
-suspend inline fun <R, C : SuspendingConnection> C.use(block: (C) -> R): R {
-    var cause: Throwable? = null
-    return try {
-        block(this)
-    } catch (ex: Throwable) {
-        cause = ex
-        throw ex
-    } finally {
-        try {
-            close()
-        } catch (ex: Throwable) {
-            cause?.addSuppressed(ex)
-        }
-    }
-}
-
-/**
- * Use a [SuspendingConnection] within the specified [block], allowing for the
- * [SuspendingConnection] to always [SuspendingConnection.close], even if the block throws an
- * exception. This is similar to the functionality that [AutoCloseable] provides where the
- * resources are always cleaned up before returning from the function. Note, this does catch the
- * exception and wraps that is a [Result]. Otherwise, it returns a [Result] with the result of
- * [block].
- */
-suspend inline fun <R, C : SuspendingConnection> C.useCatching(block: (C) -> R): Result<R> {
-    var cause: Throwable? = null
-    return try {
-        Result.success(block(this))
-    } catch (ex: Throwable) {
-        cause = ex
-        Result.failure(ex)
-    } finally {
-        try {
-            close()
-        } catch (ex: Throwable) {
-            cause?.addSuppressed(ex)
-        }
-    }
-}
-
-/**
  * Use a [SuspendingConnection] within the scope of a transaction. This means an implicit
  * [SuspendingConnection.begin] happens before [block] is called. If no exception is thrown then
  * [SuspendingConnection.commit] is called, otherwise, [SuspendingConnection.rollback] is called
- * and the original exception is rethrown. This all happens within a [SuspendingConnection.use]
+ * and the original exception is rethrown. This all happens within a [AutoCloseableAsync.use]
  * block so the resources are always cleaned up before returning.
  */
 suspend inline fun <R, C : SuspendingConnection> C.transaction(block: (C) -> R): R = use {
@@ -143,7 +93,7 @@ suspend inline fun <R, C : SuspendingConnection> C.transaction(block: (C) -> R):
  * [SuspendingConnection.begin] happens before [block] is called. If no exception is thrown then
  * [SuspendingConnection.commit] is called, returning the outcome of [block] as a [Result].
  * Otherwise, [SuspendingConnection.rollback] is called and the original exception is wrapped into
- * a [Result] and returned. This all happens within a [SuspendingConnection.useCatching] block so
+ * a [Result] and returned. This all happens within a [AutoCloseableAsync.useCatching] block so
  * the resources are always cleaned up before returning and all other exceptions are caught and
  * returned as a [Result].
  */

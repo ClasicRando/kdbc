@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.result
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.column.ColumnExtractError
 import kotlin.reflect.typeOf
 
@@ -12,7 +11,7 @@ import kotlin.reflect.typeOf
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-interface DataRow : AutoRelease {
+interface DataRow : AutoCloseable {
     /**
      * Return the index of the specified [column] name.
      *

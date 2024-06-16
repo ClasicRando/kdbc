@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper

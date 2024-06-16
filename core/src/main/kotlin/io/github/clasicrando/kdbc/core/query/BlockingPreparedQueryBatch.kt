@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.query
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.result.StatementResult
 
 /**
@@ -9,7 +8,7 @@ import io.github.clasicrando.kdbc.core.result.StatementResult
  * [BlockingPreparedQuery]. Although this API is generally used for executing the same query with
  * different parameter values in each query, it is not limited to a single query string.
  */
-interface BlockingPreparedQueryBatch : AutoRelease {
+interface BlockingPreparedQueryBatch : AutoCloseable {
     /**
      * Add a new [BlockingPreparedQuery] to execute in this batch. Returns the
      * [BlockingPreparedQuery] so parameters can be bound.

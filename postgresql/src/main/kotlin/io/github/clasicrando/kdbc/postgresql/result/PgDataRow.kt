@@ -240,7 +240,7 @@ class PgDataRow(
             PgType.UUID -> checkAndDecode(index, UuidTypeDescription)
             PgType.UUID_ARRAY -> checkAndDecode(index, UuidArrayTypeDescription)
             PgType.VOID -> Unit
-            PgType.RECORD, PgType.RECORD -> error("Cannot decode record/record[] types")
+            PgType.RECORD, PgType.RECORD_ARRAY -> error("Cannot decode record/record[] types")
             PgType.UNKNOWN, PgType.UNSPECIFIED -> error("Backend doesn't know the data's type")
             PgType.BIT, PgType.BIT_ARRAY, PgType.VARBIT, PgType.VARBIT_ARRAY -> error("Bit types are not supported")
             else -> when (pgType) {
@@ -254,8 +254,8 @@ class PgDataRow(
         }
     }
 
-    override fun release() {
-        rowBuffer?.release()
+    override fun close() {
+        rowBuffer?.close()
         pgValues = emptyArray()
     }
 }

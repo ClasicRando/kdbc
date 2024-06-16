@@ -513,7 +513,7 @@ class PgBlockingConnection internal constructor(
                 cause = ex
             }
         } finally {
-            stream.release()
+            stream.close()
         }
         preparedStatements.clear()
     }

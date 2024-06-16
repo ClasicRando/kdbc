@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.result
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 
 /**
@@ -11,7 +10,7 @@ import io.github.clasicrando.kdbc.core.column.ColumnMetadata
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-interface ResultSet : Iterable<DataRow>, AutoRelease {
+interface ResultSet : Iterable<DataRow>, AutoCloseable {
     /** Number of columns found within each [DataRow] entry */
     val columnCount: Int
 
@@ -31,5 +30,5 @@ val ResultSet.Companion.EMPTY_RESULT get() = object : ResultSet {
 
     override fun iterator(): Iterator<DataRow> = rows.iterator()
 
-    override fun release() {}
+    override fun close() {}
 }

@@ -44,7 +44,7 @@ abstract class BaseBlockingPreparedQueryBatch<C : BlockingConnection>(
         return result
     }
 
-    override fun release() {
+    override fun close() {
         connection = null
     }
 }

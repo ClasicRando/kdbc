@@ -36,10 +36,10 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
      * Remove all elements of the backing [MutableList] of this [ResultSet]. If the list is still
      * populated, each row will be released as well.
      */
-    override fun release() {
+    override fun close() {
         backingList?.let {
             for (item in it) {
-                item.release()
+                item.close()
             }
         }
         backingList = null

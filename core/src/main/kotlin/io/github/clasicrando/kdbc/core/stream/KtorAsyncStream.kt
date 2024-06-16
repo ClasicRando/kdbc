@@ -131,7 +131,7 @@ class KtorAsyncStream(
         return ByteReadBuffer(destination)
     }
 
-    override fun release() {
+    override fun close() {
         socket.close()
     }
 }

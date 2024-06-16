@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.stream
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
@@ -42,7 +41,7 @@ private const val RESOURCE_TYPE = "PgBlockingStream"
 internal class PgBlockingStream(
     private val blockingStream: BlockingStream,
     internal val connectOptions: PgConnectOptions,
-) : DefaultUniqueResourceId(), AutoRelease {
+) : DefaultUniqueResourceId(), AutoCloseable {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
@@ -273,11 +272,11 @@ internal class PgBlockingStream(
      */
     private inline fun writeToBuffer(block: (ByteWriteBuffer) -> Unit) {
         try {
-            messageSendBuffer.release()
+            messageSendBuffer.reset()
             block(messageSendBuffer)
             blockingStream.writeBuffer(messageSendBuffer)
         } finally {
-            messageSendBuffer.release()
+            messageSendBuffer.reset()
         }
     }
 
@@ -292,11 +291,11 @@ internal class PgBlockingStream(
         M : PgMessage
     {
         try {
-            messageSendBuffer.release()
+            messageSendBuffer.reset()
             for (message in flow) {
                 if (messageSendBuffer.remaining() <= message.size) {
                     blockingStream.writeBuffer(messageSendBuffer)
-                    messageSendBuffer.release()
+                    messageSendBuffer.reset()
                 }
                 PgMessageEncoders.encode(message, messageSendBuffer)
             }
@@ -304,14 +303,14 @@ internal class PgBlockingStream(
                 blockingStream.writeBuffer(messageSendBuffer)
             }
         } finally {
-            messageSendBuffer.release()
+            messageSendBuffer.reset()
         }
     }
 
-    override fun release() {
-        messageSendBuffer.release()
+    override fun close() {
+        messageSendBuffer.close()
         if (blockingStream.isConnected) {
-            blockingStream.release()
+            blockingStream.close()
         }
     }
 

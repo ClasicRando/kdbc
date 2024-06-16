@@ -534,7 +534,7 @@ class PgSuspendingConnection internal constructor(
                 cause = ex
             }
         } finally {
-            stream.release()
+            stream.close()
         }
         preparedStatements.clear()
     }

@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.stream
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
@@ -51,7 +50,7 @@ internal class PgSuspendingStream(
     scope: CoroutineScope,
     private val asyncStream: AsyncStream,
     internal val connectOptions: PgConnectOptions,
-) : DefaultUniqueResourceId(), CoroutineScope, AutoRelease {
+) : DefaultUniqueResourceId(), CoroutineScope, AutoCloseable {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
     /** Reusable buffer for writing messages to the database server */
@@ -295,11 +294,11 @@ internal class PgSuspendingStream(
      */
     private suspend inline fun writeToBuffer(crossinline block: suspend (ByteWriteBuffer) -> Unit) {
         try {
-            messageSendBuffer.release()
+            messageSendBuffer.reset()
             block(messageSendBuffer)
             asyncStream.writeBuffer(messageSendBuffer)
         } finally {
-            messageSendBuffer.release()
+            messageSendBuffer.reset()
         }
     }
 
@@ -314,11 +313,11 @@ internal class PgSuspendingStream(
         M : PgMessage
     {
         try {
-            messageSendBuffer.release()
+            messageSendBuffer.reset()
             flow.collect {
                 if (messageSendBuffer.remaining < it.size) {
                     asyncStream.writeBuffer(messageSendBuffer)
-                    messageSendBuffer.release()
+                    messageSendBuffer.reset()
                 }
                 PgMessageEncoders.encode(it, messageSendBuffer)
             }
@@ -326,15 +325,15 @@ internal class PgSuspendingStream(
                 asyncStream.writeBuffer(messageSendBuffer)
             }
         } finally {
-            messageSendBuffer.release()
+            messageSendBuffer.reset()
         }
     }
 
-    override fun release() {
-        messageSendBuffer.release()
+    override fun close() {
+        messageSendBuffer.close()
         closeChannels()
         if (asyncStream.isConnected) {
-            asyncStream.release()
+            asyncStream.close()
         }
     }
 
@@ -434,8 +433,7 @@ internal class PgSuspendingStream(
 
         /**
          * Create a new TCP connection with the Postgresql database targeted by the
-         * [connectOptions] provided. This creates the new [PgSuspendingStream] instance which in turn starts
-         * the background message writer job and lazily starts the [messageReaderJob].
+         * [connectOptions] provided. This creates the new [PgSuspendingStream] instance.
          *
          * To initiate the Postgresql connection, a [PgMessage.StartupMessage] is sent and the
          * response is handled using [handleAuthFlow]. After the connection has been authenticated

@@ -31,7 +31,7 @@ internal class PgBlockingConnectionProvider(
                 pool = pool as PgBlockingConnectionPool,
             )
         } catch (ex: Throwable) {
-            stream?.release()
+            stream?.close()
             throw ex
         }
     }

@@ -23,7 +23,7 @@ abstract class BaseBlockingQuery<C: BlockingConnection>(
         return vendorExecuteQuery()
     }
 
-    override fun release() {
+    override fun close() {
         connection = null
     }
 }
