@@ -1,0 +1,17 @@
+#!/bin/bash
+
+jdbcPgConnectionString="${JDBC_PG_CONNECTION_STRING}"
+if [[ -z "${jdbcPgConnectionString}" ]]; then
+  read -s -p "Postgres JDBC Connection String: " jdbcPgConnectionString
+  echo ""
+  export JDBC_PG_CONNECTION_STRING="$jdbcPgConnectionString"
+fi
+
+pgBenchmarkPassword="${PG_BENCHMARK_PASSWORD}"
+if [[ -z "${pgBenchmarkPassword}" ]]; then
+  read -s -p "Postgres Password: " pgBenchmarkPassword
+  echo ""
+  export PG_BENCHMARK_PASSWORD="$pgBenchmarkPassword"
+fi
+
+./gradlew benchmarks:jmh

@@ -3,6 +3,7 @@ package com.github.kdbc.benchmarks.postgresql
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import kotlinx.coroutines.async
