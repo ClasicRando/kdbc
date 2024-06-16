@@ -17,7 +17,7 @@ class TestPgPolygonType {
     fun `encode should accept PgPolygon when querying postgresql`() = runBlocking {
         val query = "SELECT $1 polygon_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val polygon = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgPolygon>()
@@ -28,7 +28,7 @@ class TestPgPolygonType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::polygon;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val polygon = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -63,7 +63,7 @@ class TestPgPolygonType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            PgConnectionHelper.defaultAsyncConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }

@@ -62,7 +62,7 @@ class TestEnumType {
     fun `encode should accept EnumType when querying postgresql`(value: EnumType) = runBlocking {
         val query = "SELECT $1 enum_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             conn.registerEnumType<EnumType>("enum_type")
             val fetchValue = conn.createPreparedQuery(query)
                 .bind(value)
@@ -74,7 +74,7 @@ class TestEnumType {
     private suspend fun decodeTest(value: EnumType, isPrepared: Boolean) {
         val query = "SELECT '$value'::enum_type;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             conn.registerEnumType<EnumType>("enum_type")
             val fetchValue = if (isPrepared) {
                 conn.createPreparedQuery(query)
@@ -101,7 +101,7 @@ class TestEnumType {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultSuspendingConnection().use { connection ->
+            PgConnectionHelper.defaultAsyncConnection().use { connection ->
                 connection.sendSimpleQuery("""
                     DROP TYPE IF EXISTS public.enum_type;
                     CREATE TYPE public.enum_type AS ENUM

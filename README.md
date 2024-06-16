@@ -39,7 +39,7 @@ val connectOptions = PgConnectOptions(
       password = "yourSecretPassword",
       applicationName = "MyFirstKdbcProject"
 )
-val connection = Postgres.suspendingConnection(connectOption = connectOptions)
+val connection = Postgres.asyncConnection(connectOption = connectOptions)
 val text: String = connection.createQuery("SELECT 'KDBC Docs'")
     .fetchScalar()
 println(text) // KDBC Docs

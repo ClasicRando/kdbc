@@ -2,7 +2,7 @@ package io.github.clasicrando.kdbc.postgresql
 
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -15,8 +15,8 @@ object PgConnectionHelper {
         applicationName = "KdbcTests",
     )
 
-    suspend fun defaultSuspendingConnection(): PgSuspendingConnection {
-        return Postgres.suspendingConnection(connectOptions = defaultConnectOptions)
+    suspend fun defaultAsyncConnection(): PgAsyncConnection {
+        return Postgres.asyncConnection(connectOptions = defaultConnectOptions)
     }
 
     fun defaultBlockingConnection(): PgBlockingConnection {
@@ -32,8 +32,8 @@ object PgConnectionHelper {
         useExtendedProtocolForSimpleQueries = false,
     )
 
-    suspend fun defaultSuspendingConnectionWithForcedSimple(): PgSuspendingConnection {
-        return Postgres.suspendingConnection(connectOptions = defaultConnectOptionsWithForcedSimple)
+    suspend fun defaultAsyncConnectionWithForcedSimple(): PgAsyncConnection {
+        return Postgres.asyncConnection(connectOptions = defaultConnectOptionsWithForcedSimple)
     }
 
     fun defaultBlockingConnectionWithForcedSimple(): PgBlockingConnection {
@@ -50,8 +50,8 @@ object PgConnectionHelper {
         queryTimeout = 2.toDuration(DurationUnit.SECONDS)
     )
 
-    suspend fun defaultSuspendingConnectionWithQueryTimeout(): PgSuspendingConnection {
-        return Postgres.suspendingConnection(connectOptions = defaultConnectOptionsWithQueryTimeout)
+    suspend fun defaultAsyncConnectionWithQueryTimeout(): PgAsyncConnection {
+        return Postgres.asyncConnection(connectOptions = defaultConnectOptionsWithQueryTimeout)
     }
 
     fun defaultBlockingConnectionWithQueryTimeout(): PgBlockingConnection {

@@ -27,7 +27,7 @@ class TestJsonType {
         val tableName = if (isJsonB) JSONB_TEST_TABLE else JSON_TEST_TABLE
         val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val pgJson = conn.createPreparedQuery(query)
                 .bind(pgJsonValue)
                 .fetchScalar<PgJson>()
@@ -39,7 +39,7 @@ class TestJsonType {
     private suspend fun decodeTest(isJsonB: Boolean, isPrepared: Boolean) {
         val query = "SELECT '$JSON_STRING'::${if (isJsonB) "jsonb" else "json"};"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val pgJson = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

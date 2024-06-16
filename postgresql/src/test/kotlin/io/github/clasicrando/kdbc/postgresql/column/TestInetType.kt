@@ -17,7 +17,7 @@ class TestInetType {
         val inet = PgInet.parse(inetAddress)
         val query = "SELECT $1 inet_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(inet)
                 .fetchScalar<PgInet>()
@@ -29,7 +29,7 @@ class TestInetType {
         val inet = PgInet.parse(inetAddress)
         val query = "SELECT '$inetAddress'::inet;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

@@ -7,7 +7,7 @@ import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.datetime.Clock
@@ -175,18 +175,18 @@ private val kdbcConnectOptions = PgConnectOptions(
     logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
 )
 
-suspend fun getKdbcConnection(): PgSuspendingConnection {
-    return Postgres.suspendingConnection(connectOptions = kdbcConnectOptions)
+suspend fun getKdbcAsyncConnection(): PgAsyncConnection {
+    return Postgres.asyncConnection(connectOptions = kdbcConnectOptions)
 }
 
-suspend fun initializeConcurrentConnections(): PgConnectOptions {
+suspend fun initializeConcurrentAsyncConnections(): PgConnectOptions {
     val options = kdbcConnectOptions.copy(
         poolOptions = PoolOptions(
             maxConnections = 10,
             minConnections = 8,
         )
     )
-    Postgres.suspendingConnection(connectOptions = options).close()
+    Postgres.asyncConnection(connectOptions = options).close()
     return options
 }
 

@@ -55,7 +55,7 @@ class TestPgByteArrayType {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
         val query = "SELECT $1 bytea_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(expectedResult)
                 .fetchScalar<ByteArray>()
@@ -67,7 +67,7 @@ class TestPgByteArrayType {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
         val query = "SELECT decode('4f5a90', 'hex') bytea_col;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

@@ -57,7 +57,7 @@ class TestCompositeType {
     fun `encode should accept CompositeTest when querying postgresql`() = runBlocking {
         val query = "SELECT $1 composite_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
             val value = conn.createPreparedQuery(query)
                 .bind(type)
@@ -69,7 +69,7 @@ class TestCompositeType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT row(1,'Composite Type','2024-02-25T05:25:51Z')::composite_type;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
@@ -104,7 +104,7 @@ class TestCompositeType {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultSuspendingConnection().use { connection ->
+            PgConnectionHelper.defaultAsyncConnection().use { connection ->
                 connection.sendSimpleQuery("""
                     DROP TYPE IF EXISTS public.composite_type;
                     CREATE TYPE public.composite_type AS

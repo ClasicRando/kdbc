@@ -15,7 +15,7 @@ class TestBooleanType {
     fun `encode should accept Boolean when querying postgresql`(value: Boolean) = runBlocking {
         val query = "SELECT $1 bool_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val boolean = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<Boolean>()
@@ -26,7 +26,7 @@ class TestBooleanType {
     private suspend fun decodeTest(value: Boolean, isPrepared: Boolean) {
         val query = "SELECT $value;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val boolean = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

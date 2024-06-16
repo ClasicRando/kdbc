@@ -16,7 +16,7 @@ class TestPgPointType {
     fun `encode should accept PgPoint when querying postgresql`() = runBlocking {
         val query = "SELECT $1 point_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val point = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgPoint>()
@@ -27,7 +27,7 @@ class TestPgPointType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::point;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val point = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -60,7 +60,7 @@ class TestPgPointType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            PgConnectionHelper.defaultAsyncConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }

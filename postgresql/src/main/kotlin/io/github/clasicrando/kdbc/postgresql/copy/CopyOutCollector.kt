@@ -8,7 +8,7 @@ import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
-import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
 import kotlinx.coroutines.flow.Flow
@@ -44,8 +44,8 @@ internal class CopyOutCollector(
      * is a special case for binary data where if the first short value extracted from the buffer
      * is -1, that is an indication the copy data is done and that row should be discarded.
      */
-    suspend fun collectSuspending(
-        connection: PgSuspendingConnection,
+    suspend fun collectAsync(
+        connection: PgAsyncConnection,
         flow: Flow<ByteArray>,
     ): QueryResult {
         var rowCount = 0L

@@ -16,7 +16,7 @@ class TestPgLineType {
     fun `encode should accept PgLine when querying postgresql`() = runBlocking {
         val query = "SELECT $1 line_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val line = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgLine>()
@@ -27,7 +27,7 @@ class TestPgLineType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::line;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val line = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -60,7 +60,7 @@ class TestPgLineType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            PgConnectionHelper.defaultAsyncConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }

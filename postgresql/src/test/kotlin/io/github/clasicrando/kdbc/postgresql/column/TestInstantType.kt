@@ -22,7 +22,7 @@ class TestInstantType {
     fun `encode should accept Instant when querying postgresql`(instant: Instant) = runBlocking {
         val query = "SELECT $1 instant_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(instant)
                 .fetchScalar<Instant>()
@@ -33,7 +33,7 @@ class TestInstantType {
     private suspend fun decodeTest(isPrepared: Boolean, expectedValue: Instant) {
         val query = "SELECT '$expectedValue'::timestamp;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

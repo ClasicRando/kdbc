@@ -16,7 +16,7 @@ class TestUuidType {
         val uuid = UUID.generateUUID()
         val query = "SELECT $1 uuid_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(uuid)
                 .fetchScalar<UUID>()
@@ -28,7 +28,7 @@ class TestUuidType {
         val uuid = UUID.generateUUID()
         val query = "SELECT '$uuid'::uuid;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
