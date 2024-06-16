@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
-import io.github.clasicrando.kdbc.core.IOUtils
 import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.chunkedBytes
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
@@ -48,10 +48,11 @@ import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
 import kotlinx.datetime.Clock
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
+import kotlinx.io.Sink
+import kotlinx.io.Source
 import java.io.ByteArrayOutputStream
-import java.nio.file.Files
+import java.io.InputStream
+import java.io.OutputStream
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -682,21 +683,33 @@ class PgBlockingConnection internal constructor(
      * @throws kotlinx.io.files.FileNotFoundException if a file cannot be found at [path]
      * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
      */
-    fun copyIn(copyInStatement: CopyStatement.From, path: Path): QueryResult {
+    fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
-        return IOUtils.source(path).buffered().use { source ->
-            copyIn(
-                copyInStatement = copyInStatement,
-                data = generateSequence {
-                    val bytes = ByteArray(2048)
-                    when (val bytesRead = source.readAtMostTo(bytes)) {
-                        -1, 0 -> null
-                        bytes.size -> bytes
-                        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
-                    }
-                }
-            )
-        }
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = source.chunkedBytes()
+        )
+    }
+
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * the contents of the file at [path]. The data within the file must be a text based (i.e.
+     * txt/csv file).
+     *
+     * If the server sends an error message during or at completion of streaming the copy [path],
+     * the message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
+     * @throws kotlinx.io.files.FileNotFoundException if a file cannot be found at [path]
+     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
+     */
+    fun copyIn(copyInStatement: CopyStatement.From, inputStream: InputStream): QueryResult {
+        require(copyInStatement is CopyStatement.CopyText)
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = inputStream.chunkedBytes()
+        )
     }
 
     /**
@@ -852,19 +865,25 @@ class PgBlockingConnection internal constructor(
      * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
      * each row returned from the query to th [outputPath] supplied
      */
-    fun copyOut(
-        copyOutStatement: CopyStatement.To,
-        outputPath: Path,
-    ) {
+    fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
         checkConnected()
-        IOUtils.createFileIfNotExists(outputPath)
 
         val copyQuery = copyOutStatement.toQuery()
         lock.withLock {
-            val path = java.nio.file.Path.of(outputPath.toString())
-            Files.newOutputStream(path).use { stream ->
-                copyOutInternal(copyQuery).forEach(stream::write)
-            }
+            copyOutInternal(copyQuery).forEach(sink::write)
+        }
+    }
+
+    /**
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
+     * each row returned from the query to th [outputPath] supplied
+     */
+    fun copyOut(copyOutStatement: CopyStatement.To, outputStream: OutputStream) {
+        checkConnected()
+
+        val copyQuery = copyOutStatement.toQuery()
+        lock.withLock {
+            copyOutInternal(copyQuery).forEach(outputStream::write)
         }
     }
 

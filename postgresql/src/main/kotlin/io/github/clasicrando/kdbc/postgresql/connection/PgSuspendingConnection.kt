@@ -4,6 +4,7 @@ import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.chunked
+import io.github.clasicrando.kdbc.core.chunkedBytes
 import io.github.clasicrando.kdbc.core.connection.SuspendingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
@@ -45,7 +46,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emitAll
@@ -53,13 +53,12 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.Sink
+import kotlinx.io.Source
 import java.io.ByteArrayOutputStream
-import java.nio.file.Files
+import java.io.InputStream
+import java.io.OutputStream
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -698,6 +697,7 @@ class PgSuspendingConnection internal constructor(
         val copyQuery = copyInStatement.toQuery()
         return mutex.withLock { copyInInternal(copyQuery, data) }
     }
+
     /**
      * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
      * the contents of the file at [path]. The data within the file must be a text based (i.e.
@@ -711,21 +711,36 @@ class PgSuspendingConnection internal constructor(
      * @throws kotlinx.io.files.FileNotFoundException if a file cannot be found at [path]
      * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
      */
-    suspend fun copyIn(copyInStatement: CopyStatement.From, path: Path): QueryResult {
+    suspend fun copyIn(
+        copyInStatement: CopyStatement.From,
+        inputStream: InputStream,
+    ): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
-        return SystemFileSystem.source(path).buffered().use { source ->
-            copyIn(
-                copyInStatement = copyInStatement,
-                data = generateSequence {
-                    val bytes = ByteArray(2048)
-                    when (val bytesRead = source.readAtMostTo(bytes)) {
-                        -1, 0 -> null
-                        bytes.size -> bytes
-                        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
-                    }
-                }.asFlow()
-            )
-        }
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = inputStream.chunkedBytes().asFlow()
+        )
+    }
+    
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * the contents of the file at [path]. The data within the file must be a text based (i.e.
+     * txt/csv file).
+     *
+     * If the server sends an error message during or at completion of streaming the copy [path],
+     * the message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
+     * @throws kotlinx.io.files.FileNotFoundException if a file cannot be found at [path]
+     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
+     */
+    suspend fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
+        require(copyInStatement is CopyStatement.CopyText)
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = source.chunkedBytes().asFlow()
+        )
     }
 
     /**
@@ -886,23 +901,29 @@ class PgSuspendingConnection internal constructor(
      */
     suspend fun copyOut(
         copyOutStatement: CopyStatement.To,
-        outputPath: Path,
+        sink: Sink,
     ) {
         checkConnected()
-        if (!SystemFileSystem.exists(outputPath)) {
-            val parent = java.nio.file.Path.of(outputPath.parent!!.toString())
-            withContext(Dispatchers.IO) {
-                Files.createDirectories(parent)
-                Files.createFile(parent.resolve(outputPath.name))
-            }
-        }
 
         val copyQuery = copyOutStatement.toQuery()
         mutex.withLock {
-            val flow = copyOutInternal(copyQuery)
-            SystemFileSystem.sink(outputPath).buffered().use { sink ->
-                flow.collect(sink::write)
-            }
+            copyOutInternal(copyQuery).collect(sink::write)
+        }
+    }
+
+    /**
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
+     * each row returned from the query to th [outputPath] supplied
+     */
+    suspend fun copyOut(
+        copyOutStatement: CopyStatement.To,
+        outputStream: OutputStream,
+    ) {
+        checkConnected()
+
+        val copyQuery = copyOutStatement.toQuery()
+        mutex.withLock {
+            copyOutInternal(copyQuery).collect(outputStream::write)
         }
     }
 

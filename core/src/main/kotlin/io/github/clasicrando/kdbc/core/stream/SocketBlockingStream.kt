@@ -15,8 +15,8 @@ class SocketBlockingStream(
     private val address: InetSocketAddress,
 ) : BlockingStream, DefaultUniqueResourceId() {
     private val socket = Socket()
-    private var inputStream: InputStream? = null
-    private var outputStream: OutputStream? = null
+    private lateinit var inputStream: InputStream
+    private lateinit var outputStream: OutputStream
 
     override val isConnected: Boolean get() = socket.isConnected
 
@@ -27,35 +27,38 @@ class SocketBlockingStream(
     }
 
     override fun writeBuffer(buffer: ByteWriteBuffer) {
-        checkNotNull(outputStream) { "Cannot write to a stream that is not connected" }
+        check(isConnected) { "Cannot read from a stream that is not connected" }
         val bytes = buffer.copyToArray()
-        outputStream?.write(bytes)
+        outputStream.write(bytes)
     }
 
     override fun readByte(): Byte {
-        checkNotNull(inputStream) { "Cannot read from a stream that is not connected" }
-        return inputStream!!.read().toByte()
+        check(isConnected) { "Cannot read from a stream that is not connected" }
+        return inputStream.read().toByte()
     }
 
     override fun readInt(): Int {
-        checkNotNull(inputStream) { "Cannot read from a stream that is not connected" }
-        val bytes = inputStream!!.readNBytes(4)
+        check(isConnected) { "Cannot read from a stream that is not connected" }
         return (
-            (bytes[0].toInt() and 0xff shl 24)
-            or (bytes[1].toInt() and 0xff shl 16)
-            or (bytes[2].toInt() and 0xff shl 8)
-            or (bytes[3].toInt() and 0xff))
+            (inputStream.read() and 0xff shl 24)
+            or (inputStream.read() and 0xff shl 16)
+            or (inputStream.read() and 0xff shl 8)
+            or (inputStream.read() and 0xff))
     }
 
     override fun readBuffer(count: Int): ByteReadBuffer {
-        checkNotNull(inputStream) { "Cannot read from a stream that is not connected" }
-        val result = ByteReadBuffer(inputStream!!.readNBytes(count))
+        check(isConnected) { "Cannot read from a stream that is not connected" }
+        val result = ByteReadBuffer(inputStream.readNBytes(count))
         return result
     }
 
     override fun release() {
-        inputStream = null
-        outputStream = null
+        if (this::inputStream.isInitialized) {
+            inputStream.close()
+        }
+        if (this::outputStream.isInitialized) {
+            outputStream.close()
+        }
         socket.close()
     }
 }

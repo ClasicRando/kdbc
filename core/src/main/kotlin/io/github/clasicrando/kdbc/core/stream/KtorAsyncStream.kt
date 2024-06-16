@@ -31,10 +31,11 @@ class KtorAsyncStream(
     private val selectorManager: SelectorManager,
 ) : AsyncStream, DefaultUniqueResourceId() {
     private lateinit var connection: Connection
-    private val socket: Socket get() = connection.socket
-    private val writeChannel: ByteWriteChannel get() = connection.output
-    private val readChannel: ByteReadChannel get() = connection.input
-    private var buffer = Buffer()
+    private lateinit var socket: Socket
+    private lateinit var writeChannel: ByteWriteChannel
+    private lateinit var readChannel: ByteReadChannel
+    private val buffer = Buffer()
+    private val tempBuffer = ByteArray(DEFAULT_BUFFER_SIZE)
 
     override val isConnected: Boolean get() = this::connection.isInitialized
             && socket.isActive && !socket.isClosed
@@ -45,6 +46,9 @@ class KtorAsyncStream(
             connection = withTimeout(timeout) {
                 aSocket(selectorManager).tcp().connect(address).connection()
             }
+            socket = connection.socket
+            writeChannel = connection.output
+            readChannel = connection.input
         } catch (ex: Exception) {
             logWithResource(logger, Level.TRACE) {
                 message = "Failed to connect to {address}"
@@ -67,7 +71,7 @@ class KtorAsyncStream(
     }
 
     private suspend fun readIntoBuffer(required: Long) {
-        val tempBuffer = ByteArray(2048)
+        var bytesRequired = required
         while (true) {
             val bytesRead = try {
                 readChannel.readAvailable(tempBuffer)
@@ -80,7 +84,7 @@ class KtorAsyncStream(
                 }
                 throw StreamReadError(ex)
             }
-            buffer.write(tempBuffer, 0, bytesRead)
+
             if (bytesRead == -1) {
                 logWithResource(logger, Level.TRACE) {
                     message = "Unexpectedly reached end of stream"
@@ -91,7 +95,10 @@ class KtorAsyncStream(
                 message = "Received {count} bytes from {address}"
                 payload = mapOf("count" to bytesRead, "address" to address)
             }
-            if (buffer.size >= required) {
+
+            buffer.write(tempBuffer, 0, bytesRead)
+            bytesRequired -= bytesRead
+            if (bytesRequired <= 0) {
                 return
             }
         }
@@ -108,7 +115,7 @@ class KtorAsyncStream(
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
         if (buffer.size < 4) {
-            readIntoBuffer(4)
+            readIntoBuffer(4 - buffer.size)
         }
         return buffer.readInt()
     }
@@ -118,7 +125,7 @@ class KtorAsyncStream(
         val destination = ByteArray(count)
 
         if (buffer.size < count) {
-            readIntoBuffer(buffer.size - count)
+            readIntoBuffer(count - buffer.size)
         }
         buffer.readTo(destination)
         return ByteReadBuffer(destination)

@@ -1,6 +1,7 @@
 package com.github.kdbc.benchmarks.postgresql
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
+import io.github.clasicrando.kdbc.core.IOUtils
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
@@ -13,6 +14,9 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toKotlinInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.io.asOutputStream
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
 import kotlinx.uuid.UUID
 import kotlinx.uuid.generateUUID
 import org.apache.commons.dbcp2.DriverManagerConnectionFactory
@@ -123,12 +127,10 @@ val copyInSetupQuery = """
     );
 """.trimIndent()
 
-fun createBenchmarkCsv(outputPath: java.nio.file.Path) {
-    if (Files.notExists(outputPath)) {
-        Files.createFile(outputPath)
-    }
-    Files.newOutputStream(outputPath).use { stream ->
-        csvWriter().open(stream) {
+fun createBenchmarkCsv(outputPath: Path) {
+    IOUtils.createFileIfNotExists(outputPath)
+    IOUtils.sink(outputPath, append = false).buffered().use { sink ->
+        csvWriter().open(sink.asOutputStream()) {
             for (i in 1..50000) {
                 val currentTimestamp = Clock.System.now().toLocalDateTime(TimeZone.UTC)
                 writeRow(i, "$i Value", currentTimestamp, currentTimestamp, null, null, null, null, null, null, null, null, null)
@@ -137,8 +139,8 @@ fun createBenchmarkCsv(outputPath: java.nio.file.Path) {
     }
 }
 
-fun createBenchmarkCsv(outputPath: kotlinx.io.files.Path) {
-    createBenchmarkCsv(java.nio.file.Path.of(outputPath.toString()))
+fun createBenchmarkCsv(outputPath: java.nio.file.Path) {
+    createBenchmarkCsv(Path(outputPath.toString()))
 }
 
 val kdbcCopyOut = CopyStatement.TableToCsv(schemaName = "public", tableName = "copy_out_posts")

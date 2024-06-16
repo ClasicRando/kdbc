@@ -5,6 +5,8 @@ import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.io.Source
+import java.io.InputStream
 import kotlin.time.Duration
 
 const val zeroByte: Byte = 0
@@ -105,5 +107,27 @@ fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> {
         if (buffer.isNotEmpty()) {
             emit(buffer)
         }
+    }
+}
+
+private const val DEFAULT_BUFFER_SIZE = 2048
+
+fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> = generateSequence {
+    val bytes = ByteArray(size)
+    when (val bytesRead = this.readAtMostTo(bytes)) {
+        -1, 0 -> null
+        bytes.size -> bytes
+        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+    }
+}
+
+fun InputStream.chunkedBytes(
+    size: Int = DEFAULT_BUFFER_SIZE,
+): Sequence<ByteArray> = generateSequence {
+    val bytes = ByteArray(size)
+    when (val bytesRead = this.read(bytes)) {
+        -1, 0 -> null
+        bytes.size -> bytes
+        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
     }
 }

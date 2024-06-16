@@ -10,6 +10,7 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
+import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
@@ -50,10 +51,12 @@ class TestBlockingCopySpec {
                     schemaName = "public",
                     tableName = "copy_in_test",
                 )
-                val copyResult = it.copyIn(
-                    copyInStatement,
-                    testFilePath,
-                )
+                val copyResult = IOUtils.source(testFilePath).buffered().use { source ->
+                    it.copyIn(
+                        copyInStatement,
+                        source,
+                    )
+                }
                 assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
                 assertEquals("COPY $ROW_COUNT", copyResult.message)
                 val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
@@ -173,7 +176,9 @@ class TestBlockingCopySpec {
                     schemaName = "public",
                     tableName = "copy_out_test",
                 )
-                it.copyOut(copyOutStatement, path)
+                IOUtils.sink(path).buffered().use { sink ->
+                    it.copyOut(copyOutStatement, sink)
+                }
                 csvReader().open(path.toString()) {
                     for (row in readAllAsSequence()) {
                         rowIndex++
