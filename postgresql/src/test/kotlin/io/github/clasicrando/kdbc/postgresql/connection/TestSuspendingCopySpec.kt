@@ -190,7 +190,7 @@ class TestSuspendingCopySpec {
                 assertEquals(ROW_COUNT, rowIndex)
             }
         } finally {
-//            IOUtils.deleteCatching(path = path, mustExist = false)
+            IOUtils.deleteCatching(path = path, mustExist = false)
         }
     }
 
