@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.type
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -27,7 +26,8 @@ data class PgJson(val json: JsonElement) {
     /**
      * Decode the [json] value into the desired type [T].
      *
-     * @throws SerializationException if [json] is not a valid input for type [T]
+     * @throws kotlinx.serialization.SerializationException if [json] is not a valid input for type
+     * [T]
      * @throws IllegalArgumentException if [json] decoded cannot be used to represent a valid [T]
      */
     inline fun <reified T> decode(): T {
@@ -40,7 +40,7 @@ data class PgJson(val json: JsonElement) {
         /**
          * Create a new [PgJson] by parsing [json] to a [JsonElement].
          *
-         * @throws SerializationException if the input is not valid JSON
+         * @throws kotlinx.serialization.SerializationException if the input is not valid JSON
          */
         fun fromString(json: String): PgJson {
             return PgJson(Json.parseToJsonElement(json))
@@ -49,7 +49,8 @@ data class PgJson(val json: JsonElement) {
         /**
          * Create a new [PgJson] by decoding the [buffer] data to a [JsonElement].
          *
-         * @throws SerializationException if the [buffer] data is not valid JSON
+         * @throws kotlinx.serialization.SerializationException if the [buffer] data is not valid
+         * JSON
          */
         fun fromBytes(buffer: ByteReadBuffer): PgJson {
             val jsonString = buffer.readText()
@@ -59,7 +60,7 @@ data class PgJson(val json: JsonElement) {
         /**
          * Create a new [PgJson] by encoding the provided [value] into a [JsonElement]
          *
-         * @throws SerializationException if type [T] is not [Serializable]
+         * @throws kotlinx.serialization.SerializationException if type [T] is not [Serializable]
          */
         inline fun <reified T> fromValue(value: T): PgJson {
             return PgJson(Json.encodeToJsonElement(value))

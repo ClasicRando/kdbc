@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -18,7 +17,7 @@ class TestPgCircleType {
     fun `encode should accept PgCircle when querying postgresql`() = runBlocking {
         val query = "SELECT $1 circle_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val circle = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgCircle>()
@@ -29,7 +28,7 @@ class TestPgCircleType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::circle;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val circle = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -62,7 +61,7 @@ class TestPgCircleType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            PgConnectionHelper.defaultAsyncConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }

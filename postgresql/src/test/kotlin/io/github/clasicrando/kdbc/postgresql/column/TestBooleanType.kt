@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.params.ParameterizedTest
@@ -15,7 +15,7 @@ class TestBooleanType {
     fun `encode should accept Boolean when querying postgresql`(value: Boolean) = runBlocking {
         val query = "SELECT $1 bool_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val boolean = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<Boolean>()
@@ -26,7 +26,7 @@ class TestBooleanType {
     private suspend fun decodeTest(value: Boolean, isPrepared: Boolean) {
         val query = "SELECT $value;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val boolean = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

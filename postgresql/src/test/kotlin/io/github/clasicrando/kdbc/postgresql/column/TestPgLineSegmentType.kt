@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -18,7 +17,7 @@ class TestPgLineSegmentType {
     fun `encode should accept PgLineSegment when querying postgresql`() = runBlocking {
         val query = "SELECT $1 lseg_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val lineSegment = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgLineSegment>()
@@ -29,7 +28,7 @@ class TestPgLineSegmentType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::lseg;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val lineSegment = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -65,7 +64,7 @@ class TestPgLineSegmentType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+            PgConnectionHelper.defaultAsyncConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }

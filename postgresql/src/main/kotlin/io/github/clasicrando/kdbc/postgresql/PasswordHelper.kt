@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql
 
 import java.security.MessageDigest
-import java.security.NoSuchAlgorithmException
 
 /** Helper object to encode passwords */
 internal object PasswordHelper {
@@ -49,7 +48,7 @@ internal object PasswordHelper {
     /**
      * Use the MD5 hashing algorithm to hash the [username], [password] and [salt] provided.
      *
-     * @throws NoSuchAlgorithmException
+     * @throws java.security.NoSuchAlgorithmException
      */
     fun encode(
         username: ByteArray,

@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.statement
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
@@ -115,11 +114,12 @@ import kotlinx.datetime.toInstant
 import kotlinx.uuid.UUID
 import java.math.BigDecimal
 import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 class PgEncodeBuffer(
     private val metadata: List<PgColumnDescription>,
     private val typeCache: PgTypeCache,
-) : AutoRelease {
+) : AutoCloseable {
     internal val innerBuffer: ByteWriteBuffer = ByteListWriteBuffer()
     var paramCount = 0
         private set
@@ -474,7 +474,11 @@ class PgEncodeBuffer(
         paramCount++
     }
 
-    override fun release() {
-        innerBuffer.release()
+    inline fun <reified T : Any> encodeValue(value: T?) {
+        encodeValue(value, typeOf<T>())
+    }
+
+    override fun close() {
+        innerBuffer.close()
     }
 }

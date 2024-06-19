@@ -1,0 +1,22 @@
+#!/bin/bash
+
+function yes_or_no {
+  while true; do
+    read -p "$* (y/n): " yn
+    case $yn in
+      [Yy]*) return 0 ;;
+      [Nn]*) return 1 ;;
+    esac
+  done
+}
+
+pgTestPassword="${PG_TEST_PASSWORD}"
+if [[ -z "${pgTestPassword}" ]]; then
+  read -s -p "Postgres Password: " pgTestPassword
+  echo ""
+  export PG_TEST_PASSWORD="$pgTestPassword"
+fi
+
+yes_or_no "Include Postgres Copy tests?" && export PG_COPY_TEST='true'
+
+./gradlew test

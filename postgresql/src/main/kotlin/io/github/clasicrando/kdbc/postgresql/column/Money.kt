@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.PgMoney
 import kotlin.reflect.typeOf
@@ -37,7 +36,8 @@ object MoneyTypeDescription : PgTypeDescription<PgMoney>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L310)
      *
-     * @throws ColumnDecodeError if the text value cannot be parsed into a money value
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
+     * parsed into a money value
      */
     override fun decodeText(value: PgValue.Text): PgMoney {
         return try {

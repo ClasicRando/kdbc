@@ -1,7 +1,5 @@
 package io.github.clasicrando.kdbc.core.result
 
-import io.github.clasicrando.kdbc.core.AutoRelease
-
 /**
  * Type representing the zero or more [QueryResult] instances that can be returned from a single
  * database statement. For instance, a single simple query to a postgresql database can return
@@ -11,12 +9,12 @@ import io.github.clasicrando.kdbc.core.AutoRelease
  */
 class StatementResult(
     private var queryResults: List<QueryResult>?,
-) : Iterable<QueryResult>, AutoRelease {
+) : Iterable<QueryResult>, AutoCloseable {
     /**
      * Return the number of [QueryResult]s that the database returned from the previously executed
      * statement.
      *
-     * @throws IllegalStateException if this method is called after [release] is called
+     * @throws IllegalStateException if this method is called after [close] is called
      */
     val size: Int get() = queryResults?.size
         ?: error("Attempted to get size of a closed/released StatementResult")
@@ -25,7 +23,7 @@ class StatementResult(
      * Return the [QueryResult] backed by this [index].
      *
      * @throws IllegalArgumentException if the index does not point to an existing entry
-     * @throws IllegalStateException if this method is called after [release]
+     * @throws IllegalStateException if this method is called after [close]
      */
     operator fun get(index: Int): QueryResult {
         require(index in 0..<size) {
@@ -38,7 +36,7 @@ class StatementResult(
     /**
      * Return an [Iterator] over the [QueryResult]s returned.
      *
-     * @throws IllegalStateException if this method is called after [release]
+     * @throws IllegalStateException if this method is called after [close]
      */
     override fun iterator(): Iterator<QueryResult> = queryResults?.iterator()
         ?: error("Attempted to iterate over a closed/released StatementResult")
@@ -47,10 +45,10 @@ class StatementResult(
      * Remove all [QueryResult]s of the backing [MutableList] of this result. If the list is still
      * populated, each [QueryResult] will be released as well.
      */
-    override fun release() {
+    override fun close() {
         queryResults?.let {
             for (queryResult in it) {
-                queryResult.release()
+                queryResult.close()
             }
         }
         queryResults = null

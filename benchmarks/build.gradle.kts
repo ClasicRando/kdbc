@@ -5,12 +5,16 @@ plugins {
 group = "com.github.clasicrando"
 version = "0.1"
 
+val kotlinCsvVersion: String by project
+
 dependencies {
     implementation(project(":postgresql"))
     // https://mvnrepository.com/artifact/org.postgresql/postgresql
     implementation("org.postgresql:postgresql:42.7.3")
     // https://mvnrepository.com/artifact/org.apache.commons/commons-dbcp2
     implementation("org.apache.commons:commons-dbcp2:2.12.0")
+    // https://mvnrepository.com/artifact/com.github.doyaaaaaken/kotlin-csv
+    implementation("com.github.doyaaaaaken:kotlin-csv:$kotlinCsvVersion")
 }
 
 jmh {

@@ -6,10 +6,6 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
-import kotlinx.datetime.toInstant
-import kotlinx.datetime.toLocalDate
-import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.toLocalTime
 import kotlin.reflect.KClass
 
 /** Exception thrown when a string cannot be converted to the required date type */
@@ -25,8 +21,8 @@ class InvalidDateString(
  */
 fun LocalDate.Companion.tryFromString(value: String): LocalDate {
     return try {
-        value.toLocalDate()
-    } catch (ex: IllegalArgumentException) {
+        parse(value)
+    } catch (_: IllegalArgumentException) {
         throw InvalidDateString(value, LocalDate::class)
     }
 }
@@ -38,11 +34,11 @@ fun LocalDate.Companion.tryFromString(value: String): LocalDate {
  */
 fun LocalDateTime.Companion.tryFromString(value: String): LocalDateTime {
     return try {
-        value.takeWhile { it != '+' && it != 'Z' }
+        val str = value.takeWhile { it != '+' && it != 'Z' }
             .trim()
             .replace(' ', 'T')
-            .toLocalDateTime()
-    } catch (ex: IllegalArgumentException) {
+        parse(str)
+    } catch (_: IllegalArgumentException) {
         throw InvalidDateString(value, LocalDateTime::class)
     }
 }
@@ -54,10 +50,10 @@ fun LocalDateTime.Companion.tryFromString(value: String): LocalDateTime {
  */
 fun LocalTime.Companion.tryFromString(value: String): LocalTime {
     return try {
-        value.takeWhile { it != '+' && it != 'Z' }
+        val str = value.takeWhile { it != '+' && it != 'Z' }
             .trim()
-            .toLocalTime()
-    } catch (ex: IllegalArgumentException) {
+        parse(str)
+    } catch (_: IllegalArgumentException) {
         throw InvalidDateString(value, LocalTime::class)
     }
 }
@@ -70,11 +66,11 @@ fun LocalTime.Companion.tryFromString(value: String): LocalTime {
  */
 fun Instant.Companion.tryFromString(value: String): Instant {
     return try {
-        value.trim()
+        val str = value.trim()
             .replace(oldChar = ' ',newChar = 'T')
             .padEnd(length = 20, padChar = 'Z')
-            .toInstant()
-    } catch (ex: IllegalArgumentException) {
+        parse(str)
+    } catch (_: IllegalArgumentException) {
         throw InvalidDateString(value, Instant::class)
     }
 }

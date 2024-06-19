@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.DateTimePeriod
@@ -14,7 +14,7 @@ class TestDateTimePeriodType {
     fun `encode should accept DateTimePeriod when querying postgresql`() = runBlocking {
         val query = "SELECT $1 interval_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(dateTimePeriod)
                 .fetchScalar<DateTimePeriod>()
@@ -25,7 +25,7 @@ class TestDateTimePeriodType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT interval '1 year 4 month 9 day 5 hour 45 minute 8.009005 second';"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import kotlin.reflect.typeOf
 
@@ -26,7 +25,8 @@ object SmallIntTypeDescription : PgTypeDescription<Short>(
     /**
      * Convert the [String] value into a [Short]
      *
-     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Short]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value
+     * cannot be converted to a [Short]
      */
     override fun decodeText(value: PgValue.Text): Short {
         return value.text
@@ -68,7 +68,8 @@ object IntTypeDescription : PgTypeDescription<Int>(
     /**
      * Convert the [String] value into a [Int]
      *
-     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Int]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value
+     * cannot be converted to a [Int]
      */
     override fun decodeText(value: PgValue.Text): Int {
         return value.text
@@ -110,7 +111,8 @@ object OidTypeDescription : PgTypeDescription<Int>(
     /**
      * Convert the [String] value into a [Int]
      *
-     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Int]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value
+     * cannot be converted to a [Int]
      */
     override fun decodeText(value: PgValue.Text): Int {
         return value.text
@@ -152,7 +154,8 @@ object BigIntTypeDescription : PgTypeDescription<Long>(
     /**
      * Convert the [String] value into a [Long]
      *
-     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Long]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value
+     * cannot be converted to a [Long]
      */
     override fun decodeText(value: PgValue.Text): Long {
         return value.text
@@ -194,7 +197,8 @@ object RealTypeDescription : PgTypeDescription<Float>(
     /**
      * Convert the [String] value into a [Float]
      *
-     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Float]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value
+     * cannot be converted to a [Float]
      */
     override fun decodeText(value: PgValue.Text): Float {
         return value.text
@@ -236,7 +240,8 @@ object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
     /**
      * Convert the [String] value into a [Double]
      *
-     * @throws ColumnDecodeError if the [String] value cannot be converted to a [Double]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value
+     * cannot be converted to a [Double]
      */
     override fun decodeText(value: PgValue.Text): Double {
         return value.text

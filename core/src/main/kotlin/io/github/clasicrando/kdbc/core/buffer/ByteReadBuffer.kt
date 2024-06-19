@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.buffer
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import java.nio.charset.Charset
 
 /**
@@ -18,7 +17,7 @@ class ByteReadBuffer(
     private val offset: Int = 0,
     @PublishedApi
     internal val size: Int = innerBuffer.size,
-) : AutoRelease {
+) : AutoCloseable {
     @PublishedApi
     internal var position: Int = 0
 
@@ -55,7 +54,7 @@ class ByteReadBuffer(
      */
     private fun checkRemaining(required: Int) {
         if (remaining() < required) {
-            throw BufferExhausted()
+            throw BufferExhausted(requested = required, remaining = remaining())
         }
     }
 
@@ -194,7 +193,7 @@ class ByteReadBuffer(
      * Reset the buffer's position to 0 and set the inner buffer to an empty [ByteArray]. This
      * leaves the buffer in an unusable state
      */
-    override fun release() {
+    override fun close() {
         reset()
         innerBuffer = ByteArray(0)
     }

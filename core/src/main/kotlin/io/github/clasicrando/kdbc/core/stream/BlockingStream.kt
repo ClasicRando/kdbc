@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.stream
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
@@ -14,7 +13,7 @@ private const val RESOURCE_TYPE = "BlockingStream"
  * during IO operation but the blocking should not lock so in theory green threads are compatible
  * with the stream.
  */
-interface BlockingStream : UniqueResourceId, AutoRelease {
+interface BlockingStream : UniqueResourceId, AutoCloseable {
     override val resourceType: String get() = RESOURCE_TYPE
 
     /** Returns true if the stream is still connected to the host */

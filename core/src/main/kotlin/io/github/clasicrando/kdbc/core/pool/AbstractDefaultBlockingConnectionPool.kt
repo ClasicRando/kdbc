@@ -3,7 +3,7 @@ package io.github.clasicrando.kdbc.core.pool
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.atomicfu.locks.ReentrantLock
+import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
 import kotlinx.uuid.UUID
 import java.util.concurrent.BlockingDeque
@@ -34,7 +34,7 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
     private val connections: BlockingDeque<C> = LinkedBlockingDeque()
     private val connectionIds: MutableMap<UUID, C> = mutableMapOf()
     private val connectionNeeded: BlockingDeque<CompletableFuture<C>> = LinkedBlockingDeque()
-    private val lock = ReentrantLock(true)
+    private val lock = reentrantLock()
 
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,

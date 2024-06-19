@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import java.math.BigDecimal
@@ -15,7 +15,7 @@ class TestBigDecimalType {
         val value = BigDecimal("2548.52489")
         val query = "SELECT $1 numeric_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val bigDecimal = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<BigDecimal>()
@@ -28,7 +28,7 @@ class TestBigDecimalType {
         val expectedResult = BigDecimal(number)
         val query = "SELECT $number;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val bigDecimal = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

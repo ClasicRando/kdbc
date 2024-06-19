@@ -2,15 +2,14 @@ package io.github.clasicrando.kdbc.postgresql.result
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.result.AbstractMutableResultSet
-import io.github.clasicrando.kdbc.core.result.ResultSet
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 
 /**
- * Postgresql implementation of a [ResultSet] where the rows are represents as [PgDataRow]s. This
- * also keeps reference to a [typeCache] instance for the purpose of decoding non-standard types
- * using the lookup maps for type decoders.
+ * Postgresql implementation of a [io.github.clasicrando.kdbc.core.result.ResultSet] where the rows
+ * are represents as [PgDataRow]s. This also keeps reference to a [typeCache] instance for the
+ * purpose of decoding non-standard types using the lookup maps for type decoders.
  */
 internal class PgResultSet(
     private val typeCache: PgTypeCache,

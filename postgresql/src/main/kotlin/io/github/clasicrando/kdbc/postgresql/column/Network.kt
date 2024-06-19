@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.PgInet
 import java.net.Inet6Address
@@ -69,7 +68,8 @@ abstract class NetworkTypeDescription(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L292)
      *
-     * @throws ColumnDecodeError if the binary value cannot be used to construct a [PgInet]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the binary value cannot
+     * be used to construct a [PgInet]
      */
     override fun decodeBytes(value: PgValue.Binary): PgInet {
         val remainingBytes = value.bytes.remaining()
@@ -98,7 +98,8 @@ abstract class NetworkTypeDescription(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L165)
      *
-     * @throws ColumnDecodeError if the text value cannot be parsed into a [PgInet]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
+     * parsed into a [PgInet]
      */
     override fun decodeText(value: PgValue.Text): PgInet {
         return try {

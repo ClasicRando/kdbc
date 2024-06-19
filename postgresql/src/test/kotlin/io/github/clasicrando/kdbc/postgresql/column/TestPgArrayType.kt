@@ -1,13 +1,13 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
@@ -78,7 +78,7 @@ class TestPgArrayType {
         val values = listOf(1, 2, 3, 4)
         val query = "SELECT x array_values FROM UNNEST($1) x"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val ints = conn.createPreparedQuery(query)
                 .bind(values)
                 .fetchAll(object : RowParser<Int> {
@@ -92,7 +92,7 @@ class TestPgArrayType {
         val expectedResult = listOf(1, 2, 3, 4)
         val query = "SELECT ARRAY[1,2,3,4]::int[]"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val ints = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

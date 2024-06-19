@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgMoney
 import kotlinx.coroutines.runBlocking
@@ -109,7 +109,7 @@ class TestPgMoney {
     fun `encode should accept PgMoney when querying postgresql`() = runBlocking {
         val query = "SELECT $1 money_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val money = conn.createPreparedQuery(query)
                 .bind(moneyValue)
                 .fetchScalar<PgMoney>()
@@ -120,7 +120,7 @@ class TestPgMoney {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val money = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

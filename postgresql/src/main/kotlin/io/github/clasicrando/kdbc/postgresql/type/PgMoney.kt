@@ -8,7 +8,6 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.math.BigDecimal
-import java.math.BigInteger
 import java.math.RoundingMode
 import kotlin.math.absoluteValue
 
@@ -28,7 +27,8 @@ class PgMoney internal constructor(internal val integer: Long) {
 
     /**
      * Create a new [PgMoney] by converting the [decimal] value to a 2 scale [BigDecimal],
-     * converting that to a [BigInteger] and finally extracting a [Long] for the [PgMoney].
+     * converting that to a [java.math.BigInteger] and finally extracting a [Long] for the
+     * [PgMoney].
      *
      * @throws IllegalArgumentException if the [decimal] value has a [BigDecimal.scale] > 2
      */

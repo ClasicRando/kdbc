@@ -1,9 +1,11 @@
 package io.github.clasicrando.kdbc.core.exceptions
 
 import io.github.clasicrando.kdbc.core.query.RowParser
-import io.github.clasicrando.kdbc.core.result.DataRow
 
-/** [KdbcException] thrown when a [RowParser] fails to convert a [DataRow] into the required type */
+/**
+ * [KdbcException] thrown when a [RowParser] fails to convert a
+ * [io.github.clasicrando.kdbc.core.result.DataRow] into the required type
+ */
 class RowParseError(
     rowParser: RowParser<*>,
     exception: Throwable? = null,

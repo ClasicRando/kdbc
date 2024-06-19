@@ -20,14 +20,8 @@ private const val RESOURCE_TYPE = "BlockingConnection"
  * outside the scope of a single method) you should find a way to always close the
  * [BlockingConnection].
  */
-interface BlockingConnection : Connection {
+interface BlockingConnection : Connection, AutoCloseable {
     override val resourceType: String get() = RESOURCE_TYPE
-
-    /**
-     * Method called to close the connection and free any resources that are held by the
-     * connection. Once this has been called, the [BlockingConnection] instance should not be used.
-     */
-    fun close()
 
     /**
      * Request that the database start a new transaction. This will fail if the
@@ -76,46 +70,11 @@ interface BlockingConnection : Connection {
  * Use a [BlockingConnection] within the specified [block], allowing for the [BlockingConnection]
  * to always call [BlockingConnection.close], even if the block throws an exception. This is
  * similar to the functionality that [AutoCloseable] provides where the resources are always
- * cleaned up before returning from the function. Note, this does not catch the exception, rather
- * it rethrows after cleaning up resources if an exception was thrown.
- */
-inline fun <R, C : BlockingConnection> C.use(block: (C) -> R): R {
-    var cause: Throwable? = null
-    return try {
-        block(this)
-    } catch (ex: Throwable) {
-        cause = ex
-        throw ex
-    } finally {
-        try {
-            close()
-        } catch (ex: Throwable) {
-            cause?.addSuppressed(ex)
-        }
-    }
-}
-
-/**
- * Use a [BlockingConnection] within the specified [block], allowing for the [BlockingConnection]
- * to always call [BlockingConnection.close], even if the block throws an exception. This is
- * similar to the functionality that [AutoCloseable] provides where the resources are always
  * cleaned up before returning from the function. Note, this does catch the exception and wraps
  * that is a [Result]. Otherwise, it returns a [Result] with the result of [block].
  */
 inline fun <R, C : BlockingConnection> C.useCatching(block: (C) -> R): Result<R> {
-    var cause: Throwable? = null
-    return try {
-        Result.success(block(this))
-    } catch (ex: Throwable) {
-        cause = ex
-        Result.failure(ex)
-    } finally {
-        try {
-            close()
-        } catch (ex: Throwable) {
-            cause?.addSuppressed(ex)
-        }
-    }
+    return use { runCatching(block) }
 }
 
 /**

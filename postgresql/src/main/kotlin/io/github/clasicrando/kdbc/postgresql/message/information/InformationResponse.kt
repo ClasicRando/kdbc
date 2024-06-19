@@ -1,11 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.information
 
-import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-
 /**
- * Data contained within [PgMessage.ErrorResponse] and [PgMessage.NoticeResponse] messages. Data
- * is derived from a [Map] of [Byte] field identifiers linked values that match the expected values
- * as described [here](https://www.postgresql.org/docs/current/protocol-error-fields.html).
+ * Data contained within [io.github.clasicrando.kdbc.postgresql.message.PgMessage.ErrorResponse]
+ * and [io.github.clasicrando.kdbc.postgresql.message.PgMessage.NoticeResponse] messages. Data is
+ * derived from a [Map] of [Byte] field identifiers linked values that match the expected values as
+ * described [here](https://www.postgresql.org/docs/current/protocol-error-fields.html).
  */
 @Suppress("MemberVisibilityCanBePrivate")
 class InformationResponse internal constructor(

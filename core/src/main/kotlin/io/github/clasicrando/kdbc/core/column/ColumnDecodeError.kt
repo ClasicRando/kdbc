@@ -22,7 +22,7 @@ class ColumnDecodeError(
 /** Throw a [ColumnDecodeError] for the [kType] with the [type] */
 fun columnDecodeError(
     kType: KType,
-    type: ColumnData,
+    type: ColumnMetadata,
     reason: String = "",
     cause: Throwable? = null,
 ): Nothing {
@@ -38,7 +38,7 @@ fun columnDecodeError(
 
 /** Throw a [ColumnDecodeError] for the type [T] with the [type] */
 inline fun <reified T> columnDecodeError(
-    type: ColumnData,
+    type: ColumnMetadata,
     reason: String = "",
     cause: Throwable? = null,
 ): Nothing {
@@ -55,7 +55,7 @@ inline fun <reified T> columnDecodeError(
 /** Evaluate the [check] parameter and if it's false throw a [ColumnDecodeError] */
 inline fun <reified T> checkOrColumnDecodeError(
     check: Boolean,
-    type: ColumnData,
+    type: ColumnMetadata,
     reason: () -> String = { "" },
 ) {
     if (!check) {
@@ -67,7 +67,7 @@ inline fun <reified T> checkOrColumnDecodeError(
 inline fun checkOrColumnDecodeError(
     check: Boolean,
     kType: KType,
-    type: ColumnData,
+    type: ColumnMetadata,
     reason: () -> String,
 ) {
     if (!check) {

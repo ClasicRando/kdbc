@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.result
 
-import io.github.clasicrando.kdbc.core.AutoRelease
-import io.github.clasicrando.kdbc.core.column.ColumnData
+import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 
 /**
  * Collection of data as the data resulting from a query. The underlining structure of the
@@ -11,12 +10,12 @@ import io.github.clasicrando.kdbc.core.column.ColumnData
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-interface ResultSet : Iterable<DataRow>, AutoRelease {
+interface ResultSet : Iterable<DataRow>, AutoCloseable {
     /** Number of columns found within each [DataRow] entry */
     val columnCount: Int
 
-    /** Returns the [ColumnData] for the specified column [index] */
-    fun columnType(index: Int): ColumnData
+    /** Returns the [ColumnMetadata] for the specified column [index] */
+    fun columnType(index: Int): ColumnMetadata
 
     companion object
 }
@@ -25,11 +24,11 @@ interface ResultSet : Iterable<DataRow>, AutoRelease {
 val ResultSet.Companion.EMPTY_RESULT get() = object : ResultSet {
     val rows = emptyList<DataRow>()
     override val columnCount: Int = 0
-    override fun columnType(index: Int): ColumnData {
+    override fun columnType(index: Int): ColumnMetadata {
         error("Empty ResultSet should never have the columnType checked")
     }
 
     override fun iterator(): Iterator<DataRow> = rows.iterator()
 
-    override fun release() {}
+    override fun close() {}
 }

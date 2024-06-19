@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
 import kotlinx.coroutines.runBlocking
@@ -21,7 +21,7 @@ class TestMacAddress {
         val tableName = if (isMacAddr8) MACADDR8_TEST_TABLE else MACADDR_TEST_TABLE
         val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val pgMacAddress = conn.createPreparedQuery(query)
                 .bind(macAddrValue)
                 .fetchScalar<PgMacAddress>()
@@ -36,7 +36,7 @@ class TestMacAddress {
     private suspend fun decodeTest(isMacAddr8: Boolean, isPrepared: Boolean) {
         val query = "SELECT ${if (isMacAddr8) "'$MAC_ADDR8_STRING'::macaddr8" else "'$MAC_ADDR_STRING'::macaddr"};"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val pgMacAddress = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

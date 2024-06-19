@@ -1,6 +1,6 @@
 package io.github.clasicrando.kdbc.core.result
 
-import io.github.clasicrando.kdbc.core.column.ColumnData
+import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 
 /**
  * Default implementation of a [ResultSet] where [DataRow] instances can be added to the
@@ -10,7 +10,7 @@ import io.github.clasicrando.kdbc.core.column.ColumnData
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
+abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
     val columnMapping: List<C>,
 ) : ResultSet {
     private var backingList: MutableList<R>? = ArrayList()
@@ -22,7 +22,7 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
 
     override val columnCount: Int get() = columnMapping.size
 
-    override fun columnType(index: Int): ColumnData {
+    override fun columnType(index: Int): ColumnMetadata {
         require(index >= 0 && index < columnMapping.size) {
             "Specified index, $index is not in row. Row size = ${columnMapping.size}"
         }
@@ -36,10 +36,10 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnData>(
      * Remove all elements of the backing [MutableList] of this [ResultSet]. If the list is still
      * populated, each row will be released as well.
      */
-    override fun release() {
+    override fun close() {
         backingList?.let {
             for (item in it) {
-                item.release()
+                item.close()
             }
         }
         backingList = null

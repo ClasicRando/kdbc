@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalTime
@@ -14,7 +14,7 @@ class TestLocalTimeType {
     fun `encode should accept LocalTime when querying postgresql`() = runBlocking {
         val query = "SELECT $1 local_time_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(localTime)
                 .fetchScalar<LocalTime>()
@@ -25,7 +25,7 @@ class TestLocalTimeType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '05:25:51'::time;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

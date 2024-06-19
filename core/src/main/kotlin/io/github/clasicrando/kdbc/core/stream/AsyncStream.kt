@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.stream
 
-import io.github.clasicrando.kdbc.core.AutoRelease
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
@@ -13,7 +12,7 @@ private const val RESOURCE_TYPE = "AsyncStream"
  * implementation will depend on the platform and compilation target but each method will suspend
  * during IO operation to yield control of the otherwise blocked thread.
  */
-interface AsyncStream : UniqueResourceId, AutoRelease {
+interface AsyncStream : UniqueResourceId, AutoCloseable {
     override val resourceType: String get() = RESOURCE_TYPE
 
     /** Returns true if the stream is still connected to the host */

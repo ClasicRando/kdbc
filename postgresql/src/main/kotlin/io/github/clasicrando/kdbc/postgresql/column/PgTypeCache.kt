@@ -10,7 +10,7 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
-import io.github.clasicrando.kdbc.postgresql.connection.PgSuspendingConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.type.PgBox
 import io.github.clasicrando.kdbc.postgresql.type.PgCircle
 import io.github.clasicrando.kdbc.postgresql.type.PgInet
@@ -91,7 +91,7 @@ class PgTypeCache {
      * not checked at runtime so the class definer responsible for verifying them.
      */
     suspend fun <T : Any> addCompositeType(
-        connection: PgSuspendingConnection,
+        connection: PgAsyncConnection,
         name: String,
         cls: KClass<T>,
     ) {
@@ -125,7 +125,7 @@ class PgTypeCache {
      * enum variants [Enum.name] value.
      */
     suspend fun <E : Enum<E>> addEnumType(
-        connection: PgSuspendingConnection,
+        connection: PgAsyncConnection,
         name: String,
         kType: KType,
         enumValues: Array<E>,
@@ -396,7 +396,7 @@ class PgTypeCache {
          * if no schema is included
          */
         private suspend fun checkCompositeDbTypeByName(
-            connection: PgSuspendingConnection,
+            connection: PgAsyncConnection,
             name: String,
         ): Int? {
             var schema: String? = null
@@ -427,7 +427,7 @@ class PgTypeCache {
          * type's attributes.
          */
         private suspend fun getCompositeAttributeData(
-            connection: PgSuspendingConnection,
+            connection: PgAsyncConnection,
             oid: Int,
         ): List<PgColumnDescription> {
             return connection.createPreparedQuery(pgCompositeTypeDetailsByOid)
@@ -444,7 +444,7 @@ class PgTypeCache {
          * schema is included
          */
         private suspend fun checkEnumDbTypeByName(
-            connection: PgSuspendingConnection,
+            connection: PgAsyncConnection,
             name: String,
         ): Int? {
             var schema: String? = null
@@ -474,7 +474,7 @@ class PgTypeCache {
          * using the [connection] provided to retrieve the labels.
          */
         private suspend fun getEnumLabels(
-            connection: PgSuspendingConnection,
+            connection: PgAsyncConnection,
             oid: Int,
         ): List<String> {
             return connection.createPreparedQuery(pgEnumLabelsByOid)
@@ -488,7 +488,7 @@ class PgTypeCache {
          * Returns null if the OID could not be found.
          */
         private suspend fun checkArrayDbTypeByOid(
-            connection: PgSuspendingConnection,
+            connection: PgAsyncConnection,
             oid: Int
         ): Int? {
             val arrayOid = connection.createPreparedQuery(pgArrayTypeByInnerOid)

@@ -1,14 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
 import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.UtcOffset
 import kotlin.reflect.typeOf
 
@@ -36,8 +33,8 @@ private fun convertMicroSecondsOffsetToInstant(microSeconds: Long): Instant {
 private val postgresEpochInstant = Instant.fromEpochMilliseconds(postgresEpochMilliseconds)
 
 /**
- * Implementation of a [PgTypeDescription] for the [LocalDate] type. This maps to the `date` type
- * in a postgresql database.
+ * Implementation of a [PgTypeDescription] for the [Instant] type. This maps to the `timestamp`
+ * type in a postgresql database.
  */
 object TimestampTypeDescription : PgTypeDescription<Instant>(
     pgType = PgType.Timestamp,
@@ -70,7 +67,8 @@ object TimestampTypeDescription : PgTypeDescription<Instant>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L233)
      *
-     * @throws ColumnDecodeError if the text value cannot be parsed into an [Instant]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
+     * parsed into an [Instant]
      */
     override fun decodeText(value: PgValue.Text): Instant {
         return try {
@@ -127,7 +125,8 @@ object TimestampTzTypeDescription : PgTypeDescription<DateTime>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L786)
      *
-     * @throws ColumnDecodeError if the text value cannot be parsed into a [LocalDateTime]
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
+     * parsed into a [Instant]
      */
     override fun decodeText(value: PgValue.Text): DateTime {
         return try {

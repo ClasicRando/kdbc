@@ -4,7 +4,7 @@ package io.github.clasicrando.kdbc.core.buffer
  * [ByteWriteBuffer] for writing to the inner [ByteArray] buffer of a fixed capacity, where the
  * capacity is specified in the constructor. The recommendation with this kind of [ByteWriteBuffer]
  * is for a single IO object instance (e.g. socket) to reuse this buffer for each write since the
- * underling resource is reset when [release] is called rather than cleaned up.
+ * underling resource is reset when [reset] is called rather than cleaned up.
  */
 class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
     @PublishedApi
@@ -82,17 +82,12 @@ class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
         position += length
     }
 
-    /** Reset the buffer to its initial state allowing the buffer to be reused */
-    override fun release() {
-        position = 0
-    }
-
     override fun copyToArray(): ByteArray {
         val array = ByteArray(position)
         for (i in array.indices) {
             array[i] = innerBuffer[i]
         }
-        release()
+        reset()
         return array
     }
 
@@ -102,7 +97,7 @@ class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
      * [ByteArray.copyInto]. For [ByteListWriteBuffer] instances, the contents of the list are
      * copied by iterating over the list and appending to this buffer's [innerBuffer].
      *
-     * After a successful copy, the [otherBuffer] has [release] called to free the resources/reset
+     * After a successful copy, the [otherBuffer] has [reset] called to free the resources/reset
      * the buffer.
      *
      * @throws BufferOverflow if the buffer does not enough bytes available to complete this
@@ -127,6 +122,16 @@ class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
                 }
             }
         }
-        otherBuffer.release()
+        otherBuffer.reset()
+    }
+
+    override fun reset() {
+        position = 0
+    }
+
+    /** Reset the buffer to its initial state allowing the buffer to be reused */
+    override fun close() {
+        innerBuffer = ByteArray(0)
+        position = 0
     }
 }

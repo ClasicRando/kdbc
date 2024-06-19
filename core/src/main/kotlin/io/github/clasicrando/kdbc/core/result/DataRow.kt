@@ -1,7 +1,5 @@
 package io.github.clasicrando.kdbc.core.result
 
-import io.github.clasicrando.kdbc.core.AutoRelease
-import io.github.clasicrando.kdbc.core.column.ColumnData
 import io.github.clasicrando.kdbc.core.column.ColumnExtractError
 import kotlin.reflect.typeOf
 
@@ -13,7 +11,7 @@ import kotlin.reflect.typeOf
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-interface DataRow : AutoRelease {
+interface DataRow : AutoCloseable {
     /**
      * Return the index of the specified [column] name.
      *
@@ -23,8 +21,8 @@ interface DataRow : AutoRelease {
 
     /**
      * Get the value stored within the field at the [index] specified. This will always decode to
-     * the type as specified by the [ColumnData] and you must know that and check/cast
-     * appropriately.
+     * the type as specified by the [io.github.clasicrando.kdbc.core.column.ColumnMetadata] and you
+     * must know that and check/cast appropriately.
      *
      * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
      * already been decoded
@@ -33,8 +31,8 @@ interface DataRow : AutoRelease {
 
     /**
      * Get the value stored within the field of [column] specified. This will always decode to
-     * the type as specified by the [ColumnData] and you must know that and check/cast
-     * appropriately.
+     * the type as specified by the [io.github.clasicrando.kdbc.core.column.ColumnMetadata] and you
+     * must know that and check/cast appropriately.
      *
      * @throws IllegalArgumentException if the [column] is not in the row or the field has already
      * been decoded

@@ -1,15 +1,15 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
 import io.github.clasicrando.kdbc.core.query.BaseBlockingPreparedQueryBatch
-import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 
 /**
- * Postgresql implementation of a [BlockingPreparedQueryBatch]. Uses query pipelining to execute
- * all prepared statements as a pipeline to optimize round trips to the server. This allows for
- * sending multiple prepared queries at once to the server, so you do not need to wait for previous
- * queries to complete to request another result.
+ * Postgresql implementation of a
+ * [io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch]. Uses query pipelining to
+ * execute all prepared statements as a pipeline to optimize round trips to the server. This allows
+ * for sending multiple prepared queries at once to the server, so you do not need to wait for
+ * previous queries to complete to request another result.
  *
  * ```
  * Regular Pipelined

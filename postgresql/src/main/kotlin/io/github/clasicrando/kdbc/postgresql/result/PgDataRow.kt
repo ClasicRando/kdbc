@@ -123,18 +123,6 @@ class PgDataRow(
         return columnMapping[index].pgType
     }
 
-    /**
-     * Get a [PgValue] for the specified [index], returning null if the value sent from the server
-     * was a database NULL. The format code of the column specified by [index] decides if the value
-     * returned is a [PgValue.Text] or [PgValue.Binary].
-     *
-     * @throws IllegalArgumentException if the [index] can not be found in the [columnMapping]
-     */
-    private fun getPgValue(index: Int): PgValue? {
-        checkIndex(index)
-        return pgValues[index]
-    }
-
     private fun <T : Any> checkAndDecode(
         index: Int,
         deserializer: PgTypeDescription<T>,
@@ -252,7 +240,7 @@ class PgDataRow(
             PgType.UUID -> checkAndDecode(index, UuidTypeDescription)
             PgType.UUID_ARRAY -> checkAndDecode(index, UuidArrayTypeDescription)
             PgType.VOID -> Unit
-            PgType.RECORD, PgType.RECORD -> error("Cannot decode record/record[] types")
+            PgType.RECORD, PgType.RECORD_ARRAY -> error("Cannot decode record/record[] types")
             PgType.UNKNOWN, PgType.UNSPECIFIED -> error("Backend doesn't know the data's type")
             PgType.BIT, PgType.BIT_ARRAY, PgType.VARBIT, PgType.VARBIT_ARRAY -> error("Bit types are not supported")
             else -> when (pgType) {
@@ -266,8 +254,8 @@ class PgDataRow(
         }
     }
 
-    override fun release() {
-        rowBuffer?.release()
+    override fun close() {
+        rowBuffer?.close()
         pgValues = emptyArray()
     }
 }

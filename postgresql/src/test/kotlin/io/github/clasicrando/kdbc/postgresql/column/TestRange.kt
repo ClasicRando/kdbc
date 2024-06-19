@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.Bound
 import io.github.clasicrando.kdbc.postgresql.type.toDateRange
@@ -28,7 +28,7 @@ class TestRange {
         val (_, value) = pair
         val query = "SELECT $1 int4range_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val range = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<Int4Range>()
@@ -39,7 +39,7 @@ class TestRange {
     private suspend fun int4RangeDecodeTest(isPrepared: Boolean, value: Int4Range, typeName: String) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val range = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -69,7 +69,7 @@ class TestRange {
         val (_, value) = pair
         val query = "SELECT $1 int8range_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val range = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<Int8Range>()
@@ -80,7 +80,7 @@ class TestRange {
     private suspend fun int8RangeDecodeTest(isPrepared: Boolean, value: Int8Range, typeName: String) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val range = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -110,7 +110,7 @@ class TestRange {
         val (_, value) = pair
         val query = "SELECT $1 numrange_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val range = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<NumRange>()
@@ -121,7 +121,7 @@ class TestRange {
     private suspend fun numRangeDecodeTest(isPrepared: Boolean, value: NumRange, typeName: String) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val range = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -151,7 +151,7 @@ class TestRange {
         val (_, value) = pair
         val query = "SELECT $1 tsrange_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val range = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<TsRange>()
@@ -162,7 +162,7 @@ class TestRange {
     private suspend fun tsRangeDecodeTest(isPrepared: Boolean, value: TsRange, typeName: String) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val range = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -192,7 +192,7 @@ class TestRange {
         val (_, value) = pair
         val query = "SELECT $1 tstzrange_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val range = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<TsTzRange>()
@@ -203,7 +203,7 @@ class TestRange {
     private suspend fun tstzRangeDecodeTest(isPrepared: Boolean, value: TsTzRange, typeName: String) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val range = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -233,7 +233,7 @@ class TestRange {
         val (_, value) = pair
         val query = "SELECT $1 daterange_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val range = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<DateRange>()
@@ -244,7 +244,7 @@ class TestRange {
     private suspend fun dateRangeDecodeTest(isPrepared: Boolean, value: DateRange, typeName: String) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val range = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

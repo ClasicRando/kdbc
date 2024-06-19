@@ -1,24 +1,31 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
+import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.chunkedBytes
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
-import io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
 import io.github.clasicrando.kdbc.core.query.QueryParameter
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
-import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
+import io.github.clasicrando.kdbc.postgresql.copy.CopyOutCollector
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
-import io.github.clasicrando.kdbc.postgresql.copy.CopyType
+import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata
+import io.github.clasicrando.kdbc.postgresql.copy.PgBinaryCopyRow
+import io.github.clasicrando.kdbc.postgresql.copy.PgCsvCopyRow
+import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyHeader
+import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyTrailer
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
@@ -38,30 +45,38 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
-import kotlinx.atomicfu.locks.ReentrantLock
+import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
 import kotlinx.datetime.Clock
+import kotlinx.io.Sink
+import kotlinx.io.Source
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * [BlockingConnection] object for a Postgresql database. A new instance cannot be created but
- * rather the [Postgres.blockingConnection] method should be called to receive a new
- * [PgBlockingConnection] ready for user usage. This method will use connection pooling behind the
- * scenes as to reduce unnecessary TCP connection creation to the server when an application
- * creates and closes connections frequently.
+ * rather the [io.github.clasicrando.kdbc.postgresql.Postgres.blockingConnection] method should be
+ * called to receive a new [PgBlockingConnection] ready for user usage. This method will use
+ * connection pooling behind the scenes as to reduce unnecessary TCP connection creation to the
+ * server when an application creates and closes connections frequently.
  *
- * This type is thread-safe due to an internal [ReentrantLock] but that means that only 1 thread
+ * This type is thread-safe due to an internal [reentrantLock] but that means that only 1 thread
  * can execute operations against the connection at a given time. If another thread attempts to
  * execute a command, the thread will block until the lock is freed.
  */
 class PgBlockingConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
-    private val connectOptions: PgConnectOptions,
+    internal val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
     private val stream: PgBlockingStream,
-    /** Reference to the [BlockingConnectionPool] that owns this [PgBlockingConnection] */
+    /**
+     * Reference to the [io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool] that owns
+     * this [PgBlockingConnection]
+     */
     private val pool: PgBlockingConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
     @PublishedApi internal val typeCache: PgTypeCache = pool.typeCache,
@@ -70,7 +85,7 @@ class PgBlockingConnection internal constructor(
     override val inTransaction: Boolean get() = _inTransaction.value
 
     /** Lock keeping multiple threads from executing calls to the database */
-    private val lock = ReentrantLock(true)
+    private val lock = reentrantLock()
     /**
      * Cache of [PgPreparedStatement] where the key is the query that initiated the prepared
      * statement. This is not thread safe, therefore it should only be accessed after querying
@@ -348,7 +363,7 @@ class PgBlockingConnection internal constructor(
      * entry is added to the cache for the current [query].
      */
     private fun getOrCachePreparedStatement(query: String): PgPreparedStatement {
-        while (preparedStatements.size >= connectOptions.statementCacheCapacity.toInt()) {
+        while (preparedStatements.size >= connectOptions.statementCacheCapacity) {
             removeOldestPreparedStatement()
         }
         return preparedStatements.getOrPut(query) {
@@ -607,10 +622,12 @@ class PgBlockingConnection internal constructor(
         stream.waitForOrError<PgMessage.CopyInResponse>()
 
         var wasFailed = false
+        var failureReason: Exception? = null
         try {
             stream.writeManySized(data.map { PgMessage.CopyData(it) })
             stream.writeToStream(PgMessage.CopyDone)
         } catch (ex: Exception) {
+            failureReason = ex
             if (stream.isConnected) {
                 wasFailed = true
                 stream.writeToStream(PgMessage.CopyFail("Exception collecting data\nError:\n$ex"))
@@ -618,6 +635,7 @@ class PgBlockingConnection internal constructor(
         }
 
         val copyInResultCollector = CopyInResultCollector(this, wasFailed)
+        failureReason?.let { copyInResultCollector.errors.add(it) }
         stream.processMessageLoop(copyInResultCollector::processMessage)
             .onFailure(copyInResultCollector.errors::add)
         copyInResultCollector.transactionStatus?.let(::handleTransactionStatus)
@@ -645,11 +663,126 @@ class PgBlockingConnection internal constructor(
      * the message will be captured and thrown after completing the COPY process and the connection
      * with the server reverts to regular queries.
      */
-    fun copyIn(copyInStatement: CopyStatement, data: Sequence<ByteArray>): QueryResult {
+    fun copyIn(copyInStatement: CopyStatement.From, data: Sequence<ByteArray>): QueryResult {
         checkConnected()
 
-        val copyQuery = copyInStatement.toStatement(CopyType.From)
+        val copyQuery = copyInStatement.toQuery()
         return lock.withLock { copyInInternal(copyQuery, data) }
+    }
+
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * the contents of the [source]. The data within the [source] must be a text based (i.e.
+     * txt/csv file data).
+     *
+     * If the server sends an error message during or at completion of streaming the copy [source],
+     * the message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
+     */
+    fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
+        require(copyInStatement is CopyStatement.CopyText)
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = source.chunkedBytes()
+        )
+    }
+
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * the contents of the [inputStream]. The data within the [inputStream] must be a text based
+     * (i.e. txt/csv file data).
+     *
+     * If the server sends an error message during or at completion of streaming the copy
+     * [inputStream], the message will be captured and thrown after completing the COPY process and
+     * the connection with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
+     */
+    fun copyIn(copyInStatement: CopyStatement.From, inputStream: InputStream): QueryResult {
+        require(copyInStatement is CopyStatement.CopyText)
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = inputStream.chunkedBytes()
+        )
+    }
+
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * each [PgCsvCopyRow] supplied to the COPY sink by using the [PgCsvCopyRow.values] as the
+     * CSV row contents. By default, the [Any.toString] method is called to convert the data into
+     * CSV rows.
+     *
+     * If the server sends an error message during or at completion of streaming the copy data, the
+     * message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.TableFromCsv]
+     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
+     */
+    fun copyIn(
+        copyInStatement: CopyStatement.TableFromCsv,
+        data: Sequence<PgCsvCopyRow>,
+    ): QueryResult {
+        val outputStream = ByteArrayOutputStream()
+        val writer = csvWriter {
+            delimiter = copyInStatement.delimiter
+            quote {
+                char = copyInStatement.quote
+            }
+            lineTerminator = "\n"
+            nullCode = copyInStatement.nullString
+        }
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = data.chunked(size = 50) { chunk ->
+                writer.open(outputStream) { writeRows(chunk.asSequence().map { it.values }) }
+                val bytes = outputStream.toByteArray()
+                outputStream.reset()
+                bytes
+            }
+        )
+    }
+
+    /**
+     * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
+     * each [PgBinaryCopyRow] supplied to the COPY sink by calling [PgBinaryCopyRow.encodeValues]
+     * with a [PgEncodeBuffer] to encode the table rows as binary values.
+     *
+     * If the server sends an error message during or at completion of streaming the copy data, the
+     * message will be captured and thrown after completing the COPY process and the connection
+     * with the server reverts to regular queries.
+     *
+     * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.TableFromCsv]
+     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
+     */
+    fun copyIn(
+        copyInStatement: CopyStatement.TableFromBinary,
+        data: Sequence<PgBinaryCopyRow>,
+    ): QueryResult {
+        val schemaName = copyInStatement.schemaName.trim()
+        val metadata = createPreparedQuery(CopyTableMetadata.QUERY)
+            .bind(copyInStatement.tableName)
+            .bind(schemaName)
+            .fetchAll(CopyTableMetadata.Companion)
+        val fields = CopyTableMetadata.getFields(copyInStatement.format, metadata)
+        val buffer = PgEncodeBuffer(metadata = fields, typeCache = typeCache)
+        return copyIn(
+            copyInStatement = copyInStatement,
+            data = sequence<ByteArray> {
+                yield(pgBinaryCopyHeader)
+                val mappedSequence = data.chunked(size = 50).map { chunk ->
+                    for (row in chunk) {
+                        buffer.innerBuffer.writeShort(row.valueCount)
+                        row.encodeValues(buffer)
+                    }
+                    buffer.innerBuffer.copyToArray()
+                }
+                yieldAll(mappedSequence)
+                yield(pgBinaryCopyTrailer)
+            }
+        )
     }
 
     /**
@@ -665,6 +798,7 @@ class PgBlockingConnection internal constructor(
             message = STATEMENT_TEMPLATE
             payload = mapOf("query" to copyQuery)
         }
+
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyOutResponse>()
         return sequence {
@@ -695,12 +829,58 @@ class PgBlockingConnection internal constructor(
      * collect or iterate over the [Sequence] as soon as possible to not hold up the connection
      */
     fun copyOut(
-        copyOutStatement: CopyStatement,
-    ): Sequence<ByteArray> {
+        copyOutStatement: CopyStatement.To,
+    ): QueryResult {
         checkConnected()
 
-        val copyQuery = copyOutStatement.toStatement(CopyType.To)
-        return lock.withLock { copyOutInternal(copyQuery) }
+        val copyQuery = copyOutStatement.toQuery()
+        val fields = when (copyOutStatement) {
+            is CopyStatement.CopyTable -> {
+                val schemaName = copyOutStatement.schemaName.trim()
+                val metadata = createPreparedQuery(CopyTableMetadata.QUERY)
+                    .bind(copyOutStatement.tableName)
+                    .bind(schemaName)
+                    .fetchAll(CopyTableMetadata.Companion)
+                CopyTableMetadata.getFields(copyOutStatement.format, metadata)
+            }
+            is CopyStatement.CopyQuery -> {
+                val statement = prepareStatement(copyOutStatement.query, emptyList())
+                statement.resultMetadata
+            }
+            else -> error("Received an invalid `CopyStatement.To`. This should never happen")
+        }
+
+        return lock.withLock {
+            val sequence = copyOutInternal(copyQuery)
+            CopyOutCollector(copyOutStatement, fields)
+                .collectBlocking(this, sequence)
+        }
+    }
+
+    /**
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
+     * each row returned from the query to the [sink] supplied
+     */
+    fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
+        checkConnected()
+
+        val copyQuery = copyOutStatement.toQuery()
+        lock.withLock {
+            copyOutInternal(copyQuery).forEach(sink::write)
+        }
+    }
+
+    /**
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
+     * each row returned from the query to the [outputStream] supplied
+     */
+    fun copyOut(copyOutStatement: CopyStatement.To, outputStream: OutputStream) {
+        checkConnected()
+
+        val copyQuery = copyOutStatement.toQuery()
+        lock.withLock {
+            copyOutInternal(copyQuery).forEach(outputStream::write)
+        }
     }
 
     /**

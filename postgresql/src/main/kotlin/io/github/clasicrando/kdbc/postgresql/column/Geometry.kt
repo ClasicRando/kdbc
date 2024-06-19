@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.PgBox
@@ -48,7 +47,8 @@ object PointTypeDescription : PgTypeDescription<PgPoint>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1842)
      *
-     * @throws ColumnDecodeError if 2 [Double] values cannot be extracted from the text
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if 2 [Double] values cannot
+     * be extracted from the text
      */
     override fun decodeText(value: PgValue.Text): PgPoint {
         val coordinates = value.text
@@ -120,7 +120,8 @@ object LineTypeDescription : PgTypeDescription<PgLine>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1023)
      *
-     * @throws ColumnDecodeError if 3 [Double] values cannot be extracted from the text
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if 3 [Double] values cannot
+     * be extracted from the text
      */
     override fun decodeText(value: PgValue.Text): PgLine {
         val coordinates = value.text
@@ -196,8 +197,8 @@ object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2081)
      *
-     * @throws ColumnDecodeError if 2 points cannot be found or parsed from the components of
-     * the line segment
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if 2 points cannot be found
+     * or parsed from the components of the line segment
      */
     override fun decodeText(value: PgValue.Text): PgLineSegment {
         val pointsStr = value.text.substring(1, value.text.length - 1)
@@ -257,8 +258,8 @@ object BoxTypeDescription : PgTypeDescription<PgBox>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L455)
      *
-     * @throws ColumnDecodeError if 2 points cannot be found or parsed from the components of the
-     * box
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if 2 points cannot be found
+     * or parsed from the components of the box
      */
     override fun decodeText(value: PgValue.Text): PgBox {
         val points = extractPoints(value.text)
@@ -333,7 +334,8 @@ object PathTypeDescription : PgTypeDescription<PgPath>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1474)
      *
-     * @throws ColumnDecodeError if any mapping of text to [PgPoint] fails
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if any mapping of text to
+     * [PgPoint] fails
      */
     override fun decodeText(value: PgValue.Text): PgPath {
         val isClosed = value.text[0] == '('
@@ -393,7 +395,8 @@ object PolygonTypeDescription : PgTypeDescription<PgPolygon>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L3510)
      *
-     * @throws ColumnDecodeError if the number of points is zero
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the number of points is
+     * zero
      */
     override fun decodeBytes(value: PgValue.Binary): PgPolygon {
         val size = value.bytes.readInt()
@@ -411,8 +414,8 @@ object PolygonTypeDescription : PgTypeDescription<PgPolygon>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L3459)
      *
-     * @throws ColumnDecodeError if any mapping of text to [PgPoint] fails or the number of
-     * points is zero
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if any mapping of text to
+     * [PgPoint] fails or the number of points is zero
      */
     override fun decodeText(value: PgValue.Text): PgPolygon {
         val pointsStr = value.text.substring(1, value.text.length - 1)

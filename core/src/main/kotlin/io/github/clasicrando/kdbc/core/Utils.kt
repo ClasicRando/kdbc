@@ -3,6 +3,10 @@ package io.github.clasicrando.kdbc.core
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.io.Source
+import java.io.InputStream
 import kotlin.time.Duration
 
 const val zeroByte: Byte = 0
@@ -19,8 +23,8 @@ sealed interface Loop {
 }
 
 /**
- * [KLogger] extension method to log at the specified [level] using the event builder set up using
- * the [block] within the context of the [resource] provided. This makes each event include the
+ * [UniqueResourceId] extension method to log using the [logger] supplied at the specified [level]
+ * using the event builder set up using the [block]. This makes each event include the
  * [resourceId][UniqueResourceId.resourceId] in each event as a key value pair.
  */
 inline fun UniqueResourceId.logWithResource(
@@ -83,3 +87,47 @@ fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
 fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""
 
 fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration.ZERO
+
+/**
+ * Chunk a [Flow] of [T] into a [Flow] of [List] of [T]. This collects the original [Flow] and
+ * constructs a new cold flow where [List]s of the specified [size] are emitted as the flow items.
+ * Every item will be the [size] specified except for the final item which will be at most the
+ * [size] specified due to the dynamic size of the original [Flow].
+ */
+fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> {
+    return flow {
+        val buffer = ArrayList<T>(size)
+        this@chunked.collect {
+            buffer.add(it)
+            if (buffer.size == size) {
+                emit(buffer)
+                buffer.clear()
+            }
+        }
+        if (buffer.isNotEmpty()) {
+            emit(buffer)
+        }
+    }
+}
+
+private const val DEFAULT_BUFFER_SIZE = 2048
+
+fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> = generateSequence {
+    val bytes = ByteArray(size)
+    when (val bytesRead = this.readAtMostTo(bytes)) {
+        -1, 0 -> null
+        bytes.size -> bytes
+        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+    }
+}
+
+fun InputStream.chunkedBytes(
+    size: Int = DEFAULT_BUFFER_SIZE,
+): Sequence<ByteArray> = generateSequence {
+    val bytes = ByteArray(size)
+    when (val bytesRead = this.read(bytes)) {
+        -1, 0 -> null
+        bytes.size -> bytes
+        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+    }
+}

@@ -34,7 +34,7 @@ internal class QueryResultCollector(
     /** [MutableList] of any error found while processing the backend messages */
     val errors = mutableListOf<Throwable>()
     private var currentStatement: PgPreparedStatement? = null
-    private var resultSet = PgResultSet(typeCache, listOf())
+    private var resultSet = PgResultSet(typeCache, emptyList())
     private val statementResultBuilder = StatementResult.Builder()
     /** [TransactionStatus] that should be found  */
     var transactionStatus: TransactionStatus? = null

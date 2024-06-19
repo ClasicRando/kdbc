@@ -1,12 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
-import io.github.clasicrando.kdbc.core.connection.use
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
+import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
@@ -22,7 +22,7 @@ class TestCharType {
     fun `encode should accept Byte when querying postgresql`(value: Byte) = runBlocking {
         val query = "SELECT $1 char_col;"
 
-        PgConnectionHelper.defaultSuspendingConnection().use { conn ->
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val char = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<Byte>()
@@ -37,7 +37,7 @@ class TestCharType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT char_field FROM char_test ORDER BY char_field;"
 
-        PgConnectionHelper.defaultSuspendingConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
             val chars = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -65,13 +65,13 @@ class TestCharType {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultSuspendingConnection().use { connection ->
+            PgConnectionHelper.defaultAsyncConnection().use { connection ->
                 connection.sendSimpleQuery("""
                     DROP TABLE IF EXISTS public.char_test;
                     CREATE TABLE public.char_test(char_field "char" not null);
                     INSERT INTO public.char_test(char_field)
                     VALUES${bytes.joinToString(separator = ",") { "(CAST($it as \"char\"))" }};
-                """.trimIndent()).release()
+                """.trimIndent()).close()
             }
         }
     }
