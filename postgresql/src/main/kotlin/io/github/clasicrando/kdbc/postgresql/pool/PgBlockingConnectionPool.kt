@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.pool
 
 import io.github.clasicrando.kdbc.core.pool.AbstractDefaultBlockingConnectionPool
+import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
@@ -11,10 +12,11 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
  * [typeCache] and providing the custom [disposeConnection] method that simple calls
  * [PgBlockingConnection.dispose].
  */
-internal class PgBlockingConnectionPool(
-    connectOptions: PgConnectOptions
+class PgBlockingConnectionPool(
+    connectOptions: PgConnectOptions,
+    poolOptions: PoolOptions,
 ) : AbstractDefaultBlockingConnectionPool<PgBlockingConnection>(
-    poolOptions = connectOptions.poolOptions,
+    poolOptions = poolOptions,
     provider = PgBlockingConnectionProvider(connectOptions),
 ) {
     val typeCache = PgTypeCache()

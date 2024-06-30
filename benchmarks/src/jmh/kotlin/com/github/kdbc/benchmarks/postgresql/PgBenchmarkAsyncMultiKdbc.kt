@@ -4,8 +4,7 @@ import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.use
-import io.github.clasicrando.kdbc.postgresql.Postgres
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.postgresql.pool.PgAsyncConnectionPool
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -29,11 +28,14 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Benchmark)
 open class PgBenchmarkAsyncMultiKdbc {
     private var id = 0
-    private val options: PgConnectOptions = runBlocking { initializeConcurrentAsyncConnections() }
+    private val pool = PgAsyncConnectionPool(
+        connectOptions = kdbcConnectOptions,
+        poolOptions = poolOptions,
+    )
 
     @Setup
     open fun start(): Unit = runBlocking {
-        Postgres.asyncConnection(connectOptions = options).use {
+        pool.acquire().use {
             it.createQuery(setupQuery).executeClosing()
         }
     }
@@ -45,7 +47,7 @@ open class PgBenchmarkAsyncMultiKdbc {
     }
 
     private suspend fun executeQuery(stepId: Int): List<PostDataClass> {
-        return Postgres.asyncConnection(connectOptions = options).use { conn ->
+        return pool.acquire().use { conn ->
             conn.createPreparedQuery(kdbcQuerySingle)
                 .bind(stepId)
                 .fetchAll(PostDataClassRowParser)

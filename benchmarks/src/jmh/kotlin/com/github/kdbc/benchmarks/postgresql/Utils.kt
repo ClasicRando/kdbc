@@ -164,7 +164,7 @@ fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     return PoolingDataSource(connectionPool)
 }
 
-private val kdbcConnectOptions = PgConnectOptions(
+val kdbcConnectOptions = PgConnectOptions(
     host = "127.0.0.1",
     port = 5432,
     username = "postgres",
@@ -175,34 +175,17 @@ private val kdbcConnectOptions = PgConnectOptions(
     logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
 )
 
+val poolOptions = PoolOptions(
+    maxConnections = 10,
+    minConnections = 8,
+)
+
 suspend fun getKdbcAsyncConnection(): PgAsyncConnection {
     return Postgres.asyncConnection(connectOptions = kdbcConnectOptions)
 }
 
-suspend fun initializeConcurrentAsyncConnections(): PgConnectOptions {
-    val options = kdbcConnectOptions.copy(
-        poolOptions = PoolOptions(
-            maxConnections = 10,
-            minConnections = 8,
-        )
-    )
-    Postgres.asyncConnection(connectOptions = options).close()
-    return options
-}
-
 fun getKdbcBlockingConnection(): PgBlockingConnection {
     return Postgres.blockingConnection(connectOptions = kdbcConnectOptions)
-}
-
-fun initializeThreadPoolBlockingConnections(): PgConnectOptions {
-    val options = kdbcConnectOptions.copy(
-        poolOptions = PoolOptions(
-            maxConnections = 10,
-            minConnections = 8,
-        )
-    )
-    Postgres.blockingConnection(connectOptions = options).close()
-    return options
 }
 
 const val concurrencyLimit = 100

@@ -3,8 +3,7 @@ package com.github.kdbc.benchmarks.postgresql
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
-import io.github.clasicrando.kdbc.postgresql.Postgres
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingConnectionPool
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -28,13 +27,16 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Benchmark)
 open class PgBenchmarkBlockingMultiKdbc {
     private var id = 0
-    private val options: PgConnectOptions =  initializeThreadPoolBlockingConnections()
+    private val pool = PgBlockingConnectionPool(
+        connectOptions = kdbcConnectOptions,
+        poolOptions = poolOptions,
+    )
     private val executor: Executor = Executors.newWorkStealingPool()
     private val completionService = ExecutorCompletionService<Unit>(executor)
 
     @Setup
     open fun start() {
-        Postgres.blockingConnection(connectOptions = options).use {
+        pool.acquire().use {
             it.createQuery(setupQuery)
                 .executeClosing()
         }
@@ -47,7 +49,7 @@ open class PgBenchmarkBlockingMultiKdbc {
     }
 
     private fun executeQuery(stepId: Int): List<PostDataClass> {
-        return Postgres.blockingConnection(connectOptions = options).use { conn ->
+        return pool.acquire().use { conn ->
             conn.createPreparedQuery(kdbcQuerySingle)
                 .bind(stepId)
                 .fetchAll(PostDataClassRowParser)

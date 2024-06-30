@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.connection
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.isZeroOrInfinite
-import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.CertificateInput
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.serialization.Serializable
@@ -88,14 +87,6 @@ data class PgConnectOptions(
      * response with an indicator that the current transaction failed. Default is true.
      */
     val autoRollbackOnFailedTransaction: Boolean = true,
-    /**
-     * [PoolOptions] for the database connection. Used to decide how connections to the database
-     * using these options should pool connections behind the scenes. If not specified then the
-     * default values for a [PoolOptions] is used.
-     *
-     * @see PoolOptions
-     */
-    val poolOptions: PoolOptions = PoolOptions(),
 ) {
     /** Connection properties as they are sent to the database upon connection initialization */
     val properties: List<Pair<String, String>> = listOf(
@@ -179,8 +170,6 @@ data class PgConnectOptions(
             append(sslMode)
             append(",currentSchema=")
             append(currentSchema)
-            append(",poolOptions=")
-            append(poolOptions)
             append(")")
         }
     }

@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.pool
 
 import io.github.clasicrando.kdbc.core.pool.BaseBlockingPoolManager
 import io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool
+import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 
@@ -15,6 +16,6 @@ internal object PgBlockingPoolManager
     override fun createPool(
         options: PgConnectOptions,
     ): BlockingConnectionPool<PgBlockingConnection> {
-        return PgBlockingConnectionPool(options)
+        return PgBlockingConnectionPool(connectOptions = options, poolOptions = PoolOptions())
     }
 }
