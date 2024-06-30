@@ -377,6 +377,7 @@ class PgTypeCache {
             where
                 t.oid = $1
                 and t.typcategory = 'C'
+                and a.attnum > 0
             """.trimIndent()
 
         /** Query to fetch the OID of the array type with an inner type matching the OID supplied */
