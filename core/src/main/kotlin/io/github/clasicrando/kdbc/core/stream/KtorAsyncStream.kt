@@ -3,9 +3,9 @@ package io.github.clasicrando.kdbc.core.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.github.oshai.kotlinlogging.Level
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.Connection
 import io.ktor.network.sockets.Socket
@@ -50,14 +50,14 @@ class KtorAsyncStream(
             writeChannel = connection.output
             readChannel = connection.input
         } catch (ex: Exception) {
-            logWithResource(logger, Level.TRACE) {
+            logWithResource(logger, Kdbc.detailedLogging) {
                 message = "Failed to connect to {address}"
                 payload = mapOf("address" to address)
                 cause = ex
             }
             throw StreamConnectError(address, ex)
         }
-        logWithResource(logger, Level.TRACE) {
+        logWithResource(logger, Kdbc.detailedLogging) {
             message = "Successfully connected to {address}"
             payload = mapOf("address" to address)
         }
@@ -78,7 +78,7 @@ class KtorAsyncStream(
             } catch (ex: TimeoutCancellationException) {
                 throw ex
             } catch (ex: Exception) {
-                logWithResource(logger, Level.TRACE) {
+                logWithResource(logger, Kdbc.detailedLogging) {
                     message = "Failed to read from socket"
                     cause = ex
                 }
@@ -86,12 +86,12 @@ class KtorAsyncStream(
             }
 
             if (bytesRead == -1) {
-                logWithResource(logger, Level.TRACE) {
+                logWithResource(logger, Kdbc.detailedLogging) {
                     message = "Unexpectedly reached end of stream"
                 }
                 throw EndOfStream()
             }
-            logWithResource(logger, Level.TRACE) {
+            logWithResource(logger, Kdbc.detailedLogging) {
                 message = "Received {count} bytes from {address}"
                 payload = mapOf("count" to bytesRead, "address" to address)
             }

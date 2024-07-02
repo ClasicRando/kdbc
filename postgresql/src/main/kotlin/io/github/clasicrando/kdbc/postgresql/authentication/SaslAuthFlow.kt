@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.authentication
 import com.ongres.scram.client.ScramClient
 import com.ongres.scram.client.ScramSession
 import com.ongres.scram.common.stringprep.StringPreparations
+import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
 import io.github.clasicrando.kdbc.postgresql.stream.PgAsyncStream
@@ -15,7 +16,7 @@ import io.github.oshai.kotlinlogging.Level
 private suspend fun PgAsyncStream.sendScramInit(
     authMechanisms: Array<String>,
 ): ScramSession {
-    log(Level.TRACE) { message = "Starting Scram Client" }
+    log(Kdbc.detailedLogging) { message = "Starting Scram Client" }
     val scramClient = ScramClient
         .channelBinding(ScramClient.ChannelBinding.NO)
         .stringPreparation(StringPreparations.NO_PREPARATION)
@@ -26,7 +27,7 @@ private suspend fun PgAsyncStream.sendScramInit(
         scramClient.scramMechanism.name,
         session.clientFirstMessage(),
     )
-    log(Level.TRACE) { message = "Sending initial SASL Response" }
+    log(Kdbc.detailedLogging) { message = "Sending initial SASL Response" }
     writeToStream(initialResponse)
     return session
 }
@@ -47,13 +48,13 @@ private suspend fun PgAsyncStream.receiveContinueMessage(): Authentication.SaslC
     }
     val continueAuthMessage = continueMessage.authentication
     if (continueAuthMessage !is Authentication.SaslContinue) {
-        this.log(Level.TRACE) {
+        this.log(Kdbc.detailedLogging) {
             message = "Expected a SASL Continue message but got {authMessage}"
             payload = mapOf("authMessage" to continueAuthMessage)
         }
         throw PgAuthenticationError("Expected a SaslContinue message but got $continueAuthMessage")
     }
-    this.log(Level.TRACE) {
+    this.log(Kdbc.detailedLogging) {
         message = "Received SASL Continue message"
     }
     return continueAuthMessage
@@ -71,7 +72,7 @@ private suspend fun PgAsyncStream.sendClientFinalMessage(
     val serverFirstProcessor = session.receiveServerFirstMessage(continueAuthMessage.saslData)
     val clientFinalProcessor = serverFirstProcessor.clientFinalProcessor(password)
     val responseMessage = PgMessage.SaslResponse(clientFinalProcessor.clientFinalMessage())
-    this.log(Level.TRACE) { message = "Sending SASL Response" }
+    this.log(Kdbc.detailedLogging) { message = "Sending SASL Response" }
     writeToStream(responseMessage)
     return clientFinalProcessor
 }
@@ -160,7 +161,7 @@ internal suspend fun PgAsyncStream.saslAuthFlow(auth: Authentication.Sasl) {
     } catch (ex: PgAuthenticationError) {
         throw ex
     } catch (ex: Throwable) {
-        this.log(Level.TRACE) {
+        this.log(Kdbc.detailedLogging) {
             message = "SASL auth flow error"
             cause = ex
         }
@@ -178,7 +179,7 @@ internal suspend fun PgAsyncStream.saslAuthFlow(auth: Authentication.Sasl) {
 private fun PgBlockingStream.sendScramInit(
     authMechanisms: Array<String>,
 ): ScramSession {
-    log(Level.TRACE) { message = "Starting Scram Client" }
+    log(Kdbc.detailedLogging) { message = "Starting Scram Client" }
     val scramClient = ScramClient
         .channelBinding(ScramClient.ChannelBinding.NO)
         .stringPreparation(StringPreparations.NO_PREPARATION)
@@ -189,7 +190,7 @@ private fun PgBlockingStream.sendScramInit(
         scramClient.scramMechanism.name,
         session.clientFirstMessage(),
     )
-    log(Level.TRACE) { message = "Sending initial SASL Response" }
+    log(Kdbc.detailedLogging) { message = "Sending initial SASL Response" }
     writeToStream(initialResponse)
     return session
 }
@@ -210,13 +211,13 @@ private fun PgBlockingStream.receiveContinueMessage(): Authentication.SaslContin
     }
     val continueAuthMessage = continueMessage.authentication
     if (continueAuthMessage !is Authentication.SaslContinue) {
-        this.log(Level.TRACE) {
+        this.log(Kdbc.detailedLogging) {
             message = "Expected a SASL Continue message but got {authMessage}"
             payload = mapOf("authMessage" to continueAuthMessage)
         }
         throw PgAuthenticationError("Expected a SaslContinue message but got $continueAuthMessage")
     }
-    this.log(Level.TRACE) {
+    this.log(Kdbc.detailedLogging) {
         message = "Received SASL Continue message"
     }
     return continueAuthMessage
@@ -234,7 +235,7 @@ private fun PgBlockingStream.sendClientFinalMessage(
     val serverFirstProcessor = session.receiveServerFirstMessage(continueAuthMessage.saslData)
     val clientFinalProcessor = serverFirstProcessor.clientFinalProcessor(password)
     val responseMessage = PgMessage.SaslResponse(clientFinalProcessor.clientFinalMessage())
-    this.log(Level.TRACE) { message = "Sending SASL Response" }
+    this.log(Kdbc.detailedLogging) { message = "Sending SASL Response" }
     writeToStream(responseMessage)
     return clientFinalProcessor
 }
@@ -323,7 +324,7 @@ internal fun PgBlockingStream.saslAuthFlow(auth: Authentication.Sasl) {
     } catch (ex: PgAuthenticationError) {
         throw ex
     } catch (ex: Throwable) {
-        this.log(Level.TRACE) {
+        this.log(Kdbc.detailedLogging) {
             message = "SASL auth flow error"
             cause = ex
         }

@@ -4,6 +4,7 @@ import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.chunkedBytes
+import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
@@ -125,7 +126,7 @@ class PgBlockingConnection internal constructor(
                 try {
                     rollback()
                 } catch (ex2: Throwable) {
-                    log(Level.ERROR) {
+                    log(Level.WARN) {
                         message = "Error while trying to rollback. BEGIN called while in transaction"
                         cause = ex2
                     }
@@ -140,7 +141,7 @@ class PgBlockingConnection internal constructor(
             sendSimpleQuery("COMMIT;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
-                log(Level.ERROR) {
+                log(Level.WARN) {
                     this.message = "Attempted to COMMIT a connection not within a transaction"
                 }
             }
@@ -152,7 +153,7 @@ class PgBlockingConnection internal constructor(
             sendSimpleQuery("ROLLBACK;")
         } finally {
             if (!_inTransaction.getAndSet(false)) {
-                log(Level.ERROR) {
+                log(Level.WARN) {
                     this.message = "Attempted to ROLLBACK a connection not within a transaction"
                 }
             }
@@ -164,7 +165,7 @@ class PgBlockingConnection internal constructor(
      * operation
      */
     private fun logUnexpectedMessage(message: PgMessage): Loop {
-        log(Level.TRACE) {
+        log(Kdbc.detailedLogging) {
             this.message = "Ignoring {message} since it's not an error or the desired type"
             payload = mapOf("message" to message)
         }
@@ -182,7 +183,7 @@ class PgBlockingConnection internal constructor(
         if (transactionStatus == TransactionStatus.FailedTransaction
             && connectOptions.autoRollbackOnFailedTransaction)
         {
-            log(Level.TRACE) {
+            log(Kdbc.detailedLogging) {
                 this.message = "Server reported failed transaction. Issuing rollback command"
             }
             try {
@@ -231,7 +232,7 @@ class PgBlockingConnection internal constructor(
 
         val error = queryResultCollector.errors.reduceToSingleOrNull()
             ?: return queryResultCollector.buildStatementResult()
-        log(Level.ERROR) {
+        log(Kdbc.detailedLogging) {
             message = "Error during single query execution"
             cause = error
         }
@@ -260,7 +261,7 @@ class PgBlockingConnection internal constructor(
 
         val error = queryResultCollector.errors.reduceToSingleOrNull()
             ?: return queryResultCollector.buildStatementResult()
-        log(Level.ERROR) {
+        log(Kdbc.detailedLogging) {
             message = "Error during single query execution"
             cause = error
         }
@@ -331,7 +332,7 @@ class PgBlockingConnection internal constructor(
         prepareRequestCollector.transactionStatus?.let(::handleTransactionStatus)
 
         val error = prepareRequestCollector.errors.reduceToSingleOrNull() ?: return
-        log(Level.ERROR) {
+        log(Kdbc.detailedLogging) {
             message = "Error during prepared statement creation"
             cause = error
         }
@@ -503,7 +504,7 @@ class PgBlockingConnection internal constructor(
         try {
             if (stream.isConnected) {
                 stream.writeToStream(PgMessage.Terminate)
-                log(Level.TRACE) {
+                log(Kdbc.detailedLogging) {
                     this.message = "Successfully sent termination message"
                 }
             }

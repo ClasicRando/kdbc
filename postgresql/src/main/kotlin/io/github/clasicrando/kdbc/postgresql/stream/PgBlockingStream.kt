@@ -5,6 +5,7 @@ import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.SizedMessage
@@ -168,7 +169,7 @@ internal class PgBlockingStream(
                 is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
                 is T -> return message
                 else -> {
-                    log(Level.TRACE) {
+                    log(Kdbc.detailedLogging) {
                         this.message =
                             "Ignoring {message} since it's not an error or the desired type"
                         payload = mapOf("message" to message)
@@ -183,7 +184,7 @@ internal class PgBlockingStream(
      * Event handler method for [PgMessage.NoticeResponse] messages. Only logs the message details
      */
     private fun onNotice(message: PgMessage.NoticeResponse) {
-        log(Level.TRACE) {
+        log(Kdbc.detailedLogging) {
             this.message = "Notice, message -> {noticeResponse}"
             payload = mapOf("noticeResponse" to message)
         }
@@ -195,7 +196,7 @@ internal class PgBlockingStream(
      */
     private fun onNotification(message: PgMessage.NotificationResponse) {
         val notification = PgNotification(message.channelName, message.payload)
-        log(Level.TRACE) {
+        log(Kdbc.detailedLogging) {
             this.message = "Notification, message -> {notification}"
             payload = mapOf("notification" to message)
         }
@@ -207,7 +208,7 @@ internal class PgBlockingStream(
      * into [backendKeyData].
      */
     private fun onBackendKeyData(message: PgMessage.BackendKeyData) {
-        log(Level.TRACE) {
+        log(Kdbc.detailedLogging) {
             this.message = "Got backend key data. Process ID: {processId}, Secret Key: ****"
             payload = mapOf("payloadId" to message.processId)
         }
@@ -218,7 +219,7 @@ internal class PgBlockingStream(
      * Event handler method for [PgMessage.ParameterStatus] messages. Only logs the message details
      */
     private fun onParameterStatus(message: PgMessage.ParameterStatus) {
-        log(Level.TRACE) {
+        log(Kdbc.detailedLogging) {
             this.message = "Parameter Status, {status}"
             payload = mapOf("status" to message)
         }
@@ -229,7 +230,7 @@ internal class PgBlockingStream(
      * message details.
      */
     private fun onNegotiateProtocolVersion(message: PgMessage.NegotiateProtocolVersion) {
-        log(Level.TRACE) {
+        log(Kdbc.detailedLogging) {
             this.message = "Server does not support protocol version 3.0. {message}"
             payload = mapOf("message" to message)
         }
@@ -338,7 +339,7 @@ internal class PgBlockingStream(
         }
         when (val auth = message.authentication) {
             Authentication.Ok -> {
-                log(Level.TRACE) {
+                log(Kdbc.detailedLogging) {
                     this.message = "Successfully logged in to database"
                 }
             }

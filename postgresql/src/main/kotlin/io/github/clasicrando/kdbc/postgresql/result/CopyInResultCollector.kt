@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.result
 
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.UniqueResourceId
+import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
@@ -65,7 +66,7 @@ internal class CopyInResultCollector(
                     return Loop.Continue
                 }
                 val error = GeneralPostgresError(message)
-                resource.logWithResource(logger, Level.ERROR) {
+                resource.logWithResource(logger, Kdbc.detailedLogging) {
                     this.message = "Error during copy in operation"
                     cause = error
                 }
@@ -81,7 +82,7 @@ internal class CopyInResultCollector(
                 Loop.Break
             }
             else -> {
-                resource.logWithResource(logger, Level.TRACE) {
+                resource.logWithResource(logger, Kdbc.detailedLogging) {
                     this.message = "Ignoring {message} since it's not an error or the desired type"
                     payload = mapOf("message" to message)
                 }

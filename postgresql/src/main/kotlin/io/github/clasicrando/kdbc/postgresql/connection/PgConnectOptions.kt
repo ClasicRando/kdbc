@@ -134,13 +134,13 @@ data class PgConnectOptions(
 
     /**
      * Return a shallow copy of the current [PgConnectOptions] with both log statement levels set
-     * to [Level.TRACE] and the slow statement duration set to [Duration.INFINITE].
+     * to [Level.OFF] and the slow statement duration set to [Duration.INFINITE].
      */
     fun disableStatementLogging(): PgConnectOptions {
         return copy(
             logSettings = LogSettings(
-                statementLevel = Level.TRACE,
-                slowStatementsLevel = Level.TRACE,
+                statementLevel = Level.OFF,
+                slowStatementsLevel = Level.OFF,
                 slowStatementDuration = Duration.INFINITE
             )
         )
