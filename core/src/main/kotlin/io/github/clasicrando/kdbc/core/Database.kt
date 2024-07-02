@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.core
 
-import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.connection.AsyncConnection
+import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 
 /** Main entry point for connection acquisition for a specific database vendor */
 interface Database<B : BlockingConnection, C: AsyncConnection, O : Any> {

@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.postgresql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
-import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 

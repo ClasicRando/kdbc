@@ -5,8 +5,8 @@ import com.ongres.scram.client.ScramSession
 import com.ongres.scram.common.stringprep.StringPreparations
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
 import io.github.clasicrando.kdbc.postgresql.stream.PgAsyncStream
+import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
 import io.github.oshai.kotlinlogging.Level
 
 /**

@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.pool
 import io.github.clasicrando.kdbc.core.pool.AbstractDefaultAsyncConnectionPool
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.ktor.network.selector.SelectorManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

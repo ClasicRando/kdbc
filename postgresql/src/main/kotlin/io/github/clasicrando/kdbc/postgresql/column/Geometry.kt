@@ -473,7 +473,8 @@ internal object CircleTypeDescription : PgTypeDescription<PgCircle>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4681)
      *
-     * @throws ColumnDecodeError if the circle section cannot be found, the parsing to
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the circle section
+     * cannot be found, the parsing to
      * [PgPoint] fails or the radius component is not a [Double]
      */
     override fun decodeText(value: PgValue.Text): PgCircle {

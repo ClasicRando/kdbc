@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.postgresql.authentication
 
 import io.github.clasicrando.kdbc.postgresql.PasswordHelper
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
 import io.github.clasicrando.kdbc.postgresql.stream.PgAsyncStream
+import io.github.clasicrando.kdbc.postgresql.stream.PgBlockingStream
 import io.github.oshai.kotlinlogging.Level
 
 /** Create a new simple password message, hashing the password if a [salt] provided */

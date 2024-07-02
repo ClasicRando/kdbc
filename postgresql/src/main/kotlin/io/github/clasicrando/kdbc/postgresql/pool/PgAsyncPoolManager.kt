@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.pool
 
-import io.github.clasicrando.kdbc.core.pool.BaseAsyncPoolManager
 import io.github.clasicrando.kdbc.core.pool.AsyncConnectionPool
+import io.github.clasicrando.kdbc.core.pool.BaseAsyncPoolManager
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 
 /**
  * Postgresql specific implementation for a [BaseAsyncPoolManager] that keeps track of

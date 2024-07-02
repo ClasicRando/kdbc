@@ -1,6 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.postgresql.column.PgValue.Binary
+import io.github.clasicrando.kdbc.postgresql.column.PgValue.Text
 
 /**
  * Values sent from the database are either in a [Text] or [Binary] format (format codes are Text =

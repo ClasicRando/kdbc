@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql
 
 import io.github.clasicrando.kdbc.core.Database
+import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
-import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingPoolManager
 import io.github.clasicrando.kdbc.postgresql.pool.PgAsyncPoolManager
+import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingPoolManager
 
 /** [Database] implementation for Postgresql */
 object Postgres : Database<PgBlockingConnection, PgAsyncConnection, PgConnectOptions> {

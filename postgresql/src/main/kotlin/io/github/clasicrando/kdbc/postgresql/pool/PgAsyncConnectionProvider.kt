@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.pool
 import io.github.clasicrando.kdbc.core.pool.AsyncConnectionPool
 import io.github.clasicrando.kdbc.core.pool.AsyncConnectionProvider
 import io.github.clasicrando.kdbc.core.stream.KtorAsyncStream
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.stream.PgAsyncStream
 import io.ktor.network.sockets.InetSocketAddress
 
