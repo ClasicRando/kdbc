@@ -1,12 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
-import io.github.clasicrando.kdbc.core.IOUtils
 import io.github.clasicrando.kdbc.core.connection.useCatching
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
+import io.github.clasicrando.kdbc.postgresql.IOUtils
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import kotlinx.io.buffered

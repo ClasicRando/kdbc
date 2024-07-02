@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
-import io.github.clasicrando.kdbc.core.IOUtils
+import io.github.clasicrando.kdbc.postgresql.IOUtils
 import kotlinx.io.asOutputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
