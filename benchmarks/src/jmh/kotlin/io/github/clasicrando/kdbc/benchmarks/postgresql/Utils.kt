@@ -1,13 +1,13 @@
-package com.github.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
-import io.github.clasicrando.kdbc.core.IOUtils
+import io.github.clasicrando.kdbc.benchmarks.IOUtils
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
+import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.datetime.Clock

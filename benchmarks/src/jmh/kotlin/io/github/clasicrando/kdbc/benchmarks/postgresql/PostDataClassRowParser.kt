@@ -1,4 +1,4 @@
-package com.github.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.result.DataRow

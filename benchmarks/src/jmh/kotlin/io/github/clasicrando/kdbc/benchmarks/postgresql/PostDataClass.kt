@@ -1,4 +1,4 @@
-package com.github.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import kotlinx.datetime.Instant
 

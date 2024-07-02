@@ -1,9 +1,13 @@
-package com.github.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
-import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingConnectionPool
+import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.postgresql.pool.PgAsyncConnectionPool
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -14,9 +18,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.Executor
-import java.util.concurrent.ExecutorCompletionService
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -25,20 +26,17 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class PgBenchmarkBlockingMultiKdbc {
+open class PgBenchmarkAsyncMultiKdbc {
     private var id = 0
-    private val pool = PgBlockingConnectionPool(
+    private val pool = PgAsyncConnectionPool(
         connectOptions = kdbcConnectOptions,
         poolOptions = poolOptions,
     )
-    private val executor: Executor = Executors.newWorkStealingPool()
-    private val completionService = ExecutorCompletionService<Unit>(executor)
 
     @Setup
-    open fun start() {
+    open fun start(): Unit = runBlocking {
         pool.acquire().use {
-            it.createQuery(setupQuery)
-                .executeClosing()
+            it.createQuery(setupQuery).executeClosing()
         }
     }
 
@@ -48,7 +46,7 @@ open class PgBenchmarkBlockingMultiKdbc {
         return id
     }
 
-    private fun executeQuery(stepId: Int): List<PostDataClass> {
+    private suspend fun executeQuery(stepId: Int): List<PostDataClass> {
         return pool.acquire().use { conn ->
             conn.createPreparedQuery(kdbcQuerySingle)
                 .bind(stepId)
@@ -57,17 +55,11 @@ open class PgBenchmarkBlockingMultiKdbc {
     }
 
     @Benchmark
-    open fun querySingleRow() {
-        val taskCount = concurrencyLimit
-        repeat(taskCount) {
+    open fun querySingleRow() = runBlocking {
+        val results = List(concurrencyLimit) {
             val stepId = step()
-            completionService.submit { executeQuery(stepId) }
+            async { executeQuery(stepId) }
         }
-        var received = 0
-        while (received < taskCount) {
-            val future = completionService.take()
-            future.get()
-            received++
-        }
+        results.awaitAll()
     }
 }

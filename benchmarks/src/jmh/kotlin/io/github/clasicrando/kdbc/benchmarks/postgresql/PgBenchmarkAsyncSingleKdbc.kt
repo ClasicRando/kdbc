@@ -1,9 +1,10 @@
-package com.github.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.postgresql
 
-import io.github.clasicrando.kdbc.core.connection.BlockingConnection
+import io.github.clasicrando.kdbc.core.connection.AsyncConnection
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
+import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -23,14 +24,13 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class PgBenchmarkBlockingSingleKdbc {
+open class PgBenchmarkAsyncSingleKdbc {
     private var id = 0
-    private val connection: BlockingConnection = getKdbcBlockingConnection()
+    private val connection: AsyncConnection = runBlocking { getKdbcAsyncConnection() }
 
     @Setup
-    open fun start() {
-        connection.createQuery(setupQuery)
-            .executeClosing()
+    open fun start(): Unit = runBlocking {
+        connection.createQuery(setupQuery).executeClosing()
     }
 
     private fun singleStep(): Int {
@@ -45,7 +45,7 @@ open class PgBenchmarkBlockingSingleKdbc {
     }
 
     @Benchmark
-    open fun querySingleRow() {
+    open fun querySingleRow(): Unit = runBlocking {
         singleStep()
         connection.createPreparedQuery(kdbcQuerySingle)
             .bind(id)
@@ -53,7 +53,7 @@ open class PgBenchmarkBlockingSingleKdbc {
     }
 
     @Benchmark
-    open fun queryMultipleRows() {
+    open fun queryMultipleRows(): Unit = runBlocking {
         multiStep()
         connection.createPreparedQuery(kdbcQuery)
             .bind(id)
@@ -63,11 +63,13 @@ open class PgBenchmarkBlockingSingleKdbc {
 
     @TearDown
     fun destroy() {
-        if (connection.isConnected) {
-            try {
-                connection.close()
-            } catch (ex: Throwable) {
-                ex.printStackTrace()
+        runBlocking {
+            if (connection.isConnected) {
+                try {
+                    connection.close()
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                }
             }
         }
     }
