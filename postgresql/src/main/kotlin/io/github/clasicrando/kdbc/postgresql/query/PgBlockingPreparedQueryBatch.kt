@@ -42,7 +42,7 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
  *
  * @see PgBlockingConnection.pipelineQueries
  */
-class PgBlockingPreparedQueryBatch(
+internal class PgBlockingPreparedQueryBatch(
     connection: PgBlockingConnection,
 ) : BaseBlockingPreparedQueryBatch<PgBlockingConnection>(connection) {
     /** Sync all parameter provided to the [PgBlockingConnection.pipelineQueries] method */

@@ -8,7 +8,7 @@ import kotlin.reflect.typeOf
  * Implementation of a [PgTypeDescription] for [ByteArray]. This maps to the `bytea` type in a
  * postgresql database
  */
-object ByteaTypeDescription : PgTypeDescription<ByteArray>(
+internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
     pgType = PgType.Bytea,
     kType = typeOf<ByteArray>(),
 ) {
@@ -49,7 +49,7 @@ object ByteaTypeDescription : PgTypeDescription<ByteArray>(
  * Implementation of an [ArrayTypeDescription] for [ByteArray]. This maps to the `bytea[]` type in a
  * postgresql database.
  */
-object ByteaArrayTypeDescription : ArrayTypeDescription<ByteArray>(
+internal object ByteaArrayTypeDescription : ArrayTypeDescription<ByteArray>(
     pgType = PgType.ByteaArray,
     innerType = ByteaTypeDescription,
 )

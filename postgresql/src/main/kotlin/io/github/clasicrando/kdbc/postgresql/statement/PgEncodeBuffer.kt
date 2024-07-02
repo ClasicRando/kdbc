@@ -116,7 +116,7 @@ import java.math.BigDecimal
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
-class PgEncodeBuffer(
+class PgEncodeBuffer internal constructor(
     private val metadata: List<PgColumnDescription>,
     private val typeCache: PgTypeCache,
 ) : AutoCloseable {

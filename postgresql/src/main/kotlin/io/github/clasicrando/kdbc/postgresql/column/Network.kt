@@ -10,7 +10,7 @@ private const val PGSQL_AF_INET: Byte = 2
 private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()
 
 /** Implementation of a [PgTypeDescription] for the [PgInet] type */
-abstract class NetworkTypeDescription(
+internal abstract class NetworkTypeDescription(
     pgType: PgType,
 ) : PgTypeDescription<PgInet>(pgType = pgType, kType = typeOf<PgInet>()) {
     /**
@@ -118,19 +118,19 @@ abstract class NetworkTypeDescription(
  * Implementation of a [PgTypeDescription] for the [PgInet] type. This maps to the `inet` type in a
  * postgresql database.
  */
-object InetTypeDescription : NetworkTypeDescription(pgType = PgType.Inet)
+internal object InetTypeDescription : NetworkTypeDescription(pgType = PgType.Inet)
 
 /**
  * Implementation of a [PgTypeDescription] for the [PgInet] type. This maps to the `cidr` type in a
  * postgresql database.
  */
-object CidrTypeDescription : NetworkTypeDescription(pgType = PgType.Cidr)
+internal object CidrTypeDescription : NetworkTypeDescription(pgType = PgType.Cidr)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [PgInet]. This maps to the `inet[]` type in a
  * postgresql database.
  */
-object InetArrayTypeDescription : ArrayTypeDescription<PgInet>(
+internal object InetArrayTypeDescription : ArrayTypeDescription<PgInet>(
     pgType = PgType.InetArray,
     innerType = InetTypeDescription,
 )
@@ -139,7 +139,7 @@ object InetArrayTypeDescription : ArrayTypeDescription<PgInet>(
  * Implementation of an [ArrayTypeDescription] for [PgInet]. This maps to the `cidr[]` type in a
  * postgresql database.
  */
-object CidrArrayTypeDescription : ArrayTypeDescription<PgInet>(
+internal object CidrArrayTypeDescription : ArrayTypeDescription<PgInet>(
     pgType = PgType.CidrArray,
     innerType = CidrTypeDescription,
 )

@@ -7,7 +7,7 @@ import io.github.clasicrando.kdbc.core.column.ColumnMetadata
  * provided from row description messages sent from the postgres backend. Other fields as also
  * included that related to postgres specific properties.
  */
-data class PgColumnDescription(
+internal data class PgColumnDescription(
     override val fieldName: String,
     /** OID of the table this field. If the field is not part of a table, the value is 0. */
     val tableOid: Int,

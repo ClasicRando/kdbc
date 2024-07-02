@@ -17,7 +17,7 @@ import kotlin.reflect.full.primaryConstructor
  * Implementation of a [PgTypeDescription] for composite types. This requires the composite type's
  * name, the column mapping and a strategy to decode the composite's attributes from a [PgDataRow].
  */
-abstract class BaseCompositeTypeDescription<T : Any>(
+internal abstract class BaseCompositeTypeDescription<T : Any>(
     typeOid: Int,
     protected val columnMapping: List<PgColumnDescription>,
     protected val customTypeDescriptionCache: PgTypeCache,
@@ -161,7 +161,7 @@ abstract class BaseCompositeTypeDescription<T : Any>(
  * parameters matches the supplied columns mapping. Other requirements (such as the composite
  * type's attributes matching the expected data class properties) are up to the class definer.
  */
-class ReflectionCompositeTypeDescription<T : Any>(
+internal class ReflectionCompositeTypeDescription<T : Any>(
     typeOid: Int,
     columnMapping: List<PgColumnDescription>,
     customTypeDescriptionCache: PgTypeCache,
@@ -199,7 +199,7 @@ class ReflectionCompositeTypeDescription<T : Any>(
 }
 
 /** Implementation of an [ArrayTypeDescription] for composite types */
-class CompositeArrayTypeDescription<T : Any>(
+internal class CompositeArrayTypeDescription<T : Any>(
     pgType: PgType,
     innerType: BaseCompositeTypeDescription<T>,
 ) : ArrayTypeDescription<T>(pgType = pgType, innerType = innerType)

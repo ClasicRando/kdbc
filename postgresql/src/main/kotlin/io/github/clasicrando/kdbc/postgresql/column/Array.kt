@@ -4,7 +4,6 @@ import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.ArrayLiteralParser
-import kotlin.reflect.KType
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.withNullability
@@ -24,7 +23,7 @@ private val dummyFieldDescription = PgColumnDescription(
  * Implementation of a [PgTypeDescription] for array types. Data supplied is the [PgType] of the
  * array type and the [PgTypeDescription] of the array items.
  */
-abstract class ArrayTypeDescription<T : Any>(
+internal abstract class ArrayTypeDescription<T : Any>(
     pgType: PgType,
     private val innerType: PgTypeDescription<T>,
 ) : PgTypeDescription<List<T?>>(

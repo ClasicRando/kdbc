@@ -20,7 +20,7 @@ private val postgresEpochDate = LocalDate(year = 2000, monthNumber = 1, dayOfMon
  * Implementation of a [PgTypeDescription] for the [LocalDate] type. This maps to the `date` type
  * in a postgresql database.
  */
-object DateTypeDescription : PgTypeDescription<LocalDate>(
+internal object DateTypeDescription : PgTypeDescription<LocalDate>(
     pgType = PgType.Date,
     kType = typeOf<LocalDate>(),
 ) {
@@ -66,7 +66,7 @@ object DateTypeDescription : PgTypeDescription<LocalDate>(
  * Implementation of an [ArrayTypeDescription] for [LocalDate]. This maps to the `date[]` type in a
  * postgresql database.
  */
-object DateArrayTypeDescription : ArrayTypeDescription<LocalDate>(
+internal object DateArrayTypeDescription : ArrayTypeDescription<LocalDate>(
     pgType = PgType.DateArray,
     innerType = DateTypeDescription,
 )

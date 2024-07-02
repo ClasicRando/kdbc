@@ -6,7 +6,7 @@ import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import kotlin.reflect.KType
 
 /** Implementation of [PgTypeDescription] for custom enum types in a postgresql database */
-class EnumTypeDescription<E : Enum<E>>(
+internal class EnumTypeDescription<E : Enum<E>>(
     pgType: PgType,
     kType: KType,
     private val values: Array<E>,
@@ -63,7 +63,7 @@ class EnumTypeDescription<E : Enum<E>>(
 }
 
 /** Implementation of an [ArrayTypeDescription] for custom enum types in a postgresql database */
-class EnumArrayTypeDescription<E : Enum<E>>(
+internal class EnumArrayTypeDescription<E : Enum<E>>(
     pgType: PgType,
     innerType: EnumTypeDescription<E>,
 ) : ArrayTypeDescription<E>(pgType = pgType, innerType = innerType)

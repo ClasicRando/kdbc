@@ -9,7 +9,7 @@ import kotlin.reflect.typeOf
  * Implementation of a [PgTypeDescription] for the [BigDecimal] type. This maps to the `numeric`
  * type in a postgresql database.
  */
-object NumericTypeDescription : PgTypeDescription<BigDecimal>(
+internal object NumericTypeDescription : PgTypeDescription<BigDecimal>(
     pgType = PgType.Numeric,
     kType = typeOf<BigDecimal>()
 ) {
@@ -43,7 +43,7 @@ object NumericTypeDescription : PgTypeDescription<BigDecimal>(
  * Implementation of an [ArrayTypeDescription] for [BigDecimal]. This maps to the `numeric[]` type
  * in a postgresql database.
  */
-object NumericArrayTypeDescription : ArrayTypeDescription<BigDecimal>(
+internal object NumericArrayTypeDescription : ArrayTypeDescription<BigDecimal>(
     pgType = PgType.NumericArray,
     innerType = NumericTypeDescription,
 )

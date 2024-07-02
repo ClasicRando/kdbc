@@ -43,7 +43,8 @@ private val logger = KotlinLogging.logger {}
  * shared within connection pools so the contents and methods are thread-safe. This is accomplished
  * using [AtomicMutableMap]s for the lookup maps.
  */
-class PgTypeCache {
+@PublishedApi
+internal class PgTypeCache {
     private val customTypeDescriptions: MutableMap<PgType, PgTypeDescription<*>> = AtomicMutableMap()
     private val typeHintLookup: MutableMap<KType, PgType> = AtomicMutableMap()
 

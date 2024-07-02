@@ -9,7 +9,7 @@ import kotlinx.serialization.json.Json
 import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [PgJson] type */
-abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<PgJson>(
+internal abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<PgJson>(
     pgType = pgType,
     kType = typeOf<PgJson>(),
 ) {
@@ -86,13 +86,13 @@ abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<P
  * Implementation of a [PgTypeDescription] for the [PgJson] type. This maps to the `json` type in a
  * postgresql database.
  */
-object JsonTypeDescription : AbstractJsonTypeDescription(pgType = PgType.Json)
+internal object JsonTypeDescription : AbstractJsonTypeDescription(pgType = PgType.Json)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `json[]` type in a
  * postgresql database.
  */
-object JsonArrayTypeDescription : ArrayTypeDescription<PgJson>(
+internal object JsonArrayTypeDescription : ArrayTypeDescription<PgJson>(
     pgType = PgType.JsonArray,
     innerType = JsonTypeDescription,
 )
@@ -101,13 +101,13 @@ object JsonArrayTypeDescription : ArrayTypeDescription<PgJson>(
  * Implementation of a [PgTypeDescription] for the [PgJson] type. This maps to the `jsonb` type in
  * a postgresql database.
  */
-object JsonbTypeDescription : AbstractJsonTypeDescription(pgType = PgType.Jsonb)
+internal object JsonbTypeDescription : AbstractJsonTypeDescription(pgType = PgType.Jsonb)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `jsonb[]` type in a
  * postgresql database.
  */
-object JsonbArrayTypeDescription : ArrayTypeDescription<PgJson>(
+internal object JsonbArrayTypeDescription : ArrayTypeDescription<PgJson>(
     pgType = PgType.JsonbArray,
     innerType = JsonTypeDescription,
 )
@@ -116,7 +116,7 @@ object JsonbArrayTypeDescription : ArrayTypeDescription<PgJson>(
  * Implementation of a [PgTypeDescription] for the `jsonpath` type in a postgresql database. This
  * maps to the [String] type for convenience.
  */
-object JsonPathTypeDescription : PgTypeDescription<String>(
+internal object JsonPathTypeDescription : PgTypeDescription<String>(
     pgType = PgType.Jsonpath,
     kType = typeOf<String>(),
 ) {
@@ -163,7 +163,7 @@ object JsonPathTypeDescription : PgTypeDescription<String>(
  * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `jsonpath[]` type in a
  * postgresql database.
  */
-object JsonPathArrayTypeDescription : ArrayTypeDescription<String>(
+internal object JsonPathArrayTypeDescription : ArrayTypeDescription<String>(
     pgType = PgType.JsonpathArray,
     innerType = JsonPathTypeDescription,
 )

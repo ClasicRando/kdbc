@@ -11,7 +11,7 @@ import kotlin.reflect.KType
  * encoders only once and reuse the instance since the object should hold no state and [encode] is
  * a pure function.
  */
-interface PgTypeEncodeDescription<in T : Any> {
+internal interface PgTypeEncodeDescription<in T : Any> {
     /** Encode the [value] into the [buffer] as a collection of [Byte]s */
     fun encode(value: T, buffer: ByteWriteBuffer)
 }
@@ -22,7 +22,7 @@ interface PgTypeEncodeDescription<in T : Any> {
  * decoders only once and reuse instance since the object should hold no state and [decode] is a
  * pure function.
  */
-interface PgTypeDecodeDescription<out T : Any> {
+internal interface PgTypeDecodeDescription<out T : Any> {
     /**
      * Use the data and context within [value] to return a new instance of [T]. This method should
      * have 2 paths:
@@ -37,7 +37,7 @@ interface PgTypeDecodeDescription<out T : Any> {
     fun decode(value: PgValue): T
 }
 
-abstract class PgTypeDescription<T : Any>(
+internal abstract class PgTypeDescription<T : Any>(
     /**
      * [PgType] that is referenced for this type description as the serialization input and
      * deserialization output

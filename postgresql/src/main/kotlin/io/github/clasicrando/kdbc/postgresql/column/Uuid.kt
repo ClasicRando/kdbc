@@ -9,7 +9,7 @@ import kotlin.reflect.typeOf
  * Implementation of a [PgTypeDescription] for the [UUID] type. This maps to the `uuid` type in a
  * postgresql database.
  */
-object UuidTypeDescription : PgTypeDescription<UUID>(
+internal object UuidTypeDescription : PgTypeDescription<UUID>(
     pgType = PgType.Uuid,
     kType = typeOf<UUID>(),
 ) {
@@ -33,7 +33,7 @@ object UuidTypeDescription : PgTypeDescription<UUID>(
  * Implementation of an [ArrayTypeDescription] for [UUID]. This maps to the `uuid[]` type in a
  * postgresql database.
  */
-object UuidArrayTypeDescription : ArrayTypeDescription<UUID>(
+internal object UuidArrayTypeDescription : ArrayTypeDescription<UUID>(
     pgType = PgType.UuidArray,
     innerType = UuidTypeDescription,
 )

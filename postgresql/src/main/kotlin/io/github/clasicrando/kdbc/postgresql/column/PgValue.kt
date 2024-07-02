@@ -9,7 +9,7 @@ import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
  * For the [Binary] variant, the buffer is retained in the value, and it is accessible for
  * subsequent reads to extract the binary data needed for decoding.
  */
-sealed class PgValue(val typeData: PgColumnDescription) {
+internal sealed class PgValue(val typeData: PgColumnDescription) {
     /**
      * [PgValue] variant for providing database sent [String] data representing the output/result
      * data in text format. The containing [text] will be parsed by decoders into the required

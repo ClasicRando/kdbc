@@ -19,7 +19,7 @@ class PgBlockingConnectionPool(
     poolOptions = poolOptions,
     provider = PgBlockingConnectionProvider(connectOptions),
 ) {
-    val typeCache = PgTypeCache()
+    internal val typeCache = PgTypeCache()
 
     override fun disposeConnection(connection: PgBlockingConnection) {
         connection.dispose()

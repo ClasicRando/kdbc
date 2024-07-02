@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 /** Helper class to parse postgresql composite literal values */
-object PgCompositeLiteralParser {
+internal object PgCompositeLiteralParser {
     private const val DELIMITER = ','
 
     /**

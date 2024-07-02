@@ -8,7 +8,7 @@ import kotlin.reflect.typeOf
  * Implementation of a [PgTypeDescription] for [Boolean]. This maps to the `boolean` type in a
  * postgresql database
  */
-object BoolTypeDescription : PgTypeDescription<Boolean>(
+internal object BoolTypeDescription : PgTypeDescription<Boolean>(
     pgType = PgType.Bool,
     kType = typeOf<Boolean>(),
 ) {
@@ -55,7 +55,7 @@ object BoolTypeDescription : PgTypeDescription<Boolean>(
  * Implementation of an [ArrayTypeDescription] for [Boolean]. This maps to the `boolean[]` type in a
  * postgresql database.
  */
-object BoolArrayTypeDescription : ArrayTypeDescription<Boolean>(
+internal object BoolArrayTypeDescription : ArrayTypeDescription<Boolean>(
     pgType = PgType.BoolArray,
     innerType = BoolTypeDescription,
 )

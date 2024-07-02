@@ -9,7 +9,7 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
  * where the [sql] query is executed using the extended query protocol with the [parameters]
  * provided.
  */
-class PgAsyncPreparedQuery(
+internal class PgAsyncPreparedQuery(
     connection: PgAsyncConnection,
     sql: String,
 ) : BaseAsyncPreparedQuery<PgAsyncConnection>(connection = connection, sql = sql) {
