@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.pool
 
 import io.github.clasicrando.kdbc.core.connection.AsyncConnection
-import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.use
 import kotlinx.coroutines.CoroutineScope
 
