@@ -50,7 +50,10 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
             "Values found for composite class instance does not match the expected number. " +
                     "Expected ${columnMapping.size}, found ${values.size}"
         }
-        val encodeBuffer = PgEncodeBuffer(columnMapping, customTypeDescriptionCache)
+        val encodeBuffer = PgEncodeBuffer(
+            parameterTypeOids = columnMapping.map { it.pgType.oid },
+            typeCache = customTypeDescriptionCache,
+        )
         buffer.writeInt(columnMapping.size)
         for (i in columnMapping.indices) {
             val column = columnMapping[i]

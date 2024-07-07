@@ -60,7 +60,6 @@ import io.github.clasicrando.kdbc.postgresql.column.NumericArrayTypeDescription
 import io.github.clasicrando.kdbc.postgresql.column.NumericTypeDescription
 import io.github.clasicrando.kdbc.postgresql.column.PathArrayTypeDescription
 import io.github.clasicrando.kdbc.postgresql.column.PathTypeDescription
-import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgType
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.column.PointArrayTypeDescription
@@ -117,7 +116,7 @@ import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 class PgEncodeBuffer internal constructor(
-    private val metadata: List<PgColumnDescription>,
+    private val parameterTypeOids: List<Int>,
     private val typeCache: PgTypeCache,
 ) : AutoCloseable {
     internal val innerBuffer: ByteWriteBuffer = ByteListWriteBuffer()
@@ -127,34 +126,31 @@ class PgEncodeBuffer internal constructor(
     val types: List<Int> get() = innerTypes
 
     private fun encodeJson(value: PgJson) {
-        val metadata = metadata[paramCount]
-        when (metadata.pgType.oid) {
+        when (val parameterOid = parameterTypeOids[paramCount]) {
             PgType.JSON -> JsonTypeDescription.encode(value, innerBuffer)
             PgType.JSONB -> JsonbTypeDescription.encode(value, innerBuffer)
             else -> error(
-                "Supplied parameter is PgJson but the parameter should be ${metadata.pgType}"
+                "Supplied parameter is PgJson but the parameter should be $parameterOid"
             )
         }
     }
 
     private fun encodeMacAddress(value: PgMacAddress) {
-        val metadata = metadata[paramCount]
-        when (metadata.pgType.oid) {
+        when (val parameterOid = parameterTypeOids[paramCount]) {
             PgType.MACADDR -> MacAddressTypeDescription.encode(value, innerBuffer)
             PgType.MACADDR8 -> MacAddress8TypeDescription.encode(value, innerBuffer)
             else -> error(
-                "Supplied parameter is PgMacAddress but the parameter should be ${metadata.pgType}"
+                "Supplied parameter is PgMacAddress but the parameter should be $parameterOid"
             )
         }
     }
 
     private fun encodeInet(value: PgInet) {
-        val metadata = metadata[paramCount]
-        when (metadata.pgType.oid) {
+        when (val parameterOid = parameterTypeOids[paramCount]) {
             PgType.INET -> InetTypeDescription.encode(value, innerBuffer)
             PgType.CIDR -> CidrTypeDescription.encode(value, innerBuffer)
             else -> error(
-                "Supplied parameter is PgInet but the parameter should be ${metadata.pgType}"
+                "Supplied parameter is PgInet but the parameter should be $parameterOid"
             )
         }
     }
@@ -190,38 +186,36 @@ class PgEncodeBuffer internal constructor(
     }
 
     private fun encodeStringList(value: List<String?>) {
-        val metadata = metadata[paramCount]
-        when (metadata.pgType) {
-            PgType.VarcharArray -> VarcharArrayTypeDescription.encode(
+        when (val parameterOid = parameterTypeOids[paramCount]) {
+            PgType.VARCHAR_ARRAY -> VarcharArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
-            PgType.TextArray -> TextArrayTypeDescription.encode(
+            PgType.TEXT_ARRAY -> TextArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
-            PgType.BpcharArray -> BpcharArrayTypeDescription.encode(
+            PgType.BPCHAR_ARRAY -> BpcharArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
-            PgType.NameArray -> NameArrayTypeDescription.encode(
+            PgType.NAME_ARRAY -> NameArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
-            PgType.XmlArray -> XmlArrayTypeDescription.encode(
+            PgType.XML_ARRAY -> XmlArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
             )
             else -> error(
                 "Supplied parameter type is List<String> but the expected parameter type is " +
-                        "${metadata.pgType}"
+                        "$parameterOid"
             )
         }
     }
 
     private fun encodeJsonList(value: List<PgJson?>) {
-        val metadata = metadata[paramCount]
-        when (metadata.pgType.oid) {
+        when (val parameterOid = parameterTypeOids[paramCount]) {
             PgType.JSON_ARRAY -> JsonArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
@@ -232,14 +226,13 @@ class PgEncodeBuffer internal constructor(
             )
             else -> error(
                 "Supplied parameter type is List<PgJson> but the expected parameter type is " +
-                        "${metadata.pgType}"
+                        "$parameterOid"
             )
         }
     }
 
     private fun encodeMacAddressList(value: List<PgMacAddress?>) {
-        val metadata = metadata[paramCount]
-        when (metadata.pgType.oid) {
+        when (val parameterOid = parameterTypeOids[paramCount]) {
             PgType.MACADDR_ARRAY -> MacAddressArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
@@ -250,14 +243,13 @@ class PgEncodeBuffer internal constructor(
             )
             else -> error(
                 "Supplied parameter type is List<PgMacAddress> but the expected parameter type " +
-                        "is ${metadata.pgType}"
+                        "is $parameterOid"
             )
         }
     }
 
     private fun encodeInetList(value: List<PgInet?>) {
-        val metadata = metadata[paramCount]
-        when (metadata.pgType.oid) {
+        when (val parameterOid = parameterTypeOids[paramCount]) {
             PgType.INET_ARRAY -> InetArrayTypeDescription.encode(
                 value = value,
                 buffer = innerBuffer,
@@ -268,7 +260,7 @@ class PgEncodeBuffer internal constructor(
             )
             else -> error(
                 "Supplied parameter is List<PgInet> but the expected parameter type is " +
-                        "${metadata.pgType}"
+                        "$parameterOid"
             )
         }
     }
@@ -414,8 +406,8 @@ class PgEncodeBuffer internal constructor(
     }
 
     private fun <T : Any> encodeCustomType(value: T) {
-        val metadata = metadata[paramCount]
-        val typeDescription = typeCache.getTypeDescription<T>(metadata.pgType)
+        val parameterOid = parameterTypeOids[paramCount]
+        val typeDescription = typeCache.getTypeDescription<T>(PgType.fromOid(parameterOid))
             ?: error(
                 "Could not get a type description from the custom type cache of the required type"
             )

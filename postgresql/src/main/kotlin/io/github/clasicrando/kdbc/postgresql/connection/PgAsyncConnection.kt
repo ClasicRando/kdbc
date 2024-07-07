@@ -492,7 +492,7 @@ class PgAsyncConnection internal constructor(
                 throw ex
             }
 
-            val encodeBuffer = PgEncodeBuffer(statement.resultMetadata, typeCache)
+            val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
             for ((parameter, type) in parameters) {
                 encodeBuffer.encodeValue(parameter, type)
             }
@@ -605,7 +605,7 @@ class PgAsyncConnection internal constructor(
                 prepareStatement(query = queryText, parameters = queryParams)
             }
             for ((i, statement) in statements.withIndex()) {
-                val encodeBuffer = PgEncodeBuffer(statement.resultMetadata, typeCache)
+                val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
                 for ((parameter, type) in queries[i].second) {
                     encodeBuffer.encodeValue(parameter, type)
                 }
@@ -798,8 +798,8 @@ class PgAsyncConnection internal constructor(
             .bind(copyInStatement.tableName)
             .bind(schemaName)
             .fetchAll(CopyTableMetadata.Companion)
-        val fields = CopyTableMetadata.getFields(copyInStatement.format, metadata)
-        val buffer = PgEncodeBuffer(metadata = fields, typeCache = typeCache)
+        val fields = metadata.map { it.type.oid }
+        val buffer = PgEncodeBuffer(parameterTypeOids = fields, typeCache = typeCache)
         return copyIn(
             copyInStatement = copyInStatement,
             data = flow<ByteArray> {

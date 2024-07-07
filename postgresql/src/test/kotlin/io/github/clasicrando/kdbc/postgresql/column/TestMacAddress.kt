@@ -20,16 +20,14 @@ class TestMacAddress {
     fun `encode should accept PgMacAddress when querying postgresql`(isMacAddr8: Boolean) = runBlocking {
         val tableName = if (isMacAddr8) MACADDR8_TEST_TABLE else MACADDR_TEST_TABLE
         val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
+        val value = if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr()
 
         PgConnectionHelper.defaultAsyncConnection().use { conn ->
             val pgMacAddress = conn.createPreparedQuery(query)
-                .bind(macAddrValue)
+                .bind(value)
                 .fetchScalar<PgMacAddress>()
             assertNotNull(pgMacAddress)
-            assertEquals(
-                if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr(),
-                pgMacAddress,
-            )
+            assertEquals(value, pgMacAddress)
         }
     }
 
