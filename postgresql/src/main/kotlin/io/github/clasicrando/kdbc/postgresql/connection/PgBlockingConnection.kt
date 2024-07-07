@@ -118,11 +118,15 @@ class PgBlockingConnection internal constructor(
     override fun begin() {
         try {
             sendSimpleQuery("BEGIN;")
-            if (_inTransaction.compareAndSet(expect = false, update = true)) {
+            if (!_inTransaction.compareAndSet(expect = false, update = true)) {
                 throw UnexpectedTransactionState(inTransaction = true)
             }
+        } catch (ex: OutOfMemoryError) {
+            throw ex
+        } catch (ex: UnexpectedTransactionState) {
+            throw ex
         } catch (ex: Throwable) {
-            if (_inTransaction.getAndSet(false)) {
+            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
                 try {
                     rollback()
                 } catch (ex2: Throwable) {
@@ -140,7 +144,7 @@ class PgBlockingConnection internal constructor(
         try {
             sendSimpleQuery("COMMIT;")
         } finally {
-            if (!_inTransaction.getAndSet(false)) {
+            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
                 log(Level.WARN) {
                     this.message = "Attempted to COMMIT a connection not within a transaction"
                 }
@@ -152,7 +156,7 @@ class PgBlockingConnection internal constructor(
         try {
             sendSimpleQuery("ROLLBACK;")
         } finally {
-            if (!_inTransaction.getAndSet(false)) {
+            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
                 log(Level.WARN) {
                     this.message = "Attempted to ROLLBACK a connection not within a transaction"
                 }
