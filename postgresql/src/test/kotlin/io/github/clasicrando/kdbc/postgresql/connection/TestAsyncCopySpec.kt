@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
+import io.github.clasicrando.kdbc.core.pool.useConnection
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
-import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.core.useCatching
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.IOUtils
@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
@@ -25,7 +26,7 @@ import kotlin.test.assertTrue
 class TestAsyncCopySpec {
     @Test
     fun `copyIn should copy all rows`(): Unit = runBlocking {
-        PgConnectionHelper.defaultAsyncConnection().use {
+        pool.useConnection {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement.TableFromCsv(
                 schemaName = "public",
@@ -47,7 +48,7 @@ class TestAsyncCopySpec {
     fun `copyIn should copy all rows from file`() = runBlocking {
         val testFilePath = createTempCsvForCopy(rowCount = ROW_COUNT)
         try {
-            PgConnectionHelper.defaultAsyncConnection().use {
+            pool.useConnection {
                 it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
                 val copyInStatement = CopyStatement.TableFromCsv(
                     schemaName = "public",
@@ -72,7 +73,7 @@ class TestAsyncCopySpec {
 
     @Test
     fun `copyIn should copy all PgCsvRow values as csv`() = runBlocking {
-        PgConnectionHelper.defaultAsyncConnection().use {
+        pool.useConnection {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement.TableFromCsv(
                 schemaName = "public",
@@ -93,7 +94,7 @@ class TestAsyncCopySpec {
 
     @Test
     fun `copyIn should copy all PgCsvRow values as binary`() = runBlocking {
-        PgConnectionHelper.defaultAsyncConnection().use {
+        pool.useConnection {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement.TableFromBinary(
                 schemaName = "public",
@@ -114,7 +115,7 @@ class TestAsyncCopySpec {
 
     @Test
     fun `copyIn should throw exception when improperly formatted rows`(): Unit = runBlocking {
-        val result = PgConnectionHelper.defaultAsyncConnection().useCatching {
+        val result = pool.acquire().useCatching {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement.TableFromCsv(
                 schemaName = "public",
@@ -127,7 +128,7 @@ class TestAsyncCopySpec {
         }
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is GeneralPostgresError)
-        PgConnectionHelper.defaultAsyncConnection().use {
+        pool.useConnection {
             val count = it.createQuery("SELECT COUNT(*) FROM public.copy_in_test;")
                 .fetchScalar<Long>()
             assertEquals(0, count)
@@ -136,7 +137,7 @@ class TestAsyncCopySpec {
 
     @Test
     fun `copyOut should supply all rows from table when csv`(): Unit = runBlocking {
-        PgConnectionHelper.defaultAsyncConnection().use {
+        pool.useConnection {
             var rowIndex = 0
             val copyOutStatement = CopyStatement.TableToCsv(
                 schemaName = "public",
@@ -153,7 +154,7 @@ class TestAsyncCopySpec {
 
     @Test
     fun `copyOut should supply all rows from query when csv`(): Unit = runBlocking {
-        PgConnectionHelper.defaultAsyncConnection().use {
+        pool.useConnection {
             var rowIndex = 0
             val copyOutStatement = CopyStatement.QueryToCsv(
                 query = "SELECT * FROM public.copy_out_test",
@@ -171,7 +172,7 @@ class TestAsyncCopySpec {
     fun `copyOut should write all rows from table when csv`(): Unit = runBlocking {
         val path = Path(".", "temp", "async-copy-out.csv")
         try {
-            PgConnectionHelper.defaultAsyncConnection().use {
+            pool.useConnection {
                 var rowIndex = 0
                 val copyOutStatement = CopyStatement.TableToCsv(
                     schemaName = "public",
@@ -196,7 +197,7 @@ class TestAsyncCopySpec {
 
     @Test
     fun `copyOut should supply all rows from table when binary`(): Unit = runBlocking {
-        PgConnectionHelper.defaultAsyncConnection().use {
+        pool.useConnection {
             var rowIndex = 0
             val copyOutStatement = CopyStatement.TableToBinary(
                 schemaName = "public",
@@ -225,14 +226,21 @@ class TestAsyncCopySpec {
             SELECT t.t, t.t || ' Value'
             FROM generate_series(1, $ROW_COUNT) t
         """
+        private val pool = PgConnectionHelper.defaultAsyncPool()
 
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultAsyncConnection().use {
-                it.createQuery(CREATE_COPY_TARGET_TABLE).executeClosing()
-                it.createQuery(CREATE_COPY_FROM_TABLE).executeClosing()
+            pool.useConnection {
+                it.sendSimpleQuery(CREATE_COPY_TARGET_TABLE)
+                it.sendSimpleQuery(CREATE_COPY_FROM_TABLE)
             }
+        }
+        
+        @JvmStatic
+        @AfterAll
+        fun tearDown(): Unit = runBlocking { 
+            pool.close()
         }
     }
 }
