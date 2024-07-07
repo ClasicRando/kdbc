@@ -84,8 +84,8 @@ inline fun <R, C : BlockingConnection> C.useCatching(block: (C) -> R): Result<R>
  * the original exception is rethrown. This all happens within a [BlockingConnection.use] block so
  * the resources are always cleaned up before returning.
  */
-inline fun <R, C : BlockingConnection> C.transaction(block: (C) -> R): R = use {
-    try {
+inline fun <R, C : BlockingConnection> C.transaction(block: (C) -> R): R {
+    return try {
         this.begin()
         val result = block(this)
         commit()
@@ -107,7 +107,7 @@ inline fun <R, C : BlockingConnection> C.transaction(block: (C) -> R): R = use {
  */
 inline fun <R, C : BlockingConnection> C.transactionCatching(
     block: (C) -> R,
-): Result<R> = useCatching {
+): Result<R> = runCatching {
     try {
         this.begin()
         val result = block(this)

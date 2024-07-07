@@ -191,25 +191,13 @@ class PgAsyncConnection internal constructor(
 
     /**
      * Process the contents of a [PgMessage.ReadyForQuery] message (i.e. a [TransactionStatus])
-     * that was received at the end of a flow of query responses. If the [transactionStatus] is
-     * [TransactionStatus.FailedTransaction] and the connection options specify auto rollback for
-     * failed transactions (default value of [PgConnectOptions.autoRollbackOnFailedTransaction])
-     * then a [rollback] operation is initiated.
+     * that was received at the end of a flow of query responses.
      */
-    private suspend fun handleTransactionStatus(transactionStatus: TransactionStatus) {
-        if (transactionStatus == TransactionStatus.FailedTransaction
-            && connectOptions.autoRollbackOnFailedTransaction)
+    private fun handleTransactionStatus(transactionStatus: TransactionStatus) {
+        if (transactionStatus == TransactionStatus.FailedTransaction)
         {
-            log(Kdbc.detailedLogging) {
-                this.message = "Server reported failed transaction. Issuing rollback command"
-            }
-            try {
-                rollback()
-            } catch (ex: Throwable) {
-                log(Level.WARN) {
-                    this.message = "Failed to rollback transaction after failed transaction status"
-                    cause = ex
-                }
+            log(Level.WARN) {
+                this.message = "Server reported failed transaction."
             }
         }
     }
@@ -245,9 +233,7 @@ class PgAsyncConnection internal constructor(
                 break
             }
         }
-        queryResultCollector.transactionStatus?.let {
-            handleTransactionStatus(it)
-        }
+        queryResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
         val error = queryResultCollector.errors.reduceToSingleOrNull()
             ?: return queryResultCollector.buildStatementResult()
@@ -276,9 +262,7 @@ class PgAsyncConnection internal constructor(
         queryResultCollector.processNextStatement(statement)
         stream.processMessageLoop(queryResultCollector::processNextMessage)
             .onFailure(queryResultCollector.errors::add)
-        queryResultCollector.transactionStatus?.let {
-            handleTransactionStatus(it)
-        }
+        queryResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
         val error = queryResultCollector.errors.reduceToSingleOrNull()
             ?: return queryResultCollector.buildStatementResult()
@@ -353,9 +337,7 @@ class PgAsyncConnection internal constructor(
         val prepareRequestCollector = StatementPrepareRequestCollector(this, statement)
         stream.processMessageLoop(prepareRequestCollector::processNextMessage)
             .onFailure(prepareRequestCollector.errors::add)
-        prepareRequestCollector.transactionStatus?.let {
-            handleTransactionStatus(it)
-        }
+        prepareRequestCollector.transactionStatus?.let(::handleTransactionStatus)
 
         val error = prepareRequestCollector.errors.reduceToSingleOrNull() ?: return
         log(Kdbc.detailedLogging) {
@@ -666,9 +648,7 @@ class PgAsyncConnection internal constructor(
         failureReason?.let { copyInResultCollector.errors.add(it) }
         stream.processMessageLoop(copyInResultCollector::processMessage)
             .onFailure(copyInResultCollector.errors::add)
-        copyInResultCollector.transactionStatus?.let {
-            handleTransactionStatus(it)
-        }
+        copyInResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
         val error = copyInResultCollector.errors.reduceToSingleOrNull()
         if (error != null) {

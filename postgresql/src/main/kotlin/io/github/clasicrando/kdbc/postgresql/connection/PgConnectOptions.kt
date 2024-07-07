@@ -82,11 +82,6 @@ data class PgConnectOptions(
      * which is public.
      */
     val currentSchema: String? = null,
-    /**
-     * If the connection should perform a rollback command automatically if server ends a query
-     * response with an indicator that the current transaction failed. Default is true.
-     */
-    val autoRollbackOnFailedTransaction: Boolean = true,
 ) {
     /** Connection properties as they are sent to the database upon connection initialization */
     val properties: List<Pair<String, String>> = listOf(

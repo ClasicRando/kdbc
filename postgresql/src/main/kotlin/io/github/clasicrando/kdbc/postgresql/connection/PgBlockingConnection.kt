@@ -178,25 +178,13 @@ class PgBlockingConnection internal constructor(
 
     /**
      * Process the contents of a [PgMessage.ReadyForQuery] message (i.e. a [TransactionStatus])
-     * that was received at the end of a flow of query responses. If the [transactionStatus] is
-     * [TransactionStatus.FailedTransaction] and the connection options specify auto rollback for
-     * failed transactions (default value of [PgConnectOptions.autoRollbackOnFailedTransaction])
-     * then a [rollback] operation is initiated.
+     * that was received at the end of a flow of query responses.
      */
     private fun handleTransactionStatus(transactionStatus: TransactionStatus) {
-        if (transactionStatus == TransactionStatus.FailedTransaction
-            && connectOptions.autoRollbackOnFailedTransaction)
+        if (transactionStatus == TransactionStatus.FailedTransaction)
         {
-            log(Kdbc.detailedLogging) {
-                this.message = "Server reported failed transaction. Issuing rollback command"
-            }
-            try {
-                rollback()
-            } catch (ex: Throwable) {
-                log(Level.WARN) {
-                    this.message = "Failed to rollback transaction after failed transaction status"
-                    cause = ex
-                }
+            log(Level.WARN) {
+                this.message = "Server reported failed transaction"
             }
         }
     }
