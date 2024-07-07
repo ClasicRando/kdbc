@@ -34,3 +34,9 @@ interface BlockingConnectionPool<C : BlockingConnection> {
     /** Close the connection pool and all connections that are associated with the pool */
     fun close()
 }
+
+inline fun <C : BlockingConnection, R> BlockingConnectionPool<C>.useConnection(
+    block: (C) -> R
+): R {
+    return this.acquire().use(block)
+}

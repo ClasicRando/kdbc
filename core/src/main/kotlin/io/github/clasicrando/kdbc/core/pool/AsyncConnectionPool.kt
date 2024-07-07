@@ -1,6 +1,8 @@
 package io.github.clasicrando.kdbc.core.pool
 
 import io.github.clasicrando.kdbc.core.connection.AsyncConnection
+import io.github.clasicrando.kdbc.core.connection.BlockingConnection
+import io.github.clasicrando.kdbc.core.use
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -34,4 +36,10 @@ interface AsyncConnectionPool<C : AsyncConnection> : CoroutineScope {
     suspend fun initialize(): Boolean
     /** Close the connection pool and all connections that are associated with the pool */
     suspend fun close()
+}
+
+suspend inline fun <C : AsyncConnection, R> AsyncConnectionPool<C>.useConnection(
+    block: (C) -> R
+): R {
+    return this.acquire().use(block)
 }
