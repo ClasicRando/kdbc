@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.query.RowParser
@@ -180,8 +181,17 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
     }
     private val primaryConstructor = cls.primaryConstructor!!
     private val constructorParameterNames = primaryConstructor.parameters.map { it.name!! }
-    private val properties = cls.memberProperties
-        .filter { prop -> constructorParameterNames.firstOrNull { prop.name == it } != null }
+    private val properties = constructorParameterNames.map { param ->
+        cls.memberProperties.first { it.name == param }
+    }
+    private val finalParameterNames = primaryConstructor.parameters
+        .map { param ->
+            val rename = param.annotations
+                .firstOrNull { it is Rename }
+                ?.let { it as Rename }
+                ?: return@map param.name!!
+            rename.value
+        }
     init {
         require(columnMapping.size == constructorParameterNames.size) {
             "Declared composite data class does not match the number of expected attributes"
@@ -193,8 +203,8 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
     }
 
     override fun fromRow(row: DataRow): T {
-        val args = Array(constructorParameterNames.size) { i ->
-            val parameterName = constructorParameterNames[i]
+        val args = Array(finalParameterNames.size) { i ->
+            val parameterName = finalParameterNames[i]
             row[parameterName]
         }
         return primaryConstructor.call(*args)
