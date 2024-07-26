@@ -15,6 +15,19 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
 /**
+ * Base requirements for a type description of a Postgresql composite type. The type must define how
+ * to parse a [DataRow] into the type and also how to extract values that make up the composite
+ * type.
+ */
+interface CompositeTypeDefinition<T : Any> : RowParser<T> {
+    /**
+     * Custom behaviour to return the composite instance's attribute values paired with the values
+     * type.
+     */
+    fun extractValues(value: T): List<Pair<Any?, KType>>
+}
+
+/**
  * Implementation of a [PgTypeDescription] for composite types. This requires the composite type's
  * name, the column mapping and a strategy to decode the composite's attributes from a [PgDataRow].
  */
@@ -23,16 +36,10 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
     protected val columnMapping: List<PgColumnDescription>,
     protected val customTypeDescriptionCache: PgTypeCache,
     kType: KType,
-) : RowParser<T>, PgTypeDescription<T>(
+) : CompositeTypeDefinition<T>, PgTypeDescription<T>(
     pgType = PgType.ByOid(oid = typeOid),
     kType = kType,
 ) {
-    /**
-     * Custom behaviour to return the composite instance's attribute values paired with the values
-     * type.
-     */
-    abstract fun extractValues(value: T): List<Pair<Any?, KType>>
-
     /**
      * To encode the values into the buffer, first fetch all the composite type instance's
      * attribute values (with value's [KType] as well) then write:

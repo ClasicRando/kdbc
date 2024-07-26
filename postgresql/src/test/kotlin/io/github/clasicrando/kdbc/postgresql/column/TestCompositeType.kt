@@ -4,6 +4,8 @@ import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.result.DataRow
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgJson
@@ -12,6 +14,8 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import org.junit.jupiter.api.BeforeAll
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -26,6 +30,26 @@ class TestCompositeType {
         @Rename("json_value")
         val jsonValue: PgJson?,
     )
+    data class CompositeDef(
+        val id: Int,
+        val text: String,
+    ) {
+        companion object : CompositeTypeDefinition<CompositeDef> {
+            override fun extractValues(value: CompositeDef): List<Pair<Any?, KType>> {
+                return listOf(
+                    value.id to typeOf<Int>(),
+                    value.text to typeOf<String>(),
+                )
+            }
+
+            override fun fromRow(row: DataRow): CompositeDef {
+                return CompositeDef(
+                    id = row.getAsNonNull("id"),
+                    text = row.getAsNonNull("text"),
+                )
+            }
+        }
+    }
 
     @Test
     fun `encode should accept CompositeTest when querying blocking postgresql`() {
@@ -50,6 +74,19 @@ class TestCompositeType {
                 .bind(table)
                 .fetchScalar<CompositeTable>()
             assertEquals(table, value)
+        }
+    }
+
+    @Test
+    fun `encode should accept CompositeDef when querying blocking postgresql`() {
+        val query = "SELECT $1 composite_def;"
+
+        PgConnectionHelper.defaultBlockingConnection().use { conn ->
+            conn.registerCompositeType<CompositeDef>("composite_def")
+            val value = conn.createPreparedQuery(query)
+                .bind(def)
+                .fetchScalar<CompositeDef>()
+            assertEquals(def, value)
         }
     }
 
@@ -101,6 +138,30 @@ class TestCompositeType {
         decodeBlockingTableTest(isPrepared = true)
     }
 
+    private fun decodeBlockingDefTest(isPrepared: Boolean) {
+        val query = "SELECT row(1,'Composite Def')::composite_def;"
+
+        PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use { conn ->
+            conn.registerCompositeType<CompositeDef>("composite_def")
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
+            } else {
+                conn.createQuery(query)
+            }.fetchScalar<CompositeDef>()
+            assertEquals(def, value)
+        }
+    }
+
+    @Test
+    fun `decode should return CompositeDef when simple querying blocking postgresql composite`() {
+        decodeBlockingDefTest(isPrepared = false)
+    }
+
+    @Test
+    fun `decode should return CompositeDef when extended querying blocking postgresql composite`() {
+        decodeBlockingDefTest(isPrepared = true)
+    }
+
     @Test
     fun `encode should accept CompositeTest when querying postgresql`() = runBlocking {
         val query = "SELECT $1 composite_col;"
@@ -124,6 +185,19 @@ class TestCompositeType {
                 .bind(table)
                 .fetchScalar<CompositeTable>()
             assertEquals(table, value)
+        }
+    }
+
+    @Test
+    fun `encode should accept CompositeDef when querying postgresql`() = runBlocking {
+        val query = "SELECT $1 composite_def;"
+
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+            conn.registerCompositeType<CompositeDef>("composite_def")
+            val value = conn.createPreparedQuery(query)
+                .bind(def)
+                .fetchScalar<CompositeDef>()
+            assertEquals(def, value)
         }
     }
 
@@ -175,6 +249,30 @@ class TestCompositeType {
         decodeTableTest(isPrepared = true)
     }
 
+    private suspend fun decodeDefTest(isPrepared: Boolean) {
+        val query = "SELECT row(1,'Composite Def')::composite_def;"
+
+        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+            conn.registerCompositeType<CompositeDef>("composite_def")
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
+            } else {
+                conn.createQuery(query)
+            }.fetchScalar<CompositeDef>()
+            assertEquals(def, value)
+        }
+    }
+
+    @Test
+    fun `decode should return CompositeDef when simple querying postgresql composite`() = runBlocking {
+        decodeDefTest(isPrepared = false)
+    }
+
+    @Test
+    fun `decode should return CompositeDef when extended querying postgresql composite`() = runBlocking {
+        decodeDefTest(isPrepared = true)
+    }
+
     companion object {
         private val type = CompositeType(
             id = 1,
@@ -190,6 +288,10 @@ class TestCompositeType {
             recordOrder = 1,
             subId = 2930,
             jsonValue = null,
+        )
+        private val def = CompositeDef(
+            id = 1,
+            text = "Composite Def",
         )
 
         @JvmStatic
@@ -213,6 +315,14 @@ class TestCompositeType {
                         record_order integer not null,
                         sub_id bigint,
                         json_value jsonb
+                    );
+                """.trimIndent()).close()
+                connection.sendSimpleQuery("""
+                    DROP TABLE IF EXISTS public.composite_def;
+                    CREATE TYPE public.composite_def AS
+                    (
+                        id int,
+                        "text" text
                     );
                 """.trimIndent()).close()
             }

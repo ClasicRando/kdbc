@@ -34,6 +34,7 @@ import kotlinx.uuid.UUID
 import java.math.BigDecimal
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
+import kotlin.reflect.full.createType
 
 private val logger = KotlinLogging.logger {}
 
@@ -95,18 +96,36 @@ internal class PgTypeCache {
         connection: PgAsyncConnection,
         name: String,
         cls: KClass<T>,
+        compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
     ) {
         val verifiedOid = checkCompositeDbTypeByName(connection, name)
             ?: error("Could not verify the composite type name '$name' in the database")
 
         val compositeColumnMapping = getCompositeAttributeData(connection, verifiedOid)
 
-        val compositeTypeDescription = ReflectionCompositeTypeDescription(
-            typeOid = verifiedOid,
-            columnMapping = compositeColumnMapping,
-            customTypeDescriptionCache = this,
-            cls = cls,
-        )
+        val compositeTypeDescription = if (compositeTypeDefinition == null) {
+            ReflectionCompositeTypeDescription(
+                typeOid = verifiedOid,
+                columnMapping = compositeColumnMapping,
+                customTypeDescriptionCache = this,
+                cls = cls,
+            )
+        } else {
+            object : BaseCompositeTypeDescription<T>(
+                typeOid = verifiedOid,
+                columnMapping = compositeColumnMapping,
+                customTypeDescriptionCache = this,
+                kType = cls.createType(),
+            ) {
+                override fun extractValues(value: T): List<Pair<Any?, KType>> {
+                    return compositeTypeDefinition.extractValues(value)
+                }
+
+                override fun fromRow(row: DataRow): T {
+                    return compositeTypeDefinition.fromRow(row)
+                }
+            }
+        }
         addTypeDescription(compositeTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
@@ -174,18 +193,36 @@ internal class PgTypeCache {
         connection: PgBlockingConnection,
         name: String,
         cls: KClass<T>,
+        compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
     ) {
         val verifiedOid = checkCompositeDbTypeByName(connection, name)
             ?: error("Could not verify the composite type name '$name' in the database")
 
         val compositeColumnMapping = getCompositeAttributeData(connection, verifiedOid)
 
-        val compositeTypeDescription = ReflectionCompositeTypeDescription(
-            typeOid = verifiedOid,
-            columnMapping = compositeColumnMapping,
-            customTypeDescriptionCache = this,
-            cls = cls,
-        )
+        val compositeTypeDescription = if (compositeTypeDefinition == null) {
+            ReflectionCompositeTypeDescription(
+                typeOid = verifiedOid,
+                columnMapping = compositeColumnMapping,
+                customTypeDescriptionCache = this,
+                cls = cls,
+            )
+        } else {
+            object : BaseCompositeTypeDescription<T>(
+                typeOid = verifiedOid,
+                columnMapping = compositeColumnMapping,
+                customTypeDescriptionCache = this,
+                kType = cls.createType(),
+            ) {
+                override fun extractValues(value: T): List<Pair<Any?, KType>> {
+                    return compositeTypeDefinition.extractValues(value)
+                }
+
+                override fun fromRow(row: DataRow): T {
+                    return compositeTypeDefinition.fromRow(row)
+                }
+            }
+        }
         addTypeDescription(compositeTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)

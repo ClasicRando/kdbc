@@ -19,6 +19,7 @@ import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
+import io.github.clasicrando.kdbc.postgresql.column.CompositeTypeDefinition
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.copy.CopyOutCollector
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
@@ -926,11 +927,15 @@ class PgBlockingConnection internal constructor(
      * @param type name of the type in the database (optionally schema qualified if not in public
      * schema)
      */
-    inline fun <reified T : Any> registerCompositeType(type: String) {
+    inline fun <reified T : Any> registerCompositeType(
+        type: String,
+        compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
+    ) {
         typeCache.addCompositeType(
             connection = this,
             name = type,
-            cls = T::class
+            cls = T::class,
+            compositeTypeDefinition = compositeTypeDefinition,
         )
     }
 
