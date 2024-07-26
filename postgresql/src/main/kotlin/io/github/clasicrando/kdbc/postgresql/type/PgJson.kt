@@ -17,7 +17,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 @Serializable
 data class PgJson(val json: JsonElement) {
     /** Write the underlining [json] value to the [buffer] */
-    fun writeToBuffer(buffer: ByteWriteBuffer) {
+    internal fun writeToBuffer(buffer: ByteWriteBuffer) {
         val bytes = Json.encodeToString(json)
             .encodeToByteArray()
         buffer.writeBytes(bytes)
