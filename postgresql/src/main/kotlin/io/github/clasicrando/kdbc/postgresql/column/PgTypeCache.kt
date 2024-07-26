@@ -135,16 +135,16 @@ internal class PgTypeCache {
             ?: error("Could not verify the composite type name '$name' in the database")
 
         val enumLabels = getEnumLabels(connection, verifiedOid)
-        check(enumValues.all { enumLabels.contains(it.name) }) {
-            "Cannot register an enum type because the declared enum values do not match the " +
-                    "database's enum labels"
-        }
-
         val enumTypeDescription = EnumTypeDescription(
             pgType = PgType.ByOid(oid = verifiedOid),
             kType = kType,
             values = enumValues,
         )
+        val missingLabels = enumLabels.filter { !enumTypeDescription.entryLookup.contains(it) }
+        check(missingLabels.isEmpty()) {
+            "Cannot register an enum type because the declared enum values do not match the " +
+                    "database's enum labels. Enum missing ${missingLabels.joinToString()}"
+        }
         addTypeDescription(enumTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
@@ -214,16 +214,16 @@ internal class PgTypeCache {
             ?: error("Could not verify the composite type name '$name' in the database")
 
         val enumLabels = getEnumLabels(connection, verifiedOid)
-        check(enumValues.all { enumLabels.contains(it.name) }) {
-            "Cannot register an enum type because the declared enum values do not match the " +
-                    "database's enum labels"
-        }
-
         val enumTypeDescription = EnumTypeDescription(
             pgType = PgType.ByOid(oid = verifiedOid),
             kType = kType,
             values = enumValues,
         )
+        val missingLabels = enumLabels.filter { !enumTypeDescription.entryLookup.contains(it) }
+        check(missingLabels.isEmpty()) {
+            "Cannot register an enum type because the declared enum values do not match the " +
+                    "database's enum labels. Enum missing ${missingLabels.joinToString()}"
+        }
         addTypeDescription(enumTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)

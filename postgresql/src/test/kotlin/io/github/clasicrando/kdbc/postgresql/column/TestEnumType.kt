@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
@@ -11,10 +12,32 @@ import org.junit.jupiter.params.provider.EnumSource
 import kotlin.test.assertEquals
 
 class TestEnumType {
+    @Suppress("UNUSED")
     enum class EnumType {
         First,
         Second,
         Third,
+    }
+
+    @Suppress("UNUSED")
+    enum class RenameEnumType {
+        OriginalName,
+        @Rename("renamed-name")
+        RenamedName,
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RenameEnumType::class)
+    fun `encode should accept RenameEnumType when querying with renamed enum label`(value: RenameEnumType) {
+        val query = "SELECT $1 rename_enum_col;"
+
+        PgConnectionHelper.defaultBlockingConnection().use { conn ->
+            conn.registerEnumType<RenameEnumType>("rename_enum")
+            val enumValue = conn.createPreparedQuery(query)
+                .bind(value)
+                .fetchScalar<RenameEnumType>()
+            assertEquals(value, enumValue)
+        }
     }
 
     @ParameterizedTest
@@ -109,6 +132,14 @@ class TestEnumType {
                         'First',
                         'Second',
                         'Third'
+                    );
+                """.trimIndent()).close()
+                connection.sendSimpleQuery("""
+                    DROP TYPE IF EXISTS public.rename_enum;
+                    CREATE TYPE public.rename_enum AS ENUM
+                    (
+                        'OriginalName',
+                        'renamed-name'
                     );
                 """.trimIndent()).close()
             }
