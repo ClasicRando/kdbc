@@ -5,7 +5,6 @@ import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.type.PgJson
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
 import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [PgJson] type */
@@ -31,8 +30,7 @@ internal abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDesc
      * to the get the jsonb version. Currently, the only accepted value is 1 and all other values
      * will throw a [io.github.clasicrando.kdbc.core.column.ColumnDecodeError]. If the value is
      * `json` then no header values are expected. After processing the possible header [Byte], the
-     * remaining bytes in the buffer are passed to [PgJson.fromBytes] for decoding into a new
-     * [PgJson] instance.
+     * remaining bytes in the buffer are passed to a new [PgJson] instance.
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L136)
      *
@@ -50,20 +48,11 @@ internal abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDesc
             ) { "Unsupported JSONB format version $version. Only version 1 is supported" }
         }
 
-        val jsonString = value.bytes.readText()
-        return try {
-            PgJson(Json.parseToJsonElement(jsonString))
-        } catch (ex: SerializationException) {
-            columnDecodeError<PgJson>(
-                type = value.typeData,
-                reason = "Could not parse the '$jsonString' into a json value",
-                cause = ex,
-            )
-        }
+        return PgJson(value.bytes.readBytes())
     }
 
     /**
-     * Attempt to parse the [String] value into a new [PgJson] using [PgJson.fromString].
+     * Attempt to parse the [String] value into a new [PgJson].
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L124)
      *
@@ -71,7 +60,7 @@ internal abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDesc
      */
     override fun decodeText(value: PgValue.Text): PgJson {
         return try {
-            PgJson.fromString(value.text)
+            PgJson(value.text)
         } catch (ex: SerializationException) {
             columnDecodeError<PgJson>(
                 type = value.typeData,
