@@ -318,7 +318,7 @@ class TestCompositeType {
                     );
                 """.trimIndent()).close()
                 connection.sendSimpleQuery("""
-                    DROP TABLE IF EXISTS public.composite_def;
+                    DROP TYPE IF EXISTS public.composite_def;
                     CREATE TYPE public.composite_def AS
                     (
                         id int,
