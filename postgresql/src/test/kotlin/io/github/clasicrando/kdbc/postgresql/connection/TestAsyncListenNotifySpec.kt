@@ -5,7 +5,6 @@ import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.params.ParameterizedTest
@@ -41,14 +40,12 @@ class TestAsyncListenNotifySpec {
                     .executeClosing()
             }
 
-            delay(1000)
-            val notification1 = it.tryReceiveNotification()
+            val notification1 = withTimeout(1000) { it.receiveNotification() }
             assertNotNull(notification1)
             assertEquals(CHANNEL_NAME, notification1.channelName)
             assertEquals(PAYLOAD, notification1.payload)
 
-            delay(1000)
-            val notification2 = it.tryReceiveNotification()
+            val notification2 = withTimeout(1000) { it.receiveNotification() }
             assertNotNull(notification2)
             assertEquals(CHANNEL_NAME2, notification2.channelName)
             assertEquals(PAYLOAD, notification2.payload)

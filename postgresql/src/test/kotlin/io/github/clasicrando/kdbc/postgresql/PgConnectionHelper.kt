@@ -5,6 +5,7 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.listen.PgAsyncListener
+import io.github.clasicrando.kdbc.postgresql.listen.PgBlockingListener
 import io.github.clasicrando.kdbc.postgresql.pool.PgAsyncConnectionPool
 import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingConnectionPool
 import kotlin.time.DurationUnit
@@ -37,6 +38,10 @@ object PgConnectionHelper {
 
     suspend fun defaultAsyncListener(): PgAsyncListener {
         return Postgres.asyncListener(connectOptions = defaultConnectOptions)
+    }
+
+    fun defaultBlockingListener(): PgBlockingListener {
+        return Postgres.blockingListener(connectOptions = defaultConnectOptions)
     }
 
     private val defaultConnectOptionsWithForcedSimple = PgConnectOptions(

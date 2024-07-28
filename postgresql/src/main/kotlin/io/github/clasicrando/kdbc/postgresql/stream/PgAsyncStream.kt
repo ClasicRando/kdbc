@@ -21,7 +21,6 @@ import io.github.clasicrando.kdbc.postgresql.authentication.simplePasswordAuthFl
 import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import io.github.clasicrando.kdbc.postgresql.message.UnexpectedMessage
 import io.github.clasicrando.kdbc.postgresql.message.decoders.PgMessageDecoders
 import io.github.clasicrando.kdbc.postgresql.message.encoders.PgMessageEncoders
 import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
@@ -36,7 +35,6 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
@@ -85,27 +83,6 @@ internal class PgAsyncStream(
         val buffer = asyncStream.readBuffer(size - 4)
         val rawMessage = RawMessage(format = format, size = size, contents = buffer)
         return PgMessageDecoders.decode(rawMessage)
-    }
-
-    /**
-     * Flush message in stream until no more data is accessible
-     *
-     * @throws UnexpectedMessage if a non-asynchronous message is received during the flush
-     */
-    suspend fun flushMessages() {
-        while (true) {
-            val message = withTimeoutOrNull(10) { receiveNextServerMessage() } ?: break
-            when (message) {
-                is PgMessage.NoticeResponse -> onNotice(message)
-                is PgMessage.NotificationResponse -> onNotification(message)
-                is PgMessage.ParameterStatus -> onParameterStatus(message)
-                is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
-                else -> {
-                    throw UnexpectedMessage("Expected asynchronous message but found, $message")
-                }
-            }
-        }
     }
 
     /**
@@ -192,6 +169,33 @@ internal class PgAsyncStream(
             }
         }
         throw ExitOfProcessingLoop(T::class.qualifiedName!!)
+    }
+
+    /**
+     * Similar to [processMessageLoop] but acts as a special case where it ignores all messages
+     * except for [PgMessage.NotificationResponse] and [PgMessage.ErrorResponse]. This is only used
+     * by a listener to wait for the next notification.
+     */
+    suspend fun waitForNotificationOrError(): PgNotification {
+        while (isConnected) {
+            when (val message = receiveNextServerMessage()) {
+                is PgMessage.NoticeResponse -> onNotice(message)
+                is PgMessage.ParameterStatus -> onParameterStatus(message)
+                is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
+                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                is PgMessage.NotificationResponse -> return PgNotification(
+                    channelName = message.channelName,
+                    payload = message.payload,
+                )
+                else -> {
+                    log(Kdbc.detailedLogging) {
+                        this.message = "Ignoring $message since it's not an error or the desired type"
+                    }
+                }
+            }
+        }
+        throw ExitOfProcessingLoop("PgMessage.NotificationResponse")
     }
 
     /**

@@ -17,7 +17,6 @@ import io.github.clasicrando.kdbc.postgresql.authentication.saslAuthFlow
 import io.github.clasicrando.kdbc.postgresql.authentication.simplePasswordAuthFlow
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import io.github.clasicrando.kdbc.postgresql.message.UnexpectedMessage
 import io.github.clasicrando.kdbc.postgresql.message.decoders.PgMessageDecoders
 import io.github.clasicrando.kdbc.postgresql.message.encoders.PgMessageEncoders
 import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
@@ -26,10 +25,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.CancellationException
 import java.util.concurrent.BlockingDeque
-import java.util.concurrent.FutureTask
 import java.util.concurrent.LinkedBlockingDeque
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgBlockingStream"
@@ -71,33 +67,11 @@ internal class PgBlockingStream(
         val size = blockingStream.readInt()
         val buffer = blockingStream.readBuffer(size - 4)
         val rawMessage = RawMessage(format = format, size = size, contents = buffer)
-        return PgMessageDecoders.decode(rawMessage)
-    }
-
-    /**
-     * Flush message in stream until no more data is accessible
-     *
-     * @throws UnexpectedMessage if a non-asynchronous message is received during the flush
-     */
-    fun flushMessages() {
-        while (true) {
-            val task = FutureTask { receiveNextServerMessage() }
-            val message = try {
-                task.get(500, TimeUnit.MILLISECONDS)
-            } catch (_: TimeoutException) {
-                break
-            }
-            when (message) {
-                is PgMessage.NoticeResponse -> onNotice(message)
-                is PgMessage.NotificationResponse -> onNotification(message)
-                is PgMessage.ParameterStatus -> onParameterStatus(message)
-                is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
-                else -> {
-                    throw UnexpectedMessage("Expected asynchronous message but found, $message")
-                }
-            }
+        val message = PgMessageDecoders.decode(rawMessage)
+        log(Kdbc.detailedLogging) {
+            this.message = "Received next message: $message"
         }
+        return message
     }
 
     /**
@@ -170,14 +144,39 @@ internal class PgBlockingStream(
                 is T -> return message
                 else -> {
                     log(Kdbc.detailedLogging) {
-                        this.message =
-                            "Ignoring {message} since it's not an error or the desired type"
-                        payload = mapOf("message" to message)
+                        this.message = "Ignoring $message since it's not an error or the desired type"
                     }
                 }
             }
         }
         throw ExitOfProcessingLoop(T::class.qualifiedName!!)
+    }
+
+    /**
+     * Similar to [processMessageLoop] but acts as a special case where it ignores all messages
+     * except for [PgMessage.NotificationResponse] and [PgMessage.ErrorResponse]. This is only used
+     * by a listener to wait for the next notification.
+     */
+    fun waitForNotificationOrError(): PgNotification {
+        while (isConnected) {
+            when (val message = receiveNextServerMessage()) {
+                is PgMessage.NoticeResponse -> onNotice(message)
+                is PgMessage.ParameterStatus -> onParameterStatus(message)
+                is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
+                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                is PgMessage.NotificationResponse -> return PgNotification(
+                    channelName = message.channelName,
+                    payload = message.payload,
+                )
+                else -> {
+                    log(Kdbc.detailedLogging) {
+                        this.message = "Ignoring $message since it's not an error or the desired type"
+                    }
+                }
+            }
+        }
+        throw ExitOfProcessingLoop("PgMessage.NotificationResponse")
     }
 
     /**
@@ -197,8 +196,7 @@ internal class PgBlockingStream(
     private fun onNotification(message: PgMessage.NotificationResponse) {
         val notification = PgNotification(message.channelName, message.payload)
         log(Kdbc.detailedLogging) {
-            this.message = "Notification, message -> {notification}"
-            payload = mapOf("notification" to message)
+            this.message = "Notification, message -> $notification"
         }
         notificationsQueue.put(notification)
     }
@@ -209,8 +207,7 @@ internal class PgBlockingStream(
      */
     private fun onBackendKeyData(message: PgMessage.BackendKeyData) {
         log(Kdbc.detailedLogging) {
-            this.message = "Got backend key data. Process ID: {processId}, Secret Key: ****"
-            payload = mapOf("payloadId" to message.processId)
+            this.message = "Got backend key data. Process ID: ${message.processId}, Secret Key: ****"
         }
         backendKeyData = message
     }
@@ -220,8 +217,7 @@ internal class PgBlockingStream(
      */
     private fun onParameterStatus(message: PgMessage.ParameterStatus) {
         log(Kdbc.detailedLogging) {
-            this.message = "Parameter Status, {status}"
-            payload = mapOf("status" to message)
+            this.message = "Parameter Status, $message"
         }
     }
 
@@ -231,8 +227,7 @@ internal class PgBlockingStream(
      */
     private fun onNegotiateProtocolVersion(message: PgMessage.NegotiateProtocolVersion) {
         log(Kdbc.detailedLogging) {
-            this.message = "Server does not support protocol version 3.0. {message}"
-            payload = mapOf("message" to message)
+            this.message = "Server does not support protocol version 3.0. $message"
         }
     }
 

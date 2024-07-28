@@ -90,6 +90,9 @@ internal class QueryResultCollector(
             }
             is PgMessage.ReadyForQuery -> {
                 transactionStatus = message.transactionStatus
+                resource.logWithResource(logger, Kdbc.detailedLogging) {
+                    this.message = "Done collecting result"
+                }
                 Loop.Break
             }
             else -> logUnexpectedMessage(message)
@@ -102,8 +105,7 @@ internal class QueryResultCollector(
      */
     private fun logUnexpectedMessage(message: PgMessage): Loop {
         resource.logWithResource(logger, Kdbc.detailedLogging) {
-            this.message = "Ignoring {message} since it's not an error or the desired type"
-            payload = mapOf("message" to message)
+            this.message = "Ignoring $message since it's not an error or the desired type"
         }
         return Loop.Continue
     }

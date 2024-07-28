@@ -31,7 +31,6 @@ import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyTrailer
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
-import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingConnectionPool
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQuery
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQueryBatch
@@ -56,6 +55,7 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.reflect.typeOf
+import kotlin.time.measureTimedValue
 
 private val logger = KotlinLogging.logger {}
 
@@ -74,7 +74,7 @@ class PgBlockingConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
     internal val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
-    private val stream: PgBlockingStream,
+    internal val stream: PgBlockingStream,
     /**
      * Reference to the [io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool] that owns
      * this [PgBlockingConnection]
@@ -284,14 +284,21 @@ class PgBlockingConnection internal constructor(
         if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
             return sendExtendedQuery(query, emptyList())
         }
-        return lock.withLock {
-            log(connectOptions.logSettings.statementLevel) {
-                message = STATEMENT_TEMPLATE
-                payload = mapOf("query" to query)
+
+        val result = measureTimedValue {
+            lock.withLock {
+                log(connectOptions.logSettings.statementLevel) {
+                    message = STATEMENT_TEMPLATE
+                    payload = mapOf("query" to query)
+                }
+                stream.writeToStream(PgMessage.Query(query))
+                collectResult()
             }
-            stream.writeToStream(PgMessage.Query(query))
-            collectResult()
         }
+        log(Kdbc.detailedLogging) {
+            this.message = "Done executing simple query. Took ${result.duration}"
+        }
+        return result.value
     }
 
     /**
@@ -457,20 +464,26 @@ class PgBlockingConnection internal constructor(
     ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
-        return lock.withLock {
-            val statement = try {
-                prepareStatement(query, parameters)
-            } catch (ex: Throwable) {
-                throw ex
-            }
+        val result = measureTimedValue {
+            lock.withLock {
+                val statement = try {
+                    prepareStatement(query, parameters)
+                } catch (ex: Throwable) {
+                    throw ex
+                }
 
-            val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
-            for ((parameter, type) in parameters) {
-                encodeBuffer.encodeValue(parameter, type)
+                val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
+                for ((parameter, type) in parameters) {
+                    encodeBuffer.encodeValue(parameter, type)
+                }
+                executePreparedStatement(statement, encodeBuffer)
+                collectResult(statement = statement)
             }
-            executePreparedStatement(statement, encodeBuffer)
-            collectResult(statement = statement)
         }
+        log(Kdbc.detailedLogging) {
+            this.message = "Done executing extended query. Took ${result.duration}"
+        }
+        return result.value
     }
 
     /**
@@ -878,32 +891,12 @@ class PgBlockingConnection internal constructor(
     }
 
     /**
-     * Execute a `LISTEN` command for the specified [channelName]. Allows this connection to
-     * receive notifications sent to this connection's current database. All received messages
-     * are accessible from the [getNotifications] method.
-     */
-    fun listen(channelName: String) {
-        val query = "LISTEN ${channelName.quoteIdentifier()};"
-        sendSimpleQuery(query)
-    }
-
-    /**
      * Execute a `NOTIFY` command for the specified [channelName] with the supplied [payload]. This
      * sends a notification to any connection connected to this connection's current database.
      */
     fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
         sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
-    }
-
-    /**
-     * Returns all available [PgNotification]s from the message stream. Flushes the stream to
-     * obtain all pending messages sent from the server then pull every message from the
-     * notification queue.
-     */
-    fun getNotifications(): List<PgNotification> {
-        stream.flushMessages()
-        return generateSequence { stream.notificationsQueue.poll() }.toList()
     }
 
     /**
