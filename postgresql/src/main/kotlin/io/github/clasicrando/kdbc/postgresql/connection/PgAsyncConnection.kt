@@ -32,7 +32,6 @@ import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyTrailer
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
-import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.clasicrando.kdbc.postgresql.pool.PgAsyncConnectionPool
 import io.github.clasicrando.kdbc.postgresql.query.PgAsyncPreparedQuery
 import io.github.clasicrando.kdbc.postgresql.query.PgAsyncPreparedQueryBatch
@@ -76,9 +75,9 @@ class PgAsyncConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
     internal val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
-    private val stream: PgAsyncStream,
+    internal val stream: PgAsyncStream,
     /** Reference to the connection pool that owns this connection */
-    private val pool: PgAsyncConnectionPool,
+    internal val pool: PgAsyncConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
     @PublishedApi internal val typeCache: PgTypeCache = pool.typeCache,
 ) : AsyncConnection, DefaultUniqueResourceId() {
@@ -910,39 +909,12 @@ class PgAsyncConnection internal constructor(
     }
 
     /**
-     * Execute a `LISTEN` command for the specified [channelName]. Allows this connection to
-     * receive notifications sent to this connection's current database. Notifications can be
-     * received using the [getNotifications] method.
-     */
-    suspend fun listen(channelName: String) {
-        val query = "LISTEN ${channelName.quoteIdentifier()};"
-        sendSimpleQuery(query)
-    }
-
-    /**
      * Execute a `NOTIFY` command for the specified [channelName] with the supplied [payload]. This
      * sends a notification to any connection connected to this connection's current database.
      */
     suspend fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
         sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
-    }
-
-    /**
-     * Returns all available [PgNotification]s from the message stream. Flushes the stream to
-     * obtain all pending messages sent from the server then pull every message from the
-     * notification queue.
-     */
-    suspend fun getNotifications(): List<PgNotification> {
-        checkConnected()
-        stream.flushMessages()
-        return generateSequence {
-            val result = stream.notifications.tryReceive()
-            when {
-                result.isClosed -> error("Attempted to read notifications from closed channel")
-                else -> result.getOrNull()
-            }
-        }.toList()
     }
 
     /**

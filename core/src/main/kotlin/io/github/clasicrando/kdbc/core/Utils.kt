@@ -3,6 +3,10 @@ package io.github.clasicrando.kdbc.core
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.io.Source
@@ -130,4 +134,8 @@ fun InputStream.chunkedBytes(
         bytes.size -> bytes
         else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
     }
+}
+
+fun CoroutineScope.deferredDelay(duration: Duration): Deferred<Unit> {
+    return this.async { delay(duration) }
 }

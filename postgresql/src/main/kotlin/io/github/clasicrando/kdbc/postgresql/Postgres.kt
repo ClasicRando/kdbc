@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.Database
 import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.postgresql.listen.PgAsyncListener
 import io.github.clasicrando.kdbc.postgresql.pool.PgAsyncPoolManager
 import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingPoolManager
 
@@ -23,5 +24,12 @@ object Postgres : Database<PgBlockingConnection, PgAsyncConnection, PgConnectOpt
      */
     override fun blockingConnection(connectOptions: PgConnectOptions): PgBlockingConnection {
         return PgBlockingPoolManager.acquireConnection(connectOptions)
+    }
+
+    /**
+     * Create a new [PgAsyncListener] with a connection acquired from [asyncConnection]
+     */
+    suspend fun asyncListener(connectOptions: PgConnectOptions): PgAsyncListener {
+        return PgAsyncListener(asyncConnection(connectOptions))
     }
 }
