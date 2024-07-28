@@ -31,7 +31,18 @@ class SocketBlockingStream(
     override val isConnected: Boolean get() = socket.isConnected
 
     override fun connect(timeout: Duration) {
-        socket.connect(address.toJavaAddress(), timeout.inWholeMilliseconds.toInt())
+        try {
+            socket.connect(address.toJavaAddress(), timeout.inWholeMilliseconds.toInt())
+        } catch (ex: Exception) {
+            logWithResource(logger, Kdbc.detailedLogging) {
+                message = "Failed to connect to $address"
+                cause = ex
+            }
+            throw StreamConnectError(address, ex)
+        }
+        logWithResource(logger, Kdbc.detailedLogging) {
+            message = "Successfully connected to $address"
+        }
         inputStream = socket.inputStream
         outputStream = socket.outputStream
     }
@@ -64,8 +75,7 @@ class SocketBlockingStream(
                 throw EndOfStream()
             }
             logWithResource(logger, Kdbc.detailedLogging) {
-                message = "Received {count} bytes from {address}"
-                payload = mapOf("count" to bytesRead, "address" to address)
+                message = "Received $bytesRead bytes from $address"
             }
 
             buffer.write(tempBuffer, 0, bytesRead)

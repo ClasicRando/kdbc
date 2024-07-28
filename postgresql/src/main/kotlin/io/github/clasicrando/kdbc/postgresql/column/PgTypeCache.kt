@@ -452,8 +452,7 @@ internal class PgTypeCache {
                 .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
-                    message = "Could not find composite type by name"
-                    payload = mapOf("name" to name)
+                    message = "Could not find composite type by name = '$name'"
                 }
                 return null
             }
@@ -500,8 +499,7 @@ internal class PgTypeCache {
                 .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
-                    message = "Could not find enum type for name = {name}"
-                    payload = mapOf("name" to name)
+                    message = "Could not find enum type for name = '$name'"
                 }
                 return null
             }
@@ -536,8 +534,7 @@ internal class PgTypeCache {
 
             if (arrayOid == null) {
                 logger.atWarn {
-                    message = "Could not find array type by oid"
-                    payload = mapOf("oid" to oid)
+                    message = "Could not find array type by oid = $oid"
                 }
                 return null
             }
@@ -570,8 +567,7 @@ internal class PgTypeCache {
                 .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
-                    message = "Could not find composite type by name"
-                    payload = mapOf("name" to name)
+                    message = "Could not find composite type by name = '$name'"
                 }
                 return null
             }
@@ -618,8 +614,7 @@ internal class PgTypeCache {
                 .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
-                    message = "Could not find enum type for name = {name}"
-                    payload = mapOf("name" to name)
+                    message = "Could not find enum type for name = '$name'"
                 }
                 return null
             }
@@ -654,8 +649,7 @@ internal class PgTypeCache {
 
             if (arrayOid == null) {
                 logger.atWarn {
-                    message = "Could not find array type by oid"
-                    payload = mapOf("oid" to oid)
+                    message = "Could not find array type by oid = $oid"
                 }
                 return null
             }

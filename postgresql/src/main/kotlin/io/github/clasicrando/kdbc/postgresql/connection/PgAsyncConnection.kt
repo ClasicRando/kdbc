@@ -61,6 +61,7 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.reflect.typeOf
+import kotlin.time.measureTimedValue
 
 private val logger = KotlinLogging.logger {}
 
@@ -183,8 +184,7 @@ class PgAsyncConnection internal constructor(
      */
     private fun logUnexpectedMessage(message: PgMessage): Loop {
         log(Kdbc.detailedLogging) {
-            this.message = "Ignoring {message} since it's not an error or the desired type"
-            payload = mapOf("message" to message)
+            this.message = "Ignoring $message since it's not an error or the desired type"
         }
         return Loop.Continue
     }
@@ -298,15 +298,20 @@ class PgAsyncConnection internal constructor(
             return sendExtendedQuery(query, listOf())
         }
 
-        return mutex.withLock {
-            log(connectOptions.logSettings.statementLevel) {
-                message = STATEMENT_TEMPLATE
-                payload = mapOf("query" to query)
-            }
-            stream.writeToStream(PgMessage.Query(query))
+        val result = measureTimedValue {
+            mutex.withLock {
+                log(connectOptions.logSettings.statementLevel) {
+                    message = "Sending query\n$query"
+                }
+                stream.writeToStream(PgMessage.Query(query))
 
-            collectResult()
+                collectResult()
+            }
         }
+        log(Kdbc.detailedLogging) {
+            this.message = "Done executing simple query. Took ${result.duration}"
+        }
+        return result.value
     }
 
     /**
@@ -448,8 +453,7 @@ class PgAsyncConnection internal constructor(
         }
         statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to statement.query)
+            message = "Sending query\n${statement.query}"
         }
     }
 
@@ -471,20 +475,26 @@ class PgAsyncConnection internal constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
 
-        return mutex.withLock {
-            val statement = try {
-                prepareStatement(query, parameters)
-            } catch (ex: Throwable) {
-                throw ex
-            }
+        val result = measureTimedValue {
+            mutex.withLock {
+                val statement = try {
+                    prepareStatement(query, parameters)
+                } catch (ex: Throwable) {
+                    throw ex
+                }
 
-            val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
-            for ((parameter, type) in parameters) {
-                encodeBuffer.encodeValue(parameter, type)
+                val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
+                for ((parameter, type) in parameters) {
+                    encodeBuffer.encodeValue(parameter, type)
+                }
+                executePreparedStatement(statement, encodeBuffer)
+                collectResult(statement = statement)
             }
-            executePreparedStatement(statement, encodeBuffer)
-            collectResult(statement = statement)
         }
+        log(Kdbc.detailedLogging) {
+            this.message = "Done executing extended query. Took ${result.duration}"
+        }
+        return result.value
     }
 
     /**
@@ -625,8 +635,7 @@ class PgAsyncConnection internal constructor(
      */
     private suspend fun copyInInternal(copyQuery: String, data: Flow<ByteArray>): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to copyQuery)
+            message = "Sending query\n$copyQuery"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyInResponse>()
@@ -813,8 +822,7 @@ class PgAsyncConnection internal constructor(
         copyQuery: String,
     ): Flow<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to copyQuery)
+            message = "Sending query\n$copyQuery"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyOutResponse>()
@@ -951,8 +959,6 @@ class PgAsyncConnection internal constructor(
     }
 
     companion object {
-        private const val STATEMENT_TEMPLATE = "Sending {query}"
-
         /**
          * Create a new [PgAsyncConnection] instance using the supplied [connectOptions],
          * [stream] and [pool] (the pool that owns this connection).

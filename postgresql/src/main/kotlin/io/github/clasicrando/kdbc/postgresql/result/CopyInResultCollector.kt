@@ -83,8 +83,7 @@ internal class CopyInResultCollector(
             }
             else -> {
                 resource.logWithResource(logger, Kdbc.detailedLogging) {
-                    this.message = "Ignoring {message} since it's not an error or the desired type"
-                    payload = mapOf("message" to message)
+                    this.message = "Ignoring $message since it's not an error or the desired type"
                 }
                 Loop.Continue
             }

@@ -40,8 +40,7 @@ private suspend fun PgAsyncStream.receiveContinueMessage(): Authentication.SaslC
     val continueMessage = this.receiveNextServerMessage()
     if (continueMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
-            message = "Expected an Authentication message but got {code}"
-            payload = mapOf("code" to continueMessage.code)
+            message = "Expected an Authentication message but got ${continueMessage.code}"
         }
         val errorMessage = "Expected an Authentication message but got $continueMessage"
         throw PgAuthenticationError(errorMessage)
@@ -49,8 +48,7 @@ private suspend fun PgAsyncStream.receiveContinueMessage(): Authentication.SaslC
     val continueAuthMessage = continueMessage.authentication
     if (continueAuthMessage !is Authentication.SaslContinue) {
         this.log(Kdbc.detailedLogging) {
-            message = "Expected a SASL Continue message but got {authMessage}"
-            payload = mapOf("authMessage" to continueAuthMessage)
+            message = "Expected a SASL Continue message but got $continueAuthMessage"
         }
         throw PgAuthenticationError("Expected a SaslContinue message but got $continueAuthMessage")
     }
@@ -85,8 +83,7 @@ private suspend fun PgAsyncStream.receiveFinalAuthMessage(): Authentication.Sasl
     val finalMessage = this.receiveNextServerMessage()
     if (finalMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
-            message = "Expected an Authentication message but got {code}"
-            payload = mapOf("code" to finalMessage.code)
+            message = "Expected an Authentication message but got ${finalMessage.code}"
         }
         val errorMessage = "Expected an Authentication message but got $finalMessage"
         throw PgAuthenticationError(errorMessage)
@@ -94,8 +91,7 @@ private suspend fun PgAsyncStream.receiveFinalAuthMessage(): Authentication.Sasl
     val finalAuthMessage = finalMessage.authentication
     if (finalAuthMessage !is Authentication.SaslFinal) {
         this.log(Level.ERROR) {
-            message = "Expected a SaslFinal auth message but got {authMessage}"
-            payload = mapOf("authMessage" to finalAuthMessage)
+            message = "Expected a SaslFinal auth message but got $finalAuthMessage"
         }
         throw PgAuthenticationError("Expected a SaslFinal auth message but got $finalAuthMessage")
     }
@@ -110,8 +106,7 @@ private suspend fun PgAsyncStream.receiveOkAuthMessage() {
     val okMessage = this.receiveNextServerMessage()
     if (okMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
-            message = "Expected an Authentication message but got {code}"
-            payload = mapOf("code" to okMessage.code)
+            message = "Expected an Authentication message but got ${okMessage.code}"
         }
         val errorMessage = "Expected an Authentication message but got $okMessage"
         throw PgAuthenticationError(errorMessage)
@@ -119,8 +114,7 @@ private suspend fun PgAsyncStream.receiveOkAuthMessage() {
     val okAuthMessage = okMessage.authentication
     if (okAuthMessage !is Authentication.Ok) {
         this.log(Level.ERROR) {
-            message = "Expected an OK auth message but got {authMessage}"
-            payload = mapOf("authMessage" to okMessage)
+            message = "Expected an OK auth message but got $okMessage"
         }
         throw PgAuthenticationError("Expected an OK auth message but got $okAuthMessage")
     }
@@ -203,8 +197,7 @@ private fun PgBlockingStream.receiveContinueMessage(): Authentication.SaslContin
     val continueMessage = this.receiveNextServerMessage()
     if (continueMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
-            message = "Expected an Authentication message but got {code}"
-            payload = mapOf("code" to continueMessage.code)
+            message = "Expected an Authentication message but got ${continueMessage.code}"
         }
         val errorMessage = "Expected an Authentication message but got $continueMessage"
         throw PgAuthenticationError(errorMessage)
@@ -212,8 +205,7 @@ private fun PgBlockingStream.receiveContinueMessage(): Authentication.SaslContin
     val continueAuthMessage = continueMessage.authentication
     if (continueAuthMessage !is Authentication.SaslContinue) {
         this.log(Kdbc.detailedLogging) {
-            message = "Expected a SASL Continue message but got {authMessage}"
-            payload = mapOf("authMessage" to continueAuthMessage)
+            message = "Expected a SASL Continue message but got $continueAuthMessage"
         }
         throw PgAuthenticationError("Expected a SaslContinue message but got $continueAuthMessage")
     }
@@ -248,8 +240,7 @@ private fun PgBlockingStream.receiveFinalAuthMessage(): Authentication.SaslFinal
     val finalMessage = this.receiveNextServerMessage()
     if (finalMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
-            message = "Expected an Authentication message but got {code}"
-            payload = mapOf("code" to finalMessage.code)
+            message = "Expected an Authentication message but got ${finalMessage.code}"
         }
         val errorMessage = "Expected an Authentication message but got $finalMessage"
         throw PgAuthenticationError(errorMessage)
@@ -257,8 +248,7 @@ private fun PgBlockingStream.receiveFinalAuthMessage(): Authentication.SaslFinal
     val finalAuthMessage = finalMessage.authentication
     if (finalAuthMessage !is Authentication.SaslFinal) {
         this.log(Level.ERROR) {
-            message = "Expected a SaslFinal auth message but got {authMessage}"
-            payload = mapOf("authMessage" to finalAuthMessage)
+            message = "Expected a SaslFinal auth message but got $finalAuthMessage"
         }
         throw PgAuthenticationError("Expected a SaslFinal auth message but got $finalAuthMessage")
     }
@@ -273,8 +263,7 @@ private fun PgBlockingStream.receiveOkAuthMessage() {
     val okMessage = this.receiveNextServerMessage()
     if (okMessage !is PgMessage.Authentication) {
         this.log(Level.ERROR) {
-            message = "Expected an Authentication message but got {code}"
-            payload = mapOf("code" to okMessage.code)
+            message = "Expected an Authentication message but got ${okMessage.code}"
         }
         val errorMessage = "Expected an Authentication message but got $okMessage"
         throw PgAuthenticationError(errorMessage)
@@ -282,8 +271,7 @@ private fun PgBlockingStream.receiveOkAuthMessage() {
     val okAuthMessage = okMessage.authentication
     if (okAuthMessage !is Authentication.Ok) {
         this.log(Level.ERROR) {
-            message = "Expected an OK auth message but got {authMessage}"
-            payload = mapOf("authMessage" to okMessage)
+            message = "Expected an OK auth message but got $okMessage"
         }
         throw PgAuthenticationError("Expected an OK auth message but got $okAuthMessage")
     }

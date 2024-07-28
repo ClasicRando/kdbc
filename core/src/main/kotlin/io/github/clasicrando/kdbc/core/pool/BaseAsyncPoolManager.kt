@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.core.pool
 
 import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
+import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.AsyncConnection
 import io.github.clasicrando.kdbc.core.exceptions.CouldNotInitializeConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -38,9 +39,8 @@ abstract class BaseAsyncPoolManager<O : Any, C : AsyncConnection> {
             if (!isValid) {
                 throw CouldNotInitializeConnection(connectOptions.toString())
             }
-            logger.atTrace {
-                message = "Created a new connection pool for {options}"
-                payload = mapOf("options" to connectOptions)
+            logger.at(Kdbc.detailedLogging) {
+                message = "Created a new connection pool for $connectOptions"
             }
             pool
         }.acquire()

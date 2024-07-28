@@ -162,8 +162,7 @@ internal class PgAsyncStream(
                 else -> {
                     log(Kdbc.detailedLogging) {
                         this.message =
-                            "Ignoring {message} since it's not an error or the desired type"
-                        payload = mapOf("message" to message)
+                            "Ignoring $message since it's not an error or the desired type"
                     }
                 }
             }
@@ -203,8 +202,7 @@ internal class PgAsyncStream(
      */
     private fun onNotice(message: PgMessage.NoticeResponse) {
         log(Kdbc.detailedLogging) {
-            this.message = "Notice, message -> {noticeResponse}"
-            payload = mapOf("noticeResponse" to message)
+            this.message = "Notice, message -> $message"
         }
     }
 
@@ -215,8 +213,7 @@ internal class PgAsyncStream(
     private suspend fun onNotification(message: PgMessage.NotificationResponse) {
         val notification = PgNotification(message.channelName, message.payload)
         log(Kdbc.detailedLogging) {
-            this.message = "Notification, message -> {notification}"
-            payload = mapOf("notification" to message)
+            this.message = "Notification, message -> $message"
         }
         notificationsChannel.send(notification)
     }
@@ -227,8 +224,8 @@ internal class PgAsyncStream(
      */
     private fun onBackendKeyData(message: PgMessage.BackendKeyData) {
         log(Kdbc.detailedLogging) {
-            this.message = "Got backend key data. Process ID: {processId}, Secret Key: ****"
-            payload = mapOf("payloadId" to message.processId)
+            this.message =
+                "Got backend key data. Process ID: ${message.processId}, Secret Key: ****"
         }
         backendKeyData = message
     }
@@ -238,8 +235,7 @@ internal class PgAsyncStream(
      */
     private fun onParameterStatus(message: PgMessage.ParameterStatus) {
         log(Kdbc.detailedLogging) {
-            this.message = "Parameter Status, {status}"
-            payload = mapOf("status" to message)
+            this.message = "Parameter Status, $message"
         }
     }
 
@@ -249,8 +245,7 @@ internal class PgAsyncStream(
      */
     private fun onNegotiateProtocolVersion(message: PgMessage.NegotiateProtocolVersion) {
         log(Kdbc.detailedLogging) {
-            this.message = "Server does not support protocol version 3.0. {message}"
-            payload = mapOf("message" to message)
+            this.message = "Server does not support protocol version 3.0. $message"
         }
     }
 

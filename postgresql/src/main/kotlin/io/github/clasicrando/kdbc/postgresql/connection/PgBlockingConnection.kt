@@ -171,8 +171,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun logUnexpectedMessage(message: PgMessage): Loop {
         log(Kdbc.detailedLogging) {
-            this.message = "Ignoring {message} since it's not an error or the desired type"
-            payload = mapOf("message" to message)
+            this.message = "Ignoring $message since it's not an error or the desired type"
         }
         return Loop.Continue
     }
@@ -288,8 +287,7 @@ class PgBlockingConnection internal constructor(
         val result = measureTimedValue {
             lock.withLock {
                 log(connectOptions.logSettings.statementLevel) {
-                    message = STATEMENT_TEMPLATE
-                    payload = mapOf("query" to query)
+                    message = "Sending query\n$query"
                 }
                 stream.writeToStream(PgMessage.Query(query))
                 collectResult()
@@ -442,8 +440,7 @@ class PgBlockingConnection internal constructor(
         }
         statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to statement.query)
+            message = "Sending query\n${statement.query}"
         }
     }
 
@@ -622,8 +619,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun copyInInternal(copyQuery: String, data: Sequence<ByteArray>): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to copyQuery)
+            message = "Sending query\n$copyQuery"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyInResponse>()
@@ -802,8 +798,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun copyOutInternal(copyQuery: String): Sequence<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to copyQuery)
+            message = "Sending query\n$copyQuery"
         }
 
         stream.writeToStream(PgMessage.Query(copyQuery))
@@ -943,8 +938,6 @@ class PgBlockingConnection internal constructor(
     }
 
     companion object {
-        private const val STATEMENT_TEMPLATE = "Sending {query}"
-
         /**
          * Create a new [PgBlockingConnection] instance using the supplied [connectOptions],
          * [stream] and [pool] (the pool that owns this connection).

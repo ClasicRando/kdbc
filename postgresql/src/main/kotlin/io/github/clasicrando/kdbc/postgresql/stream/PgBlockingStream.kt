@@ -184,8 +184,7 @@ internal class PgBlockingStream(
      */
     private fun onNotice(message: PgMessage.NoticeResponse) {
         log(Kdbc.detailedLogging) {
-            this.message = "Notice, message -> {noticeResponse}"
-            payload = mapOf("noticeResponse" to message)
+            this.message = "Notice, message -> $message"
         }
     }
 

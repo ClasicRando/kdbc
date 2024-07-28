@@ -52,8 +52,7 @@ internal suspend fun PgAsyncStream.simplePasswordAuthFlow(
         val response = this.receiveNextServerMessage()
         if (response !is PgMessage.Authentication) {
             this.log(Level.ERROR) {
-                message = "Expected an Authentication message but got {code}"
-                payload = mapOf("code" to response.code)
+                message = "Expected an Authentication message but got ${response.code}"
             }
             val errorMessage = "Expected an Authentication message but got $response"
             throw PgAuthenticationError(errorMessage)
@@ -61,8 +60,7 @@ internal suspend fun PgAsyncStream.simplePasswordAuthFlow(
         val auth = response.authentication
         if (auth !is Authentication.Ok) {
             this.log(Level.ERROR) {
-                message = "Expected an OK auth message but got {authMessage}"
-                payload = mapOf("authMessage" to auth)
+                message = "Expected an OK auth message but got $auth"
             }
             throw PgAuthenticationError("Expected an OK auth message but got $auth")
         }
@@ -102,8 +100,7 @@ internal fun PgBlockingStream.simplePasswordAuthFlow(
         val response = this.receiveNextServerMessage()
         if (response !is PgMessage.Authentication) {
             this.log(Level.ERROR) {
-                message = "Expected an Authentication message but got {code}"
-                payload = mapOf("code" to response.code)
+                message = "Expected an Authentication message but got ${response.code}"
             }
             val errorMessage = "Expected an Authentication message but got $response"
             throw PgAuthenticationError(errorMessage)
@@ -111,8 +108,7 @@ internal fun PgBlockingStream.simplePasswordAuthFlow(
         val auth = response.authentication
         if (auth !is Authentication.Ok) {
             this.log(Level.ERROR) {
-                message = "Expected an OK auth message but got {authMessage}"
-                payload = mapOf("authMessage" to auth)
+                message = "Expected an OK auth message but got $auth"
             }
             throw PgAuthenticationError("Expected an OK auth message but got $auth")
         }

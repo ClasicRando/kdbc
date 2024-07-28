@@ -45,11 +45,8 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
         val connection = provider.create(this@AbstractDefaultBlockingConnectionPool)
         connectionIds[connection.resourceId] = connection
         logger.atTrace {
-            message = "Created new connection. Current pool size = {count}. Max size = {max}"
-            payload = mapOf(
-                "count" to connectionIds.size,
-                "max" to poolOptions.maxConnections,
-            )
+            message = "Created new connection. Current pool size = ${connectionIds.size}. " +
+                    "Max size = ${poolOptions.maxConnections}"
         }
         return connection
     }
@@ -73,15 +70,13 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
             connectionId = connection.resourceId
             lock.withLock { connectionIds.remove(connectionId) }
             logger.atTrace {
-                message = "Invalidating connection id = {id}"
-                payload = mapOf("id" to connectionId)
+                message = "Invalidating connection id = $connectionId"
             }
             disposeConnection(connection)
         } catch (ex: Throwable) {
             logger.atError {
                 cause = ex
-                message = "Error while closing invalid connection, '{connectionId}'"
-                payload = connectionId?.let { mapOf("connectionId" to it) }
+                message = "Error while closing invalid connection, '$connectionId'"
             }
         }
     }
