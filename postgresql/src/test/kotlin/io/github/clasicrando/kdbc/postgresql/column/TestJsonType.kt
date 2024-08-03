@@ -65,7 +65,7 @@ class TestJsonType {
 
     companion object {
         private val jsonValue = JsonType(584.5269, "PgJson test")
-        private val pgJsonValue = PgJson(Json.encodeToJsonElement(jsonValue))
+        private val pgJsonValue = PgJson.fromJsonElement(Json.encodeToJsonElement(jsonValue))
         private val JSON_STRING = Json.encodeToString(jsonValue)
         private const val JSON_TEST_TABLE = "json_test"
         private const val JSONB_TEST_TABLE = "jsonb_test"

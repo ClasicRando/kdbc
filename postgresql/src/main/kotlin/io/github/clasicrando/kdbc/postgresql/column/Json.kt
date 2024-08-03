@@ -48,7 +48,7 @@ internal abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDesc
             ) { "Unsupported JSONB format version $version. Only version 1 is supported" }
         }
 
-        return PgJson(value.bytes.readBytes())
+        return PgJson.Bytes(value.bytes.readBytes())
     }
 
     /**
@@ -60,7 +60,7 @@ internal abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDesc
      */
     override fun decodeText(value: PgValue.Text): PgJson {
         return try {
-            PgJson(value.text)
+            PgJson.Text(value.text)
         } catch (ex: SerializationException) {
             columnDecodeError<PgJson>(
                 type = value.typeData,
