@@ -36,7 +36,7 @@ class TestPgMoney {
     fun `PgMoney should fail when double has more than 2 values after the decimal place`(
         dblMoney: Double,
     ) {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<IllegalStateException> {
             PgMoney(dblMoney)
         }
     }

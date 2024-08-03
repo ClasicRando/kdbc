@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
@@ -9,7 +10,6 @@ import io.github.clasicrando.kdbc.postgresql.type.PgRange
 import io.github.clasicrando.kdbc.postgresql.type.PgRangeLiteralParser
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
-import java.math.BigDecimal
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 

@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import io.github.clasicrando.kdbc.core.traditionalScale
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -7,8 +9,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import java.math.BigDecimal
-import java.math.RoundingMode
 import kotlin.math.absoluteValue
 
 /**
@@ -20,10 +20,10 @@ import kotlin.math.absoluteValue
 @Serializable(with = PgMoney.Companion::class)
 class PgMoney internal constructor(internal val integer: Long) {
     /**
-     * Create a new [PgMoney] by passing the [double] to [BigDecimal.valueOf] and constructing the
-     * [Long] value needed from that [BigDecimal].
+     * Create a new [PgMoney] by passing the [double] to [BigDecimal.fromDouble] and constructing
+     * the [Long] value needed from that [BigDecimal].
      */
-    constructor(double: Double): this(BigDecimal.valueOf(double))
+    constructor(double: Double): this(BigDecimal.fromDouble(double))
 
     /**
      * Create a new [PgMoney] by converting the [decimal] value to a 2 scale [BigDecimal],
@@ -33,13 +33,16 @@ class PgMoney internal constructor(internal val integer: Long) {
      * @throws IllegalArgumentException if the [decimal] value has a [BigDecimal.scale] > 2
      */
     constructor(decimal: BigDecimal): this(
-        decimal.setScale(2, RoundingMode.UP).unscaledValue().toLong()
-    ) {
-        require(decimal.scale() <= 2) {
-            "Money values cannot be constructed from Double values with more than 2 values after" +
-                    " the decimal place. Otherwise, precision would be lost"
+        when (decimal.traditionalScale) {
+            0L -> (decimal.significand * 100).longValue()
+            1L -> (decimal.significand * 10).longValue()
+            2L -> decimal.significand.longValue()
+            else -> error(
+                "Money values cannot be constructed from decimal values with more than 2 values " +
+                "after the decimal place. Otherwise, precision would be lost"
+            )
         }
-    }
+    )
 
     private val strRep: String by lazy {
         buildString {
@@ -124,7 +127,7 @@ class PgMoney internal constructor(internal val integer: Long) {
                 Actual Value: $strMoney
                 """.trimIndent()
             }
-            val long = BigDecimal(strMoney.replace("$", ""))
+            val long = BigDecimal.parseString(strMoney.replace("$", ""))
             return PgMoney(long)
         }
     }

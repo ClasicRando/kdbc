@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.core
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
@@ -136,6 +138,32 @@ fun InputStream.chunkedBytes(
     }
 }
 
-fun CoroutineScope.deferredDelay(duration: Duration): Deferred<Unit> {
-    return this.async { delay(duration) }
+/**
+ * Get the traditional scale of the [BigDecimal] by taking the number of digits after the decimal
+ * place (in the simplified representation of the [BigDecimal]) and subtracting the
+ * [BigDecimal.exponent] value.
+ *
+ * For example, if your [BigDecimal] is "25345.5265" then the simplified representation will be
+ * "2.53455265E+4" so your number of digits after the decimal place are 8 and your exponent is 4
+ * which calculates the traditional scale as 4 (i.e. the number of digits after the true decimal
+ * place).
+ */
+inline val BigDecimal.traditionalScale: Long
+    get() = significand.numberOfDecimalDigits() - 1 - exponent
+
+/**
+ * Construct a new [BigDecimal] from this [BigInteger] by calculating the expected simplified
+ * representation exponent as the number of digits after the simplified representations decimal
+ * place minus the specified traditional [scale].
+ *
+ * For example, if your [BigInteger] is "253455265" and your scale is 4, then the common
+ * representation is "25345.5265" which means the simplified representation is "2.53455265E+4". This
+ * is calculated because the number of digits after the eventual simplified representation is 8 and
+ * the [scale] is 4 so the effective exponent in the simplified representation is 4.
+ */
+fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal {
+    return BigDecimal.fromBigIntegerWithExponent(
+        bigInteger = this,
+        exponent = this.numberOfDecimalDigits() - 1 - scale
+    )
 }

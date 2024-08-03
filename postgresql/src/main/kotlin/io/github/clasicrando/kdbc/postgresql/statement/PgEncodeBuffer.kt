@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.statement
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
@@ -111,7 +112,6 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.uuid.UUID
-import java.math.BigDecimal
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 

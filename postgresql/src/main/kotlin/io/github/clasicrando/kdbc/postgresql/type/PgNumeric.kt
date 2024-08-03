@@ -1,10 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.toBigDecimalWithTraditionalScale
+import io.github.clasicrando.kdbc.core.traditionalScale
 import io.github.clasicrando.kdbc.postgresql.type.PgNumeric.NAN
-import java.math.BigDecimal
-import java.math.BigInteger
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -18,8 +20,6 @@ internal const val SIGN_NEGATIVE: Short = 0x4000
  * This type is useful as an intermediary that can be easily written to the arguments buffer and
  * read from a row buffer. It also includes utility methods to convert to and from [BigDecimal]
  * which is the type that most applications will use to represent large decimal numbers.
- *
- * TODO convert to use a multiplatform type instead of java.math.BigDecimal
  */
 internal sealed class PgNumeric {
     /** Any numeric value that is NAN. A special number in the postgresql */
@@ -95,10 +95,13 @@ internal sealed class PgNumeric {
         //a value <= 0 indicates an absolute value < 1.
         var weight: Short = number.weight
 
-        require((scale.toInt() and NUMERIC_DSCALE_MASK) == scale.toInt()) { "invalid scale in \"numeric\" value" }
+        require((scale.toInt() and NUMERIC_DSCALE_MASK) == scale.toInt()) {
+            "invalid scale in \"numeric\" value"
+        }
 
         if (number.digits.isEmpty()) {
-            return BigDecimal(BigInteger.ZERO, scale.toInt())
+            return BigInteger.ZERO.toBigDecimalWithTraditionalScale(scale = number.scale)
+                .scale(0)
         }
 
         var idx = 0
@@ -144,7 +147,7 @@ internal sealed class PgNumeric {
             var unscaledInt = d.toLong()
             while (i < number.digits.size) {
                 if (i == 4 && effectiveScale > 2) {
-                    unscaledBI = BigInteger.valueOf(unscaledInt)
+                    unscaledBI = BigInteger.fromLong(unscaledInt)
                 }
                 idx++
                 d = number.digits[idx]
@@ -173,24 +176,24 @@ internal sealed class PgNumeric {
                     unscaledInt += d.toLong()
                 } else {
                     if (d.toInt() != 0) {
-                        unscaledBI = unscaledBI.add(BigInteger.valueOf(d.toLong()))
+                        unscaledBI = unscaledBI.add(BigInteger.fromShort(d))
                     }
                 }
                 i++
             }
             //now we need BigInteger to create BigDecimal
             if (unscaledBI == null) {
-                unscaledBI = BigInteger.valueOf(unscaledInt)
+                unscaledBI = BigInteger.fromLong(unscaledInt)
             }
             //if there is remaining effective scale, apply it here
             if (effectiveScale > 0) {
-                unscaledBI = unscaledBI!!.multiply(tenPower(effectiveScale))
+                unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
             }
             if (sign == SIGN_NEGATIVE) {
-                unscaledBI = unscaledBI!!.negate()
+                unscaledBI = unscaledBI.negate()
             }
 
-            return BigDecimal(unscaledBI, scale.toInt())
+            return unscaledBI.toBigDecimalWithTraditionalScale(scale = number.scale)
         }
 
         //if there is no scale, then shorts are the unscaled int
@@ -202,7 +205,7 @@ internal sealed class PgNumeric {
             //loop over all of the len shorts to process as the unscaled int
             for (i in 1..<number.digits.size) {
                 if (i == 4) {
-                    unscaledBI = BigInteger.valueOf(unscaledInt)
+                    unscaledBI = BigInteger.fromLong(unscaledInt)
                 }
                 idx++
                 d = number.digits[idx]
@@ -212,26 +215,28 @@ internal sealed class PgNumeric {
                 } else {
                     unscaledBI = unscaledBI.multiply(BI_TEN_THOUSAND)
                     if (d.toInt() != 0) {
-                        unscaledBI = unscaledBI.add(BigInteger.valueOf(d.toLong()))
+                        unscaledBI = unscaledBI.add(BigInteger.fromShort(d))
                     }
                 }
             }
             //now we need BigInteger to create BigDecimal
             if (unscaledBI == null) {
-                unscaledBI = BigInteger.valueOf(unscaledInt)
+                unscaledBI = BigInteger.fromLong(unscaledInt)
             }
             if (sign == SIGN_NEGATIVE) {
-                unscaledBI = unscaledBI!!.negate()
+                unscaledBI = unscaledBI.negate()
             }
             //the difference between len and weight (adjusted from 0 based) becomes the scale for BigDecimal
             val bigDecScale = (number.digits.size - (weight + 1)) * 4
             //string representation always results in a BigDecimal with scale of 0
             //the binary representation, where weight and len can infer trailing 0s, can result in a negative scale
             //to produce a consistent BigDecimal, we return the equivalent object with scale set to 0
-            return if (bigDecScale == 0) BigDecimal(unscaledBI) else BigDecimal(
-                unscaledBI,
-                bigDecScale
-            ).setScale(0)
+            return if (bigDecScale == 0) {
+                BigDecimal.fromBigInteger(unscaledBI)
+            } else {
+                unscaledBI.toBigDecimalWithTraditionalScale(scale = number.scale)
+                    .scale(0)
+            }
         }
 
         //defer moving to BigInteger as long as possible
@@ -244,7 +249,7 @@ internal sealed class PgNumeric {
         var effectiveScale = scale.toInt()
         for (i in 1..<number.digits.size) {
             if (i == 4) {
-                unscaledBI = BigInteger.valueOf(unscaledInt)
+                unscaledBI = BigInteger.fromLong(unscaledInt)
             }
             idx++
             d = number.digits[idx]
@@ -281,36 +286,35 @@ internal sealed class PgNumeric {
                 unscaledInt += d.toLong()
             } else {
                 if (d.toInt() != 0) {
-                    unscaledBI = unscaledBI.add(BigInteger.valueOf(d.toLong()))
+                    unscaledBI = unscaledBI.add(BigInteger.fromLong(d.toLong()))
                 }
             }
         }
 
         //now we need BigInteger to create BigDecimal
         if (unscaledBI == null) {
-            unscaledBI = BigInteger.valueOf(unscaledInt)
+            unscaledBI = BigInteger.fromLong(unscaledInt)
         }
         //if there is remaining weight, apply it here
         if (effectiveWeight > 0) {
-            unscaledBI = unscaledBI!!.multiply(tenPower(effectiveWeight * 4))
+            unscaledBI = unscaledBI.multiply(tenPower(effectiveWeight * 4))
         }
         //if there is remaining effective scale, apply it here
         if (effectiveScale > 0) {
-            unscaledBI = unscaledBI!!.multiply(tenPower(effectiveScale))
+            unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
         }
         if (sign == SIGN_NEGATIVE) {
-            unscaledBI = unscaledBI!!.negate()
+            unscaledBI = unscaledBI.negate()
         }
-
-        return BigDecimal(unscaledBI, scale.toInt())
+        return unscaledBI.toBigDecimalWithTraditionalScale(scale = number.scale)
     }
 
     companion object {
         private const val NUMERIC_DSCALE_MASK = 0x00003FFF
         private val INT_TEN_POWERS = IntArray(6) { 10.0.pow(it).toInt() }
         private val BI_TEN_POWERS = Array(32) { BigInteger.TEN.pow(it) }
-        private val BI_MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE)
-        private val BI_TEN_THOUSAND = BigInteger.valueOf(10000)
+        private val BI_MAX_LONG = BigInteger.fromLong(Long.MAX_VALUE)
+        private val BI_TEN_THOUSAND = BigInteger.fromInt(10000)
 
         private fun tenPower(exponent: Int): BigInteger {
             return BI_TEN_POWERS.getOrElse(exponent) { BigInteger.TEN.pow(exponent) }
@@ -360,8 +364,8 @@ internal sealed class PgNumeric {
          */
         internal fun fromBigDecimal(bigDecimal: BigDecimal): PgNumeric {
             val shorts = mutableListOf<Short>()
-            var unscaled = bigDecimal.unscaledValue().abs()
-            var scale = bigDecimal.scale()
+            var unscaled = bigDecimal.significand.abs()
+            var scale = bigDecimal.traditionalScale.toInt()
             if (unscaled == BigInteger.ZERO) {
                 return Number(
                     sign = SIGN_POSITIVE,
@@ -381,14 +385,14 @@ internal sealed class PgNumeric {
                 }
                 while (unscaled > BI_MAX_LONG) {
                     val pair = unscaled.divideAndRemainder(BI_TEN_THOUSAND)
-                    unscaled = pair[0]
-                    val short = pair[1].toShort()
+                    unscaled = pair.first
+                    val short = pair.second.shortValue()
                     if (short != 0.toShort() || shorts.isNotEmpty()) {
                         shorts.add(short)
                     }
                     ++weight
                 }
-                var unscaledLong = unscaled.longValueExact()
+                var unscaledLong = unscaled.longValue()
                 do {
                     val short = (unscaledLong % 10000).toShort()
                     if (short != 0.toShort() || shorts.isNotEmpty()) {
@@ -410,11 +414,9 @@ internal sealed class PgNumeric {
                 )
             }
 
-            val split = unscaled.divideAndRemainder(tenPower(scale))
-            var decimal = split[1]
-            var wholes = split[0]
+            var (wholes, decimal) = unscaled.divideAndRemainder(tenPower(scale))
             weight = -1
-            if (!BigInteger.ZERO.equals(decimal)) {
+            if (BigInteger.ZERO != decimal) {
                 val mod = scale % 4
                 var segments = scale / 4
                 if (mod != 0) {
@@ -423,15 +425,15 @@ internal sealed class PgNumeric {
                 }
                 do {
                     val pair = decimal.divideAndRemainder(BI_TEN_THOUSAND)
-                    decimal = pair[0]
-                    val short = pair[1].toShort()
+                    decimal = pair.first
+                    val short = pair.second.shortValue()
                     if (short != 0.toShort() || shorts.isNotEmpty()) {
                         shorts.add(short)
                     }
                     --segments
-                } while (!BigInteger.ZERO.equals(decimal))
+                } while (BigInteger.ZERO != decimal)
 
-                if (BigInteger.ZERO.equals(wholes)) {
+                if (BigInteger.ZERO == wholes) {
                     weight -= segments
                 } else {
                     for (i in 0..<segments) {
@@ -442,8 +444,8 @@ internal sealed class PgNumeric {
             while (BigInteger.ZERO != wholes) {
                 ++weight
                 val pair = wholes.divideAndRemainder(BI_TEN_THOUSAND)
-                wholes = pair[0]
-                val short = pair[1].toShort()
+                wholes = pair.first
+                val short = pair.second.shortValue()
                 if (short != 0.toShort() || shorts.isNotEmpty()) {
                     shorts.add(short)
                 }

@@ -1,18 +1,18 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
-import java.math.BigDecimal
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestBigDecimalType {
     @Test
     fun `encode should accept BiDecimal when querying postgresql`() = runBlocking {
-        val value = BigDecimal("2548.52489")
+        val value = BigDecimal.parseString("2548.52489")
         val query = "SELECT $1 numeric_col;"
 
         PgConnectionHelper.defaultAsyncConnection().use { conn ->
@@ -25,7 +25,7 @@ class TestBigDecimalType {
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val number = "2548.52489"
-        val expectedResult = BigDecimal(number)
+        val expectedResult = BigDecimal.parseString(number)
         val query = "SELECT $number;"
 
         PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->

@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.core.query
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import kotlinx.datetime.Instant
 import kotlinx.uuid.UUID
-import java.math.BigDecimal
 
 /**
  * Standard [RowParser] for rows with a single [Boolean] field
