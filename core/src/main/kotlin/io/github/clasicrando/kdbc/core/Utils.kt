@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.core
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import com.ionspin.kotlin.bignum.integer.Sign
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
@@ -114,6 +115,10 @@ fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> {
 
 private const val DEFAULT_BUFFER_SIZE = 2048
 
+/**
+ * Chunk a [Source] into many [ByteArray]s with at most [size] bytes in each array. The final array
+ * might have less than [size] if the total number of bytes is not equally divisible by [size].
+ */
 fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> = generateSequence {
     val bytes = ByteArray(size)
     when (val bytesRead = this.readAtMostTo(bytes)) {
@@ -123,6 +128,11 @@ fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> = 
     }
 }
 
+/**
+ * Chunk an [InputStream] into many [ByteArray]s with at most [size] bytes in each array. The final
+ * array might have less than [size] if the total number of bytes is not equally divisible by
+ * [size].
+ */
 fun InputStream.chunkedBytes(
     size: Int = DEFAULT_BUFFER_SIZE,
 ): Sequence<ByteArray> = generateSequence {
@@ -162,4 +172,34 @@ fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal {
         bigInteger = this,
         exponent = this.numberOfDecimalDigits() - 1 - scale
     )
+}
+
+/**
+ * Utility method to convert a [java.math.BigInteger] to a BigNum [BigInteger].
+ *
+ * Uses the [java.math.BigInteger.toByteArray] method to get the raw data of the integer value and
+ * use that along with the [java.math.BigInteger.signum] value to construct a [BigInteger].
+ */
+fun java.math.BigInteger.toBigNum(): BigInteger {
+    return BigInteger.fromByteArray(
+        this.toByteArray(),
+        when (val sigNum = this.signum()) {
+            -1 -> Sign.NEGATIVE
+            0 -> Sign.ZERO
+            1 -> Sign.POSITIVE
+            else -> error("Unexpected BigInteger.signum(). Expected -1..1, found $sigNum")
+        }
+    )
+}
+
+/**
+ * Utility method to convert a [java.math.BigDecimal] to a BigNum [BigDecimal].
+ *
+ * Uses [toBigNum] to convert the unscaled version of this decimal value to a [BigInteger], the uses
+ * the scale to call [toBigDecimalWithTraditionalScale].
+ */
+fun java.math.BigDecimal.toBigNum(): BigDecimal {
+    return this.unscaledValue()
+        .toBigNum()
+        .toBigDecimalWithTraditionalScale(this.scale().toShort())
 }

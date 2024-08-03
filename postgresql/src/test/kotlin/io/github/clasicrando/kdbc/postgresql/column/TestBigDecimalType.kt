@@ -6,13 +6,16 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestBigDecimalType {
-    @Test
-    fun `encode should accept BiDecimal when querying postgresql`() = runBlocking {
-        val value = BigDecimal.parseString("2548.52489")
+    @ParameterizedTest
+    @ValueSource(strings = ["2548.52489", "85679", "0.534589"])
+    fun `encode should accept BiDecimal when querying postgresql`(number: String) = runBlocking {
+        val value = BigDecimal.parseString(number)
         val query = "SELECT $1 numeric_col;"
 
         PgConnectionHelper.defaultAsyncConnection().use { conn ->
