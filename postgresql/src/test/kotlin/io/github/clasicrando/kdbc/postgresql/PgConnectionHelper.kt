@@ -12,11 +12,14 @@ import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 object PgConnectionHelper {
+    private val password = System.getenv("PG_TEST_PASSWORD")
+    private val port = System.getenv("PG_TEST_PORT").toInt()
+
     private val defaultConnectOptions = PgConnectOptions(
         host = "localhost",
-        port = 5432,
+        port = port,
         username = "postgres",
-        password = System.getenv("PG_TEST_PASSWORD"),
+        password = password,
         applicationName = "KdbcTests",
     )
 
@@ -46,9 +49,9 @@ object PgConnectionHelper {
 
     private val defaultConnectOptionsWithForcedSimple = PgConnectOptions(
         host = "localhost",
-        port = 5432,
+        port = port,
         username = "postgres",
-        password = System.getenv("PG_TEST_PASSWORD"),
+        password = password,
         applicationName = "KdbcTests",
         useExtendedProtocolForSimpleQueries = false,
     )
@@ -63,9 +66,9 @@ object PgConnectionHelper {
 
     private val defaultConnectOptionsWithQueryTimeout = PgConnectOptions(
         host = "localhost",
-        port = 5432,
+        port = port,
         username = "postgres",
-        password = System.getenv("PG_TEST_PASSWORD"),
+        password = password,
         applicationName = "KdbcTests",
         useExtendedProtocolForSimpleQueries = false,
         queryTimeout = 2.toDuration(DurationUnit.SECONDS)

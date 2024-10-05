@@ -17,8 +17,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.io.asOutputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
-import kotlinx.uuid.UUID
-import kotlinx.uuid.generateUUID
+import kotlin.uuid.Uuid
 import org.apache.commons.dbcp2.DriverManagerConnectionFactory
 import org.apache.commons.dbcp2.PoolableConnection
 import org.apache.commons.dbcp2.PoolableConnectionFactory
@@ -171,7 +170,7 @@ val kdbcConnectOptions = PgConnectOptions(
     password = System.getenv("PG_BENCHMARK_PASSWORD")
         ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
     database = "postgres",
-    applicationName = "KdbcTests${UUID.generateUUID()}",
+    applicationName = "KdbcTests${Uuid.random()}",
     logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
 )
 

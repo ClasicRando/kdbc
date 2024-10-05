@@ -9,6 +9,7 @@ import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.AsyncConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
+import io.github.clasicrando.kdbc.core.normalizeWhitespace
 import io.github.clasicrando.kdbc.core.query.AsyncPreparedQuery
 import io.github.clasicrando.kdbc.core.query.AsyncPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.AsyncQuery
@@ -301,7 +302,7 @@ class PgAsyncConnection internal constructor(
         val result = measureTimedValue {
             mutex.withLock {
                 log(connectOptions.logSettings.statementLevel) {
-                    message = "Sending query\n$query"
+                    message = "Sending query: ${query.normalizeWhitespace()}"
                 }
                 stream.writeToStream(PgMessage.Query(query))
 
@@ -453,7 +454,7 @@ class PgAsyncConnection internal constructor(
         }
         statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {
-            message = "Sending query\n${statement.query}"
+            message = "Sending query: ${statement.query.normalizeWhitespace()}"
         }
     }
 
@@ -635,7 +636,7 @@ class PgAsyncConnection internal constructor(
      */
     private suspend fun copyInInternal(copyQuery: String, data: Flow<ByteArray>): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
-            message = "Sending query\n$copyQuery"
+            message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyInResponse>()
@@ -822,7 +823,7 @@ class PgAsyncConnection internal constructor(
         copyQuery: String,
     ): Flow<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
-            message = "Sending query\n$copyQuery"
+            message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyOutResponse>()

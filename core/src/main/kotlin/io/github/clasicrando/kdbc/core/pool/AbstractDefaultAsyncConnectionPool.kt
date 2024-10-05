@@ -11,8 +11,8 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.uuid.UUID
 import kotlin.coroutines.CoroutineContext
+import kotlin.uuid.Uuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -34,7 +34,7 @@ abstract class AbstractDefaultAsyncConnectionPool<C : AsyncConnection>(
     private val provider: AsyncConnectionProvider<C>,
 ) : AsyncConnectionPool<C> {
     private val connections = Channel<C>(capacity = poolOptions.maxConnections)
-    private val connectionIds: MutableMap<UUID, C> = AtomicMutableMap()
+    private val connectionIds: MutableMap<Uuid, C> = AtomicMutableMap()
     private val connectionNeeded = Channel<CompletableDeferred<C?>>(capacity = Channel.BUFFERED)
     private val mutex = Mutex()
 
@@ -71,7 +71,7 @@ abstract class AbstractDefaultAsyncConnectionPool<C : AsyncConnection>(
      * fail if the [logger] fails to log.
      */
     private suspend fun invalidateConnection(connection: C) {
-        var connectionId: UUID? = null
+        var connectionId: Uuid? = null
         try {
             connectionId = connection.resourceId
             connectionIds.remove(connectionId)

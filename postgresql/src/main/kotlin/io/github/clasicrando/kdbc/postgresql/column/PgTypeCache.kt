@@ -31,7 +31,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
-import kotlinx.uuid.UUID
+import kotlin.uuid.Uuid
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.createType
@@ -299,7 +299,7 @@ internal class PgTypeCache {
             is PgTimeTz -> PgType.Timetz
             is DateTime -> PgType.Timestamptz
             is DateTimePeriod -> PgType.Interval
-            is UUID -> PgType.Uuid
+            is Uuid -> PgType.Uuid
             is PgPoint -> PgType.Point
             is PgLine -> PgType.Line
             is PgLineSegment -> PgType.LineSegment

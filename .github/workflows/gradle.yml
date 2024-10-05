@@ -20,6 +20,7 @@ jobs:
     permissions:
       contents: read
     env:
+      LOCAL_TEST: false
       PG_TEST_PASSWORD: postgres
       PG_COPY_TEST: true
 

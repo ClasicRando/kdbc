@@ -8,8 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlinx.uuid.UUID
-import kotlinx.uuid.generateUUID
+import kotlin.uuid.Uuid
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -28,7 +27,7 @@ class TestAbstractDefaultAsyncConnectionPool {
         val factory = mockk<AsyncConnectionProvider<AsyncConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<AsyncConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -51,7 +50,7 @@ class TestAbstractDefaultAsyncConnectionPool {
         val factory = mockk<AsyncConnectionProvider<AsyncConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<AsyncConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -80,7 +79,7 @@ class TestAbstractDefaultAsyncConnectionPool {
         val factory = mockk<AsyncConnectionProvider<AsyncConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<AsyncConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -103,7 +102,7 @@ class TestAbstractDefaultAsyncConnectionPool {
         val factory = mockk<AsyncConnectionProvider<AsyncConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<AsyncConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -132,7 +131,7 @@ class TestAbstractDefaultAsyncConnectionPool {
         val factory = mockk<AsyncConnectionProvider<AsyncConnection>>()
         coEvery { factory.validate(any()) } returns false
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<AsyncConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -156,7 +155,7 @@ class TestAbstractDefaultAsyncConnectionPool {
         val factory = mockk<AsyncConnectionProvider<AsyncConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<AsyncConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection

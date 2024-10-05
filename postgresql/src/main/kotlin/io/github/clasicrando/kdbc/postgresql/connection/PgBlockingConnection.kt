@@ -8,6 +8,7 @@ import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
+import io.github.clasicrando.kdbc.core.normalizeWhitespace
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
@@ -287,7 +288,7 @@ class PgBlockingConnection internal constructor(
         val result = measureTimedValue {
             lock.withLock {
                 log(connectOptions.logSettings.statementLevel) {
-                    message = "Sending query\n$query"
+                    message = "Sending query: ${query.normalizeWhitespace()}"
                 }
                 stream.writeToStream(PgMessage.Query(query))
                 collectResult()
@@ -440,7 +441,7 @@ class PgBlockingConnection internal constructor(
         }
         statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {
-            message = "Sending query\n${statement.query}"
+            message = "Sending query: ${statement.query.normalizeWhitespace()}"
         }
     }
 
@@ -619,7 +620,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun copyInInternal(copyQuery: String, data: Sequence<ByteArray>): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
-            message = "Sending query\n$copyQuery"
+            message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyInResponse>()
@@ -798,7 +799,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun copyOutInternal(copyQuery: String): Sequence<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
-            message = "Sending query\n$copyQuery"
+            message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
 
         stream.writeToStream(PgMessage.Query(copyQuery))

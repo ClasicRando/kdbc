@@ -5,7 +5,7 @@ import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import kotlinx.datetime.Instant
-import kotlinx.uuid.UUID
+import kotlin.uuid.Uuid
 
 /**
  * Standard [RowParser] for rows with a single [Boolean] field
@@ -78,8 +78,8 @@ object DateTimeRowParser : RowParser<DateTime> {
 }
 
 /**
- * Standard [RowParser] for rows with a single [UUID] field
+ * Standard [RowParser] for rows with a single [Uuid] field
  */
-object UUIDRowParser : RowParser<UUID> {
-    override fun fromRow(row: DataRow): UUID = row.getAsNonNull(0)
+object UuidRowParser : RowParser<Uuid> {
+    override fun fromRow(row: DataRow): Uuid = row.getAsNonNull(0)
 }

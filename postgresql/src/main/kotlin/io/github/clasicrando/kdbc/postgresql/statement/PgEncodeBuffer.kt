@@ -111,7 +111,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
-import kotlinx.uuid.UUID
+import kotlin.uuid.Uuid
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
@@ -326,7 +326,7 @@ class PgEncodeBuffer internal constructor(
                 buffer = innerBuffer,
             )
             UuidArrayTypeDescription.kType -> UuidArrayTypeDescription.encode(
-                value = value as List<UUID?>,
+                value = value as List<Uuid?>,
                 buffer = innerBuffer,
             )
             PointArrayTypeDescription.kType -> PointArrayTypeDescription.encode(
@@ -437,7 +437,7 @@ class PgEncodeBuffer internal constructor(
                 is PgTimeTz -> TimeTzTypeDescription.encode(value, innerBuffer)
                 is DateTime -> TimestampTzTypeDescription.encode(value, innerBuffer)
                 is DateTimePeriod -> IntervalTypeDescription.encode(value, innerBuffer)
-                is UUID -> UuidTypeDescription.encode(value, innerBuffer)
+                is Uuid -> UuidTypeDescription.encode(value, innerBuffer)
                 is PgPoint -> PointTypeDescription.encode(value, innerBuffer)
                 is PgLine -> LineTypeDescription.encode(value, innerBuffer)
                 is PgLineSegment -> LineSegmentTypeDescription.encode(value, innerBuffer)

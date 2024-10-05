@@ -5,7 +5,7 @@ import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.atomicfu.locks.reentrantLock
 import kotlinx.atomicfu.locks.withLock
-import kotlinx.uuid.UUID
+import kotlin.uuid.Uuid
 import java.util.concurrent.BlockingDeque
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.LinkedBlockingDeque
@@ -32,7 +32,7 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
     private val provider: BlockingConnectionProvider<C>,
 ) : BlockingConnectionPool<C> {
     private val connections: BlockingDeque<C> = LinkedBlockingDeque()
-    private val connectionIds: MutableMap<UUID, C> = mutableMapOf()
+    private val connectionIds: MutableMap<Uuid, C> = mutableMapOf()
     private val connectionNeeded: BlockingDeque<CompletableFuture<C>> = LinkedBlockingDeque()
     private val lock = reentrantLock()
 
@@ -65,7 +65,7 @@ abstract class AbstractDefaultBlockingConnectionPool<C : BlockingConnection>(
      * log.
      */
     private fun invalidateConnection(connection: C) {
-        var connectionId: UUID? = null
+        var connectionId: Uuid? = null
         try {
             connectionId = connection.resourceId
             lock.withLock { connectionIds.remove(connectionId) }

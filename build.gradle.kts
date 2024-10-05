@@ -1,6 +1,151 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.SonatypeHost
+import org.gradle.internal.os.OperatingSystem
+import java.io.ByteArrayOutputStream
+import java.time.Instant
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
+
+val podmanExecutable = "podman"
+val postgresPort: String by project
+val postgresPassword: String by project
+
+data class Container(
+    val name: String,
+    val externalPort: Int,
+    val internalPort: Int,
+    val image: String,
+    val startupWaitTime: Duration = 20.toDuration(unit = DurationUnit.SECONDS),
+    val startUpWaitSleepTime: Duration = 1.toDuration(unit = DurationUnit.SECONDS),
+    val environmentVariables: Map<String, String> = mapOf(),
+    val startupTest: Container.() -> Unit,
+) {
+    fun runContainer(task: Task) {
+        val arguments = mutableListOf(
+            "create",
+            "--name",
+            name,
+            "-p",
+            "$externalPort:$internalPort"
+        )
+        if (environmentVariables.isNotEmpty()) {
+            arguments.add("-e")
+        }
+        for ((key, value) in environmentVariables) {
+            arguments.add("$key=$value")
+        }
+        arguments.add(image)
+
+        task.logger.info("Creating test container '$name'")
+        execCommand(
+            executable = podmanExecutable,
+            args = arguments,
+        )
+        execCommand(
+            executable = podmanExecutable,
+            args = listOf("start", name),
+        )
+
+        task.logger.info("Waiting for test container '$name' to start")
+        val end = Instant.now().plusMillis(startupWaitTime.inWholeMilliseconds)
+        while (true) {
+            if (Instant.now().isAfter(end)) {
+                error("Exceeded timeout to validate container startup")
+            }
+            try {
+                startupTest(this)
+                break
+            } catch (ex: Exception) {
+                task.logger.debug(ex.message)
+                Thread.sleep(1000)
+            }
+        }
+    }
+
+    fun removeContainer(task: Task) {
+        task.logger.info("Removing test container '$name'")
+        execCommand(
+            executable = podmanExecutable,
+            args = listOf("container", "stop", name),
+            ignoreError = true,
+        )
+        execCommand(
+            executable = podmanExecutable,
+            args = listOf("container", "rm", name),
+            ignoreError = true,
+        )
+    }
+}
+
+val containers = listOf(
+    Container(
+        name = "kdbc-test-pg",
+        externalPort = postgresPort.toInt(),
+        internalPort = 5432,
+        image = "postgis/postgis",
+        environmentVariables = mapOf("POSTGRES_PASSWORD" to postgresPassword)
+    ) {
+        execCommand(
+            executable = "psql",
+            args = listOf(
+                "-h",
+                "127.0.0.1",
+                "-p",
+                postgresPort,
+                "-U",
+                "postgres",
+                "-c",
+                "SELECT 1",
+            )
+        )
+    }
+)
+
+fun Task.startContainers() {
+    val os = OperatingSystem.current()
+    if (os.isWindows) {
+        execCommand(
+            executable = podmanExecutable,
+            args = listOf("machine", "start"),
+        )
+    } else if (os.isLinux) {
+        execCommand(
+            executable = "command",
+            args = listOf("-v", podmanExecutable),
+        )
+    } else {
+        error("Tests currently not supported on OS = $os")
+    }
+
+    stopContainers()
+    containers.forEach { c -> c.runContainer(this) }
+}
+
+fun Task.stopContainers() = containers.forEach { c -> c.removeContainer(this) }
+
+fun execCommand(
+    executable: String,
+    args: List<String>,
+    ignoreError: Boolean = false,
+) {
+    val output = ByteArrayOutputStream()
+    val errorOutput = ByteArrayOutputStream()
+    val result = exec {
+        this.executable = executable
+        this.args = args
+        standardOutput = output
+        this.errorOutput = errorOutput
+        isIgnoreExitValue = true
+    }
+    if (result.exitValue == 0 || ignoreError) {
+        return
+    }
+    error("${output.toString(Charsets.UTF_8)}\n${errorOutput.toString(Charsets.UTF_8)}".trim())
+}
+
+val isLocalTest: Boolean get() = System.getenv("LOCAL_TEST")?.toBoolean() ?: true
 
 plugins {
     kotlin("jvm")
@@ -35,6 +180,7 @@ allprojects {
     kotlin {
         jvmToolchain(17)
         compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
+        compilerOptions.optIn.add("kotlin.uuid.ExperimentalUuidApi")
     }
 }
 
@@ -56,7 +202,6 @@ subprojects {
     val kotlinVersion: String by project
     val kotlinxSerializationJsonVersion: String by project
     val kotlinxDateTimeVersion: String by project
-    val kotlinxUuidVersion: String by project
     val kotlinTestVersion: String by project
     val junitVersion: String by project
     val logbackVersion: String by project
@@ -75,8 +220,6 @@ subprojects {
         // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
         api("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDateTimeVersion")
-        // https://mvnrepository.com/artifact/app.softwork/kotlinx-uuid-core
-        api("app.softwork:kotlinx-uuid-core:$kotlinxUuidVersion")
         // https://mvnrepository.com/artifact/com.ionspin.kotlin/bignum
         api("com.ionspin.kotlin:bignum:$bigNumVersion")
 
@@ -89,6 +232,16 @@ subprojects {
 
     tasks.test {
         workingDir = project.rootDir
+        if (isLocalTest) {
+            environment("PGPASSWORD" to postgresPassword)
+        }
+        environment("PG_TEST_PASSWORD" to postgresPassword)
+        environment("PG_TEST_PORT" to postgresPort)
+        doFirst {
+            if (isLocalTest) {
+                startContainers()
+            }
+        }
         testLogging {
             setExceptionFormat("full")
             events = setOf(
@@ -97,7 +250,7 @@ subprojects {
                 org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED,
             )
             showStandardStreams = true
-            afterSuite(KotlinClosure2<TestDescriptor,TestResult,Unit>({ descriptor, result ->
+            afterSuite(KotlinClosure2<TestDescriptor, TestResult, Unit>({ descriptor, result ->
                 if (descriptor.parent == null) {
                     println("\nTest Result: ${result.resultType}")
                     println("""
@@ -110,6 +263,11 @@ subprojects {
             }))
         }
         useJUnitPlatform()
+        doLast {
+            if (isLocalTest) {
+                stopContainers()
+            }
+        }
     }
 
     tasks.dokkaHtml {

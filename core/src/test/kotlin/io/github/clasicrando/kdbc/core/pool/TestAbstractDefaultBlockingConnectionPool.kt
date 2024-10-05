@@ -4,8 +4,7 @@ import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.uuid.UUID
-import kotlinx.uuid.generateUUID
+import kotlin.uuid.Uuid
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -25,7 +24,7 @@ class TestAbstractDefaultBlockingConnectionPool {
         val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<BlockingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -48,7 +47,7 @@ class TestAbstractDefaultBlockingConnectionPool {
         val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<BlockingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -75,7 +74,7 @@ class TestAbstractDefaultBlockingConnectionPool {
         val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<BlockingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -98,7 +97,7 @@ class TestAbstractDefaultBlockingConnectionPool {
         val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<BlockingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -127,7 +126,7 @@ class TestAbstractDefaultBlockingConnectionPool {
         val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
         coEvery { factory.validate(any()) } returns false
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<BlockingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection
@@ -151,7 +150,7 @@ class TestAbstractDefaultBlockingConnectionPool {
         val factory = mockk<BlockingConnectionProvider<BlockingConnection>>()
         coEvery { factory.validate(any()) } returns true
         coEvery { factory.create(any()) } answers {
-            val connectionId = UUID.generateUUID()
+            val connectionId = Uuid.random()
             val connection = mockk<BlockingConnection>(relaxed = true)
             every { connection.resourceId } returns connectionId
             connection

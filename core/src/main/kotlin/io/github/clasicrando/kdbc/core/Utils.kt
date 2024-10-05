@@ -203,3 +203,13 @@ fun java.math.BigDecimal.toBigNum(): BigDecimal {
         .toBigNum()
         .toBigDecimalWithTraditionalScale(this.scale().toShort())
 }
+
+/**
+ * Utility method to replace all whitespace 1 or more times with a single space.
+ *
+ * Equivalent to
+ * ```
+ * string.replace(Regex("\\s+"), "")
+ * ```
+ */
+fun String.normalizeWhitespace(): String = this.replace(Regex("\\s+"), "")
