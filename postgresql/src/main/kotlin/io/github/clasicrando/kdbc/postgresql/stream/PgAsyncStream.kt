@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
@@ -383,53 +384,42 @@ internal class PgAsyncStream(
         }
     }
 
-//    private suspend fun requestUpgrade(): Boolean {
-//        writeBuffer { builder ->
-//            SslMessageEncoder.encode(PgMessage.SslRequest, builder)
-//        }
-//        return when (val response = receiveChannel.readByte()) {
-//            'S'.code.toByte() -> true
-//            'N'.code.toByte() -> false
-//            else -> {
-//                val responseChar = response.toInt().toChar()
-//                error("Invalid response byte after SSL request. Byte = '$responseChar'")
-//            }
-//        }
-//    }
+    private suspend fun requestUpgrade(): Boolean {
+        writeToStream(message = PgMessage.SslRequest)
+        return when (val response = asyncStream.readByte()) {
+            'S'.code.toByte() -> true
+            'N'.code.toByte() -> false
+            else -> {
+                val responseChar = response.toInt().toChar()
+                error("Invalid response byte after SSL request. Byte = '$responseChar'")
+            }
+        }
+    }
 
-//    @Suppress("BlockingMethodInNonBlockingContext", "UNUSED")
-//    private suspend fun upgradeIfNeeded(
-//        selectorManager: SelectorManager,
-//        connectOptions: PgConnectOptions,
-//    ) {
-//        when (connectOptions.sslMode) {
-//            SslMode.Disable, SslMode.Allow -> return
-//            SslMode.Prefer -> {
-//                if (!requestUpgrade()) {
-//                    logger.atWarn {
-//                        message = TLS_REJECT_WARNING
-//                    }
-//                    return
-//                }
-//            }
-//            SslMode.Require, SslMode.VerifyCa, SslMode.VerifyFull -> {
-//                check(requestUpgrade()) {
-//                    "TLS connection required by client but server does not accept TSL connection"
-//                }
-//            }
-//        }
-//        connection.socket.close()
-//        val newConnection = createConnection(
-//            selectorManager = selectorManager,
-//            connectOptions = connectOptions,
-//        )
-//        connection = newConnection
-//    }
+    private suspend fun upgradeIfNeeded() {
+        when (connectOptions.sslMode) {
+            SslMode.Disable, SslMode.Allow -> return
+            SslMode.Prefer -> {
+                if (!requestUpgrade()) {
+                    logger.atWarn {
+                        message = TLS_REJECT_WARNING
+                    }
+                    return
+                }
+            }
+            SslMode.Require, SslMode.VerifyCa, SslMode.VerifyFull -> {
+                check(requestUpgrade()) {
+                    "TLS connection required by client but server does not accept TLS connection"
+                }
+            }
+        }
+        this.asyncStream.upgradeTls(connectOptions.connectionTimeout)
+    }
 
     companion object {
         private const val SEND_BUFFER_SIZE = 4096
         private const val TLS_REJECT_WARNING = "Preferred SSL mode was rejected by server. " +
-                "Continuing with non TLS connection"
+            "Continuing with non TLS connection"
 
         /**
          * Create a new TCP connection with the Postgresql database targeted by the
@@ -455,23 +445,18 @@ internal class PgAsyncStream(
             asyncStream: AsyncStream,
             connectOptions: PgConnectOptions,
         ): PgAsyncStream {
-            asyncStream.connect(connectOptions.connectionTimeout)
-            val stream = PgAsyncStream(scope, asyncStream, connectOptions)
+            asyncStream.connect(timeout = connectOptions.connectionTimeout)
+            val stream = PgAsyncStream(
+                scope = scope,
+                asyncStream = asyncStream,
+                connectOptions = connectOptions,
+            )
+            stream.upgradeIfNeeded()
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
-            stream.writeToStream(startupMessage)
+            stream.writeToStream(message = startupMessage)
             stream.handleAuthFlow()
             stream.waitForOrError<PgMessage.ReadyForQuery>()
             return stream
-            /***
-             * TODO
-             * Need to add ability to upgrade to SSL connection, currently do not understand how
-             * that is done with specified cert details with ktor-network-tls
-             */
-//            stream.upgradeIfNeeded(
-//                coroutineContext = coroutineScope.coroutineContext,
-//                connectOptions = connectOptions,
-//            )
-//            return stream
         }
     }
 }

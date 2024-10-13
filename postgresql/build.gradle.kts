@@ -1,6 +1,6 @@
 plugins {
     kotlin("plugin.serialization")
-    id("kotlinx-atomicfu")
+    id("org.jetbrains.kotlinx.atomicfu")
 }
 
 val scramClientVersion: String by project

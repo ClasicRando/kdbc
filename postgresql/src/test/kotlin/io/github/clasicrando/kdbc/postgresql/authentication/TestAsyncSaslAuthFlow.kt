@@ -12,4 +12,11 @@ class TestAsyncSaslAuthFlow {
             it.sendSimpleQuery("SELECT 1")
         }
     }
+
+    @Test
+    fun `saslAuthFlow should succeed when valid login with ssl`(): Unit = runBlocking {
+        PgConnectionHelper.defaultAsyncConnectionSsl().use {
+            it.sendSimpleQuery("SELECT 1")
+        }
+    }
 }

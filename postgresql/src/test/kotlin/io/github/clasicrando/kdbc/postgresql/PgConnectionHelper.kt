@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql
 
+import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
@@ -21,6 +22,7 @@ object PgConnectionHelper {
         username = "postgres",
         password = password,
         applicationName = "KdbcTests",
+        sslMode = SslMode.Disable,
     )
 
     fun defaultAsyncPool(): PgAsyncConnectionPool {
@@ -53,6 +55,7 @@ object PgConnectionHelper {
         username = "postgres",
         password = password,
         applicationName = "KdbcTests",
+        sslMode = SslMode.Disable,
         useExtendedProtocolForSimpleQueries = false,
     )
 
@@ -70,6 +73,7 @@ object PgConnectionHelper {
         username = "postgres",
         password = password,
         applicationName = "KdbcTests",
+        sslMode = SslMode.Disable,
         useExtendedProtocolForSimpleQueries = false,
         queryTimeout = 2.toDuration(DurationUnit.SECONDS)
     )
@@ -80,5 +84,19 @@ object PgConnectionHelper {
 
     fun defaultBlockingConnectionWithQueryTimeout(): PgBlockingConnection {
         return Postgres.blockingConnection(connectOptions = defaultConnectOptionsWithQueryTimeout)
+    }
+
+    private val defaultConnectOptionsSsl = PgConnectOptions(
+        host = "localhost",
+        port = port,
+        username = "postgres",
+        password = password,
+        applicationName = "KdbcTests",
+        sslMode = SslMode.Require,
+        connectionTimeout = 1.toDuration(unit = DurationUnit.SECONDS),
+    )
+
+    suspend fun defaultAsyncConnectionSsl(): PgAsyncConnection {
+        return Postgres.asyncConnection(connectOptions = defaultConnectOptionsSsl)
     }
 }

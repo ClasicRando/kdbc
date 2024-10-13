@@ -3,9 +3,10 @@ package io.github.clasicrando.kdbc.postgresql.connection
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.isZeroOrInfinite
-import io.github.clasicrando.kdbc.postgresql.CertificateInput
 import io.github.oshai.kotlinlogging.Level
+import io.ktor.network.tls.TLSConfigBuilder
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -22,7 +23,7 @@ data class PgConnectOptions(
     /** Optional application name to set as part of the connection context */
     val applicationName: String? = null,
     /** Timeout duration during initial TCP connection establishment */
-    val connectionTimeout: Duration = 100.toDuration(DurationUnit.MILLISECONDS),
+    val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
     /** Password if the database instance requires a password */
     val password: String? = null,
     /**
@@ -58,30 +59,23 @@ data class PgConnectOptions(
      */
     val extraFloatDigits: Int = 1,
     /**
-     * SSL Mode of the connection. Currently, does nothing until SSL connections are implemented.
+     * SSL Mode of the connection. Uses the default mode of [SslMode.Prefer]
      */
     val sslMode: SslMode = SslMode.DEFAULT,
-    /**
-     * SSL root certificate of the connection. Currently, does nothing until SSL connections are
-     * implemented.
-     */
-    val sslRootCert: CertificateInput? = null,
-    /**
-     * SSL client certificate of the connection. Currently, does nothing until SSL connections are
-     * implemented.
-     */
-    val sslClientCert: CertificateInput? = null,
-    /**
-     * SSL client key of the connection. Currently, does nothing until SSL connections are
-     * implemented.
-     */
-    val sslClientKey: CertificateInput? = null,
     /**
      * The default schema within the database connection. Sets the `search_path` connection
      * parameter. When null specified (the default) then the default connection property is used
      * which is public.
      */
     val currentSchema: String? = null,
+    /**
+     * TLS Config builder action to modify the config provided to the ktor socket creator. This is
+     * only used if the server supports TLS and the socket used to create the database connection
+     * is a [io.github.clasicrando.kdbc.core.stream.KtorAsyncStream] (i.e. only for async
+     * connections).
+     */
+    @Transient
+    val tlsConfig: TLSConfigBuilder.() -> Unit = {},
 ) {
     /** Connection properties as they are sent to the database upon connection initialization */
     val properties: List<Pair<String, String>> = listOf(

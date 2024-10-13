@@ -13,6 +13,7 @@ import io.ktor.network.sockets.SocketAddress
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.connection
 import io.ktor.network.sockets.isClosed
+import io.ktor.network.tls.tls
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readAvailable
@@ -59,6 +60,16 @@ class KtorAsyncStream(
         logWithResource(logger, Kdbc.detailedLogging) {
             message = "Successfully connected to $address"
         }
+    }
+
+    override suspend fun upgradeTls(timeout: Duration) {
+        connection = withTimeout(timeout) {
+            connection.tls(coroutineContext = selectorManager.coroutineContext)
+                .connection()
+        }
+        socket = connection.socket
+        writeChannel = connection.output
+        readChannel = connection.input
     }
 
     override suspend fun writeBuffer(buffer: ByteWriteBuffer) {

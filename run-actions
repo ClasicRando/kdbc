@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Install act. Make sure to add "$HOME/bin" to PATH
+# curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+
+# If using docker, comment out this line
+systemctl --user start podman.socket
+export DOCKER_HOST="unix:///$XDG_RUNTIME_DIR/podman/podman.sock"
+act --job="build" --rm
