@@ -20,61 +20,26 @@ jobs:
     permissions:
       contents: write
     env:
-      PGPASSWORD: postgres
-      PG_TEST_USER: postgres
-      PG_TEST_PASSWORD: postgres
+      PG_TEST_USER: kdbc-test
+      PG_TEST_PASSWORD: password
       PG_TEST_PORT: 5234
       PG_COPY_TEST: true
 
     steps:
     # Create and set up postgresql database
-    - name: Install Postgres
-      run: |
-        APT_ENTRY="deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main"
-        APT_KEY="https://www.postgresql.org/media/keys/ACCC4CF8.asc"
-        echo "$APT_ENTRY" | sudo tee /etc/apt/sources.list.d/pgdg.list
-        wget --quiet -O - "$APT_KEY" | sudo apt-key add -
-        sudo apt update
-        sudo apt -y install postgresql-17
-        sudo apt -y install postgresql-17-postgis-3
-        
-        PGDATA="$RUNNER_TEMP/pgdata"
-        PWFILE="$RUNNER_TEMP/pwfile"
-        
-        echo '${{ env.PGPASSWORD }}' > $PWFILE
-        
-        initdb \
-          --pgdata="$PGDATA" \
-          --username="${{ env.PG_TEST_USER }}"
-          --pwfile="$PWFILE"
-          --auth="scram-sha-256"
-          --encoding="UTF-8"
-          --locale="en_US.UTF-8"
-          --no-instructions
-        
-        openssl req -new -x509 -days 365 -nodes -text -subj "localhost" -out "$PGDATA/server.crt" \
-          -keyout "$PGDATA/server.key"
-        chmod og-rwx "$PGDATA/server.key" "$PGDATA/server.crt"
-        echo "ssl = on" >> "$PGDATA/postgresql.conf"
-        
-        pg_ctl start --pgdata="$PGDATA"
-        
-        cat <<EOF > "$PGDATA/pg_service.conf"
-        [postgres]
-        host=localhost
-        port=${{ env.PG_TEST_PORT }}
-        user=${{ env.PG_TEST_USER }}
-        password=${{ env.PG_TEST_PASSWORD }}
-        dbname=${{ env.PG_TEST_USER }}
-        EOF
-        
-        echo "sslmode=verify-ca" >> "$PGDATA/pg_service.conf"
-        echo "sslrootcert=$PGDATA/server.crt" >> "$PGDATA/pg_service.conf"
-        echo "certificate-path=$RUNNER_TEMP/pgdata/server.crt" >> $GITHUB_OUTPUT
-      shell: bash
-      id: "postgres"
+    - uses: ikalnytskyi/action-setup-postgres@e5d0db00b54ca4068073e312e72d31bdf30a6a97
+      name: Set Up Postgres
+      with:
+        username: ${{ env.PG_TEST_USER }}
+        password: ${{ env.PG_TEST_PASSWORD }}
+        database: ${{ env.PG_TEST_USER }}
+        port: ${{ env.PG_TEST_PORT }}
+        postgres-version: "16"
+        ssl: "on"
+      id: postgres
     - name: Add PostGIS
       run: |
+        sudo apt -y install postgresql-16-postgis-3
         export PGPASSWORD="${{ env.PG_TEST_PASSWORD }}"
         psql -U ${{ env.PG_TEST_USER }} -c 'CREATE EXTENSION postgis;'
       shell: bash
