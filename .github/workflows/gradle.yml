@@ -40,7 +40,7 @@ jobs:
     - name: Add PostGIS
       run: |
         export PGPASSWORD="${{ env.PG_TEST_PASSWORD }}"
-        psql -U ${{ env.PG_TEST_USER }} -c 'CREATE EXTENSION postgis;'
+        psql -h localhost -p ${{ env.PG_TEST_PORT }} -U ${{ env.PG_TEST_USER }} -c 'CREATE EXTENSION postgis;'
       shell: bash
 
     - uses: actions/checkout@v4
