@@ -37,6 +37,7 @@ jobs:
           -e POSTGRES_PASSWORD=${{ env.PG_TEST_PASSWORD }} \
           -e POSTGRES_USER=${{ env.PG_TEST_USER }} \
           postgis:ssl
+      shell: bash
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -52,8 +53,9 @@ jobs:
         if keytool -cacerts -storepass $STORE_PASS -alias $ALIAS -list; then
           keytool -cacerts -storepass $STORE_PASS -alias $ALIAS -delete
         fi
-        openssl x509 -in ./docker/postgres/certs/server.crt -outform der \
-          | keytool -cacerts -keypass password -storepass $STORE_PASS -alias $ALIAS -import -noprompt
+        sudo openssl x509 -in ./docker/postgres/certs/server.crt -outform der \
+          | keytool -keystore "$JAVA_HOME/lib/security/cacerts" -keypass password -storepass $STORE_PASS -trustcacerts -noprompt -alias $ALIAS -import
+      shell: bash
 
     # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
