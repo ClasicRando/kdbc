@@ -30,7 +30,7 @@ open class QueryResult(
     inline fun <reified T : Any> extractScalar(): T? {
         val cls = T::class
         return rows.firstOrNull()?.use { row ->
-            val value = row[FIRST_INDEX]
+            val value = row[FIRST_INDEX] ?: return null
             if (!cls.isInstance(value)) {
                 throw IncorrectScalarType(value, cls)
             }

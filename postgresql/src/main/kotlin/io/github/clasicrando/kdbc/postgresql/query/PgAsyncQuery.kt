@@ -11,7 +11,7 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
  * [io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions.useExtendedProtocolForSimpleQueries]
  * is true (the default value).
  */
-class PgAsyncQuery(
+internal class PgAsyncQuery(
     connection: PgAsyncConnection,
     sql: String,
 ) : BaseAsyncQuery<PgAsyncConnection>(sql = sql, connection = connection) {

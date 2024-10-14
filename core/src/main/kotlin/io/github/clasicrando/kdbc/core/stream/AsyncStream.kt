@@ -27,6 +27,8 @@ interface AsyncStream : UniqueResourceId, AutoCloseable {
      */
     suspend fun connect(timeout: Duration)
 
+    suspend fun upgradeTls(timeout: Duration)
+
     /**
      * Write all bytes to the supplied [buffer] into the stream. If the number of bytes in the
      * [buffer] exceeds the maximum number of bytes that can be sent in a single write operation,

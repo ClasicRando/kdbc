@@ -15,7 +15,7 @@ import kotlin.time.toDuration
  * Implementation of a [PgTypeDescription] for the [LocalTime] type. This maps to the `time` type
  * in a postgresql database.
  */
-object TimeTypeDescription : PgTypeDescription<LocalTime>(
+internal object TimeTypeDescription : PgTypeDescription<LocalTime>(
     pgType = PgType.Time,
     kType = typeOf<LocalTime>(),
 ) {
@@ -65,7 +65,7 @@ object TimeTypeDescription : PgTypeDescription<LocalTime>(
  * Implementation of an [ArrayTypeDescription] for [LocalTime]. This maps to the `time[]` type in a
  * postgresql database.
  */
-object TimeArrayTypeDescription : ArrayTypeDescription<LocalTime>(
+internal object TimeArrayTypeDescription : ArrayTypeDescription<LocalTime>(
     pgType = PgType.TimeArray,
     innerType = TimeTypeDescription,
 )
@@ -74,7 +74,7 @@ object TimeArrayTypeDescription : ArrayTypeDescription<LocalTime>(
  * Implementation of a [PgTypeDescription] for the [PgTimeTz] type. This maps to the `timetz` type
  * in a postgresql database.
  */
-object TimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
+internal object TimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
     pgType = PgType.Timetz,
     kType = typeOf<PgTimeTz>(),
 ) {
@@ -128,7 +128,7 @@ object TimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
  * Implementation of an [ArrayTypeDescription] for [PgTimeTz]. This maps to the `timetz[]` type in a
  * postgresql database.
  */
-object TimeTzArrayTypeDescription : ArrayTypeDescription<PgTimeTz>(
+internal object TimeTzArrayTypeDescription : ArrayTypeDescription<PgTimeTz>(
     pgType = PgType.TimetzArray,
     innerType = TimeTzTypeDescription,
 )

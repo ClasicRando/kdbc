@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.query.RowParser
@@ -14,24 +15,31 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
 /**
- * Implementation of a [PgTypeDescription] for composite types. This requires the composite type's
- * name, the column mapping and a strategy to decode the composite's attributes from a [PgDataRow].
+ * Base requirements for a type description of a Postgresql composite type. The type must define how
+ * to parse a [DataRow] into the type and also how to extract values that make up the composite
+ * type.
  */
-abstract class BaseCompositeTypeDescription<T : Any>(
-    typeOid: Int,
-    protected val columnMapping: List<PgColumnDescription>,
-    protected val customTypeDescriptionCache: PgTypeCache,
-    kType: KType,
-) : RowParser<T>, PgTypeDescription<T>(
-    pgType = PgType.ByOid(oid = typeOid),
-    kType = kType,
-) {
+interface CompositeTypeDefinition<T : Any> : RowParser<T> {
     /**
      * Custom behaviour to return the composite instance's attribute values paired with the values
      * type.
      */
-    abstract fun extractValues(value: T): List<Pair<Any?, KType>>
+    fun extractValues(value: T): List<Pair<Any?, KType>>
+}
 
+/**
+ * Implementation of a [PgTypeDescription] for composite types. This requires the composite type's
+ * name, the column mapping and a strategy to decode the composite's attributes from a [PgDataRow].
+ */
+internal abstract class BaseCompositeTypeDescription<T : Any>(
+    typeOid: Int,
+    protected val columnMapping: List<PgColumnDescription>,
+    protected val customTypeDescriptionCache: PgTypeCache,
+    kType: KType,
+) : CompositeTypeDefinition<T>, PgTypeDescription<T>(
+    pgType = PgType.ByOid(oid = typeOid),
+    kType = kType,
+) {
     /**
      * To encode the values into the buffer, first fetch all the composite type instance's
      * attribute values (with value's [KType] as well) then write:
@@ -50,7 +58,10 @@ abstract class BaseCompositeTypeDescription<T : Any>(
             "Values found for composite class instance does not match the expected number. " +
                     "Expected ${columnMapping.size}, found ${values.size}"
         }
-        val encodeBuffer = PgEncodeBuffer(columnMapping, customTypeDescriptionCache)
+        val encodeBuffer = PgEncodeBuffer(
+            parameterTypeOids = columnMapping.map { it.pgType.oid },
+            typeCache = customTypeDescriptionCache,
+        )
         buffer.writeInt(columnMapping.size)
         for (i in columnMapping.indices) {
             val column = columnMapping[i]
@@ -161,7 +172,7 @@ abstract class BaseCompositeTypeDescription<T : Any>(
  * parameters matches the supplied columns mapping. Other requirements (such as the composite
  * type's attributes matching the expected data class properties) are up to the class definer.
  */
-class ReflectionCompositeTypeDescription<T : Any>(
+internal class ReflectionCompositeTypeDescription<T : Any>(
     typeOid: Int,
     columnMapping: List<PgColumnDescription>,
     customTypeDescriptionCache: PgTypeCache,
@@ -177,8 +188,17 @@ class ReflectionCompositeTypeDescription<T : Any>(
     }
     private val primaryConstructor = cls.primaryConstructor!!
     private val constructorParameterNames = primaryConstructor.parameters.map { it.name!! }
-    private val properties = cls.memberProperties
-        .filter { prop -> constructorParameterNames.firstOrNull { prop.name == it } != null }
+    private val properties = constructorParameterNames.map { param ->
+        cls.memberProperties.first { it.name == param }
+    }
+    private val finalParameterNames = primaryConstructor.parameters
+        .map { param ->
+            val rename = param.annotations
+                .firstOrNull { it is Rename }
+                ?.let { it as Rename }
+                ?: return@map param.name!!
+            rename.value
+        }
     init {
         require(columnMapping.size == constructorParameterNames.size) {
             "Declared composite data class does not match the number of expected attributes"
@@ -190,8 +210,8 @@ class ReflectionCompositeTypeDescription<T : Any>(
     }
 
     override fun fromRow(row: DataRow): T {
-        val args = Array(constructorParameterNames.size) { i ->
-            val parameterName = constructorParameterNames[i]
+        val args = Array(finalParameterNames.size) { i ->
+            val parameterName = finalParameterNames[i]
             row[parameterName]
         }
         return primaryConstructor.call(*args)
@@ -199,7 +219,7 @@ class ReflectionCompositeTypeDescription<T : Any>(
 }
 
 /** Implementation of an [ArrayTypeDescription] for composite types */
-class CompositeArrayTypeDescription<T : Any>(
+internal class CompositeArrayTypeDescription<T : Any>(
     pgType: PgType,
     innerType: BaseCompositeTypeDescription<T>,
 ) : ArrayTypeDescription<T>(pgType = pgType, innerType = innerType)

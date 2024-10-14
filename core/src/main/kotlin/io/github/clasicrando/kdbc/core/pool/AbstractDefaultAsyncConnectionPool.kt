@@ -11,8 +11,8 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.uuid.UUID
 import kotlin.coroutines.CoroutineContext
+import kotlin.uuid.Uuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -34,7 +34,7 @@ abstract class AbstractDefaultAsyncConnectionPool<C : AsyncConnection>(
     private val provider: AsyncConnectionProvider<C>,
 ) : AsyncConnectionPool<C> {
     private val connections = Channel<C>(capacity = poolOptions.maxConnections)
-    private val connectionIds: MutableMap<UUID, C> = AtomicMutableMap()
+    private val connectionIds: MutableMap<Uuid, C> = AtomicMutableMap()
     private val connectionNeeded = Channel<CompletableDeferred<C?>>(capacity = Channel.BUFFERED)
     private val mutex = Mutex()
 
@@ -51,11 +51,8 @@ abstract class AbstractDefaultAsyncConnectionPool<C : AsyncConnection>(
         val connection = provider.create(this@AbstractDefaultAsyncConnectionPool)
         connectionIds[connection.resourceId] = connection
         logger.atTrace {
-            message = "Created new connection. Current pool size = {count}. Max size = {max}"
-            payload = mapOf(
-                "count" to connectionIds.size,
-                "max" to poolOptions.maxConnections,
-            )
+            message = "Created new connection. Current pool size = ${connectionIds.size}. " +
+                    "Max size = ${poolOptions.maxConnections}"
         }
         return connection
     }
@@ -74,20 +71,18 @@ abstract class AbstractDefaultAsyncConnectionPool<C : AsyncConnection>(
      * fail if the [logger] fails to log.
      */
     private suspend fun invalidateConnection(connection: C) {
-        var connectionId: UUID? = null
+        var connectionId: Uuid? = null
         try {
             connectionId = connection.resourceId
             connectionIds.remove(connectionId)
             logger.atTrace {
-                message = "Invalidating connection id = {id}"
-                payload = mapOf("id" to connectionId)
+                message = "Invalidating connection id = $connectionId"
             }
             disposeConnection(connection)
         } catch (ex: Throwable) {
             logger.atError {
                 cause = ex
-                message = "Error while closing invalid connection, '{connectionId}'"
-                payload = connectionId?.let { mapOf("connectionId" to it) }
+                message = "Error while closing invalid connection, '$connectionId'"
             }
         }
     }

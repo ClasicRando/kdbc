@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.result
 
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.UniqueResourceId
+import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
@@ -11,7 +12,6 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.github.oshai.kotlinlogging.Level
 
 private val logger = KotlinLogging.logger {}
 
@@ -90,6 +90,9 @@ internal class QueryResultCollector(
             }
             is PgMessage.ReadyForQuery -> {
                 transactionStatus = message.transactionStatus
+                resource.logWithResource(logger, Kdbc.detailedLogging) {
+                    this.message = "Done collecting result"
+                }
                 Loop.Break
             }
             else -> logUnexpectedMessage(message)
@@ -101,9 +104,8 @@ internal class QueryResultCollector(
      * operation
      */
     private fun logUnexpectedMessage(message: PgMessage): Loop {
-        resource.logWithResource(logger, Level.TRACE) {
-            this.message = "Ignoring {message} since it's not an error or the desired type"
-            payload = mapOf("message" to message)
+        resource.logWithResource(logger, Kdbc.detailedLogging) {
+            this.message = "Ignoring $message since it's not an error or the desired type"
         }
         return Loop.Continue
     }

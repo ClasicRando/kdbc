@@ -39,8 +39,7 @@ internal object PgMessageDecoders {
             PgMessage.NEGOTIATE_PROTOCOL_VERSION_CODE -> NegotiateProtocolVersionDecoder.decode(contents)
             else -> {
                 logger.atTrace {
-                    message = "Received message {format}"
-                    payload = mapOf("format" to rawMessage.format)
+                    message = "Received unexpected message of format = '${rawMessage.format}'"
                 }
                 rawMessage.contents.close()
                 PgMessage.UnknownMessage

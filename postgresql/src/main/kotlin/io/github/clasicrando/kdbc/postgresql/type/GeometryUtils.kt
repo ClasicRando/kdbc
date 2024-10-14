@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 /** Parse the [value] into separate points, yielding a [Sequence] of [String] values */
-fun extractPoints(value: String) = sequence {
+internal fun extractPoints(value: String) = sequence {
     if (value.isEmpty()) {
         return@sequence
     }

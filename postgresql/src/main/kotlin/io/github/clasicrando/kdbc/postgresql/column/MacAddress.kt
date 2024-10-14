@@ -7,7 +7,7 @@ import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
 import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [PgMacAddress] type */
-abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescription<PgMacAddress>(
+internal abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescription<PgMacAddress>(
     pgType = pgType,
     kType = typeOf<PgMacAddress>(),
 ) {
@@ -85,13 +85,13 @@ abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescrip
  * Implementation of a [PgTypeDescription] for the [PgMacAddress] type. This maps to the `macaddr`
  * type in a postgresql database.
  */
-object MacAddressTypeDescription : AbstractMacAddressTypeDescription(pgType = PgType.Macaddr)
+internal object MacAddressTypeDescription : AbstractMacAddressTypeDescription(pgType = PgType.Macaddr)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [PgMacAddress]. This maps to the `macaddr[]`
  * type in a postgresql database.
  */
-object MacAddressArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
+internal object MacAddressArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
     pgType = PgType.MacaddrArray,
     innerType = MacAddressTypeDescription,
 )
@@ -100,13 +100,13 @@ object MacAddressArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
  * Implementation of a [PgTypeDescription] for the [PgMacAddress] type. This maps to the `macaddr8`
  * type in a postgresql database.
  */
-object MacAddress8TypeDescription : AbstractMacAddressTypeDescription(pgType = PgType.Macaddr8)
+internal object MacAddress8TypeDescription : AbstractMacAddressTypeDescription(pgType = PgType.Macaddr8)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [PgMacAddress]. This maps to the `macaddr8[]`
  * type in a postgresql database.
  */
-object MacAddress8ArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
+internal object MacAddress8ArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
     pgType = PgType.Macaddr8Array,
     innerType = MacAddress8TypeDescription,
 )

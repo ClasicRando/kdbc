@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.params.ParameterizedTest
@@ -32,7 +33,7 @@ class TestJsonType {
                 .bind(pgJsonValue)
                 .fetchScalar<PgJson>()
             assertNotNull(pgJson)
-            assertEquals(jsonValue, pgJson.decode())
+            assertEquals(jsonValue, pgJson.decodeUsingSerialization())
         }
     }
 
@@ -46,7 +47,7 @@ class TestJsonType {
                 conn.createQuery(query)
             }.fetchScalar<PgJson>()
             assertNotNull(pgJson)
-            assertEquals(jsonValue, pgJson.decode())
+            assertEquals(jsonValue, pgJson.decodeUsingSerialization())
         }
     }
 
@@ -64,7 +65,7 @@ class TestJsonType {
 
     companion object {
         private val jsonValue = JsonType(584.5269, "PgJson test")
-        private val pgJsonValue = PgJson.fromValue(jsonValue)
+        private val pgJsonValue = PgJson.fromJsonElement(Json.encodeToJsonElement(jsonValue))
         private val JSON_STRING = Json.encodeToString(jsonValue)
         private const val JSON_TEST_TABLE = "json_test"
         private const val JSONB_TEST_TABLE = "jsonb_test"

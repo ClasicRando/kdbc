@@ -36,7 +36,7 @@ private val postgresEpochInstant = Instant.fromEpochMilliseconds(postgresEpochMi
  * Implementation of a [PgTypeDescription] for the [Instant] type. This maps to the `timestamp`
  * type in a postgresql database.
  */
-object TimestampTypeDescription : PgTypeDescription<Instant>(
+internal object TimestampTypeDescription : PgTypeDescription<Instant>(
     pgType = PgType.Timestamp,
     kType = typeOf<Instant>(),
 ) {
@@ -83,7 +83,7 @@ object TimestampTypeDescription : PgTypeDescription<Instant>(
  * Implementation of an [ArrayTypeDescription] for [Instant]. This maps to the `timestamp[]`
  * type in a postgresql database.
  */
-object TimestampArrayTypeDescription : ArrayTypeDescription<Instant>(
+internal object TimestampArrayTypeDescription : ArrayTypeDescription<Instant>(
     pgType = PgType.TimestampArray,
     innerType = TimestampTypeDescription,
 )
@@ -92,7 +92,7 @@ object TimestampArrayTypeDescription : ArrayTypeDescription<Instant>(
  * Implementation of a [PgTypeDescription] for the [DateTime] type. This maps to the `timestamptz`
  * type in a postgresql database.
  */
-object TimestampTzTypeDescription : PgTypeDescription<DateTime>(
+internal object TimestampTzTypeDescription : PgTypeDescription<DateTime>(
     pgType = PgType.Timestamptz,
     kType = typeOf<DateTime>(),
 ) {
@@ -141,7 +141,7 @@ object TimestampTzTypeDescription : PgTypeDescription<DateTime>(
  * Implementation of an [ArrayTypeDescription] for [DateTime]. This maps to the `timestamptz[]` type
  * in a postgresql database.
  */
-object TimestampTzArrayTypeDescription : ArrayTypeDescription<DateTime>(
+internal object TimestampTzArrayTypeDescription : ArrayTypeDescription<DateTime>(
     pgType = PgType.TimestampArray,
     innerType = TimestampTzTypeDescription,
 )

@@ -3,7 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.postgresql.column.PgType.ByOid
 
 /** Sealed class representing all covered postgresql types and their OID */
-sealed class PgType(
+internal sealed class PgType(
     /**
      * OID value representing the unique identifier of a type within a given postgresql database.
      * For all types implemented as a data object of [PgType], the type is static for any

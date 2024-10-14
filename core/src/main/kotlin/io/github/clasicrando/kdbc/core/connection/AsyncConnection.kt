@@ -76,8 +76,8 @@ interface AsyncConnection : Connection, AutoCloseableAsync {
  * and the original exception is rethrown. This all happens within a [AutoCloseableAsync.use]
  * block so the resources are always cleaned up before returning.
  */
-suspend inline fun <R, C : AsyncConnection> C.transaction(block: (C) -> R): R = use {
-    try {
+suspend inline fun <R, C : AsyncConnection> C.transaction(block: (C) -> R): R {
+    return try {
         this.begin()
         val result = block(this)
         commit()
@@ -99,14 +99,6 @@ suspend inline fun <R, C : AsyncConnection> C.transaction(block: (C) -> R): R = 
  */
 suspend inline fun <R, C : AsyncConnection> C.transactionCatching(
     block: (C) -> R,
-): Result<R> = useCatching {
-    try {
-        this.begin()
-        val result = block(this)
-        commit()
-        result
-    } catch (ex: Throwable) {
-        rollback()
-        throw ex
-    }
+): Result<R> = runCatching {
+    transaction(block)
 }

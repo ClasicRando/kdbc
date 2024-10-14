@@ -1,69 +1,48 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 
 /**
- * Postgresql `json` or `jsonb` type. Stores the [json] data as an abstract [JsonElement] value.
+ * Postgresql `json` or `jsonb` type. Allows for formatting the value into various JSON libraries.
  *
  * [docs](https://www.postgresql.org/docs/16/datatype-json.html)
  */
-@Serializable
-data class PgJson(val json: JsonElement) {
-    /** Write the underlining [json] value to the [buffer] */
-    fun writeToBuffer(buffer: ByteWriteBuffer) {
-        val bytes = Json.encodeToString(json)
-            .encodeToByteArray()
-        buffer.writeBytes(bytes)
+sealed class PgJson {
+    class Bytes(val bytes: ByteArray) : PgJson()
+    class Text(val text: String) : PgJson()
+
+    /** Write the underlining JSON value to the [buffer] */
+    internal fun writeToBuffer(buffer: ByteWriteBuffer) {
+        when (this) {
+            is Bytes -> buffer.writeBytes(bytes)
+            is Text -> buffer.writeText(text)
+        }
     }
 
-    /**
-     * Decode the [json] value into the desired type [T].
-     *
-     * @throws kotlinx.serialization.SerializationException if [json] is not a valid input for type
-     * [T]
-     * @throws IllegalArgumentException if [json] decoded cannot be used to represent a valid [T]
-     */
-    inline fun <reified T> decode(): T {
-        return Json.decodeFromJsonElement(json)
+    inline fun <reified T : Any> decodeUsingSerialization(): T {
+        return when (this) {
+            is Bytes -> Json.decodeFromString(bytes.toString(charset = Charsets.UTF_8))
+            is Text -> Json.decodeFromString(text)
+        }
     }
 
-    override fun toString(): String = Json.encodeToString(json)
+    fun decodeAsJsonElement(): JsonElement {
+        return decodeUsingSerialization()
+    }
+
+    override fun toString(): String {
+        return when (this) {
+            is Bytes -> bytes.toString(charset = Charsets.UTF_8)
+            is Text -> text
+        }
+    }
 
     companion object {
-        /**
-         * Create a new [PgJson] by parsing [json] to a [JsonElement].
-         *
-         * @throws kotlinx.serialization.SerializationException if the input is not valid JSON
-         */
-        fun fromString(json: String): PgJson {
-            return PgJson(Json.parseToJsonElement(json))
-        }
-
-        /**
-         * Create a new [PgJson] by decoding the [buffer] data to a [JsonElement].
-         *
-         * @throws kotlinx.serialization.SerializationException if the [buffer] data is not valid
-         * JSON
-         */
-        fun fromBytes(buffer: ByteReadBuffer): PgJson {
-            val jsonString = buffer.readText()
-            return PgJson(Json.parseToJsonElement(jsonString))
-        }
-
-        /**
-         * Create a new [PgJson] by encoding the provided [value] into a [JsonElement]
-         *
-         * @throws kotlinx.serialization.SerializationException if type [T] is not [Serializable]
-         */
-        inline fun <reified T> fromValue(value: T): PgJson {
-            return PgJson(Json.encodeToJsonElement(value))
+        fun fromJsonElement(jsonElement: JsonElement): PgJson {
+            return Text(Json.encodeToString(jsonElement))
         }
     }
 }

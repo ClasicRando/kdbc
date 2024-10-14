@@ -18,37 +18,47 @@ jobs:
 
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     env:
-      PG_TEST_PASSWORD: postgres
+      PG_TEST_USER: postgres
+      PG_TEST_PASSWORD: password
+      PG_TEST_PORT: 5234
       PG_COPY_TEST: true
-
-    # Service containers to run with `build`
-    services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgis/postgis
-        # Provide the password for postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # Maps tcp port 5432 on service container to the host
-          - 5432:5432
+      PG_TRUST_STORE_NAME: test-keystore.pkcs12
+      PG_TRUST_STORE_PASSWORD: changeit
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up JDK 11
+    # Create and set up postgresql database
+    - name: Set up Postgres Databases
+      run: |
+        docker build --rm -f "./docker/postgres/Dockerfile" -t postgis:ssl "."
+        docker run -d \
+          -p ${{ env.PG_TEST_PORT }}:5432 \
+          --name kdbc-test-pg \
+          -e POSTGRES_PASSWORD=${{ env.PG_TEST_PASSWORD }} \
+          -e POSTGRES_USER=${{ env.PG_TEST_USER }} \
+          postgis:ssl
+      shell: bash
+
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '11'
+        java-version: '17'
         distribution: 'temurin'
+
+    # Take existing postgresql cert and add it to the current default keystore
+    - name: Add SSL cert
+      run: |
+        STORE="$RUNNER_TEMP/${{ env.PG_TRUST_STORE_NAME }}"
+        STORE_PASS="changeit"
+        ALIAS=postgresql
+        if keytool -keystore $STORE -storepass ${{ env.PG_TRUST_STORE_PASSWORD }} -alias $ALIAS -list; then
+          keytool -keystore $STORE -storepass ${{ env.PG_TRUST_STORE_PASSWORD }} -alias $ALIAS -delete
+        fi
+        openssl x509 -in ./docker/postgres/certs/server.crt -outform der \
+          | keytool -keystore $STORE -keypass password -storepass ${{ env.PG_TRUST_STORE_PASSWORD }} -trustcacerts -noprompt -alias $ALIAS -import
+      shell: bash
 
     # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
@@ -58,7 +68,9 @@ jobs:
         gradle-version: '8.2'
 
     - name: Build with Gradle Wrapper
-      run: ./gradlew build
+      run: |
+        STORE="$RUNNER_TEMP/${{ env.PG_TRUST_STORE_NAME }}"
+        ./gradlew "-PtrustStorePath=$STORE" "-PtrustStorePassword=${{ env.PG_TRUST_STORE_PASSWORD }}" build
 
     # NOTE: The Gradle Wrapper is the default and recommended way to run Gradle (https://docs.gradle.org/current/userguide/gradle_wrapper.html).
     # If your project does not have the Gradle Wrapper configured, you can use the following configuration to run Gradle with a specified version.
@@ -79,10 +91,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up JDK 11
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '11'
+        java-version: '17'
         distribution: 'temurin'
 
     # Generates and submits a dependency graph, enabling Dependabot Alerts for all project dependencies.

@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
@@ -17,7 +18,6 @@ import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.atStartOfDayIn
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.math.BigDecimal
 import java.util.stream.Stream
 import kotlin.test.assertEquals
 
@@ -311,8 +311,8 @@ class TestRange {
                 .stream()
         }
 
-        private val lowerBigDecimal = BigDecimal.valueOf(1L)
-        private val upperBigDecimal = BigDecimal.valueOf(3L)
+        private val lowerBigDecimal = BigDecimal.fromLong(1L)
+        private val upperBigDecimal = BigDecimal.fromLong(3L)
         private const val NUMRANGE_TYPE_NAME = "numrange"
 
         @JvmStatic

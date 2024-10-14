@@ -11,7 +11,7 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
  * [io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions.useExtendedProtocolForSimpleQueries]
  * is true (the default value).
  */
-class PgBlockingQuery(
+internal class PgBlockingQuery(
     connection: PgBlockingConnection,
     sql: String
 ) : BaseBlockingQuery<PgBlockingConnection>(sql = sql, connection = connection) {

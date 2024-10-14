@@ -1,17 +1,17 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.type.PgNumeric
-import java.math.BigDecimal
 import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [PgTypeDescription] for the [BigDecimal] type. This maps to the `numeric`
  * type in a postgresql database.
  */
-object NumericTypeDescription : PgTypeDescription<BigDecimal>(
+internal object NumericTypeDescription : PgTypeDescription<BigDecimal>(
     pgType = PgType.Numeric,
-    kType = typeOf<BigDecimal>()
+    kType = typeOf<BigDecimal>(),
 ) {
     /**
      * Numeric types are constructed using the internal type [PgNumeric] and encoded to the buffer
@@ -35,7 +35,7 @@ object NumericTypeDescription : PgTypeDescription<BigDecimal>(
      * When supplied in text format, a [BigDecimal] can be constructed directly from the [String].
      */
     override fun decodeText(value: PgValue.Text): BigDecimal {
-        return BigDecimal(value.text)
+        return BigDecimal.parseString(value.text)
     }
 }
 
@@ -43,7 +43,7 @@ object NumericTypeDescription : PgTypeDescription<BigDecimal>(
  * Implementation of an [ArrayTypeDescription] for [BigDecimal]. This maps to the `numeric[]` type
  * in a postgresql database.
  */
-object NumericArrayTypeDescription : ArrayTypeDescription<BigDecimal>(
+internal object NumericArrayTypeDescription : ArrayTypeDescription<BigDecimal>(
     pgType = PgType.NumericArray,
     innerType = NumericTypeDescription,
 )

@@ -8,7 +8,7 @@ import kotlin.reflect.typeOf
  * Implementation of a [PgTypeDescription] for the [Byte] type. This maps to the `"char"` type in a
  * postgresql database.
  */
-object CharTypeDescription : PgTypeDescription<Byte>(
+internal object CharTypeDescription : PgTypeDescription<Byte>(
     pgType = PgType.Char,
     kType = typeOf<Char>(),
 ) {
@@ -64,7 +64,7 @@ object CharTypeDescription : PgTypeDescription<Byte>(
  * Implementation of an [ArrayTypeDescription] for [Byte]. This maps to the `"char"[]` type in a
  * postgresql database.
  */
-object CharArrayTypeDescription : ArrayTypeDescription<Byte>(
+internal object CharArrayTypeDescription : ArrayTypeDescription<Byte>(
     pgType = PgType.CharArray,
     innerType = CharTypeDescription,
 )

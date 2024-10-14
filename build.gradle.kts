@@ -7,39 +7,27 @@ plugins {
     id("com.vanniktech.maven.publish")
     signing
     id("org.jetbrains.dokka")
+    id("org.jetbrains.kotlinx.atomicfu")
 }
-
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-
-    val kotlinxAtomicFuVersion: String by project
-
-    dependencies {
-        classpath("org.jetbrains.kotlinx:atomicfu-gradle-plugin:$kotlinxAtomicFuVersion")
-    }
-}
-
-apply(plugin = "kotlinx-atomicfu")
 
 allprojects {
     apply(plugin = "kotlin")
     group = "io.github.clasicrando"
-    version = "0.0.2"
+    version = "0.0.3"
 
     repositories {
         mavenCentral()
     }
 
     kotlin {
-        jvmToolchain(11)
+        jvmToolchain(17)
         compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
+        compilerOptions.optIn.add("kotlin.uuid.ExperimentalUuidApi")
     }
 }
 
 subprojects {
-    apply(plugin = "kotlinx-atomicfu")
+    apply(plugin = "org.jetbrains.kotlinx.atomicfu")
     apply(plugin = "signing")
     apply(plugin = "org.jetbrains.dokka")
     apply(plugin = "com.vanniktech.maven.publish")
@@ -56,28 +44,25 @@ subprojects {
     val kotlinVersion: String by project
     val kotlinxSerializationJsonVersion: String by project
     val kotlinxDateTimeVersion: String by project
-    val kotlinxUuidVersion: String by project
-    val kotlinTestVersion: String by project
     val junitVersion: String by project
     val logbackVersion: String by project
     val mockkVersion: String by project
+    val bigNumVersion: String by project
 
     dependencies {
         implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
         implementation("io.github.oshai:kotlin-logging-jvm:$kotlinLoggingVersion")
         implementation("org.slf4j:slf4j-api:$slf4jVersion")
-        // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$kotlinxCoroutinesVersion")
         implementation("io.ktor:ktor-network:$ktorVersion")
+        implementation("io.ktor:ktor-network-tls:$ktorVersion")
         implementation(kotlin("stdlib", version = kotlinVersion))
         implementation(kotlin("reflect", version = kotlinVersion))
-        // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
-        api("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
+        implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
         api("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDateTimeVersion")
-        // https://mvnrepository.com/artifact/app.softwork/kotlinx-uuid-core
-        api("app.softwork:kotlinx-uuid-core:$kotlinxUuidVersion")
+        api("com.ionspin.kotlin:bignum:$bigNumVersion")
 
-        testImplementation(kotlin("test", version = kotlinTestVersion))
+        testImplementation(kotlin("test", version = kotlinVersion))
         testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
         testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
         testImplementation("ch.qos.logback:logback-classic:$logbackVersion")
@@ -94,7 +79,7 @@ subprojects {
                 org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED,
             )
             showStandardStreams = true
-            afterSuite(KotlinClosure2<TestDescriptor,TestResult,Unit>({ descriptor, result ->
+            afterSuite(KotlinClosure2<TestDescriptor, TestResult, Unit>({ descriptor, result ->
                 if (descriptor.parent == null) {
                     println("\nTest Result: ${result.resultType}")
                     println("""

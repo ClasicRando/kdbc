@@ -22,7 +22,7 @@ private fun DateTimePeriod.inWholeMicroSeconds(): Long {
             kotlin.math.floor(this.nanoseconds / nanoSecondsPerMicroSeconds).toLong()
 }
 
-object IntervalTypeDescription : PgTypeDescription<DateTimePeriod>(
+internal object IntervalTypeDescription : PgTypeDescription<DateTimePeriod>(
     pgType = PgType.Interval,
     kType = typeOf<DateTimePeriod>(),
 ) {
@@ -71,7 +71,7 @@ object IntervalTypeDescription : PgTypeDescription<DateTimePeriod>(
  * Implementation of an [ArrayTypeDescription] for [DateTimePeriod]. This maps to the `interval[]`
  * type in a postgresql database.
  */
-object IntervalArrayTypeDescription : ArrayTypeDescription<DateTimePeriod>(
+internal object IntervalArrayTypeDescription : ArrayTypeDescription<DateTimePeriod>(
     pgType = PgType.IntervalArray,
     innerType = IntervalTypeDescription,
 )

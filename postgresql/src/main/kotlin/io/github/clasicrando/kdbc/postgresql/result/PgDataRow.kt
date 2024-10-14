@@ -99,7 +99,7 @@ import io.github.clasicrando.kdbc.postgresql.column.XmlTypeDescription
  * Postgresql specific implementation for a [DataRow]. Uses the [rowBuffer] to extract data
  * returned from the postgresql server.
  */
-class PgDataRow(
+internal class PgDataRow(
     private val rowBuffer: ByteReadBuffer?,
     private var pgValues: Array<PgValue?>,
     private val columnMapping: List<PgColumnDescription>,

@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.QueryParameter
@@ -9,8 +10,8 @@ import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
-import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
 import io.github.clasicrando.kdbc.postgresql.type.PgBox
 import io.github.clasicrando.kdbc.postgresql.type.PgCircle
 import io.github.clasicrando.kdbc.postgresql.type.PgInet
@@ -30,10 +31,10 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
-import kotlinx.uuid.UUID
-import java.math.BigDecimal
+import kotlin.uuid.Uuid
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
+import kotlin.reflect.full.createType
 
 private val logger = KotlinLogging.logger {}
 
@@ -43,7 +44,8 @@ private val logger = KotlinLogging.logger {}
  * shared within connection pools so the contents and methods are thread-safe. This is accomplished
  * using [AtomicMutableMap]s for the lookup maps.
  */
-class PgTypeCache {
+@PublishedApi
+internal class PgTypeCache {
     private val customTypeDescriptions: MutableMap<PgType, PgTypeDescription<*>> = AtomicMutableMap()
     private val typeHintLookup: MutableMap<KType, PgType> = AtomicMutableMap()
 
@@ -94,18 +96,36 @@ class PgTypeCache {
         connection: PgAsyncConnection,
         name: String,
         cls: KClass<T>,
+        compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
     ) {
         val verifiedOid = checkCompositeDbTypeByName(connection, name)
             ?: error("Could not verify the composite type name '$name' in the database")
 
         val compositeColumnMapping = getCompositeAttributeData(connection, verifiedOid)
 
-        val compositeTypeDescription = ReflectionCompositeTypeDescription(
-            typeOid = verifiedOid,
-            columnMapping = compositeColumnMapping,
-            customTypeDescriptionCache = this,
-            cls = cls,
-        )
+        val compositeTypeDescription = if (compositeTypeDefinition == null) {
+            ReflectionCompositeTypeDescription(
+                typeOid = verifiedOid,
+                columnMapping = compositeColumnMapping,
+                customTypeDescriptionCache = this,
+                cls = cls,
+            )
+        } else {
+            object : BaseCompositeTypeDescription<T>(
+                typeOid = verifiedOid,
+                columnMapping = compositeColumnMapping,
+                customTypeDescriptionCache = this,
+                kType = cls.createType(),
+            ) {
+                override fun extractValues(value: T): List<Pair<Any?, KType>> {
+                    return compositeTypeDefinition.extractValues(value)
+                }
+
+                override fun fromRow(row: DataRow): T {
+                    return compositeTypeDefinition.fromRow(row)
+                }
+            }
+        }
         addTypeDescription(compositeTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
@@ -134,16 +154,16 @@ class PgTypeCache {
             ?: error("Could not verify the composite type name '$name' in the database")
 
         val enumLabels = getEnumLabels(connection, verifiedOid)
-        check(enumValues.all { enumLabels.contains(it.name) }) {
-            "Cannot register an enum type because the declared enum values do not match the " +
-                    "database's enum labels"
-        }
-
         val enumTypeDescription = EnumTypeDescription(
             pgType = PgType.ByOid(oid = verifiedOid),
             kType = kType,
             values = enumValues,
         )
+        val missingLabels = enumLabels.filter { !enumTypeDescription.entryLookup.contains(it) }
+        check(missingLabels.isEmpty()) {
+            "Cannot register an enum type because the declared enum values do not match the " +
+                    "database's enum labels. Enum missing ${missingLabels.joinToString()}"
+        }
         addTypeDescription(enumTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
@@ -173,18 +193,36 @@ class PgTypeCache {
         connection: PgBlockingConnection,
         name: String,
         cls: KClass<T>,
+        compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
     ) {
         val verifiedOid = checkCompositeDbTypeByName(connection, name)
             ?: error("Could not verify the composite type name '$name' in the database")
 
         val compositeColumnMapping = getCompositeAttributeData(connection, verifiedOid)
 
-        val compositeTypeDescription = ReflectionCompositeTypeDescription(
-            typeOid = verifiedOid,
-            columnMapping = compositeColumnMapping,
-            customTypeDescriptionCache = this,
-            cls = cls,
-        )
+        val compositeTypeDescription = if (compositeTypeDefinition == null) {
+            ReflectionCompositeTypeDescription(
+                typeOid = verifiedOid,
+                columnMapping = compositeColumnMapping,
+                customTypeDescriptionCache = this,
+                cls = cls,
+            )
+        } else {
+            object : BaseCompositeTypeDescription<T>(
+                typeOid = verifiedOid,
+                columnMapping = compositeColumnMapping,
+                customTypeDescriptionCache = this,
+                kType = cls.createType(),
+            ) {
+                override fun extractValues(value: T): List<Pair<Any?, KType>> {
+                    return compositeTypeDefinition.extractValues(value)
+                }
+
+                override fun fromRow(row: DataRow): T {
+                    return compositeTypeDefinition.fromRow(row)
+                }
+            }
+        }
         addTypeDescription(compositeTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
@@ -213,16 +251,16 @@ class PgTypeCache {
             ?: error("Could not verify the composite type name '$name' in the database")
 
         val enumLabels = getEnumLabels(connection, verifiedOid)
-        check(enumValues.all { enumLabels.contains(it.name) }) {
-            "Cannot register an enum type because the declared enum values do not match the " +
-                    "database's enum labels"
-        }
-
         val enumTypeDescription = EnumTypeDescription(
             pgType = PgType.ByOid(oid = verifiedOid),
             kType = kType,
             values = enumValues,
         )
+        val missingLabels = enumLabels.filter { !enumTypeDescription.entryLookup.contains(it) }
+        check(missingLabels.isEmpty()) {
+            "Cannot register an enum type because the declared enum values do not match the " +
+                    "database's enum labels. Enum missing ${missingLabels.joinToString()}"
+        }
         addTypeDescription(enumTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
@@ -261,7 +299,7 @@ class PgTypeCache {
             is PgTimeTz -> PgType.Timetz
             is DateTime -> PgType.Timestamptz
             is DateTimePeriod -> PgType.Interval
-            is UUID -> PgType.Uuid
+            is Uuid -> PgType.Uuid
             is PgPoint -> PgType.Point
             is PgLine -> PgType.Line
             is PgLineSegment -> PgType.LineSegment
@@ -377,6 +415,7 @@ class PgTypeCache {
             where
                 t.oid = $1
                 and t.typcategory = 'C'
+                and a.attnum > 0
             """.trimIndent()
 
         /** Query to fetch the OID of the array type with an inner type matching the OID supplied */
@@ -413,8 +452,7 @@ class PgTypeCache {
                 .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
-                    message = "Could not find composite type by name"
-                    payload = mapOf("name" to name)
+                    message = "Could not find composite type by name = '$name'"
                 }
                 return null
             }
@@ -461,8 +499,7 @@ class PgTypeCache {
                 .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
-                    message = "Could not find enum type for name = {name}"
-                    payload = mapOf("name" to name)
+                    message = "Could not find enum type for name = '$name'"
                 }
                 return null
             }
@@ -497,8 +534,7 @@ class PgTypeCache {
 
             if (arrayOid == null) {
                 logger.atWarn {
-                    message = "Could not find array type by oid"
-                    payload = mapOf("oid" to oid)
+                    message = "Could not find array type by oid = $oid"
                 }
                 return null
             }
@@ -531,8 +567,7 @@ class PgTypeCache {
                 .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
-                    message = "Could not find composite type by name"
-                    payload = mapOf("name" to name)
+                    message = "Could not find composite type by name = '$name'"
                 }
                 return null
             }
@@ -579,8 +614,7 @@ class PgTypeCache {
                 .fetchScalar<Int>()
             if (oid == null) {
                 logger.atWarn {
-                    message = "Could not find enum type for name = {name}"
-                    payload = mapOf("name" to name)
+                    message = "Could not find enum type for name = '$name'"
                 }
                 return null
             }
@@ -615,8 +649,7 @@ class PgTypeCache {
 
             if (arrayOid == null) {
                 logger.atWarn {
-                    message = "Could not find array type by oid"
-                    payload = mapOf("oid" to oid)
+                    message = "Could not find array type by oid = $oid"
                 }
                 return null
             }

@@ -9,7 +9,7 @@ import kotlin.reflect.typeOf
  * Implementation of a [PgTypeDescription] for the [PgMoney] type. This maps to the `money` type in
  * a postgresql database.
  */
-object MoneyTypeDescription : PgTypeDescription<PgMoney>(
+internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
     pgType = PgType.Money,
     kType = typeOf<PgMoney>(),
 ) {
@@ -55,7 +55,7 @@ object MoneyTypeDescription : PgTypeDescription<PgMoney>(
  * Implementation of an [ArrayTypeDescription] for [PgMoney]. This maps to the `money[]` type in a
  * postgresql database.
  */
-object MoneyArrayTypeDescription : ArrayTypeDescription<PgMoney>(
+internal object MoneyArrayTypeDescription : ArrayTypeDescription<PgMoney>(
     pgType = PgType.MoneyArray,
     innerType = MoneyTypeDescription,
 )

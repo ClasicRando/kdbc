@@ -7,7 +7,7 @@ import kotlin.reflect.typeOf
  * Implementation of a [PgTypeDescription] for the [String] type. This maps to the
  * `text`/`name`/`bpchar`/`varchar`/`xml` types in a postgresql database.
  */
-abstract class AbstractVarcharTypeDescription(pgType: PgType) : PgTypeDescription<String>(
+internal abstract class AbstractVarcharTypeDescription(pgType: PgType) : PgTypeDescription<String>(
     pgType = pgType,
     kType = typeOf<String>(),
 ) {
@@ -31,13 +31,13 @@ abstract class AbstractVarcharTypeDescription(pgType: PgType) : PgTypeDescriptio
  * Implementation of a [PgTypeDescription] for the [String] type. This maps to the `text` types in
  * a postgresql database.
  */
-object TextTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Text)
+internal object TextTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Text)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `text[]` types in a
  * postgresql database.
  */
-object TextArrayTypeDescription : ArrayTypeDescription<String>(
+internal object TextArrayTypeDescription : ArrayTypeDescription<String>(
     pgType = PgType.TextArray,
     innerType = TextTypeDescription,
 )
@@ -46,13 +46,13 @@ object TextArrayTypeDescription : ArrayTypeDescription<String>(
  * Implementation of a [PgTypeDescription] for the [String] type. This maps to the `varchar` types
  * in a postgresql database.
  */
-object VarcharTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Varchar)
+internal object VarcharTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Varchar)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `varchar[]` types in a
  * postgresql database.
  */
-object VarcharArrayTypeDescription : ArrayTypeDescription<String>(
+internal object VarcharArrayTypeDescription : ArrayTypeDescription<String>(
     pgType = PgType.VarcharArray,
     innerType = VarcharTypeDescription,
 )
@@ -61,13 +61,13 @@ object VarcharArrayTypeDescription : ArrayTypeDescription<String>(
  * Implementation of a [PgTypeDescription] for the [String] type. This maps to the `xml` types in a
  * postgresql database.
  */
-object XmlTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Xml)
+internal object XmlTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Xml)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `xml[]` types in a
  * postgresql database.
  */
-object XmlArrayTypeDescription : ArrayTypeDescription<String>(
+internal object XmlArrayTypeDescription : ArrayTypeDescription<String>(
     pgType = PgType.XmlArray,
     innerType = XmlTypeDescription,
 )
@@ -76,13 +76,13 @@ object XmlArrayTypeDescription : ArrayTypeDescription<String>(
  * Implementation of a [PgTypeDescription] for the [String] type. This maps to the `name` types in
  * a postgresql database.
  */
-object NameTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Name)
+internal object NameTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Name)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `name[]` types in a
  * postgresql database.
  */
-object NameArrayTypeDescription : ArrayTypeDescription<String>(
+internal object NameArrayTypeDescription : ArrayTypeDescription<String>(
     pgType = PgType.NameArray,
     innerType = TextTypeDescription,
 )
@@ -91,13 +91,13 @@ object NameArrayTypeDescription : ArrayTypeDescription<String>(
  * Implementation of a [PgTypeDescription] for the [String] type. This maps to the `bpchar` types
  * in a postgresql database.
  */
-object BpcharTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Bpchar)
+internal object BpcharTypeDescription : AbstractVarcharTypeDescription(pgType = PgType.Bpchar)
 
 /**
  * Implementation of an [ArrayTypeDescription] for [String]. This maps to the `bpchar[]` types in a
  * postgresql database.
  */
-object BpcharArrayTypeDescription : ArrayTypeDescription<String>(
+internal object BpcharArrayTypeDescription : ArrayTypeDescription<String>(
     pgType = PgType.BpcharArray,
     innerType = TextTypeDescription,
 )

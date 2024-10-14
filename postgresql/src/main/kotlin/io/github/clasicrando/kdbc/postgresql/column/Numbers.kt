@@ -8,7 +8,7 @@ import kotlin.reflect.typeOf
  * Implementation of a [PgTypeDescription] for the [Short] type. This maps to the `int2`/`smallint`
  * type in a postgresql database.
  */
-object SmallIntTypeDescription : PgTypeDescription<Short>(
+internal object SmallIntTypeDescription : PgTypeDescription<Short>(
     pgType = PgType.Int2,
     kType = typeOf<Short>(),
 ) {
@@ -42,7 +42,7 @@ object SmallIntTypeDescription : PgTypeDescription<Short>(
  * Implementation of an [ArrayTypeDescription] for [Short]. This maps to the `int2[]`/`smallint[]`
  * type in a postgresql database.
  */
-object SmallIntArrayTypeDescription : ArrayTypeDescription<Short>(
+internal object SmallIntArrayTypeDescription : ArrayTypeDescription<Short>(
     pgType = PgType.Int2Array,
     innerType = SmallIntTypeDescription,
 )
@@ -51,7 +51,7 @@ object SmallIntArrayTypeDescription : ArrayTypeDescription<Short>(
  * Implementation of a [PgTypeDescription] for the [Int] type. This maps to the `int4`/`integer`
  * type in a postgresql database.
  */
-object IntTypeDescription : PgTypeDescription<Int>(
+internal object IntTypeDescription : PgTypeDescription<Int>(
     pgType = PgType.Int4,
     kType = typeOf<Int>(),
 ) {
@@ -85,7 +85,7 @@ object IntTypeDescription : PgTypeDescription<Int>(
  * Implementation of an [ArrayTypeDescription] for [Int]. This maps to the `int4[]`/`integer[]`
  * type in a postgresql database.
  */
-object IntArrayTypeDescription : ArrayTypeDescription<Int>(
+internal object IntArrayTypeDescription : ArrayTypeDescription<Int>(
     pgType = PgType.Int4Array,
     innerType = IntTypeDescription,
 )
@@ -94,7 +94,7 @@ object IntArrayTypeDescription : ArrayTypeDescription<Int>(
  * Implementation of a [PgTypeDescription] for the [Int] type. This maps to the `oid` type in a
  * postgresql database.
  */
-object OidTypeDescription : PgTypeDescription<Int>(
+internal object OidTypeDescription : PgTypeDescription<Int>(
     pgType = PgType.Oid,
     kType = typeOf<Int>(),
 ) {
@@ -128,7 +128,7 @@ object OidTypeDescription : PgTypeDescription<Int>(
  * Implementation of an [ArrayTypeDescription] for [Int]. This maps to the `oid[]` type in a
  * postgresql database.
  */
-object OidArrayTypeDescription : ArrayTypeDescription<Int>(
+internal object OidArrayTypeDescription : ArrayTypeDescription<Int>(
     pgType = PgType.OidArray,
     innerType = IntTypeDescription,
 )
@@ -137,7 +137,7 @@ object OidArrayTypeDescription : ArrayTypeDescription<Int>(
  * Implementation of a [PgTypeDescription] for the [Long] type. This maps to the `int8`/`bigint`
  * type in a postgresql database.
  */
-object BigIntTypeDescription : PgTypeDescription<Long>(
+internal object BigIntTypeDescription : PgTypeDescription<Long>(
     pgType = PgType.Int8,
     kType = typeOf<Long>(),
 ) {
@@ -171,7 +171,7 @@ object BigIntTypeDescription : PgTypeDescription<Long>(
  * Implementation of an [ArrayTypeDescription] for [Long]. This maps to the `int8[]`/`bigint[]`
  * type in a postgresql database.
  */
-object BigIntArrayTypeDescription : ArrayTypeDescription<Long>(
+internal object BigIntArrayTypeDescription : ArrayTypeDescription<Long>(
     pgType = PgType.Int8Array,
     innerType = BigIntTypeDescription,
 )
@@ -180,7 +180,7 @@ object BigIntArrayTypeDescription : ArrayTypeDescription<Long>(
  * Implementation of a [PgTypeDescription] for the [Float] type. This maps to the `float4`/`real`
  * type in a postgresql database.
  */
-object RealTypeDescription : PgTypeDescription<Float>(
+internal object RealTypeDescription : PgTypeDescription<Float>(
     pgType = PgType.Float4,
     kType = typeOf<Float>(),
 ) {
@@ -214,7 +214,7 @@ object RealTypeDescription : PgTypeDescription<Float>(
  * Implementation of an [ArrayTypeDescription] for [Float]. This maps to the `float4[]`/`real[]`
  * type in a postgresql database.
  */
-object RealArrayTypeDescription : ArrayTypeDescription<Float>(
+internal object RealArrayTypeDescription : ArrayTypeDescription<Float>(
     pgType = PgType.Float4Array,
     innerType = RealTypeDescription,
 )
@@ -223,7 +223,7 @@ object RealArrayTypeDescription : ArrayTypeDescription<Float>(
  * Implementation of a [PgTypeDescription] for the [Double] type. This maps to the
  * `float8`/`double precision` type in a postgresql database.
  */
-object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
+internal object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
     pgType = PgType.Float8,
     kType = typeOf<Double>(),
 ) {
@@ -257,7 +257,7 @@ object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
  * Implementation of an [ArrayTypeDescription] for [Double]. This maps to the
  * `float8[]`/`double precision[]` type in a postgresql database.
  */
-object DoublePrecisionArrayTypeDescription : ArrayTypeDescription<Double>(
+internal object DoublePrecisionArrayTypeDescription : ArrayTypeDescription<Double>(
     pgType = PgType.Float8Array,
     innerType = DoublePrecisionTypeDescription,
 )

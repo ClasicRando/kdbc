@@ -17,7 +17,7 @@ private val logger = KotlinLogging.logger {}
  * This exists since the `kotlinx-io` is in flux, and while we want to use multiplatform code where
  * possible, the API is missing some helpful features.
  */
-object IOUtils {
+internal object IOUtils {
     /**
      * Returns true if the [path] exists in the actual file system.
      *

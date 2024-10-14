@@ -41,7 +41,7 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
  *
  * @see PgAsyncConnection.pipelineQueries
  */
-class PgAsyncPreparedQueryBatch(
+internal class PgAsyncPreparedQueryBatch(
     connection: PgAsyncConnection,
 ) : BaseAsyncPreparedQueryBatch<PgAsyncConnection>(connection) {
     /** Sync all parameter provided to the [PgAsyncConnection.pipelineQueries] method */

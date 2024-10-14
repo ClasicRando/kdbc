@@ -5,6 +5,7 @@ pluginManagement {
     }
 
     val kotlinVersion: String by settings
+    val kotlinxAtomicFuVersion: String by settings
     val kotlinxSerializationPluginVersion: String by settings
     val dokkaVersion: String by settings
     val mavenPublishVersion: String by settings
@@ -14,6 +15,7 @@ pluginManagement {
         kotlin("plugin.serialization") version kotlinxSerializationPluginVersion
         id("org.jetbrains.dokka") version dokkaVersion
         id("com.vanniktech.maven.publish") version mavenPublishVersion
+        id("org.jetbrains.kotlinx.atomicfu") version kotlinxAtomicFuVersion
     }
 }
 

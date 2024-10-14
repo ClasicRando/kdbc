@@ -1,6 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-object PgRangeLiteralParser {
+internal object PgRangeLiteralParser {
     fun parse(literal: String): Sequence<String?> = sequence {
         val buffer = StringBuilder()
         var isDone = false

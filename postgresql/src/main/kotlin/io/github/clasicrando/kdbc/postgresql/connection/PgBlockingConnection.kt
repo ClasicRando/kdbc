@@ -4,9 +4,11 @@ import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.chunkedBytes
+import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.BlockingConnection
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
+import io.github.clasicrando.kdbc.core.normalizeWhitespace
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQuery
 import io.github.clasicrando.kdbc.core.query.BlockingPreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.BlockingQuery
@@ -18,6 +20,7 @@ import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
+import io.github.clasicrando.kdbc.postgresql.column.CompositeTypeDefinition
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.copy.CopyOutCollector
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
@@ -29,7 +32,6 @@ import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyTrailer
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
-import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.clasicrando.kdbc.postgresql.pool.PgBlockingConnectionPool
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQuery
 import io.github.clasicrando.kdbc.postgresql.query.PgBlockingPreparedQueryBatch
@@ -54,6 +56,7 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.reflect.typeOf
+import kotlin.time.measureTimedValue
 
 private val logger = KotlinLogging.logger {}
 
@@ -72,7 +75,7 @@ class PgBlockingConnection internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
     internal val connectOptions: PgConnectOptions,
     /** Underlining stream of data to and from the database */
-    private val stream: PgBlockingStream,
+    internal val stream: PgBlockingStream,
     /**
      * Reference to the [io.github.clasicrando.kdbc.core.pool.BlockingConnectionPool] that owns
      * this [PgBlockingConnection]
@@ -117,15 +120,19 @@ class PgBlockingConnection internal constructor(
     override fun begin() {
         try {
             sendSimpleQuery("BEGIN;")
-            if (_inTransaction.compareAndSet(expect = false, update = true)) {
+            if (!_inTransaction.compareAndSet(expect = false, update = true)) {
                 throw UnexpectedTransactionState(inTransaction = true)
             }
+        } catch (ex: OutOfMemoryError) {
+            throw ex
+        } catch (ex: UnexpectedTransactionState) {
+            throw ex
         } catch (ex: Throwable) {
-            if (_inTransaction.getAndSet(false)) {
+            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
                 try {
                     rollback()
                 } catch (ex2: Throwable) {
-                    log(Level.ERROR) {
+                    log(Level.WARN) {
                         message = "Error while trying to rollback. BEGIN called while in transaction"
                         cause = ex2
                     }
@@ -139,8 +146,8 @@ class PgBlockingConnection internal constructor(
         try {
             sendSimpleQuery("COMMIT;")
         } finally {
-            if (!_inTransaction.getAndSet(false)) {
-                log(Level.ERROR) {
+            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
+                log(Level.WARN) {
                     this.message = "Attempted to COMMIT a connection not within a transaction"
                 }
             }
@@ -151,8 +158,8 @@ class PgBlockingConnection internal constructor(
         try {
             sendSimpleQuery("ROLLBACK;")
         } finally {
-            if (!_inTransaction.getAndSet(false)) {
-                log(Level.ERROR) {
+            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
+                log(Level.WARN) {
                     this.message = "Attempted to ROLLBACK a connection not within a transaction"
                 }
             }
@@ -164,34 +171,21 @@ class PgBlockingConnection internal constructor(
      * operation
      */
     private fun logUnexpectedMessage(message: PgMessage): Loop {
-        log(Level.TRACE) {
-            this.message = "Ignoring {message} since it's not an error or the desired type"
-            payload = mapOf("message" to message)
+        log(Kdbc.detailedLogging) {
+            this.message = "Ignoring $message since it's not an error or the desired type"
         }
         return Loop.Continue
     }
 
     /**
      * Process the contents of a [PgMessage.ReadyForQuery] message (i.e. a [TransactionStatus])
-     * that was received at the end of a flow of query responses. If the [transactionStatus] is
-     * [TransactionStatus.FailedTransaction] and the connection options specify auto rollback for
-     * failed transactions (default value of [PgConnectOptions.autoRollbackOnFailedTransaction])
-     * then a [rollback] operation is initiated.
+     * that was received at the end of a flow of query responses.
      */
     private fun handleTransactionStatus(transactionStatus: TransactionStatus) {
-        if (transactionStatus == TransactionStatus.FailedTransaction
-            && connectOptions.autoRollbackOnFailedTransaction)
+        if (transactionStatus == TransactionStatus.FailedTransaction)
         {
-            log(Level.TRACE) {
-                this.message = "Server reported failed transaction. Issuing rollback command"
-            }
-            try {
-                rollback()
-            } catch (ex: Throwable) {
-                log(Level.WARN) {
-                    this.message = "Failed to rollback transaction after failed transaction status"
-                    cause = ex
-                }
+            log(Level.WARN) {
+                this.message = "Server reported failed transaction"
             }
         }
     }
@@ -231,7 +225,7 @@ class PgBlockingConnection internal constructor(
 
         val error = queryResultCollector.errors.reduceToSingleOrNull()
             ?: return queryResultCollector.buildStatementResult()
-        log(Level.ERROR) {
+        log(Kdbc.detailedLogging) {
             message = "Error during single query execution"
             cause = error
         }
@@ -260,7 +254,7 @@ class PgBlockingConnection internal constructor(
 
         val error = queryResultCollector.errors.reduceToSingleOrNull()
             ?: return queryResultCollector.buildStatementResult()
-        log(Level.ERROR) {
+        log(Kdbc.detailedLogging) {
             message = "Error during single query execution"
             cause = error
         }
@@ -290,14 +284,20 @@ class PgBlockingConnection internal constructor(
         if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
             return sendExtendedQuery(query, emptyList())
         }
-        return lock.withLock {
-            log(connectOptions.logSettings.statementLevel) {
-                message = STATEMENT_TEMPLATE
-                payload = mapOf("query" to query)
+
+        val result = measureTimedValue {
+            lock.withLock {
+                log(connectOptions.logSettings.statementLevel) {
+                    message = "Sending query: ${query.normalizeWhitespace()}"
+                }
+                stream.writeToStream(PgMessage.Query(query))
+                collectResult()
             }
-            stream.writeToStream(PgMessage.Query(query))
-            collectResult()
         }
+        log(Kdbc.detailedLogging) {
+            this.message = "Done executing simple query. Took ${result.duration}"
+        }
+        return result.value
     }
 
     /**
@@ -331,7 +331,7 @@ class PgBlockingConnection internal constructor(
         prepareRequestCollector.transactionStatus?.let(::handleTransactionStatus)
 
         val error = prepareRequestCollector.errors.reduceToSingleOrNull() ?: return
-        log(Level.ERROR) {
+        log(Kdbc.detailedLogging) {
             message = "Error during prepared statement creation"
             cause = error
         }
@@ -441,8 +441,7 @@ class PgBlockingConnection internal constructor(
         }
         statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to statement.query)
+            message = "Sending query: ${statement.query.normalizeWhitespace()}"
         }
     }
 
@@ -463,20 +462,26 @@ class PgBlockingConnection internal constructor(
     ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
-        return lock.withLock {
-            val statement = try {
-                prepareStatement(query, parameters)
-            } catch (ex: Throwable) {
-                throw ex
-            }
+        val result = measureTimedValue {
+            lock.withLock {
+                val statement = try {
+                    prepareStatement(query, parameters)
+                } catch (ex: Throwable) {
+                    throw ex
+                }
 
-            val encodeBuffer = PgEncodeBuffer(statement.resultMetadata, typeCache)
-            for ((parameter, type) in parameters) {
-                encodeBuffer.encodeValue(parameter, type)
+                val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
+                for ((parameter, type) in parameters) {
+                    encodeBuffer.encodeValue(parameter, type)
+                }
+                executePreparedStatement(statement, encodeBuffer)
+                collectResult(statement = statement)
             }
-            executePreparedStatement(statement, encodeBuffer)
-            collectResult(statement = statement)
         }
+        log(Kdbc.detailedLogging) {
+            this.message = "Done executing extended query. Took ${result.duration}"
+        }
+        return result.value
     }
 
     /**
@@ -503,7 +508,7 @@ class PgBlockingConnection internal constructor(
         try {
             if (stream.isConnected) {
                 stream.writeToStream(PgMessage.Terminate)
-                log(Level.TRACE) {
+                log(Kdbc.detailedLogging) {
                     this.message = "Successfully sent termination message"
                 }
             }
@@ -582,7 +587,7 @@ class PgBlockingConnection internal constructor(
             prepareStatement(query = queryText, parameters = queryParams)
         }
         for ((i, statement) in statements.withIndex()) {
-            val encodeBuffer = PgEncodeBuffer(statement.resultMetadata, typeCache)
+            val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
             for ((parameter, type) in queries[i].second) {
                 encodeBuffer.encodeValue(parameter, type)
             }
@@ -615,8 +620,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun copyInInternal(copyQuery: String, data: Sequence<ByteArray>): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to copyQuery)
+            message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
         stream.waitForOrError<PgMessage.CopyInResponse>()
@@ -766,8 +770,8 @@ class PgBlockingConnection internal constructor(
             .bind(copyInStatement.tableName)
             .bind(schemaName)
             .fetchAll(CopyTableMetadata.Companion)
-        val fields = CopyTableMetadata.getFields(copyInStatement.format, metadata)
-        val buffer = PgEncodeBuffer(metadata = fields, typeCache = typeCache)
+        val fields = metadata.map { it.type.oid }
+        val buffer = PgEncodeBuffer(parameterTypeOids = fields, typeCache = typeCache)
         return copyIn(
             copyInStatement = copyInStatement,
             data = sequence<ByteArray> {
@@ -795,8 +799,7 @@ class PgBlockingConnection internal constructor(
      */
     private fun copyOutInternal(copyQuery: String): Sequence<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
-            message = STATEMENT_TEMPLATE
-            payload = mapOf("query" to copyQuery)
+            message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
 
         stream.writeToStream(PgMessage.Query(copyQuery))
@@ -884,32 +887,12 @@ class PgBlockingConnection internal constructor(
     }
 
     /**
-     * Execute a `LISTEN` command for the specified [channelName]. Allows this connection to
-     * receive notifications sent to this connection's current database. All received messages
-     * are accessible from the [getNotifications] method.
-     */
-    fun listen(channelName: String) {
-        val query = "LISTEN ${channelName.quoteIdentifier()};"
-        sendSimpleQuery(query)
-    }
-
-    /**
      * Execute a `NOTIFY` command for the specified [channelName] with the supplied [payload]. This
      * sends a notification to any connection connected to this connection's current database.
      */
     fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
         sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
-    }
-
-    /**
-     * Returns all available [PgNotification]s from the message stream. Flushes the stream to
-     * obtain all pending messages sent from the server then pull every message from the
-     * notification queue.
-     */
-    fun getNotifications(): List<PgNotification> {
-        stream.flushMessages()
-        return generateSequence { stream.notificationsQueue.poll() }.toList()
     }
 
     /**
@@ -933,11 +916,15 @@ class PgBlockingConnection internal constructor(
      * @param type name of the type in the database (optionally schema qualified if not in public
      * schema)
      */
-    inline fun <reified T : Any> registerCompositeType(type: String) {
+    inline fun <reified T : Any> registerCompositeType(
+        type: String,
+        compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
+    ) {
         typeCache.addCompositeType(
             connection = this,
             name = type,
-            cls = T::class
+            cls = T::class,
+            compositeTypeDefinition = compositeTypeDefinition,
         )
     }
 
@@ -952,8 +939,6 @@ class PgBlockingConnection internal constructor(
     }
 
     companion object {
-        private const val STATEMENT_TEMPLATE = "Sending {query}"
-
         /**
          * Create a new [PgBlockingConnection] instance using the supplied [connectOptions],
          * [stream] and [pool] (the pool that owns this connection).
