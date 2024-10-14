@@ -47,9 +47,13 @@ jobs:
     # Take existing postgresql cert and add it to the current default keystore
     - name: Add SSL cert
       run: |
-        keytool -storepass changeit -cacerts -alias postgresql -delete
+        STORE_PASS="changeit"
+        ALIAS=postgresql
+        if keytool -cacerts -storepass $STORE_PASS -alias $ALIAS -list; then
+          keytool -cacerts -storepass $STORE_PASS -alias $ALIAS -delete
+        fi
         openssl x509 -in ./docker/postgres/certs/server.crt -outform der \
-          | keytool -keypass password -storepass changeit -cacerts -alias postgresql -import -noprompt
+          | keytool -cacerts -keypass password -storepass $STORE_PASS -alias $ALIAS -import -noprompt
 
     # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
