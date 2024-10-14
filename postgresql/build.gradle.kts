@@ -6,8 +6,8 @@ plugins {
 val scramClientVersion: String by project
 val kotlinCsvVersion: String by project
 val kotlinxSerializationJsonVersion: String by project
-val trustStorePath: String by project
-val trustStorePassword: String by project
+val trustStorePath: String? by project
+val trustStorePassword: String? by project
 
 dependencies {
     api(project(":core"))
@@ -19,7 +19,9 @@ dependencies {
 }
 
 tasks.test {
-    systemProperty("javax.net.ssl.trustStore", trustStorePath)
-    systemProperty("javax.net.ssl.trustStorePassword", trustStorePassword)
-    systemProperty("javax.net.debug", "ssl:handshake")
+    trustStorePath?.let {
+        systemProperty("javax.net.ssl.trustStore", it)
+        systemProperty("javax.net.debug", "ssl:handshake")
+    }
+    trustStorePassword?.let { systemProperty("javax.net.ssl.trustStorePassword", it) }
 }
