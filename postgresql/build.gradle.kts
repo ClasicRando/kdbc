@@ -6,6 +6,8 @@ plugins {
 val scramClientVersion: String by project
 val kotlinCsvVersion: String by project
 val kotlinxSerializationJsonVersion: String by project
+val trustStorePath: String by project
+val trustStorePassword: String by project
 
 dependencies {
     api(project(":core"))
@@ -14,4 +16,10 @@ dependencies {
     implementation("com.github.doyaaaaaken:kotlin-csv:$kotlinCsvVersion")
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
+}
+
+tasks.test {
+    systemProperty("javax.net.ssl.trustStore", trustStorePath)
+    systemProperty("javax.net.ssl.trustStorePassword", trustStorePassword)
+    systemProperty("javax.net.debug", "ssl:handshake")
 }

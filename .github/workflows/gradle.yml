@@ -24,6 +24,8 @@ jobs:
       PG_TEST_PASSWORD: password
       PG_TEST_PORT: 5234
       PG_COPY_TEST: true
+      PG_TRUST_STORE_NAME: test-keystore.pkcs12
+      PG_TRUST_STORE_PASSWORD: changeit
 
     steps:
     - uses: actions/checkout@v4
@@ -48,13 +50,14 @@ jobs:
     # Take existing postgresql cert and add it to the current default keystore
     - name: Add SSL cert
       run: |
+        STORE="$RUNNER_TEMP/${{ env.PG_TRUST_STORE_NAME }}"
         STORE_PASS="changeit"
         ALIAS=postgresql
-        if keytool -cacerts -storepass $STORE_PASS -alias $ALIAS -list; then
-          keytool -cacerts -storepass $STORE_PASS -alias $ALIAS -delete
+        if keytool -keystore $STORE -storepass ${{ env.PG_TRUST_STORE_PASSWORD }} -alias $ALIAS -list; then
+          keytool -keystore $STORE -storepass ${{ env.PG_TRUST_STORE_PASSWORD }} -alias $ALIAS -delete
         fi
-        sudo openssl x509 -in ./docker/postgres/certs/server.crt -outform der \
-          | keytool -keystore "$JAVA_HOME/lib/security/cacerts" -keypass password -storepass $STORE_PASS -trustcacerts -noprompt -alias $ALIAS -import
+        openssl x509 -in ./docker/postgres/certs/server.crt -outform der \
+          | keytool -keystore $STORE -keypass password -storepass ${{ env.PG_TRUST_STORE_PASSWORD }} -trustcacerts -noprompt -alias $ALIAS -import
       shell: bash
 
     # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
@@ -65,7 +68,9 @@ jobs:
         gradle-version: '8.2'
 
     - name: Build with Gradle Wrapper
-      run: ./gradlew build
+      run: |
+        STORE="$RUNNER_TEMP/${{ env.PG_TRUST_STORE_NAME }}"
+        ./gradlew "-PtrustStorePath=$STORE" "-PtrustStorePassword=${{ env.PG_TRUST_STORE_PASSWORD }}" build
 
     # NOTE: The Gradle Wrapper is the default and recommended way to run Gradle (https://docs.gradle.org/current/userguide/gradle_wrapper.html).
     # If your project does not have the Gradle Wrapper configured, you can use the following configuration to run Gradle with a specified version.
