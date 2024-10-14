@@ -26,7 +26,7 @@ also be added in the future.
 ### Gradle
 ```kotlin
 dependencies {
-    implementation("io.github.clasicrando:kdbc-postgresql:0.0.1")
+    implementation("io.github.clasicrando:kdbc-postgresql:0.0.3")
 }
 ```
 
