@@ -20,31 +20,24 @@ jobs:
     permissions:
       contents: write
     env:
-      PG_TEST_USER: kdbc-test
+      PG_TEST_USER: postgres
       PG_TEST_PASSWORD: password
       PG_TEST_PORT: 5234
       PG_COPY_TEST: true
 
     steps:
-    # Create and set up postgresql database
-    - uses: ikalnytskyi/action-setup-postgres@e5d0db00b54ca4068073e312e72d31bdf30a6a97
-      name: Set Up Postgres
-      with:
-        username: ${{ env.PG_TEST_USER }}
-        password: ${{ env.PG_TEST_PASSWORD }}
-        database: ${{ env.PG_TEST_USER }}
-        port: ${{ env.PG_TEST_PORT }}
-        postgres-version: "16"
-        ssl: "on"
-      id: postgres
-    - name: Add PostGIS
-      run: |
-        sudo apt -y install postgresql-16-postgis-3
-        export PGPASSWORD="${{ env.PG_TEST_PASSWORD }}"
-        psql -U ${{ env.PG_TEST_USER }} -c 'CREATE EXTENSION postgis;'
-      shell: bash
-
     - uses: actions/checkout@v4
+    # Create and set up postgresql database
+    - name: Set up Postgres Databases
+      run: |
+        docker build --rm -f "./docker/postgres/Dockerfile" -t postgis:ssl "."
+        docker run -d \
+          -p ${{ env.PG_TEST_PORT }}:5432 \
+          --name kdbc-test-pg \
+          -e POSTGRES_PASSWORD=${{ env.PG_TEST_PASSWORD }} \
+          -e POSTGRES_USER=${{ env.PG_TEST_USER }} \
+          postgis:ssl
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
@@ -54,8 +47,9 @@ jobs:
     # Take existing postgresql cert and add it to the current default keystore
     - name: Add SSL cert
       run: |
-        openssl x509 -in ${{ steps.postgres.outputs.certificate-path }} -out server.crt.der -outform der\
-        && keytool -keystore $JAVA_HOME/lib/security/cacerts -alias postgresql -import -file server.crt.der -noprompt -keypass changeit
+        keytool -storepass changeit -cacerts -alias postgresql -delete
+        openssl x509 -in ./docker/postgres/certs/server.crt -outform der \
+          | keytool -keypass password -storepass changeit -cacerts -alias postgresql -import -noprompt
 
     # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
