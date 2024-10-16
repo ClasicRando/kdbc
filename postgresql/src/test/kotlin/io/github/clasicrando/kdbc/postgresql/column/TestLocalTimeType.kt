@@ -14,7 +14,7 @@ class TestLocalTimeType {
     fun `encode should accept LocalTime when querying postgresql`() = runBlocking {
         val query = "SELECT $1 local_time_col;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(localTime)
                 .fetchScalar<LocalTime>()
@@ -25,7 +25,7 @@ class TestLocalTimeType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '05:25:51'::time;"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

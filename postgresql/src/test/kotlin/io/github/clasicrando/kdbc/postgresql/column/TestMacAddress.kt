@@ -22,7 +22,7 @@ class TestMacAddress {
         val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
         val value = if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr()
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val pgMacAddress = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgMacAddress>()
@@ -34,7 +34,7 @@ class TestMacAddress {
     private suspend fun decodeTest(isMacAddr8: Boolean, isPrepared: Boolean) {
         val query = "SELECT ${if (isMacAddr8) "'$MAC_ADDR8_STRING'::macaddr8" else "'$MAC_ADDR_STRING'::macaddr"};"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val pgMacAddress = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -69,8 +69,8 @@ class TestMacAddress {
 
         @BeforeAll
         @JvmStatic
-        fun createObjects() {
-            PgConnectionHelper.defaultBlockingConnection().use {
+        fun createObjects(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use {
                 it.createQuery("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").executeClosing()
                 it.createQuery("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").executeClosing()
                 it.createQuery("CREATE TABLE public.$MACADDR_TEST_TABLE(column_1 macaddr)").executeClosing()
@@ -80,8 +80,8 @@ class TestMacAddress {
 
         @AfterAll
         @JvmStatic
-        fun cleanObjects() {
-            PgConnectionHelper.defaultBlockingConnection().use {
+        fun cleanObjects(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use {
                 it.createQuery("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").executeClosing()
                 it.createQuery("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").executeClosing()
             }

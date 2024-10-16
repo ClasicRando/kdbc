@@ -4,7 +4,7 @@ import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.use
-import io.github.clasicrando.kdbc.postgresql.pool.PgAsyncConnectionPool
+import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Benchmark)
 open class PgBenchmarkAsyncMultiKdbc {
     private var id = 0
-    private val pool = PgAsyncConnectionPool(
+    private val pool = PgConnectionPool(
         connectOptions = kdbcConnectOptions,
         poolOptions = poolOptions,
     )

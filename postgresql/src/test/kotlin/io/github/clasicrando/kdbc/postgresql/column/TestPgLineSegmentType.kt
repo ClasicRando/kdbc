@@ -17,7 +17,7 @@ class TestPgLineSegmentType {
     fun `encode should accept PgLineSegment when querying postgresql`() = runBlocking {
         val query = "SELECT $1 lseg_col;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val lineSegment = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<PgLineSegment>()
@@ -28,7 +28,7 @@ class TestPgLineSegmentType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::lseg;"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val lineSegment = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -64,7 +64,7 @@ class TestPgLineSegmentType {
         @JvmStatic
         @BeforeAll
         fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultAsyncConnection().use { conn ->
+            PgConnectionHelper.defaultConnection().use { conn ->
                 conn.sendSimpleQuery(POST_GIS_QUERY).use {
                     check(it.first().rows.first().getAsNonNull<Boolean>(0))
                 }

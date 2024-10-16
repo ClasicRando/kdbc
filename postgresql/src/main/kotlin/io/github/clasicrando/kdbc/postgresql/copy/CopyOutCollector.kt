@@ -7,8 +7,7 @@ import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
-import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
 import kotlinx.coroutines.flow.Flow
@@ -44,8 +43,8 @@ internal class CopyOutCollector(
      * is a special case for binary data where if the first short value extracted from the buffer
      * is -1, that is an indication the copy data is done and that row should be discarded.
      */
-    suspend fun collectAsync(
-        connection: PgAsyncConnection,
+    suspend fun collectResult(
+        connection: PgConnection,
         flow: Flow<ByteArray>,
     ): QueryResult {
         var rowCount = 0L
@@ -73,79 +72,6 @@ internal class CopyOutCollector(
                 buffer.reset()
 
                 resultSet.addRow(buffer)
-            }
-        }
-
-        return QueryResult(rowCount, "COPY $rowCount", resultSet)
-    }
-
-    /**
-     * [InputStream] implementation backed by a [Sequence] of [ByteArray]. The [Sequence] is
-     * iterated over and each [ByteArray] is used to supply the [read] method until the iterator
-     * is exhausted and the final [ByteArray] is consumed.
-     */
-    inner class ByteArraySequenceInputStream(sequence: Sequence<ByteArray>) : InputStream() {
-        private val iter = sequence.iterator()
-        private var currentRow = if (iter.hasNext()) iter.next() else ByteArray(0)
-        private var rowPointer = 0
-
-        override fun read(): Int {
-            if (currentRow.isEmpty()) {
-                return -1
-            }
-            if (rowPointer == currentRow.size) {
-                if (!iter.hasNext()) {
-                    return -1
-                }
-                currentRow = iter.next()
-                rowPointer = 0
-            }
-
-            val byte = currentRow[rowPointer++]
-            return byte.toInt()
-        }
-    }
-
-    /**
-     * Collect the [Sequence] of [ByteArray] into a single [QueryResult]. If the [copyOutStatement]
-     * is a text based copy statement, data is decoded using the text format. Otherwise, the data
-     * is decoded as if it were the binary protocol.
-     *
-     * For text formatted data, [readTextData] is called, whereas for binary data, each [ByteArray]
-     * is passed into [getBinaryBuffer] to get a [ByteReadBuffer] as the next row's buffer. There
-     * is a special case for binary data where if the first short value extracted from the buffer
-     * is -1, that is an indication the copy data is done and that row should be discarded.
-     */
-    fun collectBlocking(
-        connection: PgBlockingConnection,
-        sequence: Sequence<ByteArray>,
-    ): QueryResult {
-        var rowCount = 0L
-        val resultSet = PgResultSet(connection.typeCache, fields)
-
-        when (copyOutStatement) {
-            is CopyStatement.CopyText -> {
-                rowCount = readTextData(
-                    inputStream = ByteArraySequenceInputStream(sequence),
-                    resultSet = resultSet,
-                    fields = fields,
-                    typeCache = connection.typeCache,
-                    delimiter = copyOutStatement.delimiter,
-                    quote = (copyOutStatement as? CopyStatement.CopyCsv)?.quote,
-                    escape = (copyOutStatement as? CopyStatement.CopyCsv)?.escape,
-                    header = copyOutStatement.header,
-                )
-            }
-            else -> {
-                for (row in sequence) {
-                    val buffer = getBinaryBuffer(rowCount = ++rowCount, row = row)
-                    if (buffer.readShort().toInt() == -1) {
-                        continue
-                    }
-                    buffer.reset()
-
-                    resultSet.addRow(buffer)
-                }
             }
         }
 

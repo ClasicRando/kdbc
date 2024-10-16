@@ -5,7 +5,7 @@ package io.github.clasicrando.kdbc.core.query
  * database vendors). This does not explicitly dictate query execution behaviour but is always
  * implemented for classes/interfaces that already have query execution behaviour.
  */
-interface PreparedQuery<Q : PreparedQuery<Q>> {
+interface PreparedQuery : Query {
     /**
      * Read-only [List] of the parameters already bound to this statement. The order in the [List]
      * is the order that the parameters have been bound.
@@ -18,7 +18,7 @@ interface PreparedQuery<Q : PreparedQuery<Q>> {
      *
      * Returns a reference to the same object to allow for method chaining.
      */
-    fun bind(parameter: QueryParameter): Q
+    fun bind(parameter: QueryParameter): PreparedQuery
 
     /** Clears all parameters previously bound to this [PreparedQuery] */
     fun clearParameters()

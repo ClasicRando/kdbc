@@ -1,6 +1,6 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
-import io.github.clasicrando.kdbc.core.connection.AsyncConnection
+import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchAll
@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Benchmark)
 open class PgBenchmarkAsyncSingleKdbc {
     private var id = 0
-    private val connection: AsyncConnection = runBlocking { getKdbcAsyncConnection() }
+    private val connection: Connection = runBlocking { getKdbcAsyncConnection() }
 
     @Setup
     open fun start(): Unit = runBlocking {

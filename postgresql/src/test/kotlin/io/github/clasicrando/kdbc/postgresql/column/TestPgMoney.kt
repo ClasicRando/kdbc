@@ -109,7 +109,7 @@ class TestPgMoney {
     fun `encode should accept PgMoney when querying postgresql`() = runBlocking {
         val query = "SELECT $1 money_col;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val money = conn.createPreparedQuery(query)
                 .bind(moneyValue)
                 .fetchScalar<PgMoney>()
@@ -120,7 +120,7 @@ class TestPgMoney {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val money = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

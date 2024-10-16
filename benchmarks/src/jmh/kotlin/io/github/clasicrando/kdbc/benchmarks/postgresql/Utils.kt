@@ -5,8 +5,7 @@ import io.github.clasicrando.kdbc.benchmarks.IOUtils
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
-import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
-import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.oshai.kotlinlogging.Level
@@ -17,15 +16,15 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.io.asOutputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
-import kotlin.uuid.Uuid
 import org.apache.commons.dbcp2.DriverManagerConnectionFactory
 import org.apache.commons.dbcp2.PoolableConnection
 import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
-import org.postgresql.jdbc.PgConnection
+import org.postgresql.jdbc.PgConnection as JdbcPgConnection
 import java.sql.DriverManager
 import java.sql.ResultSet
+import kotlin.uuid.Uuid
 
 val jdbcQuerySingle = """
     SELECT
@@ -153,7 +152,8 @@ private const val missingEnvironmentVariableMessage = "To run benchmarks the env
 private val connectionString = System.getenv("JDBC_PG_CONNECTION_STRING")
     ?: throw IllegalStateException(missingEnvironmentVariableMessage)
 
-fun getJdbcConnection(): PgConnection = DriverManager.getConnection(connectionString).unwrap(PgConnection::class.java)
+fun getJdbcConnection(): JdbcPgConnection = DriverManager.getConnection(connectionString)
+    .unwrap(JdbcPgConnection::class.java)
 
 fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     val connectionFactory = DriverManagerConnectionFactory(connectionString, null)
@@ -179,12 +179,8 @@ val poolOptions = PoolOptions(
     minConnections = 8,
 )
 
-suspend fun getKdbcAsyncConnection(): PgAsyncConnection {
-    return Postgres.asyncConnection(connectOptions = kdbcConnectOptions)
-}
-
-fun getKdbcBlockingConnection(): PgBlockingConnection {
-    return Postgres.blockingConnection(connectOptions = kdbcConnectOptions)
+suspend fun getKdbcAsyncConnection(): PgConnection {
+    return Postgres.connection(connectOptions = kdbcConnectOptions)
 }
 
 const val concurrencyLimit = 100

@@ -71,7 +71,7 @@ data class PgConnectOptions(
     /**
      * TLS Config builder action to modify the config provided to the ktor socket creator. This is
      * only used if the server supports TLS and the socket used to create the database connection
-     * is a [io.github.clasicrando.kdbc.core.stream.KtorAsyncStream] (i.e. only for async
+     * is a [io.github.clasicrando.kdbc.core.stream.KtorStream] (i.e. only for async
      * connections).
      */
     @Transient

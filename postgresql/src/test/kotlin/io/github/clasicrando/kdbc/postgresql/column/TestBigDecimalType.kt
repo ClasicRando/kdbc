@@ -18,7 +18,7 @@ class TestBigDecimalType {
         val value = BigDecimal.parseString(number)
         val query = "SELECT $1 numeric_col;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val bigDecimal = conn.createPreparedQuery(query)
                 .bind(value)
                 .fetchScalar<BigDecimal>()
@@ -31,7 +31,7 @@ class TestBigDecimalType {
         val expectedResult = BigDecimal.parseString(number)
         val query = "SELECT $number;"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val bigDecimal = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

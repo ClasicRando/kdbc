@@ -2,7 +2,7 @@ package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.benchmarks.IOUtils
 import io.github.clasicrando.kdbc.core.query.executeClosing
-import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
 open class PgBenchmarkAsyncCopyKdbc {
-    private val connection: PgAsyncConnection = runBlocking { getKdbcAsyncConnection() }
+    private val connection: PgConnection = runBlocking { getKdbcAsyncConnection() }
     private val outputPath = Path(".", "temp", "kdbc-async-copy-out-benchmark.csv")
     private val inputPath = Path(".", "temp", "kdbc-async-copy-in-benchmark.csv")
     private val outputPathJava = java.nio.file.Path.of(outputPath.toString())

@@ -15,7 +15,7 @@ class TestLocalDateType {
         val localDate = LocalDate(year = 2024, monthNumber = 2, dayOfMonth = 25)
         val query = "SELECT $1 date_col;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(localDate)
                 .fetchScalar<LocalDate>()
@@ -27,7 +27,7 @@ class TestLocalDateType {
         val localDate = LocalDate(year = 2024, monthNumber = 2, dayOfMonth = 25)
         val query = "SELECT '2024-02-25'::date;"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
