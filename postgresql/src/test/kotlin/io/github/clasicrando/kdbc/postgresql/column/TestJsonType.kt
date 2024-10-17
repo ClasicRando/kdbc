@@ -28,7 +28,7 @@ class TestJsonType {
         val tableName = if (isJsonB) JSONB_TEST_TABLE else JSON_TEST_TABLE
         val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val pgJson = conn.createPreparedQuery(query)
                 .bind(pgJsonValue)
                 .fetchScalar<PgJson>()
@@ -40,7 +40,7 @@ class TestJsonType {
     private suspend fun decodeTest(isJsonB: Boolean, isPrepared: Boolean) {
         val query = "SELECT '$JSON_STRING'::${if (isJsonB) "jsonb" else "json"};"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val pgJson = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {
@@ -72,8 +72,8 @@ class TestJsonType {
 
         @BeforeAll
         @JvmStatic
-        fun createObjects() {
-            PgConnectionHelper.defaultBlockingConnection().use {
+        fun createObjects(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use {
                 it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
                 it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
                 it.createQuery("CREATE TABLE public.$JSON_TEST_TABLE(column_1 json)").executeClosing()
@@ -83,8 +83,8 @@ class TestJsonType {
 
         @AfterAll
         @JvmStatic
-        fun cleanObjects() {
-            PgConnectionHelper.defaultBlockingConnection().use {
+        fun cleanObjects(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use {
                 it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
                 it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
             }

@@ -78,7 +78,7 @@ class TestPgArrayType {
         val values = listOf(1, 2, 3, 4)
         val query = "SELECT x array_values FROM UNNEST($1) x"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val ints = conn.createPreparedQuery(query)
                 .bind(values)
                 .fetchAll(object : RowParser<Int> {
@@ -92,7 +92,7 @@ class TestPgArrayType {
         val expectedResult = listOf(1, 2, 3, 4)
         val query = "SELECT ARRAY[1,2,3,4]::int[]"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val ints = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

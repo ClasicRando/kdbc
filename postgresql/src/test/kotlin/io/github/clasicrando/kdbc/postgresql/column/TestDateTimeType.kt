@@ -17,7 +17,7 @@ class TestDateTimeType {
     fun `encode should accept DateTime when querying postgresql`() = runBlocking {
         val query = "SELECT $1 datetime_col;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             val value = conn.createPreparedQuery(query)
                 .bind(dateTime)
                 .fetchScalar<DateTime>()
@@ -28,7 +28,7 @@ class TestDateTimeType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '2024-02-25T05:25:51+02'::timestamptz;"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
             } else {

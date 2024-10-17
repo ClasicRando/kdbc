@@ -52,121 +52,10 @@ class TestCompositeType {
     }
 
     @Test
-    fun `encode should accept CompositeTest when querying blocking postgresql`() {
-        val query = "SELECT $1 composite_col;"
-
-        PgConnectionHelper.defaultBlockingConnection().use { conn ->
-            conn.registerCompositeType<CompositeType>("composite_type")
-            val value = conn.createPreparedQuery(query)
-                .bind(type)
-                .fetchScalar<CompositeType>()
-            assertEquals(type, value)
-        }
-    }
-
-    @Test
-    fun `encode should accept CompositeTable when querying blocking postgresql`() {
-        val query = "SELECT $1 composite_table;"
-
-        PgConnectionHelper.defaultBlockingConnection().use { conn ->
-            conn.registerCompositeType<CompositeTable>("table_composite")
-            val value = conn.createPreparedQuery(query)
-                .bind(table)
-                .fetchScalar<CompositeTable>()
-            assertEquals(table, value)
-        }
-    }
-
-    @Test
-    fun `encode should accept CompositeDef when querying blocking postgresql`() {
-        val query = "SELECT $1 composite_def;"
-
-        PgConnectionHelper.defaultBlockingConnection().use { conn ->
-            conn.registerCompositeType<CompositeDef>("composite_def")
-            val value = conn.createPreparedQuery(query)
-                .bind(def)
-                .fetchScalar<CompositeDef>()
-            assertEquals(def, value)
-        }
-    }
-
-    private fun decodeBlockingTest(isPrepared: Boolean) {
-        val query = "SELECT row(1,'Composite Type','2024-02-25T05:25:51Z')::composite_type;"
-
-        PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use { conn ->
-            conn.registerCompositeType<CompositeType>("composite_type")
-            val value = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<CompositeType>()
-            assertEquals(type, value)
-        }
-    }
-
-    @Test
-    fun `decode should return CompositeType when simple querying blocking postgresql composite`() {
-        decodeBlockingTest(isPrepared = false)
-    }
-
-    @Test
-    fun `decode should return CompositeType when extended querying blocking postgresql composite`() {
-        decodeBlockingTest(isPrepared = true)
-    }
-
-    private fun decodeBlockingTableTest(isPrepared: Boolean) {
-        val query = "SELECT row(1,1,2930,NULL)::table_composite;"
-
-        PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use { conn ->
-            conn.registerCompositeType<CompositeTable>("table_composite")
-            val value = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<CompositeTable>()
-            assertEquals(table, value)
-        }
-    }
-
-    @Test
-    fun `decode should return CompositeTable when simple querying blocking postgresql composite`() {
-        decodeBlockingTableTest(isPrepared = false)
-    }
-
-    @Test
-    fun `decode should return CompositeTable when extended querying blocking postgresql composite`() {
-        decodeBlockingTableTest(isPrepared = true)
-    }
-
-    private fun decodeBlockingDefTest(isPrepared: Boolean) {
-        val query = "SELECT row(1,'Composite Def')::composite_def;"
-
-        PgConnectionHelper.defaultBlockingConnectionWithForcedSimple().use { conn ->
-            conn.registerCompositeType<CompositeDef>("composite_def")
-            val value = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<CompositeDef>()
-            assertEquals(def, value)
-        }
-    }
-
-    @Test
-    fun `decode should return CompositeDef when simple querying blocking postgresql composite`() {
-        decodeBlockingDefTest(isPrepared = false)
-    }
-
-    @Test
-    fun `decode should return CompositeDef when extended querying blocking postgresql composite`() {
-        decodeBlockingDefTest(isPrepared = true)
-    }
-
-    @Test
     fun `encode should accept CompositeTest when querying postgresql`() = runBlocking {
         val query = "SELECT $1 composite_col;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
             val value = conn.createPreparedQuery(query)
                 .bind(type)
@@ -179,7 +68,7 @@ class TestCompositeType {
     fun `encode should accept CompositeTable when querying postgresql`() = runBlocking {
         val query = "SELECT $1 composite_table;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             conn.registerCompositeType<CompositeTable>("table_composite")
             val value = conn.createPreparedQuery(query)
                 .bind(table)
@@ -192,7 +81,7 @@ class TestCompositeType {
     fun `encode should accept CompositeDef when querying postgresql`() = runBlocking {
         val query = "SELECT $1 composite_def;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             conn.registerCompositeType<CompositeDef>("composite_def")
             val value = conn.createPreparedQuery(query)
                 .bind(def)
@@ -204,7 +93,7 @@ class TestCompositeType {
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT row(1,'Composite Type','2024-02-25T05:25:51Z')::composite_type;"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
@@ -228,7 +117,7 @@ class TestCompositeType {
     private suspend fun decodeTableTest(isPrepared: Boolean) {
         val query = "SELECT row(1,1,2930,NULL)::table_composite;"
 
-        PgConnectionHelper.defaultAsyncConnectionWithForcedSimple().use { conn ->
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             conn.registerCompositeType<CompositeTable>("table_composite")
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
@@ -252,7 +141,7 @@ class TestCompositeType {
     private suspend fun decodeDefTest(isPrepared: Boolean) {
         val query = "SELECT row(1,'Composite Def')::composite_def;"
 
-        PgConnectionHelper.defaultAsyncConnection().use { conn ->
+        PgConnectionHelper.defaultConnection().use { conn ->
             conn.registerCompositeType<CompositeDef>("composite_def")
             val value = if (isPrepared) {
                 conn.createPreparedQuery(query)
@@ -297,7 +186,7 @@ class TestCompositeType {
         @JvmStatic
         @BeforeAll
         fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultAsyncConnection().use { connection ->
+            PgConnectionHelper.defaultConnection().use { connection ->
                 connection.sendSimpleQuery("""
                     DROP TYPE IF EXISTS public.composite_type;
                     CREATE TYPE public.composite_type AS

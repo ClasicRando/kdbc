@@ -10,8 +10,7 @@ import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
-import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
-import io.github.clasicrando.kdbc.postgresql.connection.PgBlockingConnection
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.type.PgBox
 import io.github.clasicrando.kdbc.postgresql.type.PgCircle
 import io.github.clasicrando.kdbc.postgresql.type.PgInet
@@ -93,7 +92,7 @@ internal class PgTypeCache {
      * not checked at runtime so the class definer responsible for verifying them.
      */
     suspend fun <T : Any> addCompositeType(
-        connection: PgAsyncConnection,
+        connection: PgConnection,
         name: String,
         cls: KClass<T>,
         compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
@@ -145,104 +144,7 @@ internal class PgTypeCache {
      * enum variants [Enum.name] value.
      */
     suspend fun <E : Enum<E>> addEnumType(
-        connection: PgAsyncConnection,
-        name: String,
-        kType: KType,
-        enumValues: Array<E>,
-    ) {
-        val verifiedOid = checkEnumDbTypeByName(connection, name)
-            ?: error("Could not verify the composite type name '$name' in the database")
-
-        val enumLabels = getEnumLabels(connection, verifiedOid)
-        val enumTypeDescription = EnumTypeDescription(
-            pgType = PgType.ByOid(oid = verifiedOid),
-            kType = kType,
-            values = enumValues,
-        )
-        val missingLabels = enumLabels.filter { !enumTypeDescription.entryLookup.contains(it) }
-        check(missingLabels.isEmpty()) {
-            "Cannot register an enum type because the declared enum values do not match the " +
-                    "database's enum labels. Enum missing ${missingLabels.joinToString()}"
-        }
-        addTypeDescription(enumTypeDescription)
-
-        val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
-            ?: error("Could not verify the array type for element oid = $verifiedOid")
-
-        val enumArrayTypeDescription = EnumArrayTypeDescription(
-            pgType = PgType.fromOid(arrayTypeOid),
-            innerType = enumTypeDescription,
-        )
-        addTypeDescription(enumArrayTypeDescription)
-    }
-
-    /**
-     * Add a new composite type description to the type cache. Uses the supplied [connection] to
-     * query the database for metadata of the composite type (searching by [name]) for encoding and
-     * decoding purposes. The generated [PgTypeDescription] is reflection based and has 2 checked
-     * requirements:
-     *
-     * 1. [T] must be a data class
-     * 2. The number of parameters supplied to [T] must match the number of attributes defined for
-     * the composite type.
-     *
-     * The other requirements (such as the composite attribute types matching the data class) are
-     * not checked at runtime so the class definer responsible for verifying them.
-     */
-    fun <T : Any> addCompositeType(
-        connection: PgBlockingConnection,
-        name: String,
-        cls: KClass<T>,
-        compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
-    ) {
-        val verifiedOid = checkCompositeDbTypeByName(connection, name)
-            ?: error("Could not verify the composite type name '$name' in the database")
-
-        val compositeColumnMapping = getCompositeAttributeData(connection, verifiedOid)
-
-        val compositeTypeDescription = if (compositeTypeDefinition == null) {
-            ReflectionCompositeTypeDescription(
-                typeOid = verifiedOid,
-                columnMapping = compositeColumnMapping,
-                customTypeDescriptionCache = this,
-                cls = cls,
-            )
-        } else {
-            object : BaseCompositeTypeDescription<T>(
-                typeOid = verifiedOid,
-                columnMapping = compositeColumnMapping,
-                customTypeDescriptionCache = this,
-                kType = cls.createType(),
-            ) {
-                override fun extractValues(value: T): List<Pair<Any?, KType>> {
-                    return compositeTypeDefinition.extractValues(value)
-                }
-
-                override fun fromRow(row: DataRow): T {
-                    return compositeTypeDefinition.fromRow(row)
-                }
-            }
-        }
-        addTypeDescription(compositeTypeDescription)
-
-        val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
-            ?: error("Could not verify the array type for element oid = $verifiedOid")
-
-        val compositeArrayTypeDescription = CompositeArrayTypeDescription(
-            pgType = PgType.fromOid(arrayTypeOid),
-            innerType = compositeTypeDescription,
-        )
-        addTypeDescription(compositeArrayTypeDescription)
-    }
-
-    /**
-     * Add a new enum type definition to the type cache. Uses the supplied [connection] to get the
-     * enums labels found in the database to compare against the supplied [enumValues]. This is the
-     * only check that is required since the decoding and encoding is just reading and writing the
-     * enum variants [Enum.name] value.
-     */
-    fun <E : Enum<E>> addEnumType(
-        connection: PgBlockingConnection,
+        connection: PgConnection,
         name: String,
         kType: KType,
         enumValues: Array<E>,
@@ -435,7 +337,7 @@ internal class PgTypeCache {
          * if no schema is included
          */
         private suspend fun checkCompositeDbTypeByName(
-            connection: PgAsyncConnection,
+            connection: PgConnection,
             name: String,
         ): Int? {
             var schema: String? = null
@@ -465,7 +367,7 @@ internal class PgTypeCache {
          * type's attributes.
          */
         private suspend fun getCompositeAttributeData(
-            connection: PgAsyncConnection,
+            connection: PgConnection,
             oid: Int,
         ): List<PgColumnDescription> {
             return connection.createPreparedQuery(pgCompositeTypeDetailsByOid)
@@ -482,7 +384,7 @@ internal class PgTypeCache {
          * schema is included
          */
         private suspend fun checkEnumDbTypeByName(
-            connection: PgAsyncConnection,
+            connection: PgConnection,
             name: String,
         ): Int? {
             var schema: String? = null
@@ -511,7 +413,7 @@ internal class PgTypeCache {
          * using the [connection] provided to retrieve the labels.
          */
         private suspend fun getEnumLabels(
-            connection: PgAsyncConnection,
+            connection: PgConnection,
             oid: Int,
         ): List<String> {
             return connection.createPreparedQuery(pgEnumLabelsByOid)
@@ -525,122 +427,7 @@ internal class PgTypeCache {
          * Returns null if the OID could not be found.
          */
         private suspend fun checkArrayDbTypeByOid(
-            connection: PgAsyncConnection,
-            oid: Int
-        ): Int? {
-            val arrayOid = connection.createPreparedQuery(pgArrayTypeByInnerOid)
-                .bind(oid)
-                .fetchScalar<Int>()
-
-            if (arrayOid == null) {
-                logger.atWarn {
-                    message = "Could not find array type by oid = $oid"
-                }
-                return null
-            }
-            return arrayOid
-        }
-
-        /**
-         * Fetch and return the type OID for a composite with the [name]. Queries the database
-         * using the [connection] provided to retrieve the database instance specific OID. Returns
-         * null if the OID could not be found.
-         *
-         * @param name Name of the composite type. Can be schema qualified but defaults to public
-         * if no schema is included
-         */
-        private fun checkCompositeDbTypeByName(
-            connection: PgBlockingConnection,
-            name: String,
-        ): Int? {
-            var schema: String? = null
-            var typeName = name
-            val schemaQualifierIndex = name.indexOf('.')
-            if (schemaQualifierIndex > -1) {
-                schema = name.substring(0, schemaQualifierIndex)
-                typeName = name.substring(schemaQualifierIndex + 1)
-            }
-
-            val oid = connection.createPreparedQuery(pgCompositeTypeByName)
-                .bind(typeName)
-                .bind(schema)
-                .fetchScalar<Int>()
-            if (oid == null) {
-                logger.atWarn {
-                    message = "Could not find composite type by name = '$name'"
-                }
-                return null
-            }
-            return oid
-        }
-
-        /**
-         * Fetch and return the [PgColumnDescription]s for the composite type specified by [oid].
-         * Queries the database using the [connection] to retrieve metadata about the composite
-         * type's attributes.
-         */
-        private fun getCompositeAttributeData(
-            connection: PgBlockingConnection,
-            oid: Int,
-        ): List<PgColumnDescription> {
-            return connection.createPreparedQuery(pgCompositeTypeDetailsByOid)
-                .bind(oid)
-                .fetchAll(CompositeAttributeDataRowParser)
-        }
-
-        /**
-         * Fetch and return the type OID for an enum with the [name]. Queries the database using
-         * the [connection] provided to retrieve the database instance specific OID. Returns null
-         * if the OID could not be found.
-         *
-         * @param name Name of the enum type. Can be schema qualified but defaults to public if no
-         * schema is included
-         */
-        private fun checkEnumDbTypeByName(
-            connection: PgBlockingConnection,
-            name: String,
-        ): Int? {
-            var schema: String? = null
-            var typeName = name
-            val schemaQualifierIndex = name.indexOf('.')
-            if (schemaQualifierIndex > -1) {
-                schema = name.substring(0, schemaQualifierIndex)
-                typeName = name.substring(schemaQualifierIndex + 1)
-            }
-
-            val oid = connection.createPreparedQuery(pgEnumTypeByName)
-                .bind(typeName)
-                .bind(schema)
-                .fetchScalar<Int>()
-            if (oid == null) {
-                logger.atWarn {
-                    message = "Could not find enum type for name = '$name'"
-                }
-                return null
-            }
-            return oid
-        }
-
-        /**
-         * Fetch and return the labels of an enum type specified by the [oid]. Queries the database
-         * using the [connection] provided to retrieve the labels.
-         */
-        private fun getEnumLabels(
-            connection: PgBlockingConnection,
-            oid: Int,
-        ): List<String> {
-            return connection.createPreparedQuery(pgEnumLabelsByOid)
-                .bind(oid)
-                .fetchAll(EnumLabelRowParser)
-        }
-
-        /**
-         * Fetch and return the array OID for a type whose inner [oid] is specified. Queries the
-         * database using the [connection] provided to retrieve the database instance specific OID.
-         * Returns null if the OID could not be found.
-         */
-        private fun checkArrayDbTypeByOid(
-            connection: PgBlockingConnection,
+            connection: PgConnection,
             oid: Int
         ): Int? {
             val arrayOid = connection.createPreparedQuery(pgArrayTypeByInnerOid)
