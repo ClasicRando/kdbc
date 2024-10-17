@@ -1,6 +1,7 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.DateTimePeriod
 import kotlin.reflect.typeOf
 
@@ -23,7 +24,7 @@ private fun DateTimePeriod.inWholeMicroSeconds(): Long {
 }
 
 internal object IntervalTypeDescription : PgTypeDescription<DateTimePeriod>(
-    pgType = PgType.Interval,
+    dbType = PgType.Interval,
     kType = typeOf<DateTimePeriod>(),
 ) {
     /**
@@ -66,12 +67,3 @@ internal object IntervalTypeDescription : PgTypeDescription<DateTimePeriod>(
         return DateTimePeriod.parse(value.text)
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [DateTimePeriod]. This maps to the `interval[]`
- * type in a postgresql database.
- */
-internal object IntervalArrayTypeDescription : ArrayTypeDescription<DateTimePeriod>(
-    pgType = PgType.IntervalArray,
-    innerType = IntervalTypeDescription,
-)

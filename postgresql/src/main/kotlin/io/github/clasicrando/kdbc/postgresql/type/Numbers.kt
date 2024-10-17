@@ -1,7 +1,8 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
 
 /**
@@ -9,7 +10,7 @@ import kotlin.reflect.typeOf
  * type in a postgresql database.
  */
 internal object SmallIntTypeDescription : PgTypeDescription<Short>(
-    pgType = PgType.Int2,
+    dbType = PgType.Int2,
     kType = typeOf<Short>(),
 ) {
     /** Simply writes the [Short] value to the buffer */
@@ -39,22 +40,17 @@ internal object SmallIntTypeDescription : PgTypeDescription<Short>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [Short]. This maps to the `int2[]`/`smallint[]`
- * type in a postgresql database.
- */
-internal object SmallIntArrayTypeDescription : ArrayTypeDescription<Short>(
-    pgType = PgType.Int2Array,
-    innerType = SmallIntTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [Int] type. This maps to the `int4`/`integer`
  * type in a postgresql database.
  */
 internal object IntTypeDescription : PgTypeDescription<Int>(
-    pgType = PgType.Int4,
+    dbType = PgType.Int4,
     kType = typeOf<Int>(),
 ) {
+    override fun isCompatible(dbType: PgType): Boolean {
+        return dbType == this.dbType || dbType == PgType.Oid
+    }
+
     /** Simply writes the [Int] value to the buffer */
     override fun encode(value: Int, buffer: ByteWriteBuffer) {
         buffer.writeInt(value)
@@ -80,65 +76,13 @@ internal object IntTypeDescription : PgTypeDescription<Int>(
             )
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [Int]. This maps to the `int4[]`/`integer[]`
- * type in a postgresql database.
- */
-internal object IntArrayTypeDescription : ArrayTypeDescription<Int>(
-    pgType = PgType.Int4Array,
-    innerType = IntTypeDescription,
-)
-
-/**
- * Implementation of a [PgTypeDescription] for the [Int] type. This maps to the `oid` type in a
- * postgresql database.
- */
-internal object OidTypeDescription : PgTypeDescription<Int>(
-    pgType = PgType.Oid,
-    kType = typeOf<Int>(),
-) {
-    /** Simply writes the [Int] value to the buffer */
-    override fun encode(value: Int, buffer: ByteWriteBuffer) {
-        buffer.writeInt(value)
-    }
-
-    /** Read the first [Int] value from the buffer. */
-    override fun decodeBytes(value: PgValue.Binary): Int {
-        return value.bytes.readInt()
-    }
-
-    /**
-     * Convert the [String] value into a [Int]
-     *
-     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value
-     * cannot be converted to a [Int]
-     */
-    override fun decodeText(value: PgValue.Text): Int {
-        return value.text
-            .toIntOrNull()
-            ?: columnDecodeError<Int>(
-                type = value.typeData,
-                reason = "Could not convert '${value.text}' into a Int",
-            )
-    }
-}
-
-/**
- * Implementation of an [ArrayTypeDescription] for [Int]. This maps to the `oid[]` type in a
- * postgresql database.
- */
-internal object OidArrayTypeDescription : ArrayTypeDescription<Int>(
-    pgType = PgType.OidArray,
-    innerType = IntTypeDescription,
-)
 
 /**
  * Implementation of a [PgTypeDescription] for the [Long] type. This maps to the `int8`/`bigint`
  * type in a postgresql database.
  */
 internal object BigIntTypeDescription : PgTypeDescription<Long>(
-    pgType = PgType.Int8,
+    dbType = PgType.Int8,
     kType = typeOf<Long>(),
 ) {
     /** Simply writes the [Long] value to the buffer */
@@ -168,20 +112,11 @@ internal object BigIntTypeDescription : PgTypeDescription<Long>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [Long]. This maps to the `int8[]`/`bigint[]`
- * type in a postgresql database.
- */
-internal object BigIntArrayTypeDescription : ArrayTypeDescription<Long>(
-    pgType = PgType.Int8Array,
-    innerType = BigIntTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [Float] type. This maps to the `float4`/`real`
  * type in a postgresql database.
  */
 internal object RealTypeDescription : PgTypeDescription<Float>(
-    pgType = PgType.Float4,
+    dbType = PgType.Float4,
     kType = typeOf<Float>(),
 ) {
     /** Simply writes the [Float] value to the buffer */
@@ -211,20 +146,11 @@ internal object RealTypeDescription : PgTypeDescription<Float>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [Float]. This maps to the `float4[]`/`real[]`
- * type in a postgresql database.
- */
-internal object RealArrayTypeDescription : ArrayTypeDescription<Float>(
-    pgType = PgType.Float4Array,
-    innerType = RealTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [Double] type. This maps to the
  * `float8`/`double precision` type in a postgresql database.
  */
 internal object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
-    pgType = PgType.Float8,
+    dbType = PgType.Float8,
     kType = typeOf<Double>(),
 ) {
     /** Simply writes the [Double] value to the buffer */
@@ -252,12 +178,3 @@ internal object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
             )
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [Double]. This maps to the
- * `float8[]`/`double precision[]` type in a postgresql database.
- */
-internal object DoublePrecisionArrayTypeDescription : ArrayTypeDescription<Double>(
-    pgType = PgType.Float8Array,
-    innerType = DoublePrecisionTypeDescription,
-)

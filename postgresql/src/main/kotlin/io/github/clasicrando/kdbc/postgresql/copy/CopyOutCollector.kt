@@ -5,11 +5,11 @@ import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
-import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
+import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import kotlinx.coroutines.flow.Flow
 import java.io.ByteArrayInputStream
 import java.io.InputStream
@@ -120,7 +120,7 @@ internal class CopyOutCollector(
                         PgValue.Text(rowData, fieldData)
                     },
                     columnMapping = fields,
-                    customTypeDescriptionCache = typeCache,
+                    typeCache = typeCache,
                 )
                 resultSet.addRow(dataRow)
             }

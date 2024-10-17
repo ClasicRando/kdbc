@@ -7,6 +7,12 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.Bound
+import io.github.clasicrando.kdbc.postgresql.type.DateRange
+import io.github.clasicrando.kdbc.postgresql.type.Int4Range
+import io.github.clasicrando.kdbc.postgresql.type.Int8Range
+import io.github.clasicrando.kdbc.postgresql.type.NumRange
+import io.github.clasicrando.kdbc.postgresql.type.TsRange
+import io.github.clasicrando.kdbc.postgresql.type.TsTzRange
 import io.github.clasicrando.kdbc.postgresql.type.toDateRange
 import io.github.clasicrando.kdbc.postgresql.type.toIntRange
 import io.github.clasicrando.kdbc.postgresql.type.toLongRange

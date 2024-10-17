@@ -1,8 +1,7 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
-import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
-import io.github.clasicrando.kdbc.core.datetime.DateTime
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
@@ -10,27 +9,9 @@ import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
+import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
-import io.github.clasicrando.kdbc.postgresql.type.PgBox
-import io.github.clasicrando.kdbc.postgresql.type.PgCircle
-import io.github.clasicrando.kdbc.postgresql.type.PgInet
-import io.github.clasicrando.kdbc.postgresql.type.PgJson
-import io.github.clasicrando.kdbc.postgresql.type.PgLine
-import io.github.clasicrando.kdbc.postgresql.type.PgLineSegment
-import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
-import io.github.clasicrando.kdbc.postgresql.type.PgMoney
-import io.github.clasicrando.kdbc.postgresql.type.PgPath
-import io.github.clasicrando.kdbc.postgresql.type.PgPoint
-import io.github.clasicrando.kdbc.postgresql.type.PgPolygon
-import io.github.clasicrando.kdbc.postgresql.type.PgRange
-import io.github.clasicrando.kdbc.postgresql.type.PgTimeTz
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.datetime.DateTimePeriod
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.LocalTime
-import kotlin.uuid.Uuid
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.createType
@@ -45,37 +26,23 @@ private val logger = KotlinLogging.logger {}
  */
 @PublishedApi
 internal class PgTypeCache {
-    private val customTypeDescriptions: MutableMap<PgType, PgTypeDescription<*>> = AtomicMutableMap()
-    private val typeHintLookup: MutableMap<KType, PgType> = AtomicMutableMap()
+    private val typeDescriptions: MutableMap<KType, PgTypeDescription<*>> = AtomicMutableMap(baseTypes)
 
     /**
-     * Return the custom type description for the provided [pgType]
+     * Return the custom type description for the provided [kType]
      *
-     * @throws IllegalStateException if the [pgType] cannot be found in the lookup table
+     * @throws KdbcException if the [kType] cannot be found in the lookup table
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Any> getTypeDescription(pgType: PgType): PgTypeDescription<T>? {
-        val typeDescription = customTypeDescriptions[pgType]
-            ?: error("Could not find type description for pgType = $pgType")
+    fun <T : Any> getTypeDescription(kType: KType): PgTypeDescription<T>? {
+        val typeDescription = typeDescriptions[kType]
+            ?: throw KdbcException("No type description for $kType")
         return typeDescription as? PgTypeDescription<T>
     }
 
-    /**
-     * Return the custom type description for the provided [kType]. Looks up the [kType] provided
-     * to find a [PgType] then calls [getTypeDescription].
-     *
-     * @throws IllegalStateException if the [kType] cannot be found in the lookup table
-     */
-    fun <T : Any> getTypeDescription(kType: KType): PgTypeDescription<T>? {
-        val pgType = typeHintLookup[kType]
-            ?: error("Could not find type description for kType = $kType")
-        return getTypeDescription(pgType)
-    }
-
     /** Add a custom [typeDescription] to the lookup tables */
-    private fun <T : Any> addTypeDescription(typeDescription: PgTypeDescription<T>) {
-        customTypeDescriptions[typeDescription.pgType] = typeDescription
-        typeHintLookup[typeDescription.kType] = typeDescription.pgType
+    fun <T : Any> addTypeDescription(typeDescription: PgTypeDescription<T>) {
+        typeDescriptions[typeDescription.kType] = typeDescription
     }
 
     /**
@@ -133,8 +100,15 @@ internal class PgTypeCache {
         val compositeArrayTypeDescription = CompositeArrayTypeDescription(
             pgType = PgType.fromOid(arrayTypeOid),
             innerType = compositeTypeDescription,
+            innerNullable = false,
         )
         addTypeDescription(compositeArrayTypeDescription)
+        val compositeArrayTypeDescriptionInnerNullable = CompositeArrayTypeDescription(
+            pgType = PgType.fromOid(arrayTypeOid),
+            innerType = compositeTypeDescription,
+            innerNullable = true
+        )
+        addTypeDescription(compositeArrayTypeDescriptionInnerNullable)
     }
 
     /**
@@ -171,8 +145,15 @@ internal class PgTypeCache {
         val enumArrayTypeDescription = EnumArrayTypeDescription(
             pgType = PgType.fromOid(arrayTypeOid),
             innerType = enumTypeDescription,
+            innerNullable = false,
         )
         addTypeDescription(enumArrayTypeDescription)
+        val enumArrayTypeDescriptionInnerNullable = EnumArrayTypeDescription(
+            pgType = PgType.fromOid(arrayTypeOid),
+            innerType = enumTypeDescription,
+            innerNullable = true,
+        )
+        addTypeDescription(enumArrayTypeDescriptionInnerNullable)
     }
 
     /**
@@ -181,89 +162,112 @@ internal class PgTypeCache {
      * types such as [PgRange] and [List], and as a last resort, checking the custom type lookup
      * by [KType] to find a type hint.
      */
+    @Suppress("UNCHECKED_CAST")
     fun getTypeHint(parameter: QueryParameter): PgType {
-        return when (parameter.value) {
-            null -> PgType.Unspecified
-            is String -> PgType.Text
-            is Boolean -> PgType.Bool
-            is ByteArray -> PgType.Bytea
-            is Byte -> PgType.Char
-            is Short -> PgType.Int2
-            is Int -> PgType.Int4
-            is Long -> PgType.Int8
-            is Float -> PgType.Float4
-            is Double -> PgType.Float8
-            is BigDecimal -> PgType.Numeric
-            is LocalTime -> PgType.Time
-            is LocalDate -> PgType.Date
-            is LocalDateTime -> PgType.Timestamp
-            is Instant -> PgType.Timestamp
-            is PgTimeTz -> PgType.Timetz
-            is DateTime -> PgType.Timestamptz
-            is DateTimePeriod -> PgType.Interval
-            is Uuid -> PgType.Uuid
-            is PgPoint -> PgType.Point
-            is PgLine -> PgType.Line
-            is PgLineSegment -> PgType.LineSegment
-            is PgBox -> PgType.Box
-            is PgPath -> PgType.Path
-            is PgPolygon -> PgType.Polygon
-            is PgCircle -> PgType.Circle
-            is PgJson -> PgType.Jsonb
-            is PgMacAddress -> PgType.Macaddr8
-            is PgMoney -> PgType.Money
-            is PgInet -> PgType.Inet
-            is PgRange<*> -> when (parameter.parameterType) {
-                Int8RangeTypeDescription.kType -> PgType.Int8Range
-                Int4RangeTypeDescription.kType -> PgType.Int4Range
-                TsRangeTypeDescription.kType -> PgType.TsRange
-                TsTzRangeTypeDescription.kType -> PgType.TstzRange
-                DateRangeTypeDescription.kType -> PgType.DateRange
-                NumRangeTypeDescription.kType -> PgType.NumRange
-                else -> PgType.Unspecified
-            }
-            is List<*> -> when (parameter.parameterType) {
-                VarcharArrayTypeDescription.kType -> PgType.TextArray
-                ByteaArrayTypeDescription.kType -> PgType.ByteaArray
-                CharArrayTypeDescription.kType -> PgType.CharArray
-                SmallIntArrayTypeDescription.kType -> PgType.Int2Array
-                IntArrayTypeDescription.kType -> PgType.Int4Array
-                BigIntArrayTypeDescription.kType -> PgType.Int8Array
-                RealArrayTypeDescription.kType -> PgType.Float4Array
-                DoublePrecisionArrayTypeDescription.kType -> PgType.Float8Array
-                NumericArrayTypeDescription.kType -> PgType.NumericArray
-                TimeArrayTypeDescription.kType -> PgType.TimeArray
-                DateArrayTypeDescription.kType -> PgType.DateArray
-                TimestampArrayTypeDescription.kType -> PgType.TimestampArray
-                TimeTzArrayTypeDescription.kType -> PgType.TimetzArray
-                TimestampTzArrayTypeDescription.kType -> PgType.TimestamptzArray
-                IntervalArrayTypeDescription.kType -> PgType.IntervalArray
-                UuidArrayTypeDescription.kType -> PgType.UuidArray
-                PointArrayTypeDescription.kType -> PgType.PointArray
-                LineArrayTypeDescription.kType -> PgType.LineArray
-                LineSegmentArrayTypeDescription.kType -> PgType.LineSegmentArray
-                BoxArrayTypeDescription.kType -> PgType.BoxArray
-                PathArrayTypeDescription.kType -> PgType.PathArray
-                PolygonArrayTypeDescription.kType -> PgType.PolygonArray
-                CircleArrayTypeDescription.kType -> PgType.CircleArray
-                JsonArrayTypeDescription.kType -> PgType.JsonArray
-                MacAddressArrayTypeDescription.kType -> PgType.MacaddrArray
-                MoneyArrayTypeDescription.kType -> PgType.MoneyArray
-                InetArrayTypeDescription.kType -> PgType.InetArray
-                BoolArrayTypeDescription.kType -> PgType.BoolArray
-                Int8RangeArrayTypeDescription.kType -> PgType.Int8RangeArray
-                Int4RangeArrayTypeDescription.kType -> PgType.Int4RangeArray
-                TsRangeArrayTypeDescription.kType -> PgType.TsRangeArray
-                TsTzRangeArrayTypeDescription.kType -> PgType.TstzRangeArray
-                DateRangeArrayTypeDescription.kType -> PgType.DateRangeArray
-                NumRangeArrayTypeDescription.kType -> PgType.NumRangeArray
-                else -> typeHintLookup[parameter.parameterType] ?: PgType.Unspecified
-            }
-            else -> typeHintLookup[parameter.parameterType] ?: PgType.Unspecified
-        }
+        val parameterValue = parameter.value ?: return PgType.Unspecified
+        val description = typeDescriptions[parameter.parameterType] as? PgTypeDescription<Any>
+            ?: return PgType.Unspecified
+        return description.getActualType(parameterValue)
     }
 
     companion object {
+        val baseTypes: Map<KType, PgTypeDescription<*>> = listOf(
+            NumericTypeDescription,
+            *createArrayDescriptions(PgType.NumericArray, NumericTypeDescription),
+            BoolTypeDescription,
+            *createArrayDescriptions(PgType.BoolArray, BoolTypeDescription),
+            ByteaTypeDescription,
+            *createArrayDescriptions(PgType.ByteaArray, ByteaTypeDescription),
+            CharTypeDescription,
+            *createArrayDescriptions(PgType.CharArray, CharTypeDescription),
+            DateTypeDescription,
+            *createArrayDescriptions(PgType.DateArray, DateTypeDescription),
+            TimestampTypeDescription,
+            *createArrayDescriptions(PgType.TimestampArray, TimestampTypeDescription),
+            TimestampTzTypeDescription,
+            *createArrayDescriptions(PgType.TimestamptzArray, TimestampTzTypeDescription),
+            IntervalTypeDescription,
+            *createArrayDescriptions(PgType.IntervalArray, IntervalTypeDescription),
+            PointTypeDescription,
+            *createArrayDescriptions(PgType.PointArray, PointTypeDescription),
+            LineTypeDescription,
+            *createArrayDescriptions(PgType.LineArray, LineTypeDescription),
+            LineSegmentTypeDescription,
+            *createArrayDescriptions(PgType.LineSegmentArray, LineSegmentTypeDescription),
+            BoxTypeDescription,
+            *createArrayDescriptions(PgType.BoxArray, BoxTypeDescription),
+            PathTypeDescription,
+            *createArrayDescriptions(PgType.PathArray, PathTypeDescription),
+            PolygonTypeDescription,
+            *createArrayDescriptions(PgType.PolygonArray, PolygonTypeDescription),
+            CircleTypeDescription,
+            *createArrayDescriptions(PgType.CircleArray, CircleTypeDescription),
+            JsonTypeDescription,
+            *createArrayDescriptions(PgType.JsonArray, JsonTypeDescription),
+            JsonPathTypeDescription,
+            *createArrayDescriptions(PgType.JsonpathArray, JsonPathTypeDescription),
+            MacAddressTypeDescription,
+            *createArrayDescriptions(PgType.MacaddrArray, MacAddressTypeDescription),
+            MoneyTypeDescription,
+            *createArrayDescriptions(PgType.MoneyArray, MoneyTypeDescription),
+            NetworkAddressTypeDescription,
+            *createArrayDescriptions(PgType.InetArray, NetworkAddressTypeDescription),
+            SmallIntTypeDescription,
+            *createArrayDescriptions(PgType.Int2Array, SmallIntTypeDescription),
+            IntTypeDescription,
+            *createArrayDescriptions(PgType.Int4Array, IntTypeDescription),
+            BigIntTypeDescription,
+            *createArrayDescriptions(PgType.Int8Array, BigIntTypeDescription),
+            RealTypeDescription,
+            *createArrayDescriptions(PgType.Float4Array, RealTypeDescription),
+            DoublePrecisionTypeDescription,
+            *createArrayDescriptions(PgType.Float8Array, DoublePrecisionTypeDescription),
+            Int8RangeTypeDescription,
+            *createArrayDescriptions(PgType.Int8RangeArray, Int8RangeTypeDescription),
+            Int4RangeTypeDescription,
+            *createArrayDescriptions(PgType.Int4RangeArray, Int4RangeTypeDescription),
+            TsRangeTypeDescription,
+            *createArrayDescriptions(PgType.TsRangeArray, TsRangeTypeDescription),
+            TsTzRangeTypeDescription,
+            *createArrayDescriptions(PgType.TstzRangeArray, TsTzRangeTypeDescription),
+            DateRangeTypeDescription,
+            *createArrayDescriptions(PgType.DateRangeArray, DateRangeTypeDescription),
+            NumRangeTypeDescription,
+            *createArrayDescriptions(PgType.NumRangeArray, NumRangeTypeDescription),
+            VarcharTypeDescription,
+            object : ArrayTypeDescription<String>(
+                pgType = PgType.Varchar,
+                innerType = VarcharTypeDescription,
+                innerNullable = true
+            ) {
+                override fun isCompatible(dbType: PgType): Boolean {
+                    return dbType == PgType.TextArray
+                            || dbType == PgType.VarcharArray
+                            || dbType == PgType.XmlArray
+                            || dbType == PgType.NameArray
+                            || dbType == PgType.BpcharArray
+                }
+            },
+            object : ArrayTypeDescription<String>(
+                pgType = PgType.Varchar,
+                innerType = VarcharTypeDescription,
+                innerNullable = false
+            ) {
+                override fun isCompatible(dbType: PgType): Boolean {
+                    return dbType == PgType.TextArray
+                            || dbType == PgType.VarcharArray
+                            || dbType == PgType.XmlArray
+                            || dbType == PgType.NameArray
+                            || dbType == PgType.BpcharArray
+                }
+            },
+            TimeTypeDescription,
+            *createArrayDescriptions(PgType.TimeArray, TimeTypeDescription),
+            TimeTzTypeDescription,
+            *createArrayDescriptions(PgType.TimetzArray, TimeTzTypeDescription),
+            UuidTypeDescription,
+            *createArrayDescriptions(PgType.UuidArray, UuidTypeDescription),
+        ).associateBy { it.kType }
         /**
          * Query to fetch the OID of an enum using the name and the optional schema. Default schema
          * is public.

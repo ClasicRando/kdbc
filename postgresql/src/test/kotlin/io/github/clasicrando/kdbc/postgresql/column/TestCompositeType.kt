@@ -8,6 +8,7 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import io.github.clasicrando.kdbc.postgresql.type.CompositeTypeDefinition
 import io.github.clasicrando.kdbc.postgresql.type.PgJson
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate

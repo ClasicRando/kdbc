@@ -1,7 +1,8 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
 
 /**
@@ -9,7 +10,7 @@ import kotlin.reflect.typeOf
  * postgresql database
  */
 internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
-    pgType = PgType.Bytea,
+    dbType = PgType.Bytea,
     kType = typeOf<ByteArray>(),
 ) {
     /**
@@ -44,15 +45,6 @@ internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
         }
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [ByteArray]. This maps to the `bytea[]` type in a
- * postgresql database.
- */
-internal object ByteaArrayTypeDescription : ArrayTypeDescription<ByteArray>(
-    pgType = PgType.ByteaArray,
-    innerType = ByteaTypeDescription,
-)
 
 /** Prefix for a hex format `bytea` value */
 private const val HEX_START = "\\x"

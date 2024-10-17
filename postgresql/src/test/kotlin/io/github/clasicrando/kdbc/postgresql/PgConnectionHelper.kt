@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.postgresql
 
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.listen.PgListener
 import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import kotlin.time.DurationUnit

@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.result
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.result.AbstractMutableResultSet
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
-import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 
 /**
  * Postgresql implementation of a [io.github.clasicrando.kdbc.core.result.ResultSet] where the rows
@@ -37,7 +37,7 @@ internal class PgResultSet(
             rowBuffer = buffer,
             pgValues = pgValues,
             columnMapping = columnMapping,
-            customTypeDescriptionCache = typeCache,
+            typeCache = typeCache,
         )
         super.addRow(row)
     }

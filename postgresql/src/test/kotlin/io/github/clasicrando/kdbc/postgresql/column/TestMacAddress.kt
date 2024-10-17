@@ -21,6 +21,7 @@ class TestMacAddress {
         val tableName = if (isMacAddr8) MACADDR8_TEST_TABLE else MACADDR_TEST_TABLE
         val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
         val value = if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr()
+        println(value.isMacAddress8)
 
         PgConnectionHelper.defaultConnection().use { conn ->
             val pgMacAddress = conn.createPreparedQuery(query)

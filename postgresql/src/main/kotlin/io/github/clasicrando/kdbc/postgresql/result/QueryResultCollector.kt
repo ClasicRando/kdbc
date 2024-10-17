@@ -7,10 +7,10 @@ import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
-import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
+import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}

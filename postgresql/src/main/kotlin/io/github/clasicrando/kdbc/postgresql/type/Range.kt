@@ -1,13 +1,12 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
-import io.github.clasicrando.kdbc.postgresql.type.Bound
-import io.github.clasicrando.kdbc.postgresql.type.PgRange
-import io.github.clasicrando.kdbc.postgresql.type.PgRangeLiteralParser
+import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlin.reflect.KTypeProjection
@@ -39,7 +38,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
     pgType: PgType,
     private val typeDescription: PgTypeDescription<T>,
 ) : PgTypeDescription<PgRange<T>>(
-    pgType = pgType,
+    dbType = pgType,
     kType = PgRange::class
         .createType(arguments = listOf(KTypeProjection.invariant(typeDescription.kType))),
 ) {
@@ -121,7 +120,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
             val lowerBoundValueLength = value.bytes.readInt()
             val lowerBoundPgValue = PgValue.Binary(
                 bytes = value.bytes.slice(lowerBoundValueLength),
-                typeData = PgColumnDescription.dummyDescription(typeDescription.pgType, 1)
+                typeData = PgColumnDescription.dummyDescription(typeDescription.dbType, 1)
             )
 
             val lowerBoundValue = typeDescription.decodeBytes(lowerBoundPgValue)
@@ -136,7 +135,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
             val upperBoundValueLength = value.bytes.readInt()
             val upperBoundPgValue = PgValue.Binary(
                 bytes = value.bytes.slice(upperBoundValueLength),
-                typeData = PgColumnDescription.dummyDescription(typeDescription.pgType, 1)
+                typeData = PgColumnDescription.dummyDescription(typeDescription.dbType, 1)
             )
 
             val upperBoundValue = typeDescription.decodeBytes(upperBoundPgValue)
@@ -210,15 +209,6 @@ internal object Int8RangeTypeDescription : BaseRangeTypeDescription<Long>(
     typeDescription = BigIntTypeDescription,
 )
 
-/**
- * Implementation of an [ArrayTypeDescription] for the [Int8Range] type. This maps to the
- * `int8range[]` type in a postgresql database.
- */
-internal object Int8RangeArrayTypeDescription : ArrayTypeDescription<Int8Range>(
-    pgType = PgType.Int8RangeArray,
-    innerType = Int8RangeTypeDescription,
-)
-
 typealias Int4Range = PgRange<Int>
 
 /**
@@ -228,15 +218,6 @@ typealias Int4Range = PgRange<Int>
 internal object Int4RangeTypeDescription : BaseRangeTypeDescription<Int>(
     pgType = PgType.Int4Range,
     typeDescription = IntTypeDescription,
-)
-
-/**
- * Implementation of an [ArrayTypeDescription] for the [Int4Range] type. This maps to the
- * `int4range[]` type in a postgresql database.
- */
-internal object Int4RangeArrayTypeDescription : ArrayTypeDescription<Int4Range>(
-    pgType = PgType.Int4RangeArray,
-    innerType = Int4RangeTypeDescription,
 )
 
 typealias TsRange = PgRange<Instant>
@@ -250,15 +231,6 @@ internal object TsRangeTypeDescription : BaseRangeTypeDescription<Instant>(
     typeDescription = TimestampTypeDescription,
 )
 
-/**
- * Implementation of an [ArrayTypeDescription] for the [TsRange] type. This maps to the
- * `tsrange[]` type in a postgresql database.
- */
-internal object TsRangeArrayTypeDescription : ArrayTypeDescription<TsRange>(
-    pgType = PgType.TsRangeArray,
-    innerType = TsRangeTypeDescription,
-)
-
 typealias TsTzRange = PgRange<DateTime>
 
 /**
@@ -268,15 +240,6 @@ typealias TsTzRange = PgRange<DateTime>
 internal object TsTzRangeTypeDescription : BaseRangeTypeDescription<DateTime>(
     pgType = PgType.TstzRange,
     typeDescription = TimestampTzTypeDescription,
-)
-
-/**
- * Implementation of an [ArrayTypeDescription] for the [TsTzRange] type. This maps to the
- * `tstzrange[]` type in a postgresql database.
- */
-internal object TsTzRangeArrayTypeDescription : ArrayTypeDescription<TsTzRange>(
-    pgType = PgType.TstzRangeArray,
-    innerType = TsTzRangeTypeDescription,
 )
 
 typealias DateRange = PgRange<LocalDate>
@@ -290,15 +253,6 @@ internal object DateRangeTypeDescription : BaseRangeTypeDescription<LocalDate>(
     typeDescription = DateTypeDescription,
 )
 
-/**
- * Implementation of an [ArrayTypeDescription] for the [DateRange] type. This maps to the
- * `daterange[]` type in a postgresql database.
- */
-internal object DateRangeArrayTypeDescription : ArrayTypeDescription<DateRange>(
-    pgType = PgType.DateRangeArray,
-    innerType = DateRangeTypeDescription,
-)
-
 typealias NumRange = PgRange<BigDecimal>
 
 /**
@@ -308,13 +262,4 @@ typealias NumRange = PgRange<BigDecimal>
 internal object NumRangeTypeDescription : BaseRangeTypeDescription<BigDecimal>(
     pgType = PgType.NumRange,
     typeDescription = NumericTypeDescription,
-)
-
-/**
- * Implementation of an [ArrayTypeDescription] for the [NumRange] type. This maps to the
- * `numrange[]` type in a postgresql database.
- */
-internal object NumRangeArrayTypeDescription : ArrayTypeDescription<NumRange>(
-    pgType = PgType.NumRangeArray,
-    innerType = NumRangeTypeDescription,
 )

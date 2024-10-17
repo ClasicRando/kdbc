@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.core.result
 import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.query.RowParser
+import kotlin.reflect.typeOf
 
 /**
  * Container class for the data returned upon completion of a query. Every query must have the
@@ -28,12 +29,8 @@ open class QueryResult(
      * checked by [kotlin.reflect.KClass.isInstance] on the first value
      */
     inline fun <reified T : Any> extractScalar(): T? {
-        val cls = T::class
         return rows.firstOrNull()?.use { row ->
-            val value = row[FIRST_INDEX] ?: return null
-            if (!cls.isInstance(value)) {
-                throw IncorrectScalarType(value, cls)
-            }
+            val value = row[FIRST_INDEX, typeOf<T>()] ?: return null
             value as T?
         }
     }

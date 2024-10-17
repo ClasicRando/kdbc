@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
 import io.github.clasicrando.kdbc.core.exceptions.EmptyQueryResult
-import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.exceptions.TooManyRows
 import io.github.clasicrando.kdbc.core.query.RowParser
@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -84,9 +85,11 @@ class TestPgQuery {
     @Test
     fun `fetchScalar should fail when query returns a different type`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            assertThrows<IncorrectScalarType> {
+            val ex = assertThrows<KdbcException> {
                 connection.createQuery("SELECT 1").fetchScalar<List<Int>>()
             }
+            assertNotNull(ex.message)
+            assertContains(ex.message!!, "Actual column type is not compatible with required type")
         }
     }
 
@@ -182,7 +185,16 @@ class TestPgQuery {
                 val exception = assertThrows<RowParseError> { it.fetchAll(BadRowParserTest2) }
                 val suppressedExceptions = exception.suppressedExceptions
                 assertEquals(1, suppressedExceptions.size)
-                assertTrue(suppressedExceptions.first() is NullPointerException)
+                val suppressedException = suppressedExceptions.first()
+                assertTrue(
+                    suppressedException is KdbcException,
+                    "Actual exception: $suppressedException"
+                )
+                assertNotNull(suppressedException.message)
+                assertContains(
+                    suppressedException.message!!,
+                    "Actual column type is not compatible with required type"
+                )
             }
         }
     }

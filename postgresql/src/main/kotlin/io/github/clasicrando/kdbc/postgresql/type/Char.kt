@@ -1,7 +1,8 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
 
 /**
@@ -9,8 +10,8 @@ import kotlin.reflect.typeOf
  * postgresql database.
  */
 internal object CharTypeDescription : PgTypeDescription<Byte>(
-    pgType = PgType.Char,
-    kType = typeOf<Char>(),
+    dbType = PgType.Char,
+    kType = typeOf<Byte>(),
 ) {
     /** Simply write the [Byte] value to the buffer */
     override fun encode(value: Byte, buffer: ByteWriteBuffer) {
@@ -59,12 +60,3 @@ internal object CharTypeDescription : PgTypeDescription<Byte>(
         }
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [Byte]. This maps to the `"char"[]` type in a
- * postgresql database.
- */
-internal object CharArrayTypeDescription : ArrayTypeDescription<Byte>(
-    pgType = PgType.CharArray,
-    innerType = CharTypeDescription,
-)

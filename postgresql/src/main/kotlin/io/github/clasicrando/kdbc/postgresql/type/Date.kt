@@ -1,9 +1,10 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
@@ -21,7 +22,7 @@ private val postgresEpochDate = LocalDate(year = 2000, monthNumber = 1, dayOfMon
  * in a postgresql database.
  */
 internal object DateTypeDescription : PgTypeDescription<LocalDate>(
-    pgType = PgType.Date,
+    dbType = PgType.Date,
     kType = typeOf<LocalDate>(),
 ) {
     /**
@@ -61,12 +62,3 @@ internal object DateTypeDescription : PgTypeDescription<LocalDate>(
         }
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [LocalDate]. This maps to the `date[]` type in a
- * postgresql database.
- */
-internal object DateArrayTypeDescription : ArrayTypeDescription<LocalDate>(
-    pgType = PgType.DateArray,
-    innerType = DateTypeDescription,
-)

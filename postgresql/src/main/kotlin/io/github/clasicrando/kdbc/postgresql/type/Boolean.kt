@@ -1,7 +1,8 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
 
 /**
@@ -9,7 +10,7 @@ import kotlin.reflect.typeOf
  * postgresql database
  */
 internal object BoolTypeDescription : PgTypeDescription<Boolean>(
-    pgType = PgType.Bool,
+    dbType = PgType.Bool,
     kType = typeOf<Boolean>(),
 ) {
     /**
@@ -50,12 +51,3 @@ internal object BoolTypeDescription : PgTypeDescription<Boolean>(
         }
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [Boolean]. This maps to the `boolean[]` type in a
- * postgresql database.
- */
-internal object BoolArrayTypeDescription : ArrayTypeDescription<Boolean>(
-    pgType = PgType.BoolArray,
-    innerType = BoolTypeDescription,
-)

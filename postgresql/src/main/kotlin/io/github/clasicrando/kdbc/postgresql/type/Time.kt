@@ -1,10 +1,10 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
-import io.github.clasicrando.kdbc.postgresql.type.PgTimeTz
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import kotlin.reflect.typeOf
@@ -16,7 +16,7 @@ import kotlin.time.toDuration
  * in a postgresql database.
  */
 internal object TimeTypeDescription : PgTypeDescription<LocalTime>(
-    pgType = PgType.Time,
+    dbType = PgType.Time,
     kType = typeOf<LocalTime>(),
 ) {
     /**
@@ -62,20 +62,11 @@ internal object TimeTypeDescription : PgTypeDescription<LocalTime>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [LocalTime]. This maps to the `time[]` type in a
- * postgresql database.
- */
-internal object TimeArrayTypeDescription : ArrayTypeDescription<LocalTime>(
-    pgType = PgType.TimeArray,
-    innerType = TimeTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [PgTimeTz] type. This maps to the `timetz` type
  * in a postgresql database.
  */
 internal object TimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
-    pgType = PgType.Timetz,
+    dbType = PgType.Timetz,
     kType = typeOf<PgTimeTz>(),
 ) {
     /**
@@ -123,12 +114,3 @@ internal object TimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
         }
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgTimeTz]. This maps to the `timetz[]` type in a
- * postgresql database.
- */
-internal object TimeTzArrayTypeDescription : ArrayTypeDescription<PgTimeTz>(
-    pgType = PgType.TimetzArray,
-    innerType = TimeTzTypeDescription,
-)

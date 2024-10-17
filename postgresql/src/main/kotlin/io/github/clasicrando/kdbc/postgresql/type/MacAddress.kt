@@ -1,18 +1,26 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
-import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [PgMacAddress] type */
-internal abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTypeDescription<PgMacAddress>(
-    pgType = pgType,
+internal object MacAddressTypeDescription : PgTypeDescription<PgMacAddress>(
+    dbType = PgType.Macaddr,
     kType = typeOf<PgMacAddress>(),
 ) {
+    override fun isCompatible(dbType: PgType): Boolean {
+        return dbType == this.dbType || dbType == PgType.Macaddr8
+    }
+
+    override fun getActualType(value: PgMacAddress): PgType {
+        return if (value.isMacAddress8) { PgType.Macaddr8 } else { PgType.Macaddr }
+    }
+
     /**
-     * Write all bytes in the [PgMacAddress] unless the supplied [pgType] is not [PgType.Macaddr8]
+     * Write all bytes in the [PgMacAddress] unless the supplied [dbType] is not [PgType.Macaddr8]
      * in which case the [PgMacAddress.d] and [PgMacAddress.e] are not written since they are
      * placeholder values.
      *
@@ -23,7 +31,7 @@ internal abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTy
         buffer.writeByte(value.a)
         buffer.writeByte(value.b)
         buffer.writeByte(value.c)
-        if (pgType is PgType.Macaddr8 || pgType is PgType.Macaddr8Array) {
+        if (value.isMacAddress8) {
             buffer.writeByte(value.d)
             buffer.writeByte(value.e)
         }
@@ -80,33 +88,3 @@ internal abstract class AbstractMacAddressTypeDescription(pgType: PgType) : PgTy
         }
     }
 }
-
-/**
- * Implementation of a [PgTypeDescription] for the [PgMacAddress] type. This maps to the `macaddr`
- * type in a postgresql database.
- */
-internal object MacAddressTypeDescription : AbstractMacAddressTypeDescription(pgType = PgType.Macaddr)
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgMacAddress]. This maps to the `macaddr[]`
- * type in a postgresql database.
- */
-internal object MacAddressArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
-    pgType = PgType.MacaddrArray,
-    innerType = MacAddressTypeDescription,
-)
-
-/**
- * Implementation of a [PgTypeDescription] for the [PgMacAddress] type. This maps to the `macaddr8`
- * type in a postgresql database.
- */
-internal object MacAddress8TypeDescription : AbstractMacAddressTypeDescription(pgType = PgType.Macaddr8)
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgMacAddress]. This maps to the `macaddr8[]`
- * type in a postgresql database.
- */
-internal object MacAddress8ArrayTypeDescription : ArrayTypeDescription<PgMacAddress>(
-    pgType = PgType.Macaddr8Array,
-    innerType = MacAddress8TypeDescription,
-)

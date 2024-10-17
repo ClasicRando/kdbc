@@ -1,17 +1,21 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
-import io.github.clasicrando.kdbc.postgresql.type.PgJson
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.serialization.SerializationException
 import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [PgJson] type */
-internal abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDescription<PgJson>(
-    pgType = pgType,
+internal object JsonTypeDescription : PgTypeDescription<PgJson>(
+    dbType = PgType.Jsonb,
     kType = typeOf<PgJson>(),
 ) {
+    override fun isCompatible(dbType: PgType): Boolean {
+        return dbType == this.dbType || dbType == PgType.Json
+    }
+
     /**
      * Writes a single [Byte] of 1, then calls [PgJson.writeToBuffer] which encodes the json data
      * into the buffer. This assumes that it is always writing a jsonb type because postgres
@@ -72,51 +76,21 @@ internal abstract class AbstractJsonTypeDescription(pgType: PgType) : PgTypeDesc
 }
 
 /**
- * Implementation of a [PgTypeDescription] for the [PgJson] type. This maps to the `json` type in a
- * postgresql database.
- */
-internal object JsonTypeDescription : AbstractJsonTypeDescription(pgType = PgType.Json)
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `json[]` type in a
- * postgresql database.
- */
-internal object JsonArrayTypeDescription : ArrayTypeDescription<PgJson>(
-    pgType = PgType.JsonArray,
-    innerType = JsonTypeDescription,
-)
-
-/**
- * Implementation of a [PgTypeDescription] for the [PgJson] type. This maps to the `jsonb` type in
- * a postgresql database.
- */
-internal object JsonbTypeDescription : AbstractJsonTypeDescription(pgType = PgType.Jsonb)
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `jsonb[]` type in a
- * postgresql database.
- */
-internal object JsonbArrayTypeDescription : ArrayTypeDescription<PgJson>(
-    pgType = PgType.JsonbArray,
-    innerType = JsonTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the `jsonpath` type in a postgresql database. This
  * maps to the [String] type for convenience.
  */
-internal object JsonPathTypeDescription : PgTypeDescription<String>(
-    pgType = PgType.Jsonpath,
-    kType = typeOf<String>(),
+internal object JsonPathTypeDescription : PgTypeDescription<PgJsonPath>(
+    dbType = PgType.Jsonpath,
+    kType = typeOf<PgJsonPath>(),
 ) {
     /**
      * Writes the jsonpath version number (always 1) followed by the path as UTF8 text
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L113)
      */
-    override fun encode(value: String, buffer: ByteWriteBuffer) {
+    override fun encode(value: PgJsonPath, buffer: ByteWriteBuffer) {
         buffer.writeByte(1)
-        buffer.writeText(value)
+        buffer.writeText(value.value)
     }
 
     /**
@@ -128,14 +102,14 @@ internal object JsonPathTypeDescription : PgTypeDescription<String>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the jsonpath format is
      * not version = 1
      */
-    override fun decodeBytes(value: PgValue.Binary): String {
+    override fun decodeBytes(value: PgValue.Binary): PgJsonPath {
         val version = value.bytes.readLong()
         checkOrColumnDecodeError<PgJson>(
             check = version == 1L,
             type = value.typeData,
         ) { "Unsupported JSONPATH format version $version. Only version 1 is supported" }
 
-        return value.bytes.readText()
+        return PgJsonPath(value.bytes.readText())
     }
 
     /**
@@ -143,16 +117,7 @@ internal object JsonPathTypeDescription : PgTypeDescription<String>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L132)
      */
-    override fun decodeText(value: PgValue.Text): String {
-        return value.text
+    override fun decodeText(value: PgValue.Text): PgJsonPath {
+        return PgJsonPath(value.text)
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgJson]. This maps to the `jsonpath[]` type in a
- * postgresql database.
- */
-internal object JsonPathArrayTypeDescription : ArrayTypeDescription<String>(
-    pgType = PgType.JsonpathArray,
-    innerType = JsonPathTypeDescription,
-)

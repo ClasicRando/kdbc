@@ -21,8 +21,6 @@ import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
-import io.github.clasicrando.kdbc.postgresql.column.CompositeTypeDefinition
-import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.copy.CopyOutCollector
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata
@@ -43,6 +41,10 @@ import io.github.clasicrando.kdbc.postgresql.result.StatementPrepareRequestColle
 import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
+import io.github.clasicrando.kdbc.postgresql.type.CompositeTypeDefinition
+import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
+import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.createArrayDescriptions
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
@@ -957,6 +959,18 @@ class PgConnection internal constructor(
             cls = T::class,
             compositeTypeDefinition = compositeTypeDefinition,
         )
+    }
+
+    /**
+     * Add new [typeDescription] to cache. This impacts all connections within the same pool and
+     * adds simple array type descriptions as well. If the [PgTypeDescription.kType] is already
+     * present within the cache, that description will be removed for the new description.
+     */
+    fun <T: Any> registerCustomType(typeDescription: PgTypeDescription<T>) {
+        typeCache.addTypeDescription(typeDescription)
+        for (arrayDescription in createArrayDescriptions(typeDescription.dbType, typeDescription)) {
+            typeCache.addTypeDescription(arrayDescription)
+        }
     }
 
     companion object {

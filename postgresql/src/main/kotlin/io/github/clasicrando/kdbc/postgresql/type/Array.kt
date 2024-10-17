@@ -1,9 +1,10 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
-import io.github.clasicrando.kdbc.postgresql.type.ArrayLiteralParser
+import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.withNullability
@@ -19,6 +20,24 @@ private val dummyFieldDescription = PgColumnDescription(
     formatCode = 1,
 )
 
+fun <T : Any> createArrayDescriptions(
+    pgType: PgType,
+    innerType: PgTypeDescription<T>,
+): Array<PgTypeDescription<*>> {
+    return arrayOf(
+        object : ArrayTypeDescription<T>(
+            pgType = pgType,
+            innerType = innerType,
+            innerNullable = true
+        ) {},
+        object : ArrayTypeDescription<T>(
+            pgType = pgType,
+            innerType = innerType,
+            innerNullable = false
+        ) {}
+    )
+}
+
 /**
  * Implementation of a [PgTypeDescription] for array types. Data supplied is the [PgType] of the
  * array type and the [PgTypeDescription] of the array items.
@@ -26,11 +45,12 @@ private val dummyFieldDescription = PgColumnDescription(
 internal abstract class ArrayTypeDescription<T : Any>(
     pgType: PgType,
     private val innerType: PgTypeDescription<T>,
+    innerNullable: Boolean = true,
 ) : PgTypeDescription<List<T?>>(
-    pgType = pgType,
+    dbType = pgType,
     kType = List::class
         .createType(arguments = listOf(
-            KTypeProjection.invariant(innerType.kType.withNullability(nullable = true))
+            KTypeProjection.invariant(innerType.kType.withNullability(nullable = innerNullable))
         )),
 ) {
     /**
@@ -47,7 +67,7 @@ internal abstract class ArrayTypeDescription<T : Any>(
     override fun encode(value: List<T?>, buffer: ByteWriteBuffer) {
         buffer.writeInt(1)
         buffer.writeInt(0)
-        buffer.writeInt(innerType.pgType.oid)
+        buffer.writeInt(innerType.dbType.oid)
         buffer.writeInt(value.size)
         buffer.writeInt(1)
         for (item in value) {

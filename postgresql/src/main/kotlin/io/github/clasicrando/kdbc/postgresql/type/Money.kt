@@ -1,8 +1,8 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
-import io.github.clasicrando.kdbc.postgresql.type.PgMoney
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
 
 /**
@@ -10,7 +10,7 @@ import kotlin.reflect.typeOf
  * a postgresql database.
  */
 internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
-    pgType = PgType.Money,
+    dbType = PgType.Money,
     kType = typeOf<PgMoney>(),
 ) {
     /**
@@ -50,12 +50,3 @@ internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
         }
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgMoney]. This maps to the `money[]` type in a
- * postgresql database.
- */
-internal object MoneyArrayTypeDescription : ArrayTypeDescription<PgMoney>(
-    pgType = PgType.MoneyArray,
-    innerType = MoneyTypeDescription,
-)

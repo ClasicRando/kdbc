@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.core.result
 
 import io.github.clasicrando.kdbc.core.column.ColumnExtractError
+import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 /**
@@ -27,7 +28,7 @@ interface DataRow : AutoCloseable {
      * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
      * already been decoded
      */
-    operator fun get(index: Int): Any?
+    operator fun get(index: Int, type: KType): Any?
 
     /**
      * Get the value stored within the field of [column] specified. This will always decode to
@@ -37,7 +38,7 @@ interface DataRow : AutoCloseable {
      * @throws IllegalArgumentException if the [column] is not in the row or the field has already
      * been decoded
      */
-    operator fun get(column: String): Any? = get(indexFromColumn(column))
+    operator fun get(column: String, type: KType): Any? = get(indexFromColumn(column), type)
 }
 
 /**
@@ -50,7 +51,7 @@ interface DataRow : AutoCloseable {
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
 inline fun <reified T : Any> DataRow.getAs(index: Int): T? {
-    val value = get(index) ?: return null
+    val value = get(index, typeOf<T>()) ?: return null
     if (value is T) {
         return value
     }

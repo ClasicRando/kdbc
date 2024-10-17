@@ -1,8 +1,7 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
-import io.github.clasicrando.kdbc.postgresql.type.PgInet
 import java.net.Inet6Address
 import kotlin.reflect.typeOf
 
@@ -10,9 +9,14 @@ private const val PGSQL_AF_INET: Byte = 2
 private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()
 
 /** Implementation of a [PgTypeDescription] for the [PgInet] type */
-internal abstract class NetworkTypeDescription(
-    pgType: PgType,
-) : PgTypeDescription<PgInet>(pgType = pgType, kType = typeOf<PgInet>()) {
+internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
+    dbType = PgType.Inet,
+    kType = typeOf<PgInet>(),
+) {
+    override fun isCompatible(dbType: PgType): Boolean {
+        return dbType == this.dbType || dbType ==PgType.Cidr
+    }
+
     /**
      * Writes 5 values to the buffer:
      *
@@ -71,7 +75,7 @@ internal abstract class NetworkTypeDescription(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the binary value cannot
      * be used to construct a [PgInet]
      */
-    override fun decodeBytes(value: PgValue.Binary): PgInet {
+    override fun decodeBytes(value: io.github.clasicrando.kdbc.postgresql.column.PgValue.Binary): PgInet {
         val remainingBytes = value.bytes.remaining()
         check(remainingBytes >= 8) {
             "Inet value must be at least 8 bytes. Found $remainingBytes"
@@ -101,7 +105,7 @@ internal abstract class NetworkTypeDescription(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [PgInet]
      */
-    override fun decodeText(value: PgValue.Text): PgInet {
+    override fun decodeText(value: _root_ide_package_.io.github.clasicrando.kdbc.postgresql.column.PgValue.Text): PgInet {
         return try {
             PgInet.parse(value.text)
         } catch (ex: Throwable) {
@@ -113,33 +117,3 @@ internal abstract class NetworkTypeDescription(
         }
     }
 }
-
-/**
- * Implementation of a [PgTypeDescription] for the [PgInet] type. This maps to the `inet` type in a
- * postgresql database.
- */
-internal object InetTypeDescription : NetworkTypeDescription(pgType = PgType.Inet)
-
-/**
- * Implementation of a [PgTypeDescription] for the [PgInet] type. This maps to the `cidr` type in a
- * postgresql database.
- */
-internal object CidrTypeDescription : NetworkTypeDescription(pgType = PgType.Cidr)
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgInet]. This maps to the `inet[]` type in a
- * postgresql database.
- */
-internal object InetArrayTypeDescription : ArrayTypeDescription<PgInet>(
-    pgType = PgType.InetArray,
-    innerType = InetTypeDescription,
-)
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgInet]. This maps to the `cidr[]` type in a
- * postgresql database.
- */
-internal object CidrArrayTypeDescription : ArrayTypeDescription<PgInet>(
-    pgType = PgType.CidrArray,
-    innerType = CidrTypeDescription,
-)

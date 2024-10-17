@@ -1,17 +1,10 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
-import io.github.clasicrando.kdbc.postgresql.type.PgBox
-import io.github.clasicrando.kdbc.postgresql.type.PgCircle
-import io.github.clasicrando.kdbc.postgresql.type.PgLine
-import io.github.clasicrando.kdbc.postgresql.type.PgLineSegment
-import io.github.clasicrando.kdbc.postgresql.type.PgPath
-import io.github.clasicrando.kdbc.postgresql.type.PgPoint
-import io.github.clasicrando.kdbc.postgresql.type.PgPolygon
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.type.PgPolygon.Companion.makeBoundBox
-import io.github.clasicrando.kdbc.postgresql.type.extractPoints
 import kotlin.reflect.typeOf
 
 /**
@@ -19,7 +12,7 @@ import kotlin.reflect.typeOf
  * a postGIS enabled postgresql database.
  */
 internal object PointTypeDescription : PgTypeDescription<PgPoint>(
-    pgType = PgType.Point,
+    dbType = PgType.Point,
     kType = typeOf<PgPoint>(),
 ) {
     /**
@@ -74,20 +67,11 @@ internal object PointTypeDescription : PgTypeDescription<PgPoint>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [PgPoint]. This maps to the `point[]` type in a
- * postGIS enabled postgresql database.
- */
-internal object PointArrayTypeDescription : ArrayTypeDescription<PgPoint>(
-    pgType = PgType.PointArray,
-    innerType = PointTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [PgLine] type. This maps to the `line` type in
  * a postGIS enabled postgresql database.
  */
 internal object LineTypeDescription : PgTypeDescription<PgLine>(
-    pgType = PgType.Line,
+    dbType = PgType.Line,
     kType = typeOf<PgLine>(),
 ) {
     /**
@@ -152,20 +136,11 @@ internal object LineTypeDescription : PgTypeDescription<PgLine>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [PgLine]. This maps to the `line[]` type in a
- * postGIS enabled postgresql database.
- */
-internal object LineArrayTypeDescription : ArrayTypeDescription<PgLine>(
-    pgType = PgType.LineArray,
-    innerType = LineTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [PgLineSegment] type. This maps to the `lseg`
  * type in a postGIS enabled postgresql database.
  */
 internal object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
-    pgType = PgType.LineSegment,
+    dbType = PgType.LineSegment,
     kType = typeOf<PgLineSegment>(),
 ) {
     /**
@@ -213,20 +188,11 @@ internal object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [PgLineSegment]. This maps to the `lseg[]` type
- * in a postGIS enabled postgresql database.
- */
-internal object LineSegmentArrayTypeDescription : ArrayTypeDescription<PgLineSegment>(
-    pgType = PgType.LineSegmentArray,
-    innerType = LineSegmentTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [PgBox] type. This maps to the `box` type in a
  * postGIS enabled postgresql database.
  */
 internal object BoxTypeDescription : PgTypeDescription<PgBox>(
-    pgType = PgType.Box,
+    dbType = PgType.Box,
     kType = typeOf<PgBox>(),
 ) {
     /**
@@ -273,20 +239,11 @@ internal object BoxTypeDescription : PgTypeDescription<PgBox>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [PgBox]. This maps to the `box[]` type in a
- * postGIS enabled postgresql database.
- */
-internal object BoxArrayTypeDescription : ArrayTypeDescription<PgBox>(
-    pgType = PgType.BoxArray,
-    innerType = BoxTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [PgPath] type. This maps to the `path` type in a
  * postGIS enabled postgresql database.
  */
 internal object PathTypeDescription : PgTypeDescription<PgPath>(
-    pgType = PgType.Path,
+    dbType = PgType.Path,
     kType = typeOf<PgPath>(),
 ) {
     /**
@@ -350,20 +307,11 @@ internal object PathTypeDescription : PgTypeDescription<PgPath>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [PgPath]. This maps to the `path[]` type in a
- * postGIS enabled postgresql database.
- */
-internal object PathArrayTypeDescription : ArrayTypeDescription<PgPath>(
-    pgType = PgType.PathArray,
-    innerType = PathTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [PgPolygon] type. This maps to the `polygon`
  * type in a postGIS enabled postgresql database.
  */
 internal object PolygonTypeDescription : PgTypeDescription<PgPolygon>(
-    pgType = PgType.Polygon,
+    dbType = PgType.Polygon,
     kType = typeOf<PgPolygon>(),
 ) {
     /**
@@ -427,20 +375,11 @@ internal object PolygonTypeDescription : PgTypeDescription<PgPolygon>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [PgPolygon]. This maps to the `polygon[]` type in
- * a postGIS enabled postgresql database.
- */
-internal object PolygonArrayTypeDescription : ArrayTypeDescription<PgPolygon>(
-    pgType = PgType.BoxArray,
-    innerType = PolygonTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [PgCircle] type. This maps to the `circle` type
  * in a postGIS enabled postgresql database.
  */
 internal object CircleTypeDescription : PgTypeDescription<PgCircle>(
-    pgType = PgType.Circle,
+    dbType = PgType.Circle,
     kType = typeOf<PgCircle>(),
 ) {
     /**
@@ -496,12 +435,3 @@ internal object CircleTypeDescription : PgTypeDescription<PgCircle>(
         )
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [PgCircle]. This maps to the `circle[]` type in a
- * postGIS enabled postgresql database.
- */
-internal object CircleArrayTypeDescription : ArrayTypeDescription<PgCircle>(
-    pgType = PgType.CircleArray,
-    innerType = CircleTypeDescription,
-)

@@ -1,10 +1,11 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.Instant
 import kotlinx.datetime.UtcOffset
 import kotlin.reflect.typeOf
@@ -37,7 +38,7 @@ private val postgresEpochInstant = Instant.fromEpochMilliseconds(postgresEpochMi
  * type in a postgresql database.
  */
 internal object TimestampTypeDescription : PgTypeDescription<Instant>(
-    pgType = PgType.Timestamp,
+    dbType = PgType.Timestamp,
     kType = typeOf<Instant>(),
 ) {
     /**
@@ -80,20 +81,11 @@ internal object TimestampTypeDescription : PgTypeDescription<Instant>(
 }
 
 /**
- * Implementation of an [ArrayTypeDescription] for [Instant]. This maps to the `timestamp[]`
- * type in a postgresql database.
- */
-internal object TimestampArrayTypeDescription : ArrayTypeDescription<Instant>(
-    pgType = PgType.TimestampArray,
-    innerType = TimestampTypeDescription,
-)
-
-/**
  * Implementation of a [PgTypeDescription] for the [DateTime] type. This maps to the `timestamptz`
  * type in a postgresql database.
  */
 internal object TimestampTzTypeDescription : PgTypeDescription<DateTime>(
-    pgType = PgType.Timestamptz,
+    dbType = PgType.Timestamptz,
     kType = typeOf<DateTime>(),
 ) {
     /**
@@ -136,12 +128,3 @@ internal object TimestampTzTypeDescription : PgTypeDescription<DateTime>(
         }
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [DateTime]. This maps to the `timestamptz[]` type
- * in a postgresql database.
- */
-internal object TimestampTzArrayTypeDescription : ArrayTypeDescription<DateTime>(
-    pgType = PgType.TimestampArray,
-    innerType = TimestampTzTypeDescription,
-)

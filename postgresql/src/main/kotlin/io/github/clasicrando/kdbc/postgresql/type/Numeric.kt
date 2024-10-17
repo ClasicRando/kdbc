@@ -1,8 +1,8 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.postgresql.type.PgNumeric
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
 
 /**
@@ -10,7 +10,7 @@ import kotlin.reflect.typeOf
  * type in a postgresql database.
  */
 internal object NumericTypeDescription : PgTypeDescription<BigDecimal>(
-    pgType = PgType.Numeric,
+    dbType = PgType.Numeric,
     kType = typeOf<BigDecimal>(),
 ) {
     /**
@@ -38,12 +38,3 @@ internal object NumericTypeDescription : PgTypeDescription<BigDecimal>(
         return BigDecimal.parseString(value.text)
     }
 }
-
-/**
- * Implementation of an [ArrayTypeDescription] for [BigDecimal]. This maps to the `numeric[]` type
- * in a postgresql database.
- */
-internal object NumericArrayTypeDescription : ArrayTypeDescription<BigDecimal>(
-    pgType = PgType.NumericArray,
-    innerType = NumericTypeDescription,
-)

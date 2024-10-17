@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.message.decoders
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
-import io.github.clasicrando.kdbc.postgresql.column.PgType
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import io.github.clasicrando.kdbc.postgresql.type.PgType
 
 /**
  * [MessageDecoder] for [PgMessage.RowDescription]. This message is sent when the client issues a

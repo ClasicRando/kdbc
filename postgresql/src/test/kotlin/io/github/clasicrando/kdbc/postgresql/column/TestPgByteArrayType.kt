@@ -4,6 +4,8 @@ import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import io.github.clasicrando.kdbc.postgresql.type.ByteaTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.PgType
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import kotlin.test.Test

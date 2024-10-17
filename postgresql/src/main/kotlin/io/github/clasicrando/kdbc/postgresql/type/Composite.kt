@@ -1,13 +1,14 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.result.DataRow
+import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
-import io.github.clasicrando.kdbc.postgresql.type.PgCompositeLiteralParser
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.createType
@@ -37,7 +38,7 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
     protected val customTypeDescriptionCache: PgTypeCache,
     kType: KType,
 ) : CompositeTypeDefinition<T>, PgTypeDescription<T>(
-    pgType = PgType.ByOid(oid = typeOid),
+    dbType = PgType.ByOid(oid = typeOid),
     kType = kType,
 ) {
     /**
@@ -129,7 +130,7 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
             rowBuffer = value.bytes,
             pgValues = attributes,
             columnMapping = columnMapping,
-            customTypeDescriptionCache = customTypeDescriptionCache,
+            typeCache = customTypeDescriptionCache,
         )
         return decodeAsDataRow(dataRow, value.typeData)
     }
@@ -158,7 +159,7 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
             rowBuffer = null,
             pgValues = attributes,
             columnMapping = columnMapping,
-            customTypeDescriptionCache = customTypeDescriptionCache,
+            typeCache = customTypeDescriptionCache,
         )
         return decodeAsDataRow(dataRow, value.typeData)
     }
@@ -193,11 +194,12 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
     }
     private val finalParameterNames = primaryConstructor.parameters
         .map { param ->
-            val rename = param.annotations
+            val name = param.annotations
                 .firstOrNull { it is Rename }
                 ?.let { it as Rename }
-                ?: return@map param.name!!
-            rename.value
+                ?.value
+                ?: param.name!!
+            name to param.type
         }
     init {
         require(columnMapping.size == constructorParameterNames.size) {
@@ -211,8 +213,8 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
 
     override fun fromRow(row: DataRow): T {
         val args = Array(finalParameterNames.size) { i ->
-            val parameterName = finalParameterNames[i]
-            row[parameterName]
+            val (parameterName, parameterType) = finalParameterNames[i]
+            row[parameterName, parameterType]
         }
         return primaryConstructor.call(*args)
     }
@@ -222,4 +224,5 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
 internal class CompositeArrayTypeDescription<T : Any>(
     pgType: PgType,
     innerType: BaseCompositeTypeDescription<T>,
-) : ArrayTypeDescription<T>(pgType = pgType, innerType = innerType)
+    innerNullable: Boolean,
+) : ArrayTypeDescription<T>(pgType = pgType, innerType = innerType, innerNullable = innerNullable)
