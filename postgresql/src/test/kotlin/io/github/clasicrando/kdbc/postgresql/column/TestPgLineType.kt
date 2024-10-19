@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -8,12 +9,14 @@ import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgLine
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestPgLineType {
     @Test
-    fun `encode should accept PgLine when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept PgLine when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 line_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -38,11 +41,13 @@ class TestPgLineType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgLine when simple querying postgresql line`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgLine when extended querying postgresql line`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }

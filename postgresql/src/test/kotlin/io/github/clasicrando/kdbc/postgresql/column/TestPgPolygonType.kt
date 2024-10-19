@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -9,12 +10,14 @@ import io.github.clasicrando.kdbc.postgresql.type.PgPoint
 import io.github.clasicrando.kdbc.postgresql.type.PgPolygon
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestPgPolygonType {
     @Test
-    fun `encode should accept PgPolygon when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept PgPolygon when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 polygon_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -39,11 +42,13 @@ class TestPgPolygonType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgPolygon when simple querying postgresql polygon`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgPolygon when extended querying postgresql polygon`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }

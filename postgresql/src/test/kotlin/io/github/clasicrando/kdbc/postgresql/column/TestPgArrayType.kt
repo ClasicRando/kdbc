@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
@@ -10,9 +11,9 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.ArrayTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.InstantTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.IntTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.PgType
-import io.github.clasicrando.kdbc.postgresql.type.InstantTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.VarcharTypeDescription
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
@@ -20,6 +21,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 
@@ -101,7 +103,7 @@ class TestPgArrayType {
     }
 
     @Test
-    fun `encode should accept int list when querying postgresql`() = runBlocking {
+    fun `encode should accept int list when querying postgresql`(): Unit = runBlocking {
         val values = listOf(1, 2, 3, 4)
         val query = "SELECT x array_values FROM UNNEST($1) x"
 
@@ -130,11 +132,13 @@ class TestPgArrayType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return int list when simple querying postgresql int array`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return int list when extended querying postgresql int array`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }

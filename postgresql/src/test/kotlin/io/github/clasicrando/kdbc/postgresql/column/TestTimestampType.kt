@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
@@ -12,6 +13,7 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toJavaLocalDateTime
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
@@ -19,8 +21,9 @@ import kotlin.test.assertEquals
 
 class TestTimestampType {
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("instants")
-    fun `encode should accept Instant when querying postgresql`(instant: Instant) = runBlocking {
+    fun `encode should accept Instant when querying postgresql`(instant: Instant): Unit = runBlocking {
         val query = "SELECT $1 instant_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -45,22 +48,25 @@ class TestTimestampType {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("instants")
     fun `decode should return Instant when simple querying postgresql timestamp`(instant: Instant): Unit = runBlocking {
         decodeTest(isPrepared = false, expectedValue = instant)
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("instants")
     fun `decode should return Instant when extended querying postgresql timestamp`(instant: Instant): Unit = runBlocking {
         decodeTest(isPrepared = true, expectedValue = instant)
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `encode should accept Java LocalDateTime when querying postgresql`(
         localDateTime: java.time.LocalDateTime,
-    ) = runBlocking {
+    ): Unit = runBlocking {
         val query = "SELECT $1 instant_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -88,6 +94,7 @@ class TestTimestampType {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `decode should return Java LocalDateTime when simple querying postgresql timestamp`(
         localDateTime: java.time.LocalDateTime
@@ -96,6 +103,7 @@ class TestTimestampType {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `decode should return Java LocalDateTime when extended querying postgresql timestamp`(
         localDateTime: java.time.LocalDateTime

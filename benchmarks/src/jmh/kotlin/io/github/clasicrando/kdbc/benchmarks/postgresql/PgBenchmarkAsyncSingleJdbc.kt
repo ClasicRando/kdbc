@@ -45,7 +45,7 @@ open class PgBenchmarkAsyncSingleJdbc {
     }
 
     @Benchmark
-    open fun queryMultipleRows() = runBlocking(Dispatchers.IO) {
+    open fun queryMultipleRows(): Unit = runBlocking(Dispatchers.IO) {
         multiStep()
         connection.prepareStatement(jdbcQuery).use { preparedStatement ->
             preparedStatement.setInt(1, id)
@@ -57,7 +57,7 @@ open class PgBenchmarkAsyncSingleJdbc {
     }
 
     @Benchmark
-    open fun querySingleRow() = runBlocking(Dispatchers.IO) {
+    open fun querySingleRow(): Unit = runBlocking(Dispatchers.IO) {
         singleStep()
         connection.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
             preparedStatement.setInt(1, id)

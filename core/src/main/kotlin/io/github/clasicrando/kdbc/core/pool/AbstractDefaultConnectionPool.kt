@@ -39,7 +39,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
     private val mutex = Mutex()
 
     final override val coroutineContext: CoroutineContext = SupervisorJob(
-        parent = poolOptions.parentScope?.coroutineContext?.job,
+        parent = poolOptions.parentScope.coroutineContext.job,
     )
 
     /**

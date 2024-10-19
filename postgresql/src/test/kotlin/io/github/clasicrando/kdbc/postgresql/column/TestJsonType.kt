@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchScalar
@@ -13,6 +14,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.assertEquals
@@ -23,8 +25,9 @@ class TestJsonType {
     data class JsonType(val number: Double, val text: String)
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `encode should accept PgJson when querying postgresql`(isJsonB: Boolean) = runBlocking {
+    fun `encode should accept PgJson when querying postgresql`(isJsonB: Boolean): Unit = runBlocking {
         val tableName = if (isJsonB) JSONB_TEST_TABLE else JSON_TEST_TABLE
         val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
 
@@ -52,12 +55,14 @@ class TestJsonType {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
     fun `decode should return PgJson when simple querying postgresql json`(value: Boolean): Unit = runBlocking {
         decodeTest(isJsonB = value, isPrepared = false)
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
     fun `decode should return PgJson when extended querying postgresql json`(value: Boolean): Unit = runBlocking {
         decodeTest(isJsonB = value, isPrepared = true)

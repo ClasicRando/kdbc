@@ -1,19 +1,22 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgInet
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import kotlin.test.assertEquals
 
 class TestInetType {
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource(IPV4_ADDRESS_STRING, IPV6_ADDRESS_STRING)
-    fun `encode should accept PgInet when querying postgresql`(inetAddress: String) = runBlocking {
+    fun `encode should accept PgInet when querying postgresql`(inetAddress: String): Unit = runBlocking {
         val inet = PgInet.parse(inetAddress)
         val query = "SELECT $1 inet_col;"
 
@@ -40,12 +43,14 @@ class TestInetType {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource(IPV4_ADDRESS_STRING, IPV6_ADDRESS_STRING)
     fun `decode should return PgInet when simple querying postgresql inet`(inetAddress: String): Unit = runBlocking {
         decodeTest(inetAddress, isPrepared = false)
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource(IPV4_ADDRESS_STRING, IPV6_ADDRESS_STRING)
     fun `decode should return PgInet when extended querying postgresql inet`(inetAddress: String): Unit = runBlocking {
         decodeTest(inetAddress, isPrepared = true)

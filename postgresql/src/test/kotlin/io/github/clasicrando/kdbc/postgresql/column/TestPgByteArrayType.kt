@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
@@ -8,6 +9,7 @@ import io.github.clasicrando.kdbc.postgresql.type.ByteaTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.PgType
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 
 class TestPgByteArrayType {
@@ -53,7 +55,8 @@ class TestPgByteArrayType {
     }
 
     @Test
-    fun `encode should accept ByteArray when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept ByteArray when querying postgresql`(): Unit = runBlocking {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
         val query = "SELECT $1 bytea_col;"
 
@@ -80,11 +83,13 @@ class TestPgByteArrayType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return bytearray when simple querying postgresql bytea`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return bytearray when extended querying postgresql bytea`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }

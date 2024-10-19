@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.executeClosing
 import io.github.clasicrando.kdbc.core.query.fetchScalar
@@ -9,6 +10,7 @@ import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.assertEquals
@@ -16,8 +18,9 @@ import kotlin.test.assertNotNull
 
 class TestMacAddress {
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `encode should accept PgMacAddress when querying postgresql`(isMacAddr8: Boolean) = runBlocking {
+    fun `encode should accept PgMacAddress when querying postgresql`(isMacAddr8: Boolean): Unit = runBlocking {
         val tableName = if (isMacAddr8) MACADDR8_TEST_TABLE else MACADDR_TEST_TABLE
         val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
         val value = if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr()
@@ -50,12 +53,14 @@ class TestMacAddress {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
     fun `decode should return PgMacAddress when simple querying postgresql macaddr`(value: Boolean): Unit = runBlocking {
         decodeTest(isMacAddr8 = value, isPrepared = false)
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
     fun `decode should return PgMacAddress when extended querying postgresql macaddr`(value: Boolean): Unit = runBlocking {
         decodeTest(isMacAddr8 = value, isPrepared = true)

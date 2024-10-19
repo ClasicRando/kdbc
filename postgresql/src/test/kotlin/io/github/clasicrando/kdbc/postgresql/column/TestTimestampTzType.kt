@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
@@ -12,6 +13,7 @@ import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toJavaZoneOffset
+import org.junit.jupiter.api.Timeout
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import kotlin.test.Test
@@ -19,7 +21,8 @@ import kotlin.test.assertEquals
 
 class TestTimestampTzType {
     @Test
-    fun `encode should accept DateTime when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept DateTime when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 datetime_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -44,18 +47,21 @@ class TestTimestampTzType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return DateTime when simple querying postgresql timestamptz`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return DateTime when extended querying postgresql timestamptz`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }
 
 
     @Test
-    fun `encode should accept OffsetDateTime when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept OffsetDateTime when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 datetime_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -86,11 +92,13 @@ class TestTimestampTzType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return OffsetDateTime when simple querying postgresql timestamptz`(): Unit = runBlocking {
         decodeOffsetDateTimeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return OffsetDateTime when extended querying postgresql timestamptz`(): Unit = runBlocking {
         decodeOffsetDateTimeTest(isPrepared = true)
     }

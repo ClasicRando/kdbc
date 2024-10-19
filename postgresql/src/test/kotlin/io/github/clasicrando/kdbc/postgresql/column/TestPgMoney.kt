@@ -1,11 +1,13 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgMoney
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
@@ -15,6 +17,7 @@ import kotlin.test.assertFailsWith
 
 class TestPgMoney {
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(strings = [
         "This is a test",
         "2.63265E+10",
@@ -32,6 +35,7 @@ class TestPgMoney {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(doubles = [22.635, 22.63526])
     fun `PgMoney should fail when double has more than 2 values after the decimal place`(
         dblMoney: Double,
@@ -42,6 +46,7 @@ class TestPgMoney {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource(
         "-$589.25,-58925,-$589.25",
         "$4152.23,415223,$4152.23",
@@ -62,6 +67,7 @@ class TestPgMoney {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource(
         "-589.25,-58925,-$589.25",
         "4152.23,415223,$4152.23",
@@ -82,6 +88,7 @@ class TestPgMoney {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `plus should add 2 PgMoney instances into a new instance`() {
         val value1 = 526.89
         val value2 = 412.58
@@ -94,6 +101,7 @@ class TestPgMoney {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `minus should subtract 2 PgMoney instances into a new instance`() {
         val value1 = 526.89
         val value2 = 412.58
@@ -106,7 +114,8 @@ class TestPgMoney {
     }
 
     @Test
-    fun `encode should accept PgMoney when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept PgMoney when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 money_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -131,11 +140,13 @@ class TestPgMoney {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgMoney when simple querying postgresql money`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgMoney when extended querying postgresql money`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }

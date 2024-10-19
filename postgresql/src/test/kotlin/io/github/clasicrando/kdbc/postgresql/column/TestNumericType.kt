@@ -1,11 +1,13 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test
@@ -13,8 +15,9 @@ import kotlin.test.assertEquals
 
 class TestNumericType {
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(strings = ["2548.52489", "85679", "0.534589"])
-    fun `encode should accept BiDecimal when querying postgresql`(number: String) = runBlocking {
+    fun `encode should accept BiDecimal when querying postgresql`(number: String): Unit = runBlocking {
         val value = BigDecimal.parseString(number)
         val query = "SELECT $1 numeric_col;"
 
@@ -42,18 +45,21 @@ class TestNumericType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return BigDecimal when simple querying postgresql numeric`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return BigDecimal when extended querying postgresql numeric`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(strings = ["2548.52489", "85679", "0.534589"])
-    fun `encode should accept Java BiDecimal when querying postgresql`(number: String) = runBlocking {
+    fun `encode should accept Java BiDecimal when querying postgresql`(number: String): Unit = runBlocking {
         val value = java.math.BigDecimal(number)
         val query = "SELECT $1 jnumeric_col;"
 
@@ -81,11 +87,13 @@ class TestNumericType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java BigDecimal when simple querying postgresql numeric`(): Unit = runBlocking {
         decodeJavaTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java BigDecimal when extended querying postgresql numeric`(): Unit = runBlocking {
         decodeJavaTest(isPrepared = true)
     }

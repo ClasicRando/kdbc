@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
@@ -11,6 +12,7 @@ import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.Test
@@ -18,8 +20,9 @@ import kotlin.test.assertEquals
 
 class TestCharType {
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(bytes = [0, 2, 58, 122])
-    fun `encode should accept Byte when querying postgresql`(value: Byte) = runBlocking {
+    fun `encode should accept Byte when querying postgresql`(value: Byte): Unit = runBlocking {
         val query = "SELECT $1 char_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -50,11 +53,13 @@ class TestCharType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Byte when simple querying postgresql char`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Byte when extended querying postgresql char`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }

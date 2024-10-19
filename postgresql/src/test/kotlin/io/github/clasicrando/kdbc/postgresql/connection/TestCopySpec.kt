@@ -45,7 +45,7 @@ class TestCopySpec {
     }
 
     @Test
-    fun `copyIn should copy all rows from file`() = runBlocking {
+    fun `copyIn should copy all rows from file`(): Unit = runBlocking {
         val testFilePath = createTempCsvForCopy(rowCount = ROW_COUNT)
         try {
             pool.useConnection {
@@ -72,7 +72,7 @@ class TestCopySpec {
     }
 
     @Test
-    fun `copyIn should copy all PgCsvRow values as csv`() = runBlocking {
+    fun `copyIn should copy all PgCsvRow values as csv`(): Unit = runBlocking {
         pool.useConnection {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement.TableFromCsv(
@@ -93,7 +93,7 @@ class TestCopySpec {
     }
 
     @Test
-    fun `copyIn should copy all PgCsvRow values as binary`() = runBlocking {
+    fun `copyIn should copy all PgCsvRow values as binary`(): Unit = runBlocking {
         pool.useConnection {
             it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
             val copyInStatement = CopyStatement.TableFromBinary(
@@ -239,7 +239,7 @@ class TestCopySpec {
         
         @JvmStatic
         @AfterAll
-        fun tearDown(): Unit = runBlocking { 
+        fun tearDown(): Unit = runBlocking {
             pool.close()
         }
     }

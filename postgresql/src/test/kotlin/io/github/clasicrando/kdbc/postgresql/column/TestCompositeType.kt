@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
@@ -15,6 +16,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 import kotlin.test.Test
@@ -53,7 +55,8 @@ class TestCompositeType {
     }
 
     @Test
-    fun `encode should accept CompositeTest when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept CompositeTest when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 composite_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -66,7 +69,8 @@ class TestCompositeType {
     }
 
     @Test
-    fun `encode should accept CompositeTable when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept CompositeTable when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 composite_table;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -79,7 +83,8 @@ class TestCompositeType {
     }
 
     @Test
-    fun `encode should accept CompositeDef when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept CompositeDef when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 composite_def;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -106,11 +111,13 @@ class TestCompositeType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeType when simple querying postgresql composite`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeType when extended querying postgresql composite`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }
@@ -130,11 +137,13 @@ class TestCompositeType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeTable when simple querying postgresql composite`(): Unit = runBlocking {
         decodeTableTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeTable when extended querying postgresql composite`(): Unit = runBlocking {
         decodeTableTest(isPrepared = true)
     }
@@ -154,12 +163,14 @@ class TestCompositeType {
     }
 
     @Test
-    fun `decode should return CompositeDef when simple querying postgresql composite`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `decode should return CompositeDef when simple querying postgresql composite`(): Unit = runBlocking {
         decodeDefTest(isPrepared = false)
     }
 
     @Test
-    fun `decode should return CompositeDef when extended querying postgresql composite`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `decode should return CompositeDef when extended querying postgresql composite`(): Unit = runBlocking {
         decodeDefTest(isPrepared = true)
     }
 

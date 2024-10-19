@@ -4,7 +4,6 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.runKdbcTest
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.Bound
@@ -22,6 +21,7 @@ import io.github.clasicrando.kdbc.postgresql.type.toDateRange
 import io.github.clasicrando.kdbc.postgresql.type.toIntRange
 import io.github.clasicrando.kdbc.postgresql.type.toJDateRange
 import io.github.clasicrando.kdbc.postgresql.type.toLongRange
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -36,7 +36,7 @@ import kotlin.test.assertEquals
 class TestRange {
     @ParameterizedTest
     @MethodSource("int4RangeValues")
-    fun `encode should accept Int4Range when querying postgresql`(pair: Pair<String, Int4Range>) = runKdbcTest {
+    fun `encode should accept Int4Range when querying postgresql`(pair: Pair<String, Int4Range>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 int4range_col;"
 
@@ -63,21 +63,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("int4RangeValues")
-    fun `decode should return Int4Range when simple querying postgresql range`(pair: Pair<String, Int4Range>): Unit = runKdbcTest {
+    fun `decode should return Int4Range when simple querying postgresql range`(pair: Pair<String, Int4Range>): Unit = runBlocking {
         val (typeName, range) = pair
         int4RangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("int4RangeValues")
-    fun `decode should return Int4Range when extended querying postgresql range`(pair: Pair<String, Int4Range>): Unit = runKdbcTest {
+    fun `decode should return Int4Range when extended querying postgresql range`(pair: Pair<String, Int4Range>): Unit = runBlocking {
         val (typeName, range) = pair
         int4RangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("int8rangeValues")
-    fun `encode should accept Int8Range when querying postgresql`(pair: Pair<String, Int8Range>) = runKdbcTest {
+    fun `encode should accept Int8Range when querying postgresql`(pair: Pair<String, Int8Range>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 int8range_col;"
 
@@ -104,21 +104,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("int8rangeValues")
-    fun `decode should return Int8Range when simple querying postgresql range`(pair: Pair<String, Int8Range>): Unit = runKdbcTest {
+    fun `decode should return Int8Range when simple querying postgresql range`(pair: Pair<String, Int8Range>): Unit = runBlocking {
         val (typeName, range) = pair
         int8RangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("int8rangeValues")
-    fun `decode should return Int8Range when extended querying postgresql range`(pair: Pair<String, Int8Range>): Unit = runKdbcTest {
+    fun `decode should return Int8Range when extended querying postgresql range`(pair: Pair<String, Int8Range>): Unit = runBlocking {
         val (typeName, range) = pair
         int8RangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("numrangeValues")
-    fun `encode should accept NumRange when querying postgresql`(pair: Pair<String, NumRange>) = runKdbcTest {
+    fun `encode should accept NumRange when querying postgresql`(pair: Pair<String, NumRange>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 numrange_col;"
 
@@ -145,21 +145,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("numrangeValues")
-    fun `decode should return NumRange when simple querying postgresql range`(pair: Pair<String, NumRange>): Unit = runKdbcTest {
+    fun `decode should return NumRange when simple querying postgresql range`(pair: Pair<String, NumRange>): Unit = runBlocking {
         val (typeName, range) = pair
         numRangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("numrangeValues")
-    fun `decode should return NumRange when extended querying postgresql range`(pair: Pair<String, NumRange>): Unit = runKdbcTest {
+    fun `decode should return NumRange when extended querying postgresql range`(pair: Pair<String, NumRange>): Unit = runBlocking {
         val (typeName, range) = pair
         numRangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("jNumrangeValues")
-    fun `encode should accept JNumRange when querying postgresql`(pair: Pair<String, JNumRange>) = runKdbcTest {
+    fun `encode should accept JNumRange when querying postgresql`(pair: Pair<String, JNumRange>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 jnumrange_col;"
 
@@ -186,21 +186,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("jNumrangeValues")
-    fun `decode should return JNumRange when simple querying postgresql range`(pair: Pair<String, JNumRange>): Unit = runKdbcTest {
+    fun `decode should return JNumRange when simple querying postgresql range`(pair: Pair<String, JNumRange>): Unit = runBlocking {
         val (typeName, range) = pair
         jNumRangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("jNumrangeValues")
-    fun `decode should return JNumRange when extended querying postgresql range`(pair: Pair<String, JNumRange>): Unit = runKdbcTest {
+    fun `decode should return JNumRange when extended querying postgresql range`(pair: Pair<String, JNumRange>): Unit = runBlocking {
         val (typeName, range) = pair
         jNumRangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("tsrangeValues")
-    fun `encode should accept TsRange when querying postgresql`(pair: Pair<String, TsRange>) = runKdbcTest {
+    fun `encode should accept TsRange when querying postgresql`(pair: Pair<String, TsRange>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 tsrange_col;"
 
@@ -227,21 +227,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("tsrangeValues")
-    fun `decode should return TsRange when simple querying postgresql range`(pair: Pair<String, TsRange>): Unit = runKdbcTest {
+    fun `decode should return TsRange when simple querying postgresql range`(pair: Pair<String, TsRange>): Unit = runBlocking {
         val (typeName, range) = pair
         tsRangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("tsrangeValues")
-    fun `decode should return TsRange when extended querying postgresql range`(pair: Pair<String, TsRange>): Unit = runKdbcTest {
+    fun `decode should return TsRange when extended querying postgresql range`(pair: Pair<String, TsRange>): Unit = runBlocking {
         val (typeName, range) = pair
         tsRangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("jTsrangeValues")
-    fun `encode should accept JTsRange when querying postgresql`(pair: Pair<String, JTsRange>) = runKdbcTest {
+    fun `encode should accept JTsRange when querying postgresql`(pair: Pair<String, JTsRange>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 jtsrange_col;"
 
@@ -268,21 +268,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("jTsrangeValues")
-    fun `decode should return JTsRange when simple querying postgresql range`(pair: Pair<String, JTsRange>): Unit = runKdbcTest {
+    fun `decode should return JTsRange when simple querying postgresql range`(pair: Pair<String, JTsRange>): Unit = runBlocking {
         val (typeName, range) = pair
         jTsRangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("jTsrangeValues")
-    fun `decode should return JTsRange when extended querying postgresql range`(pair: Pair<String, JTsRange>): Unit = runKdbcTest {
+    fun `decode should return JTsRange when extended querying postgresql range`(pair: Pair<String, JTsRange>): Unit = runBlocking {
         val (typeName, range) = pair
         jTsRangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("tstzrangeValues")
-    fun `encode should accept TsTzRange when querying postgresql`(pair: Pair<String, TsTzRange>) = runKdbcTest {
+    fun `encode should accept TsTzRange when querying postgresql`(pair: Pair<String, TsTzRange>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 tstzrange_col;"
 
@@ -309,21 +309,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("tstzrangeValues")
-    fun `decode should return TsTzRange when simple querying postgresql range`(pair: Pair<String, TsTzRange>): Unit = runKdbcTest {
+    fun `decode should return TsTzRange when simple querying postgresql range`(pair: Pair<String, TsTzRange>): Unit = runBlocking {
         val (typeName, range) = pair
         tstzRangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("tstzrangeValues")
-    fun `decode should return TsTzRange when extended querying postgresql range`(pair: Pair<String, TsTzRange>): Unit = runKdbcTest {
+    fun `decode should return TsTzRange when extended querying postgresql range`(pair: Pair<String, TsTzRange>): Unit = runBlocking {
         val (typeName, range) = pair
         tstzRangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("jTstzrangeValues")
-    fun `encode should accept JTsTzRange when querying postgresql`(pair: Pair<String, JTsTzRange>) = runKdbcTest {
+    fun `encode should accept JTsTzRange when querying postgresql`(pair: Pair<String, JTsTzRange>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 jtstzrange_col;"
 
@@ -350,21 +350,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("jTstzrangeValues")
-    fun `decode should return JTsTzRange when simple querying postgresql range`(pair: Pair<String, JTsTzRange>): Unit = runKdbcTest {
+    fun `decode should return JTsTzRange when simple querying postgresql range`(pair: Pair<String, JTsTzRange>): Unit = runBlocking {
         val (typeName, range) = pair
         jTstzRangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("jTstzrangeValues")
-    fun `decode should return JTsTzRange when extended querying postgresql range`(pair: Pair<String, JTsTzRange>): Unit = runKdbcTest {
+    fun `decode should return JTsTzRange when extended querying postgresql range`(pair: Pair<String, JTsTzRange>): Unit = runBlocking {
         val (typeName, range) = pair
         jTstzRangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("daterangeValues")
-    fun `encode should accept DateRange when querying postgresql`(pair: Pair<String, DateRange>) = runKdbcTest {
+    fun `encode should accept DateRange when querying postgresql`(pair: Pair<String, DateRange>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 daterange_col;"
 
@@ -391,21 +391,21 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("daterangeValues")
-    fun `decode should return DateRange when simple querying postgresql range`(pair: Pair<String, DateRange>): Unit = runKdbcTest {
+    fun `decode should return DateRange when simple querying postgresql range`(pair: Pair<String, DateRange>): Unit = runBlocking {
         val (typeName, range) = pair
         dateRangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("daterangeValues")
-    fun `decode should return DateRange when extended querying postgresql range`(pair: Pair<String, DateRange>): Unit = runKdbcTest {
+    fun `decode should return DateRange when extended querying postgresql range`(pair: Pair<String, DateRange>): Unit = runBlocking {
         val (typeName, range) = pair
         dateRangeDecodeTest(isPrepared = true, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("jDaterangeValues")
-    fun `encode should accept JDateRange when querying postgresql`(pair: Pair<String, JDateRange>) = runKdbcTest {
+    fun `encode should accept JDateRange when querying postgresql`(pair: Pair<String, JDateRange>): Unit = runBlocking {
         val (_, value) = pair
         val query = "SELECT $1 jdaterange_col;"
 
@@ -432,14 +432,14 @@ class TestRange {
 
     @ParameterizedTest
     @MethodSource("jDaterangeValues")
-    fun `decode should return JDateRange when simple querying postgresql range`(pair: Pair<String, JDateRange>): Unit = runKdbcTest {
+    fun `decode should return JDateRange when simple querying postgresql range`(pair: Pair<String, JDateRange>): Unit = runBlocking {
         val (typeName, range) = pair
         jDateRangeDecodeTest(isPrepared = false, value = range, typeName)
     }
 
     @ParameterizedTest
     @MethodSource("jDaterangeValues")
-    fun `decode should return JDateRange when extended querying postgresql range`(pair: Pair<String, JDateRange>): Unit = runKdbcTest {
+    fun `decode should return JDateRange when extended querying postgresql range`(pair: Pair<String, JDateRange>): Unit = runBlocking {
         val (typeName, range) = pair
         jDateRangeDecodeTest(isPrepared = true, value = range, typeName)
     }

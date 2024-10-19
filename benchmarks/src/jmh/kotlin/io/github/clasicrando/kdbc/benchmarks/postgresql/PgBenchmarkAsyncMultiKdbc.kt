@@ -55,7 +55,7 @@ open class PgBenchmarkAsyncMultiKdbc {
     }
 
     @Benchmark
-    open fun querySingleRow() = runBlocking {
+    open fun querySingleRow(): Unit = runBlocking {
         val results = List(concurrencyLimit) {
             val stepId = step()
             async { executeQuery(stepId) }

@@ -1,17 +1,20 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.uuid.Uuid
 
 class TestUuidType {
     @Test
-    fun `encode should accept Uuid when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept Uuid when querying postgresql`(): Unit = runBlocking {
         val uuid = Uuid.random()
         val query = "SELECT $1 uuid_col;"
 
@@ -38,18 +41,21 @@ class TestUuidType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Uuid when simple querying postgresql uuid`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Uuid when extended querying postgresql uuid`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }
 
 
     @Test
-    fun `encode should accept Java Uuid when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept Java Uuid when querying postgresql`(): Unit = runBlocking {
         val uuid = java.util.UUID.randomUUID()
         val query = "SELECT $1 uuid_col;"
 
@@ -76,11 +82,13 @@ class TestUuidType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java Uuid when simple querying postgresql uuid`(): Unit = runBlocking {
         decodeJavaTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java Uuid when extended querying postgresql uuid`(): Unit = runBlocking {
         decodeJavaTest(isPrepared = true)
     }

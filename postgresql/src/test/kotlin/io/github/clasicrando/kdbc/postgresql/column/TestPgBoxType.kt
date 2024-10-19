@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -9,12 +10,14 @@ import io.github.clasicrando.kdbc.postgresql.type.PgBox
 import io.github.clasicrando.kdbc.postgresql.type.PgPoint
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestPgBoxType {
     @Test
-    fun `encode should accept PgBox when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept PgBox when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 box_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -39,11 +42,13 @@ class TestPgBoxType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgBox when simple querying postgresql box`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgBox when extended querying postgresql box`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }

@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
@@ -7,12 +8,14 @@ import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.toJavaLocalTime
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestTimeType {
     @Test
-    fun `encode should accept LocalTime when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept LocalTime when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 local_time_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -37,17 +40,20 @@ class TestTimeType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return LocalTime when simple querying postgresql time`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return LocalTime when extended querying postgresql time`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }
 
     @Test
-    fun `encode should accept Java LocalTime when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept Java LocalTime when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 local_time_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -72,11 +78,13 @@ class TestTimeType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java LocalTime when simple querying postgresql time`(): Unit = runBlocking {
         decodeJavaTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java LocalTime when extended querying postgresql time`(): Unit = runBlocking {
         decodeJavaTest(isPrepared = true)
     }

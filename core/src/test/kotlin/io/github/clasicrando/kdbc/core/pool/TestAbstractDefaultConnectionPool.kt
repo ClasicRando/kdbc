@@ -8,7 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlin.uuid.Uuid
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -19,9 +19,13 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlin.uuid.Uuid
+
+const val TEST_TIMEOUT = 60L
 
 class TestAbstractDefaultConnectionPool {
     @ParameterizedTest
+    @Timeout(value = TEST_TIMEOUT)
     @ValueSource(ints = [0, 1])
     fun `acquire should return connection`(minConnections: Int): Unit = runBlocking {
         val factory = mockk<ConnectionProvider<Connection>>()
@@ -46,6 +50,7 @@ class TestAbstractDefaultConnectionPool {
     }
 
     @Test
+    @Timeout(value = TEST_TIMEOUT)
     fun `acquire should return connection after suspending when pool exhausted`(): Unit = runBlocking {
         val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
@@ -75,6 +80,7 @@ class TestAbstractDefaultConnectionPool {
     }
 
     @Test
+    @Timeout(value = TEST_TIMEOUT)
     fun `acquire should throw cancellation exception when acquire duration exceeded`(): Unit = runBlocking {
         val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
@@ -98,6 +104,7 @@ class TestAbstractDefaultConnectionPool {
     }
 
     @Test
+    @Timeout(value = TEST_TIMEOUT)
     fun `giveBack should return connection to pool when returned connection is valid`(): Unit = runBlocking {
         val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
@@ -127,6 +134,7 @@ class TestAbstractDefaultConnectionPool {
     }
 
     @Test
+    @Timeout(value = TEST_TIMEOUT)
     fun `initialize should return false when first connection is invalid`(): Unit = runBlocking {
         val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns false
@@ -151,6 +159,7 @@ class TestAbstractDefaultConnectionPool {
     }
 
     @Test
+    @Timeout(value = TEST_TIMEOUT)
     fun `initialize should return true when first connection is valid`(): Unit = runBlocking {
         val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true
@@ -175,6 +184,7 @@ class TestAbstractDefaultConnectionPool {
     }
 
     @Test
+    @Timeout(value = TEST_TIMEOUT)
     fun `initialize return false when create throws`(): Unit = runBlocking {
         val factory = mockk<ConnectionProvider<Connection>>()
         coEvery { factory.validate(any()) } returns true

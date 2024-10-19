@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -9,14 +10,16 @@ import io.github.clasicrando.kdbc.postgresql.type.PgPath
 import io.github.clasicrando.kdbc.postgresql.type.PgPoint
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.assertEquals
 
 class TestPgPathType {
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `encode should accept PgPath when querying postgresql`(isClosed: Boolean) = runBlocking {
+    fun `encode should accept PgPath when querying postgresql`(isClosed: Boolean): Unit = runBlocking {
         val value = getPath(isClosed)
         val query = "SELECT $1 path_col;"
 
@@ -43,12 +46,14 @@ class TestPgPathType {
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
     fun `decode should return PgPath when simple querying postgresql path`(isClosed: Boolean): Unit = runBlocking {
         decodeTest(isClosed = isClosed, isPrepared = false)
     }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
     fun `decode should return PgPath when extended querying postgresql path`(isClosed: Boolean): Unit = runBlocking {
         decodeTest(isClosed = isClosed, isPrepared = true)

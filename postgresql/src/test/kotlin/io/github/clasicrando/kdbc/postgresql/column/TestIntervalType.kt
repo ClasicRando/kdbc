@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
@@ -7,12 +8,14 @@ import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgInterval
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.DateTimePeriod
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestIntervalType {
     @Test
-    fun `encode should accept DateTimePeriod when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept DateTimePeriod when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 interval_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -37,17 +40,20 @@ class TestIntervalType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return DateTimePeriod when simple querying postgresql interval`(): Unit = runBlocking {
         decodeTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return DateTimePeriod when extended querying postgresql interval`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }
 
     @Test
-    fun `encode should accept PgInterval when querying postgresql`() = runBlocking {
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept PgInterval when querying postgresql`(): Unit = runBlocking {
         val query = "SELECT $1 interval_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
@@ -72,11 +78,13 @@ class TestIntervalType {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgInterval when simple querying postgresql interval`(): Unit = runBlocking {
         decodePgIntervalTest(isPrepared = false)
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgInterval when extended querying postgresql interval`(): Unit = runBlocking {
         decodePgIntervalTest(isPrepared = true)
     }
