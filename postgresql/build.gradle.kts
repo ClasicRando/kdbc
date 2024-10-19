@@ -15,7 +15,7 @@ dependencies {
     // https://mvnrepository.com/artifact/com.github.doyaaaaaken/kotlin-csv
     implementation("com.github.doyaaaaaken:kotlin-csv:$kotlinCsvVersion")
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
 }
 
 tasks.test {

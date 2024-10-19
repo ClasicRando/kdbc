@@ -28,3 +28,28 @@ internal object UuidTypeDescription : PgTypeDescription<Uuid>(
         return Uuid.parse(value.text)
     }
 }
+
+/**
+ * Implementation of a [PgTypeDescription] for the [java.util.UUID] type. This maps to the `uuid`
+ * type in a postgresql database.
+ */
+internal object JUuidTypeDescription : PgTypeDescription<java.util.UUID>(
+    dbType = PgType.Uuid,
+    kType = typeOf<java.util.UUID>(),
+) {
+    /** Simply writes the bytes of the [Uuid] into the argument buffer */
+    override fun encode(value: java.util.UUID, buffer: ByteWriteBuffer) {
+        buffer.writeLong(value.mostSignificantBits)
+        buffer.writeLong(value.leastSignificantBits)
+    }
+
+    /** Read all bytes and pass to the [Uuid] constructor */
+    override fun decodeBytes(value: PgValue.Binary): java.util.UUID {
+        return java.util.UUID.nameUUIDFromBytes(value.bytes.readBytes())
+    }
+
+    /** Pass the [String] value to the [Uuid] for parsing into a [Uuid] instance */
+    override fun decodeText(value: PgValue.Text): java.util.UUID {
+        return java.util.UUID.fromString(value.text)
+    }
+}

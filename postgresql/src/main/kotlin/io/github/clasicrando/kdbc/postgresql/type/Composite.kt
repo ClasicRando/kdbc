@@ -11,7 +11,6 @@ import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
-import kotlin.reflect.full.createType
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
@@ -30,14 +29,15 @@ interface CompositeTypeDefinition<T : Any> : RowParser<T> {
 
 /**
  * Implementation of a [PgTypeDescription] for composite types. This requires the composite type's
- * name, the column mapping and a strategy to decode the composite's attributes from a [PgDataRow].
+ * [CompositeTypeDefinition], OID, attribute mapping, link connection's type cache and type of [T].
  */
-internal abstract class BaseCompositeTypeDescription<T : Any>(
+internal class BaseCompositeTypeDescription<T : Any>(
+    private val compositeTypeDefinition: CompositeTypeDefinition<T>,
     typeOid: Int,
-    protected val columnMapping: List<PgColumnDescription>,
-    protected val customTypeDescriptionCache: PgTypeCache,
+    private val attributeMapping: List<PgColumnDescription>,
+    private val typeCache: PgTypeCache,
     kType: KType,
-) : CompositeTypeDefinition<T>, PgTypeDescription<T>(
+) : PgTypeDescription<T>(
     dbType = PgType.ByOid(oid = typeOid),
     kType = kType,
 ) {
@@ -53,19 +53,19 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
      *
      * @throws IllegalStateException if the number of
      */
-    final override fun encode(value: T, buffer: ByteWriteBuffer) {
-        val values = extractValues(value)
-        check(values.size == columnMapping.size) {
+    override fun encode(value: T, buffer: ByteWriteBuffer) {
+        val values = compositeTypeDefinition.extractValues(value)
+        check(values.size == attributeMapping.size) {
             "Values found for composite class instance does not match the expected number. " +
-                    "Expected ${columnMapping.size}, found ${values.size}"
+                    "Expected ${attributeMapping.size}, found ${values.size}"
         }
         val encodeBuffer = PgEncodeBuffer(
-            parameterTypeOids = columnMapping.map { it.pgType.oid },
-            typeCache = customTypeDescriptionCache,
+            parameterTypeOids = attributeMapping.map { it.pgType.oid },
+            typeCache = typeCache,
         )
-        buffer.writeInt(columnMapping.size)
-        for (i in columnMapping.indices) {
-            val column = columnMapping[i]
+        buffer.writeInt(attributeMapping.size)
+        for (i in attributeMapping.indices) {
+            val column = attributeMapping[i]
             buffer.writeInt(column.pgType.oid)
             val (attribute, kType) = values[i]
             encodeBuffer.encodeValue(attribute, kType)
@@ -74,17 +74,17 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
     }
 
     /**
-     * Pipe the [attributes] to the [fromRow] method implemented by all composite type definitions.
-     * If any exception is thrown, it will be converted to a
+     * Pipe the [attributes] to the [CompositeTypeDefinition.fromRow] method implemented by all
+     * composite type definitions. If any exception is thrown, it will be converted to a
      * [io.github.clasicrando.kdbc.core.column.ColumnDecodeError] with the original exceptions
      * message included.
      *
-     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [fromRow] method
-     * throws an exception
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the
+     * [CompositeTypeDefinition.fromRow] method throws an exception
      */
     private fun decodeAsDataRow(attributes: PgDataRow, typeData: PgColumnDescription): T {
         return try {
-            fromRow(attributes)
+            compositeTypeDefinition.fromRow(attributes)
         } catch (ex: Exception) {
             columnDecodeError(
                 kType = kType,
@@ -111,10 +111,10 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L688)
      *
-     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if parsing in [fromRow]
-     * fails
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if parsing in
+     * [CompositeTypeDefinition.fromRow] fails
      */
-    final override fun decodeBytes(value: PgValue.Binary): T {
+    override fun decodeBytes(value: PgValue.Binary): T {
         val length = value.bytes.readInt()
         val attributes = Array<PgValue?>(length) {
             value.bytes.readInt()
@@ -124,13 +124,13 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
                 return@Array null
             }
             val slice = value.bytes.slice(attributeLength)
-            PgValue.Binary(slice, columnMapping[it])
+            PgValue.Binary(slice, attributeMapping[it])
         }
         val dataRow = PgDataRow(
             rowBuffer = value.bytes,
             pgValues = attributes,
-            columnMapping = columnMapping,
-            typeCache = customTypeDescriptionCache,
+            columnMapping = attributeMapping,
+            typeCache = typeCache,
         )
         return decodeAsDataRow(dataRow, value.typeData)
     }
@@ -142,24 +142,24 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L330)
      *
-     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if parsing in [fromRow]
-     * fails
+     * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if parsing in
+     * [CompositeTypeDefinition.fromRow] fails
      */
-    final override fun decodeText(value: PgValue.Text): T {
+    override fun decodeText(value: PgValue.Text): T {
         val attributes = PgCompositeLiteralParser
             .parse(value.text)
             .withIndex()
             .map { (i, value) ->
                 val text = value ?: return@map null
-                PgValue.Text(text, columnMapping[i])
+                PgValue.Text(text, attributeMapping[i])
             }
             .toList()
             .toTypedArray<PgValue?>()
         val dataRow = PgDataRow(
             rowBuffer = null,
             pgValues = attributes,
-            columnMapping = columnMapping,
-            typeCache = customTypeDescriptionCache,
+            columnMapping = attributeMapping,
+            typeCache = typeCache,
         )
         return decodeAsDataRow(dataRow, value.typeData)
     }
@@ -174,16 +174,8 @@ internal abstract class BaseCompositeTypeDescription<T : Any>(
  * type's attributes matching the expected data class properties) are up to the class definer.
  */
 internal class ReflectionCompositeTypeDescription<T : Any>(
-    typeOid: Int,
-    columnMapping: List<PgColumnDescription>,
-    customTypeDescriptionCache: PgTypeCache,
     cls: KClass<T>,
-) : BaseCompositeTypeDescription<T>(
-    typeOid = typeOid,
-    columnMapping = columnMapping,
-    customTypeDescriptionCache = customTypeDescriptionCache,
-    kType = cls.createType(),
-) {
+) : CompositeTypeDefinition<T> {
     init {
         require(cls.isData) { "Only data classes are allowed to represent composite types" }
     }
@@ -201,11 +193,6 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
                 ?: param.name!!
             name to param.type
         }
-    init {
-        require(columnMapping.size == constructorParameterNames.size) {
-            "Declared composite data class does not match the number of expected attributes"
-        }
-    }
 
     override fun extractValues(value: T): List<Pair<Any?, KType>> {
         return properties.map { it.call(value) to it.returnType }
@@ -219,10 +206,3 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
         return primaryConstructor.call(*args)
     }
 }
-
-/** Implementation of an [ArrayTypeDescription] for composite types */
-internal class CompositeArrayTypeDescription<T : Any>(
-    pgType: PgType,
-    innerType: BaseCompositeTypeDescription<T>,
-    innerNullable: Boolean,
-) : ArrayTypeDescription<T>(pgType = pgType, innerType = innerType, innerNullable = innerNullable)

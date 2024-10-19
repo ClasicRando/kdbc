@@ -59,8 +59,8 @@ subprojects {
         implementation(kotlin("stdlib", version = kotlinVersion))
         implementation(kotlin("reflect", version = kotlinVersion))
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
-        api("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDateTimeVersion")
-        api("com.ionspin.kotlin:bignum:$bigNumVersion")
+        implementation("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDateTimeVersion")
+        implementation("com.ionspin.kotlin:bignum:$bigNumVersion")
 
         testImplementation(kotlin("test", version = kotlinVersion))
         testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")

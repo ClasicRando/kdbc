@@ -191,8 +191,8 @@ fun extractPostDataClassListFromResultSet(resultSet: ResultSet): List<PostDataCl
         val item = PostDataClass(
             resultSet.getInt(1),
             resultSet.getString(2),
-            resultSet.getTimestamp(3).toInstant().toKotlinInstant(),
-            resultSet.getTimestamp(4).toInstant().toKotlinInstant(),
+            resultSet.getObject(3, java.time.LocalDateTime::class.java),
+            resultSet.getObject(4, java.time.LocalDateTime::class.java),
             resultSet.getInt(5),
             resultSet.getInt(6),
             resultSet.getInt(7),

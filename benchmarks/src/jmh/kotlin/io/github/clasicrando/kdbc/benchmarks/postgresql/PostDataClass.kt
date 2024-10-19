@@ -1,12 +1,10 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
-import kotlinx.datetime.Instant
-
 data class PostDataClass(
     val id: Int,
     val text: String,
-    val creationDate: Instant,
-    val lastChangeDate: Instant,
+    val creationDate: java.time.LocalDateTime,
+    val lastChangeDate: java.time.LocalDateTime,
     val counter1: Int?,
     val counter2: Int?,
     val counter3: Int?,

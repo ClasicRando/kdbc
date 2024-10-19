@@ -80,8 +80,7 @@ internal sealed class PgNumeric {
     /**
      * !!Disclaimer!!
      * This code is taken mostly as-is from the postgres jdbc driver (with some modifications
-     * during the conversion to kotlin code). I hope to find a better cross-platform solution
-     * to remove this java dependency.
+     * during the conversion to kotlin code).
      *
      * [pgjdbc code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L124)
      */
@@ -309,12 +308,251 @@ internal sealed class PgNumeric {
         return unscaledBI.toBigDecimalWithTraditionalScale(scale = number.scale)
     }
 
+    /**
+     * !!Disclaimer!!
+     * This code is taken mostly as-is from the postgres jdbc driver (with some modifications
+     * during the conversion to kotlin code). I hope to find a better cross-platform solution
+     * to remove this java dependency.
+     *
+     * [pgjdbc code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L124)
+     */
+    internal fun toJBigDecimal(): java.math.BigDecimal {
+        val number = when (this) {
+            NAN -> error("BigDecimal does not support Nan values")
+            is Number -> this
+        }
+
+        //0 based number of 4 decimal digits (i.e. 2-byte shorts) before the decimal
+        //a value <= 0 indicates an absolute value < 1.
+        var weight: Short = number.weight
+
+        require((scale.toInt() and NUMERIC_DSCALE_MASK) == scale.toInt()) { "invalid scale in \"numeric\" value" }
+
+        if (number.digits.isEmpty()) {
+            return java.math.BigDecimal(java.math.BigInteger.ZERO, scale.toInt())
+        }
+
+        var idx = 0
+
+        var d: Short = number.digits[idx]
+
+        //if the absolute value is (0, 1), then leading '0' values
+        //do not matter for the unscaledInt, but trailing 0s do
+        if (weight < 0) {
+            assert(scale > 0)
+            var effectiveScale = scale.toInt()
+            //adjust weight to determine how many leading 0s after the decimal
+            //before the provided values/digits actually begin
+            ++weight
+            if (weight < 0) {
+                effectiveScale += 4 * weight
+            }
+
+            var i = 1
+            //typically there should not be leading 0 short values, as it is more
+            //efficient to represent that in the weight value
+            while (i < number.digits.size && d.toInt() == 0) {
+                //each leading 0 value removes 4 from the effective scale
+                effectiveScale -= 4
+                idx++
+                d = number.digits[idx]
+                i++
+            }
+
+            assert(effectiveScale > 0)
+            if (effectiveScale >= 4) {
+                effectiveScale -= 4
+            } else {
+                //an effective scale of less than four means that the value d
+                //has trailing 0s which are not significant
+                //so we divide by the appropriate power of 10 to reduce those
+                d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
+                effectiveScale = 0
+            }
+            //defer moving to BigInteger as long as possible
+            //operations on the long are much faster
+            var unscaledBI: java.math.BigInteger? = null
+            var unscaledInt = d.toLong()
+            while (i < number.digits.size) {
+                if (i == 4 && effectiveScale > 2) {
+                    unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
+                }
+                idx++
+                d = number.digits[idx]
+                //if effective scale is at least 4, then all 4 digits should be used
+                //and the existing number needs to be shifted 4
+                if (effectiveScale >= 4) {
+                    if (unscaledBI == null) {
+                        unscaledInt *= 10000
+                    } else {
+                        unscaledBI = unscaledBI.multiply(J_BI_TEN_THOUSAND)
+                    }
+                    effectiveScale -= 4
+                } else {
+                    //if effective scale is less than 4, then only shift left based on remaining scale
+                    if (unscaledBI == null) {
+                        unscaledInt *= INT_TEN_POWERS[effectiveScale]
+                    } else {
+                        unscaledBI = unscaledBI.multiply(jTenPower(effectiveScale))
+                    }
+                    //and d needs to be shifted to the right to only get correct number of
+                    //significant digits
+                    d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
+                    effectiveScale = 0
+                }
+                if (unscaledBI == null) {
+                    unscaledInt += d.toLong()
+                } else {
+                    if (d.toInt() != 0) {
+                        unscaledBI = unscaledBI.add(java.math.BigInteger.valueOf(d.toLong()))
+                    }
+                }
+                i++
+            }
+            //now we need BigInteger to create BigDecimal
+            if (unscaledBI == null) {
+                unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
+            }
+            //if there is remaining effective scale, apply it here
+            if (effectiveScale > 0) {
+                unscaledBI = unscaledBI!!.multiply(jTenPower(effectiveScale))
+            }
+            if (sign == SIGN_NEGATIVE) {
+                unscaledBI = unscaledBI!!.negate()
+            }
+
+            return java.math.BigDecimal(unscaledBI, scale.toInt())
+        }
+
+        //if there is no scale, then shorts are the unscaled int
+        if (scale.toInt() == 0) {
+            //defer moving to BigInteger as long as possible
+            //operations on the long are much faster
+            var unscaledBI: java.math.BigInteger? = null
+            var unscaledInt = d.toLong()
+            //loop over all of the len shorts to process as the unscaled int
+            for (i in 1..<number.digits.size) {
+                if (i == 4) {
+                    unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
+                }
+                idx++
+                d = number.digits[idx]
+                if (unscaledBI == null) {
+                    unscaledInt *= 10000
+                    unscaledInt += d.toLong()
+                } else {
+                    unscaledBI = unscaledBI.multiply(J_BI_TEN_THOUSAND)
+                    if (d.toInt() != 0) {
+                        unscaledBI = unscaledBI.add(java.math.BigInteger.valueOf(d.toLong()))
+                    }
+                }
+            }
+            //now we need BigInteger to create BigDecimal
+            if (unscaledBI == null) {
+                unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
+            }
+            if (sign == SIGN_NEGATIVE) {
+                unscaledBI = unscaledBI!!.negate()
+            }
+            //the difference between len and weight (adjusted from 0 based) becomes the scale for BigDecimal
+            val bigDecScale = (number.digits.size - (weight + 1)) * 4
+            //string representation always results in a BigDecimal with scale of 0
+            //the binary representation, where weight and len can infer trailing 0s, can result in a negative scale
+            //to produce a consistent BigDecimal, we return the equivalent object with scale set to 0
+            return if (bigDecScale == 0) {
+                java.math.BigDecimal(unscaledBI)
+            } else {
+                java.math.BigDecimal(
+                    unscaledBI,
+                    bigDecScale
+                ).setScale(0)
+            }
+        }
+
+        //defer moving to BigInteger as long as possible
+        //operations on the long are much faster
+        var unscaledBI: java.math.BigInteger? = null
+        var unscaledInt = d.toLong()
+        //weight and scale as defined by postgresql are a bit different than how BigDecimal treats scale
+        //maintain the effective values to massage as we process through values
+        var effectiveWeight = weight.toInt()
+        var effectiveScale = scale.toInt()
+        for (i in 1..<number.digits.size) {
+            if (i == 4) {
+                unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
+            }
+            idx++
+            d = number.digits[idx]
+            //first process effective weight down to 0
+            if (effectiveWeight > 0) {
+                --effectiveWeight
+                if (unscaledBI == null) {
+                    unscaledInt *= 10000
+                } else {
+                    unscaledBI = unscaledBI.multiply(J_BI_TEN_THOUSAND)
+                }
+            } else if (effectiveScale >= 4) {
+                //if effective scale is at least 4, then all 4 digits should be used
+                //and the existing number needs to be shifted 4
+                effectiveScale -= 4
+                if (unscaledBI == null) {
+                    unscaledInt *= 10000
+                } else {
+                    unscaledBI = unscaledBI.multiply(J_BI_TEN_THOUSAND)
+                }
+            } else {
+                //if effective scale is less than 4, then only shift left based on remaining scale
+                if (unscaledBI == null) {
+                    unscaledInt *= INT_TEN_POWERS[effectiveScale]
+                } else {
+                    unscaledBI = unscaledBI.multiply(jTenPower(effectiveScale))
+                }
+                //and d needs to be shifted to the right to only get correct number of
+                //significant digits
+                d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
+                effectiveScale = 0
+            }
+            if (unscaledBI == null) {
+                unscaledInt += d.toLong()
+            } else {
+                if (d.toInt() != 0) {
+                    unscaledBI = unscaledBI.add(java.math.BigInteger.valueOf(d.toLong()))
+                }
+            }
+        }
+
+        //now we need BigInteger to create BigDecimal
+        if (unscaledBI == null) {
+            unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
+        }
+        //if there is remaining weight, apply it here
+        if (effectiveWeight > 0) {
+            unscaledBI = unscaledBI!!.multiply(jTenPower(effectiveWeight * 4))
+        }
+        //if there is remaining effective scale, apply it here
+        if (effectiveScale > 0) {
+            unscaledBI = unscaledBI!!.multiply(jTenPower(effectiveScale))
+        }
+        if (sign == SIGN_NEGATIVE) {
+            unscaledBI = unscaledBI!!.negate()
+        }
+
+        return java.math.BigDecimal(unscaledBI, scale.toInt())
+    }
+
     companion object {
         private const val NUMERIC_DSCALE_MASK = 0x00003FFF
         private val INT_TEN_POWERS = IntArray(6) { 10.0.pow(it).toInt() }
         private val BI_TEN_POWERS = Array(32) { BigInteger.TEN.pow(it) }
         private val BI_MAX_LONG = BigInteger.fromLong(Long.MAX_VALUE)
         private val BI_TEN_THOUSAND = BigInteger.fromInt(10000)
+        private val J_BI_TEN_POWERS = Array(32) { java.math.BigInteger.TEN.pow(it) }
+        private val J_BI_MAX_LONG = java.math.BigInteger.valueOf(Long.MAX_VALUE)
+        private val J_BI_TEN_THOUSAND = java.math.BigInteger.valueOf(10000)
+
+        private fun jTenPower(exponent: Int): java.math.BigInteger {
+            return J_BI_TEN_POWERS.getOrElse(exponent) { java.math.BigInteger.TEN.pow(exponent) }
+        }
 
         private fun tenPower(exponent: Int): BigInteger {
             return BI_TEN_POWERS.getOrElse(exponent) { BigInteger.TEN.pow(exponent) }
@@ -446,6 +684,117 @@ internal sealed class PgNumeric {
                 val pair = wholes.divideAndRemainder(BI_TEN_THOUSAND)
                 wholes = pair.first
                 val short = pair.second.shortValue()
+                if (short != 0.toShort() || shorts.isNotEmpty()) {
+                    shorts.add(short)
+                }
+            }
+
+            val lastIndex = shorts.size - 1
+            return Number(
+                sign = when {
+                    bigDecimal.signum() == -1 -> SIGN_NEGATIVE
+                    else -> SIGN_POSITIVE
+                },
+                scale = max(scale, 0).toShort(),
+                weight = weight.toShort(),
+                digits = ShortArray(shorts.size) { shorts[lastIndex - it] },
+            )
+        }
+
+        /**
+         * !!Disclaimer!!
+         * This code is taken mostly as-is from the postgres jdbc driver (with some modifications
+         * during the conversion to kotlin code). I hope to find a better cross-platform solution
+         * to remove this java dependency.
+         *
+         * [pgjdbc code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L382)
+         */
+        internal fun fromJBigDecimal(bigDecimal: java.math.BigDecimal): PgNumeric {
+            val shorts = mutableListOf<Short>()
+            var unscaled = bigDecimal.unscaledValue().abs()
+            var scale = bigDecimal.scale()
+            if (unscaled == java.math.BigInteger.ZERO) {
+                return Number(
+                    sign = SIGN_POSITIVE,
+                    scale = max(scale, 0).toShort(),
+                    weight = 0,
+                    digits = shortArrayOf(),
+                )
+            }
+
+            var weight = -1
+            if (scale <= 0) {
+                if (scale < 0) {
+                    scale = kotlin.math.abs(scale)
+                    weight += scale / 4
+                    val mod = scale % 4
+                    unscaled *= jTenPower(mod)
+                }
+                while (unscaled > J_BI_MAX_LONG) {
+                    val pair = unscaled.divideAndRemainder(J_BI_TEN_THOUSAND)
+                    unscaled = pair[0]
+                    val short = pair[1].toShort()
+                    if (short != 0.toShort() || shorts.isNotEmpty()) {
+                        shorts.add(short)
+                    }
+                    ++weight
+                }
+                var unscaledLong = unscaled.longValueExact()
+                do {
+                    val short = (unscaledLong % 10000).toShort()
+                    if (short != 0.toShort() || shorts.isNotEmpty()) {
+                        shorts.add(short)
+                    }
+                    unscaledLong /= 10000L
+                    ++weight
+                } while (unscaledLong != 0L)
+
+                val lastIndex = shorts.size - 1
+                return Number(
+                    sign = when {
+                        bigDecimal.signum() == -1 -> SIGN_NEGATIVE
+                        else -> SIGN_POSITIVE
+                    },
+                    scale = 0,
+                    weight = weight.toShort(),
+                    digits = ShortArray(shorts.size) { shorts[lastIndex - it] },
+                )
+            }
+
+            val split = unscaled.divideAndRemainder(jTenPower(scale))
+            var decimal = split[1]
+            var wholes = split[0]
+            weight = -1
+            if (!BigInteger.ZERO.equals(decimal)) {
+                val mod = scale % 4
+                var segments = scale / 4
+                if (mod != 0) {
+                    decimal *= jTenPower(4 - mod)
+                    ++segments
+                }
+                do {
+                    val pair = decimal.divideAndRemainder(J_BI_TEN_THOUSAND)
+                    decimal = pair[0]
+                    val short = pair[1].toShort()
+                    if (short != 0.toShort() || shorts.isNotEmpty()) {
+                        shorts.add(short)
+                    }
+                    --segments
+                } while (!BigInteger.ZERO.equals(decimal))
+
+                if (BigInteger.ZERO.equals(wholes)) {
+                    weight -= segments
+                } else {
+                    for (i in 0..<segments) {
+                        shorts.add(0)
+                    }
+                }
+            }
+            while (java.math.BigInteger.ZERO != wholes) {
+                ++weight
+                val pair = wholes.divideAndRemainder(J_BI_TEN_THOUSAND)
+                wholes = pair[0]
+                val short = pair[1].toShort()
                 if (short != 0.toShort() || shorts.isNotEmpty()) {
                     shorts.add(short)
                 }

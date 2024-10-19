@@ -41,8 +41,21 @@ internal class PgTypeCache {
     }
 
     /** Add a custom [typeDescription] to the lookup tables */
-    fun <T : Any> addTypeDescription(typeDescription: PgTypeDescription<T>) {
+    private fun <T : Any> addTypeDescription(typeDescription: PgTypeDescription<T>) {
         typeDescriptions[typeDescription.kType] = typeDescription
+    }
+
+    /**
+     * Add array type descriptions for the supplied type and array type. This includes `List<T>` and
+     * `List<T?>`.
+     */
+    private fun <T : Any> addArrayTypeDescriptions(
+        arrayType: PgType,
+        typeDescription: PgTypeDescription<T>,
+    ) {
+        for (type in createArrayDescriptions(arrayType, typeDescription)) {
+            addTypeDescription(type)
+        }
     }
 
     /**
@@ -69,46 +82,22 @@ internal class PgTypeCache {
 
         val compositeColumnMapping = getCompositeAttributeData(connection, verifiedOid)
 
-        val compositeTypeDescription = if (compositeTypeDefinition == null) {
-            ReflectionCompositeTypeDescription(
-                typeOid = verifiedOid,
-                columnMapping = compositeColumnMapping,
-                customTypeDescriptionCache = this,
-                cls = cls,
-            )
-        } else {
-            object : BaseCompositeTypeDescription<T>(
-                typeOid = verifiedOid,
-                columnMapping = compositeColumnMapping,
-                customTypeDescriptionCache = this,
-                kType = cls.createType(),
-            ) {
-                override fun extractValues(value: T): List<Pair<Any?, KType>> {
-                    return compositeTypeDefinition.extractValues(value)
-                }
-
-                override fun fromRow(row: DataRow): T {
-                    return compositeTypeDefinition.fromRow(row)
-                }
-            }
-        }
+        val typeDef = compositeTypeDefinition ?: ReflectionCompositeTypeDescription(cls)
+        val compositeTypeDescription = BaseCompositeTypeDescription(
+            compositeTypeDefinition = typeDef,
+            typeOid = verifiedOid,
+            attributeMapping = compositeColumnMapping,
+            typeCache = this,
+            kType = cls.createType(),
+        )
         addTypeDescription(compositeTypeDescription)
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
             ?: error("Could not verify the array type for element oid = $verifiedOid")
-
-        val compositeArrayTypeDescription = CompositeArrayTypeDescription(
-            pgType = PgType.fromOid(arrayTypeOid),
-            innerType = compositeTypeDescription,
-            innerNullable = false,
+        addArrayTypeDescriptions(
+            arrayType = PgType.fromOid(arrayTypeOid),
+            typeDescription = compositeTypeDescription,
         )
-        addTypeDescription(compositeArrayTypeDescription)
-        val compositeArrayTypeDescriptionInnerNullable = CompositeArrayTypeDescription(
-            pgType = PgType.fromOid(arrayTypeOid),
-            innerType = compositeTypeDescription,
-            innerNullable = true
-        )
-        addTypeDescription(compositeArrayTypeDescriptionInnerNullable)
     }
 
     /**
@@ -141,19 +130,30 @@ internal class PgTypeCache {
 
         val arrayTypeOid = checkArrayDbTypeByOid(connection, verifiedOid)
             ?: error("Could not verify the array type for element oid = $verifiedOid")
+        addArrayTypeDescriptions(
+            arrayType = PgType.fromOid(arrayTypeOid),
+            typeDescription = enumTypeDescription,
+        )
+    }
 
-        val enumArrayTypeDescription = EnumArrayTypeDescription(
-            pgType = PgType.fromOid(arrayTypeOid),
-            innerType = enumTypeDescription,
-            innerNullable = false,
+    /**
+     * Add a new enum type definition to the type cache. Uses the supplied [connection] to get the
+     * enums labels found in the database to compare against the supplied [enumValues]. This is the
+     * only check that is required since the decoding and encoding is just reading and writing the
+     * enum variants [Enum.name] value.
+     */
+    suspend fun <T : Any> addCustomType(
+        connection: PgConnection,
+        typeDescription: PgTypeDescription<T>
+    ) {
+        addTypeDescription(typeDescription)
+        val oid = typeDescription.dbType.oid
+        val arrayTypeOid = checkArrayDbTypeByOid(connection, oid)
+            ?: error("Could not verify the array type for element oid = $oid")
+        addArrayTypeDescriptions(
+            arrayType = PgType.fromOid(arrayTypeOid),
+            typeDescription = typeDescription,
         )
-        addTypeDescription(enumArrayTypeDescription)
-        val enumArrayTypeDescriptionInnerNullable = EnumArrayTypeDescription(
-            pgType = PgType.fromOid(arrayTypeOid),
-            innerType = enumTypeDescription,
-            innerNullable = true,
-        )
-        addTypeDescription(enumArrayTypeDescriptionInnerNullable)
     }
 
     /**
@@ -172,22 +172,32 @@ internal class PgTypeCache {
 
     companion object {
         val baseTypes: Map<KType, PgTypeDescription<*>> = listOf(
-            NumericTypeDescription,
-            *createArrayDescriptions(PgType.NumericArray, NumericTypeDescription),
+            BigDecimalTypeDescription,
+            *createArrayDescriptions(PgType.NumericArray, BigDecimalTypeDescription),
+            JBigDecimalTypeDescription,
+            *createArrayDescriptions(PgType.NumericArray, JBigDecimalTypeDescription),
             BoolTypeDescription,
             *createArrayDescriptions(PgType.BoolArray, BoolTypeDescription),
             ByteaTypeDescription,
             *createArrayDescriptions(PgType.ByteaArray, ByteaTypeDescription),
             CharTypeDescription,
             *createArrayDescriptions(PgType.CharArray, CharTypeDescription),
-            DateTypeDescription,
-            *createArrayDescriptions(PgType.DateArray, DateTypeDescription),
-            TimestampTypeDescription,
-            *createArrayDescriptions(PgType.TimestampArray, TimestampTypeDescription),
-            TimestampTzTypeDescription,
-            *createArrayDescriptions(PgType.TimestamptzArray, TimestampTzTypeDescription),
-            IntervalTypeDescription,
-            *createArrayDescriptions(PgType.IntervalArray, IntervalTypeDescription),
+            LocalDateTypeDescription,
+            *createArrayDescriptions(PgType.DateArray, LocalDateTypeDescription),
+            JLocalDateTypeDescription,
+            *createArrayDescriptions(PgType.DateArray, JLocalDateTypeDescription),
+            InstantTypeDescription,
+            *createArrayDescriptions(PgType.TimestampArray, InstantTypeDescription),
+            LocalDateTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimestampArray, LocalDateTimeTypeDescription),
+            DateTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimestamptzArray, DateTimeTypeDescription),
+            OffsetDateTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimestamptzArray, OffsetDateTimeTypeDescription),
+            DateTimePeriodTypeDescription,
+            *createArrayDescriptions(PgType.IntervalArray, DateTimePeriodTypeDescription),
+            PgIntervalTypeDescription,
+            *createArrayDescriptions(PgType.IntervalArray, PgIntervalTypeDescription),
             PointTypeDescription,
             *createArrayDescriptions(PgType.PointArray, PointTypeDescription),
             LineTypeDescription,
@@ -228,10 +238,16 @@ internal class PgTypeCache {
             *createArrayDescriptions(PgType.Int4RangeArray, Int4RangeTypeDescription),
             TsRangeTypeDescription,
             *createArrayDescriptions(PgType.TsRangeArray, TsRangeTypeDescription),
+            JTsRangeTypeDescription,
+            *createArrayDescriptions(PgType.TsRangeArray, JTsRangeTypeDescription),
             TsTzRangeTypeDescription,
             *createArrayDescriptions(PgType.TstzRangeArray, TsTzRangeTypeDescription),
+            JTsTzRangeTypeDescription,
+            *createArrayDescriptions(PgType.TstzRangeArray, JTsTzRangeTypeDescription),
             DateRangeTypeDescription,
             *createArrayDescriptions(PgType.DateRangeArray, DateRangeTypeDescription),
+            JDateRangeTypeDescription,
+            *createArrayDescriptions(PgType.DateRangeArray, JDateRangeTypeDescription),
             NumRangeTypeDescription,
             *createArrayDescriptions(PgType.NumRangeArray, NumRangeTypeDescription),
             VarcharTypeDescription,
@@ -261,12 +277,18 @@ internal class PgTypeCache {
                             || dbType == PgType.BpcharArray
                 }
             },
-            TimeTypeDescription,
-            *createArrayDescriptions(PgType.TimeArray, TimeTypeDescription),
-            TimeTzTypeDescription,
-            *createArrayDescriptions(PgType.TimetzArray, TimeTzTypeDescription),
+            LocalTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimeArray, LocalTimeTypeDescription),
+            JLocalTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimeArray, JLocalTimeTypeDescription),
+            PgTimeTzTypeDescription,
+            *createArrayDescriptions(PgType.TimetzArray, PgTimeTzTypeDescription),
+            OffsetTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimetzArray, OffsetTimeTypeDescription),
             UuidTypeDescription,
             *createArrayDescriptions(PgType.UuidArray, UuidTypeDescription),
+            JUuidTypeDescription,
+            *createArrayDescriptions(PgType.UuidArray, JUuidTypeDescription),
         ).associateBy { it.kType }
         /**
          * Query to fetch the OID of an enum using the name and the optional schema. Default schema

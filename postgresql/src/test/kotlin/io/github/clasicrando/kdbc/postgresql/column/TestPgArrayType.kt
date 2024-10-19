@@ -12,7 +12,7 @@ import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.ArrayTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.IntTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.PgType
-import io.github.clasicrando.kdbc.postgresql.type.TimestampTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.InstantTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.VarcharTypeDescription
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
@@ -80,7 +80,7 @@ class TestPgArrayType {
 
         val description = object : ArrayTypeDescription<Instant>(
             pgType = PgType.TimestampArray,
-            innerType = TimestampTypeDescription,
+            innerType = InstantTypeDescription,
         ) {}
         val result = description.decode(pgValue)
 

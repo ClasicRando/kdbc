@@ -228,7 +228,18 @@ typealias TsRange = PgRange<Instant>
  */
 internal object TsRangeTypeDescription : BaseRangeTypeDescription<Instant>(
     pgType = PgType.TsRange,
-    typeDescription = TimestampTypeDescription,
+    typeDescription = InstantTypeDescription,
+)
+
+typealias JTsRange = PgRange<java.time.LocalDateTime>
+
+/**
+ * Implementation of a [PgTypeDescription] for the [JTsRange] type. This maps to the `tsrange`
+ * type in a postgresql database.
+ */
+internal object JTsRangeTypeDescription : BaseRangeTypeDescription<java.time.LocalDateTime>(
+    pgType = PgType.TsRange,
+    typeDescription = LocalDateTimeTypeDescription,
 )
 
 typealias TsTzRange = PgRange<DateTime>
@@ -239,7 +250,18 @@ typealias TsTzRange = PgRange<DateTime>
  */
 internal object TsTzRangeTypeDescription : BaseRangeTypeDescription<DateTime>(
     pgType = PgType.TstzRange,
-    typeDescription = TimestampTzTypeDescription,
+    typeDescription = DateTimeTypeDescription,
+)
+
+typealias JTsTzRange = PgRange<java.time.OffsetDateTime>
+
+/**
+ * Implementation of a [PgTypeDescription] for the [JTsTzRange] type. This maps to the `tstzrange`
+ * type in a postgresql database.
+ */
+internal object JTsTzRangeTypeDescription : BaseRangeTypeDescription<java.time.OffsetDateTime>(
+    pgType = PgType.TstzRange,
+    typeDescription = OffsetDateTimeTypeDescription,
 )
 
 typealias DateRange = PgRange<LocalDate>
@@ -250,7 +272,18 @@ typealias DateRange = PgRange<LocalDate>
  */
 internal object DateRangeTypeDescription : BaseRangeTypeDescription<LocalDate>(
     pgType = PgType.DateRange,
-    typeDescription = DateTypeDescription,
+    typeDescription = LocalDateTypeDescription,
+)
+
+typealias JDateRange = PgRange<java.time.LocalDate>
+
+/**
+ * Implementation of a [PgTypeDescription] for the [JDateRange] type. This maps to the `daterange`
+ * type in a postgresql database.
+ */
+internal object JDateRangeTypeDescription : BaseRangeTypeDescription<java.time.LocalDate>(
+    pgType = PgType.DateRange,
+    typeDescription = JLocalDateTypeDescription,
 )
 
 typealias NumRange = PgRange<BigDecimal>
@@ -261,5 +294,5 @@ typealias NumRange = PgRange<BigDecimal>
  */
 internal object NumRangeTypeDescription : BaseRangeTypeDescription<BigDecimal>(
     pgType = PgType.NumRange,
-    typeDescription = NumericTypeDescription,
+    typeDescription = BigDecimalTypeDescription,
 )
