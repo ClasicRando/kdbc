@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.DateTimePeriod
 import kotlin.reflect.typeOf
+import kotlin.time.Duration
 
 private const val minutesPerHour = 60L
 private const val secondsPerMinute = 60L
@@ -69,7 +70,31 @@ internal object DateTimePeriodTypeDescription : PgTypeDescription<DateTimePeriod
     }
 }
 
+/**
+ * Custom postgres `interval` type for use instead of [DateTimePeriod]. Can be created from a
+ * [Duration] but some precision loss and overflow can occur.
+ */
 data class PgInterval(val months: Int, val days: Int, val microseconds: Long)
+
+/**
+ * Convert the duration to a postgres `interval`. Some precision is loss during the conversion if
+ * nanoseconds are present. Max precision is microseconds.
+ *
+ * @throws IllegalStateException if the number of days exceeds [Int.MAX_VALUE]
+ */
+fun Duration.toPgInterval(): PgInterval {
+    return this.toComponents { days, hours, minutes, seconds, nanoseconds ->
+        check(days <= Int.MAX_VALUE) { "Number of days cannot exceed ${Int.MAX_VALUE}" }
+        PgInterval(
+            months = 0,
+            days = days.toInt(),
+            microseconds = hours * microsecondsPerHour +
+                minutes * microsecondsPerMinute +
+                seconds * microsecondsPerSecond +
+                kotlin.math.floor(nanoseconds / nanosecondsPerMicroseconds).toLong()
+        )
+    }
+}
 
 internal object PgIntervalTypeDescription : PgTypeDescription<PgInterval>(
     dbType = PgType.Interval,

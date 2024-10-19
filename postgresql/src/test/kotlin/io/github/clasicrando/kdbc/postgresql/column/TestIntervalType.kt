@@ -4,12 +4,13 @@ import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import io.github.clasicrando.kdbc.postgresql.type.PgInterval
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.DateTimePeriod
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestDateTimePeriodType {
+class TestIntervalType {
     @Test
     fun `encode should accept DateTimePeriod when querying postgresql`() = runBlocking {
         val query = "SELECT $1 interval_col;"
@@ -45,6 +46,41 @@ class TestDateTimePeriodType {
         decodeTest(isPrepared = true)
     }
 
+    @Test
+    fun `encode should accept PgInterval when querying postgresql`() = runBlocking {
+        val query = "SELECT $1 interval_col;"
+
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = conn.createPreparedQuery(query)
+                .bind(pgInterval)
+                .fetchScalar<PgInterval>()
+            assertEquals(expected = pgInterval, actual = value)
+        }
+    }
+
+    private suspend fun decodePgIntervalTest(isPrepared: Boolean) {
+        val query = "SELECT interval '25 months 14 days 1 hour 1 minute 20 seconds 20 milliseconds 100 microseconds';"
+
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
+            } else {
+                conn.createQuery(query)
+            }.fetchScalar<PgInterval>()
+            assertEquals(pgInterval, value)
+        }
+    }
+
+    @Test
+    fun `decode should return PgInterval when simple querying postgresql interval`(): Unit = runBlocking {
+        decodePgIntervalTest(isPrepared = false)
+    }
+
+    @Test
+    fun `decode should return PgInterval when extended querying postgresql interval`(): Unit = runBlocking {
+        decodePgIntervalTest(isPrepared = true)
+    }
+
     companion object {
         private val dateTimePeriod = DateTimePeriod(
             years = 1,
@@ -54,6 +90,11 @@ class TestDateTimePeriodType {
             minutes = 45,
             seconds = 8,
             nanoseconds = 9_005_000,
+        )
+        private val pgInterval = PgInterval(
+            months = 25,
+            days = 14,
+            microseconds = 3_680_020_100,
         )
     }
 }

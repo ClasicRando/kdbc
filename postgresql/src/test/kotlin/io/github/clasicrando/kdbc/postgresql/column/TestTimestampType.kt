@@ -11,12 +11,13 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.toJavaLocalDateTime
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 import kotlin.test.assertEquals
 
-class TestInstantType {
+class TestTimestampType {
     @ParameterizedTest
     @MethodSource("instants")
     fun `encode should accept Instant when querying postgresql`(instant: Instant) = runBlocking {
@@ -55,6 +56,53 @@ class TestInstantType {
         decodeTest(isPrepared = true, expectedValue = instant)
     }
 
+    @ParameterizedTest
+    @MethodSource("localDateTimes")
+    fun `encode should accept Java LocalDateTime when querying postgresql`(
+        localDateTime: java.time.LocalDateTime,
+    ) = runBlocking {
+        val query = "SELECT $1 instant_col;"
+
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = conn.createPreparedQuery(query)
+                .bind(localDateTime)
+                .fetchScalar<java.time.LocalDateTime>()
+            assertEquals(expected = localDateTime, actual = value)
+        }
+    }
+
+    private suspend fun decodeJavaTest(
+        isPrepared: Boolean,
+        expectedValue: java.time.LocalDateTime,
+    ) {
+        val query = "SELECT '$expectedValue'::timestamp;"
+
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
+            } else {
+                conn.createQuery(query)
+            }.fetchScalar<java.time.LocalDateTime>()
+            assertEquals(expectedValue, value)
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("localDateTimes")
+    fun `decode should return Java LocalDateTime when simple querying postgresql timestamp`(
+        localDateTime: java.time.LocalDateTime
+    ): Unit = runBlocking {
+        decodeJavaTest(isPrepared = false, expectedValue = localDateTime)
+    }
+
+    @ParameterizedTest
+    @MethodSource("localDateTimes")
+    fun `decode should return Java LocalDateTime when extended querying postgresql timestamp`(
+        localDateTime: java.time.LocalDateTime
+    ): Unit = runBlocking {
+        decodeJavaTest(isPrepared = true, expectedValue = localDateTime)
+    }
+
     companion object {
         private val positiveLocalDate = LocalDate(year = 2024, monthNumber = 2, dayOfMonth = 25)
         private val positiveLocalTime = LocalTime(hour = 5, minute = 25, second = 51)
@@ -69,6 +117,14 @@ class TestInstantType {
         @JvmStatic
         private fun instants(): Stream<Instant> {
             return listOf(positiveInstant, negativeInstant).stream()
+        }
+
+        @JvmStatic
+        private fun localDateTimes(): Stream<java.time.LocalDateTime> {
+            return listOf(
+                positiveLocalDateTime.toJavaLocalDateTime(),
+                negativeLocalDateTime.toJavaLocalDateTime(),
+            ).stream()
         }
     }
 }

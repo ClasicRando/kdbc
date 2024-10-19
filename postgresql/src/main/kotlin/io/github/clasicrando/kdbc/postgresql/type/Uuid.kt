@@ -45,7 +45,7 @@ internal object JUuidTypeDescription : PgTypeDescription<java.util.UUID>(
 
     /** Read all bytes and pass to the [Uuid] constructor */
     override fun decodeBytes(value: PgValue.Binary): java.util.UUID {
-        return java.util.UUID.nameUUIDFromBytes(value.bytes.readBytes())
+        return java.util.UUID(value.bytes.readLong(), value.bytes.readLong())
     }
 
     /** Pass the [String] value to the [Uuid] for parsing into a [Uuid] instance */

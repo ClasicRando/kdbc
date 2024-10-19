@@ -296,3 +296,14 @@ internal object NumRangeTypeDescription : BaseRangeTypeDescription<BigDecimal>(
     pgType = PgType.NumRange,
     typeDescription = BigDecimalTypeDescription,
 )
+
+typealias JNumRange = PgRange<java.math.BigDecimal>
+
+/**
+ * Implementation of a [PgTypeDescription] for the [JNumRange] type. This maps to the `numrange`
+ * type in a postgresql database.
+ */
+internal object JNumRangeTypeDescription : BaseRangeTypeDescription<java.math.BigDecimal>(
+    pgType = PgType.NumRange,
+    typeDescription = JBigDecimalTypeDescription,
+)

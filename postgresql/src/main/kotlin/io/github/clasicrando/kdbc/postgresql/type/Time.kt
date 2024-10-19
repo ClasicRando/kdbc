@@ -9,6 +9,7 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import java.time.OffsetTime
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import kotlin.reflect.typeOf
 import kotlin.time.DurationUnit
@@ -168,6 +169,8 @@ internal object JLocalTimeTypeDescription : PgTypeDescription<java.time.LocalTim
     }
 }
 
+private val offsetTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ssX")
+
 /**
  * Implementation of a [PgTypeDescription] for the [OffsetTime] type. This maps to the `timetz` type
  * in a postgresql database.
@@ -215,9 +218,9 @@ internal object OffsetTimeTypeDescription : PgTypeDescription<OffsetTime>(
      */
     override fun decodeText(value: PgValue.Text): OffsetTime {
         return try {
-            OffsetTime.parse(value.text)
+            OffsetTime.parse(value.text, offsetTimeFormatter)
         } catch (ex: DateTimeParseException) {
-            columnDecodeError<PgTimeTz>(type = value.typeData, cause = ex)
+            columnDecodeError<OffsetTime>(type = value.typeData, cause = ex)
         }
     }
 }

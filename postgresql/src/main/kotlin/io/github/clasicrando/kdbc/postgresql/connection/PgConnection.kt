@@ -7,6 +7,7 @@ import io.github.clasicrando.kdbc.core.chunked
 import io.github.clasicrando.kdbc.core.chunkedBytes
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.Connection
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.normalizeWhitespace
@@ -504,15 +505,14 @@ class PgConnection internal constructor(
      * side prepared statement and then remove the [preparedStatement] for the client cache.
      */
     private suspend fun releasePreparedStatement(preparedStatement: PgPreparedStatement) {
-        mutex.withLock {
-            val closeMessage = PgMessage.Close(
-                target = MessageTarget.PreparedStatement,
-                targetName = preparedStatement.statementName,
-            )
-            stream.writeManyToStream(closeMessage, PgMessage.Sync)
-            stream.waitForOrError<PgMessage.CommandComplete>()
-            preparedStatements.remove(preparedStatement.query)
-        }
+        val closeMessage = PgMessage.Close(
+            target = MessageTarget.PreparedStatement,
+            targetName = preparedStatement.statementName,
+        )
+        stream.writeManyToStream(closeMessage, PgMessage.Sync)
+        stream.waitForOrError<PgMessage.CloseComplete>()
+        stream.waitForOrError<PgMessage.ReadyForQuery>()
+        preparedStatements.remove(preparedStatement.query)
     }
 
     /**
@@ -873,10 +873,14 @@ class PgConnection internal constructor(
                 CopyTableMetadata.getFields(copyOutStatement.format, metadata)
             }
             is CopyStatement.CopyQuery -> {
-                val statement = prepareStatement(copyOutStatement.query, emptyList())
+                val statement = mutex.withLock {
+                    prepareStatement(copyOutStatement.query, emptyList())
+                }
                 statement.resultMetadata
             }
-            else -> error("Received an invalid `CopyStatement.To`. This should never happen")
+            else -> throw KdbcException(
+                "Received an invalid `CopyStatement.To`. This should never happen"
+            )
         }
 
         return mutex.withLock {
@@ -961,7 +965,16 @@ class PgConnection internal constructor(
     }
 
     /**
-     * Add new [typeDescription] to cache. This impacts all connections within the same pool and
+     * Add new type description for a value class to the cache. This impacts all connections within
+     * the same pool and adds simple array type descriptions as well. If the value class is already
+     * present within the cache, that description will be removed for the new description.
+     */
+    suspend inline fun <reified T : Any> registerValueType() {
+        typeCache.addValueType(connection = this, kClass = T::class, kType = typeOf<T>())
+    }
+
+    /**
+     * Add new [typeDescription] to the cache. This impacts all connections within the same pool and
      * adds simple array type descriptions as well. If the [PgTypeDescription.kType] is already
      * present within the cache, that description will be removed for the new description.
      */
@@ -983,7 +996,7 @@ class PgConnection internal constructor(
             try {
                 connection = PgConnection(connectOptions, stream, pool)
                 if (!connection.isConnected) {
-                    error("Could not initialize connection")
+                    throw KdbcException("Could not initialize connection")
                 }
                 return connection
             } catch (ex: Throwable) {

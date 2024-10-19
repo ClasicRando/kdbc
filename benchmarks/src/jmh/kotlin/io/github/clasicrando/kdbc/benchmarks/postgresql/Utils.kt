@@ -5,13 +5,12 @@ import io.github.clasicrando.kdbc.benchmarks.IOUtils
 import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toKotlinInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.io.asOutputStream
 import kotlinx.io.buffered
@@ -21,10 +20,10 @@ import org.apache.commons.dbcp2.PoolableConnection
 import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
-import org.postgresql.jdbc.PgConnection as JdbcPgConnection
 import java.sql.DriverManager
 import java.sql.ResultSet
 import kotlin.uuid.Uuid
+import org.postgresql.jdbc.PgConnection as JdbcPgConnection
 
 val jdbcQuerySingle = """
     SELECT

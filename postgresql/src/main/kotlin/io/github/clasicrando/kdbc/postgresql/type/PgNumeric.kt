@@ -765,7 +765,7 @@ internal sealed class PgNumeric {
             var decimal = split[1]
             var wholes = split[0]
             weight = -1
-            if (!BigInteger.ZERO.equals(decimal)) {
+            if (!java.math.BigInteger.ZERO.equals(decimal)) {
                 val mod = scale % 4
                 var segments = scale / 4
                 if (mod != 0) {
@@ -780,9 +780,9 @@ internal sealed class PgNumeric {
                         shorts.add(short)
                     }
                     --segments
-                } while (!BigInteger.ZERO.equals(decimal))
+                } while (!java.math.BigInteger.ZERO.equals(decimal))
 
-                if (BigInteger.ZERO.equals(wholes)) {
+                if (java.math.BigInteger.ZERO.equals(wholes)) {
                     weight -= segments
                 } else {
                     for (i in 0..<segments) {

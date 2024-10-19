@@ -6,11 +6,15 @@ import com.ionspin.kotlin.bignum.integer.Sign
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.io.Source
 import java.io.InputStream
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 const val zeroByte: Byte = 0
 
@@ -213,3 +217,12 @@ fun java.math.BigDecimal.toBigNum(): BigDecimal {
  * ```
  */
 fun String.normalizeWhitespace(): String = this.replace(Regex("\\s+"), "")
+
+private val DEFAULT_TEST_TIMEOUT = 60.seconds
+
+fun runKdbcTest(
+    timeout: Duration = DEFAULT_TEST_TIMEOUT,
+    block: suspend CoroutineScope.() -> Unit,
+): Unit = runBlocking {
+    withTimeout(timeout, block)
+}

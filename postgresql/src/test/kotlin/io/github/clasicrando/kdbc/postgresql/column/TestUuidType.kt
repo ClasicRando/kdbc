@@ -46,4 +46,42 @@ class TestUuidType {
     fun `decode should return Uuid when extended querying postgresql uuid`(): Unit = runBlocking {
         decodeTest(isPrepared = true)
     }
+
+
+    @Test
+    fun `encode should accept Java Uuid when querying postgresql`() = runBlocking {
+        val uuid = java.util.UUID.randomUUID()
+        val query = "SELECT $1 uuid_col;"
+
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = conn.createPreparedQuery(query)
+                .bind(uuid)
+                .fetchScalar<java.util.UUID>()
+            assertEquals(uuid, value)
+        }
+    }
+
+    private suspend fun decodeJavaTest(isPrepared: Boolean) {
+        val uuid = java.util.UUID.randomUUID()
+        val query = "SELECT '$uuid'::uuid;"
+
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
+            } else {
+                conn.createQuery(query)
+            }.fetchScalar<java.util.UUID>()
+            assertEquals(uuid, value)
+        }
+    }
+
+    @Test
+    fun `decode should return Java Uuid when simple querying postgresql uuid`(): Unit = runBlocking {
+        decodeJavaTest(isPrepared = false)
+    }
+
+    @Test
+    fun `decode should return Java Uuid when extended querying postgresql uuid`(): Unit = runBlocking {
+        decodeJavaTest(isPrepared = true)
+    }
 }

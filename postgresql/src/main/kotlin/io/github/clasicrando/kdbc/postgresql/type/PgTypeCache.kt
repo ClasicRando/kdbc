@@ -15,6 +15,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.createType
+import kotlin.reflect.full.primaryConstructor
 
 private val logger = KotlinLogging.logger {}
 
@@ -142,6 +143,33 @@ internal class PgTypeCache {
      * only check that is required since the decoding and encoding is just reading and writing the
      * enum variants [Enum.name] value.
      */
+    suspend fun <T : Any> addValueType(
+        connection: PgConnection,
+        kClass: KClass<T>,
+        kType: KType,
+    ) {
+        require(kClass.isValue) { "Type must be a value type to create wrapper type description" }
+        val innerType = kClass.primaryConstructor!!.parameters.first().type
+        val innerTypeDescription = getTypeDescription<Any>(innerType)
+            ?: throw KdbcException("Could not find type description for inner type $innerType")
+        val typeDescription = ValueTypeDescription(kClass, kType, innerTypeDescription)
+        addTypeDescription(typeDescription)
+
+        val oid = typeDescription.dbType.oid
+        val arrayTypeOid = checkArrayDbTypeByOid(connection, oid)
+            ?: error("Could not verify the array type for element oid = $oid")
+        addArrayTypeDescriptions(
+            arrayType = PgType.fromOid(arrayTypeOid),
+            typeDescription = typeDescription,
+        )
+    }
+
+    /**
+     * Add a new enum type definition to the type cache. Uses the supplied [connection] to get the
+     * enums labels found in the database to compare against the supplied [enumValues]. This is the
+     * only check that is required since the decoding and encoding is just reading and writing the
+     * enum variants [Enum.name] value.
+     */
     suspend fun <T : Any> addCustomType(
         connection: PgConnection,
         typeDescription: PgTypeDescription<T>
@@ -250,6 +278,8 @@ internal class PgTypeCache {
             *createArrayDescriptions(PgType.DateRangeArray, JDateRangeTypeDescription),
             NumRangeTypeDescription,
             *createArrayDescriptions(PgType.NumRangeArray, NumRangeTypeDescription),
+            JNumRangeTypeDescription,
+            *createArrayDescriptions(PgType.NumRangeArray, JNumRangeTypeDescription),
             VarcharTypeDescription,
             object : ArrayTypeDescription<String>(
                 pgType = PgType.Varchar,

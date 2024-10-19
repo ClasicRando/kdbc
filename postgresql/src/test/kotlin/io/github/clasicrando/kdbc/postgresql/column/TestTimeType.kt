@@ -6,10 +6,11 @@ import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.toJavaLocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestLocalTimeType {
+class TestTimeType {
     @Test
     fun `encode should accept LocalTime when querying postgresql`() = runBlocking {
         val query = "SELECT $1 local_time_col;"
@@ -45,7 +46,43 @@ class TestLocalTimeType {
         decodeTest(isPrepared = true)
     }
 
+    @Test
+    fun `encode should accept Java LocalTime when querying postgresql`() = runBlocking {
+        val query = "SELECT $1 local_time_col;"
+
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = conn.createPreparedQuery(query)
+                .bind(javaLocalTime)
+                .fetchScalar<java.time.LocalTime>()
+            assertEquals(expected = javaLocalTime, actual = value)
+        }
+    }
+
+    private suspend fun decodeJavaTest(isPrepared: Boolean) {
+        val query = "SELECT '05:25:51'::time;"
+
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+            val value = if (isPrepared) {
+                conn.createPreparedQuery(query)
+            } else {
+                conn.createQuery(query)
+            }.fetchScalar<java.time.LocalTime>()
+            assertEquals(javaLocalTime, value)
+        }
+    }
+
+    @Test
+    fun `decode should return Java LocalTime when simple querying postgresql time`(): Unit = runBlocking {
+        decodeJavaTest(isPrepared = false)
+    }
+
+    @Test
+    fun `decode should return Java LocalTime when extended querying postgresql time`(): Unit = runBlocking {
+        decodeJavaTest(isPrepared = true)
+    }
+
     companion object {
         private val localTime = LocalTime(hour = 5, minute = 25, second = 51)
+        private val javaLocalTime = localTime.toJavaLocalTime()
     }
 }

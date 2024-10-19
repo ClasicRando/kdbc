@@ -153,8 +153,9 @@ private fun convertMicroSecondsOffsetToLocalDateTime(microSeconds: Long): LocalD
  * Zero instant within a postgresql database as '2000-01-01 00:00:00+00'. Datetime values (with or
  * without a timezone) sent as binary are always an offset from this [Instant].
  */
-private val postgresEpochJInstant = LocalDateTime.ofInstant(
-    java.time.Instant.ofEpochMilli(postgresEpochMilliseconds),
+private val postgresEpochJInstant = java.time.Instant.ofEpochMilli(postgresEpochMilliseconds)
+private val postgresEpochJLocalDateTime = LocalDateTime.ofInstant(
+    postgresEpochJInstant,
     ZoneOffset.UTC
 )
 
@@ -173,7 +174,7 @@ internal object LocalDateTimeTypeDescription : PgTypeDescription<LocalDateTime>(
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L259)
      */
     override fun encode(value: LocalDateTime, buffer: ByteWriteBuffer) {
-        val durationSinceEpoch = postgresEpochJInstant.until(value, ChronoUnit.MICROS)
+        val durationSinceEpoch = postgresEpochJLocalDateTime.until(value, ChronoUnit.MICROS)
         buffer.writeLong(durationSinceEpoch)
     }
 
@@ -220,7 +221,7 @@ internal object OffsetDateTimeTypeDescription : PgTypeDescription<OffsetDateTime
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L814)
      */
     override fun encode(value: OffsetDateTime, buffer: ByteWriteBuffer) {
-        val durationSinceEpoch = postgresEpochJInstant.until(value, ChronoUnit.MICROS)
+        val durationSinceEpoch = postgresEpochJInstant.until(value.toInstant(), ChronoUnit.MICROS)
         buffer.writeLong(durationSinceEpoch)
     }
 
