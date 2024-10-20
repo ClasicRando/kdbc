@@ -12,6 +12,7 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.createType
@@ -27,7 +28,9 @@ private val logger = KotlinLogging.logger {}
  */
 @PublishedApi
 internal class PgTypeCache {
-    private val typeDescriptions: MutableMap<KType, PgTypeDescription<*>> = AtomicMutableMap(baseTypes)
+    private val typeDescriptions: MutableMap<KType, PgTypeDescription<*>> = ConcurrentHashMap(
+        baseTypes
+    )
 
     /**
      * Return the custom type description for the provided [kType]
