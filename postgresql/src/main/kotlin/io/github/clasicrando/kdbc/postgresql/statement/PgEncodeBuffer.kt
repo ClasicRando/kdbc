@@ -18,15 +18,22 @@ class PgEncodeBuffer internal constructor(
     private val innerTypes = mutableListOf<Int>()
     val types: List<Int> get() = innerTypes
 
-    private fun <T : Any> encodeNonNullValue(value: T, kType: KType) {
-        val description = typeCache.getTypeDescription<T>(kType)
-            ?: throw KdbcException("Could not find type description for $kType")
+    private fun <T : Any> encodeNonNullValue(
+        value: T,
+        kType: KType,
+    ) {
+        val description =
+            typeCache.getTypeDescription<T>(kType)
+                ?: throw KdbcException("Could not find type description for $kType")
         innerBuffer.writeLengthPrefixed {
             description.encode(value, innerBuffer)
         }
     }
 
-    fun <T : Any> encodeValue(value: T?, kType: KType) {
+    fun <T : Any> encodeValue(
+        value: T?,
+        kType: KType,
+    ) {
         if (value == null) {
             paramCount++
             innerBuffer.writeInt(-1)

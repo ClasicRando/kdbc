@@ -55,15 +55,16 @@ suspend fun Query.executeClosing(): StatementResult = use { execute() }
  * not an instance of the type [T], this checked by [kotlin.reflect.KClass.isInstance] on the
  * first value
  */
-suspend inline fun <reified T : Any> Query.fetchScalar(): T? = use {
-    execute().use { statementResult ->
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
+suspend inline fun <reified T : Any> Query.fetchScalar(): T? =
+    use {
+        execute().use { statementResult ->
+            if (statementResult.size == 0) {
+                throw NoResultFound(sql)
+            }
+            statementResult.first()
+                .use { queryResult -> queryResult.extractScalar() }
         }
-        statementResult.first()
-            .use { queryResult -> queryResult.extractScalar() }
     }
-}
 
 /**
  * Execute the query and return the first row parsed as the type [T] by the supplied
@@ -78,15 +79,16 @@ suspend inline fun <reified T : Any> Query.fetchScalar(): T? = use {
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */
-suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(rowParser: R): T? = use {
-    execute().use { statementResult ->
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
+suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(rowParser: R): T? =
+    use {
+        execute().use { statementResult ->
+            if (statementResult.size == 0) {
+                throw NoResultFound(sql)
+            }
+            statementResult.first()
+                .use { queryResult -> queryResult.extractFirst(rowParser) }
         }
-        statementResult.first()
-            .use { queryResult -> queryResult.extractFirst(rowParser) }
     }
-}
 
 /**
  * Execute the query and return the first row parsed as the type [T] by the supplied
@@ -104,20 +106,21 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(rowParser: R): T? = use
  * @throws TooManyRows if the [io.github.clasicrando.kdbc.core.result.QueryResult.rowsAffected]
  * value > 1
  */
-suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(rowParser: R): T = use {
-    execute().use { statementResult ->
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
-        }
-        statementResult.first()
-            .use { queryResult ->
-                if (queryResult.rowsAffected > 1) {
-                    throw TooManyRows(sql)
-                }
-                queryResult.extractFirst(rowParser) ?: throw EmptyQueryResult(sql)
+suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(rowParser: R): T =
+    use {
+        execute().use { statementResult ->
+            if (statementResult.size == 0) {
+                throw NoResultFound(sql)
             }
+            statementResult.first()
+                .use { queryResult ->
+                    if (queryResult.rowsAffected > 1) {
+                        throw TooManyRows(sql)
+                    }
+                    queryResult.extractFirst(rowParser) ?: throw EmptyQueryResult(sql)
+                }
+        }
     }
-}
 
 /**
  * Execute the query and return the all rows in a [List] where each row is parsed as the type
@@ -132,15 +135,16 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(rowParser: R): T = use
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */
-suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(rowParser: R): List<T> = use {
-    execute().use { statementResult ->
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
+suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(rowParser: R): List<T> =
+    use {
+        execute().use { statementResult ->
+            if (statementResult.size == 0) {
+                throw NoResultFound(sql)
+            }
+            statementResult.first()
+                .use { queryResult -> queryResult.extractAll(rowParser) }
         }
-        statementResult.first()
-            .use { queryResult -> queryResult.extractAll(rowParser) }
     }
-}
 
 /**
  * Execute the query and return the all rows as a [Flow] where each row is parsed as the type
@@ -156,24 +160,25 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(rowParser: R): List<T> = 
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  * [RowParseError] are wrapped into a [RowParseError]
  */
-fun <T : Any, R : RowParser<T>> Query.fetch(rowParser: R): Flow<T> = flow {
-    this@fetch.use {
-        execute().use { statementResult ->
-            if (statementResult.size == 0) {
-                throw NoResultFound(sql)
-            }
-            statementResult.first()
-                .use { queryResult ->
-                    for (row in queryResult.rows) {
-                        try {
-                            emit(rowParser.fromRow(row))
-                        } catch (ex: RowParseError) {
-                            throw ex
-                        } catch (ex: Throwable) {
-                            throw RowParseError(rowParser, ex)
+fun <T : Any, R : RowParser<T>> Query.fetch(rowParser: R): Flow<T> =
+    flow {
+        this@fetch.use {
+            execute().use { statementResult ->
+                if (statementResult.size == 0) {
+                    throw NoResultFound(sql)
+                }
+                statementResult.first()
+                    .use { queryResult ->
+                        for (row in queryResult.rows) {
+                            try {
+                                emit(rowParser.fromRow(row))
+                            } catch (ex: RowParseError) {
+                                throw ex
+                            } catch (ex: Throwable) {
+                                throw RowParseError(rowParser, ex)
+                            }
                         }
                     }
-                }
+            }
         }
     }
-}

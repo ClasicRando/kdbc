@@ -13,14 +13,15 @@ object PgConnectionHelper {
     private val password = System.getenv("PG_TEST_PASSWORD")
     private val port = System.getenv("PG_TEST_PORT").toInt()
 
-    private val defaultConnectOptions = PgConnectOptions(
-        host = "localhost",
-        port = port,
-        username = "postgres",
-        password = password,
-        applicationName = "KdbcTests",
-        sslMode = SslMode.Disable,
-    )
+    private val defaultConnectOptions =
+        PgConnectOptions(
+            host = "localhost",
+            port = port,
+            username = "postgres",
+            password = password,
+            applicationName = "KdbcTests",
+            sslMode = SslMode.Disable,
+        )
 
     fun defaultPool(): PgConnectionPool {
         return PgConnectionPool(defaultConnectOptions, PoolOptions())
@@ -34,44 +35,47 @@ object PgConnectionHelper {
         return Postgres.listener(connectOptions = defaultConnectOptions)
     }
 
-    private val defaultConnectOptionsWithForcedSimple = PgConnectOptions(
-        host = "localhost",
-        port = port,
-        username = "postgres",
-        password = password,
-        applicationName = "KdbcTests",
-        sslMode = SslMode.Disable,
-        useExtendedProtocolForSimpleQueries = false,
-    )
+    private val defaultConnectOptionsWithForcedSimple =
+        PgConnectOptions(
+            host = "localhost",
+            port = port,
+            username = "postgres",
+            password = password,
+            applicationName = "KdbcTests",
+            sslMode = SslMode.Disable,
+            useExtendedProtocolForSimpleQueries = false,
+        )
 
     suspend fun defaultConnectionWithForcedSimple(): PgConnection {
         return Postgres.connection(connectOptions = defaultConnectOptionsWithForcedSimple)
     }
 
-    private val defaultConnectOptionsWithQueryTimeout = PgConnectOptions(
-        host = "localhost",
-        port = port,
-        username = "postgres",
-        password = password,
-        applicationName = "KdbcTests",
-        sslMode = SslMode.Disable,
-        useExtendedProtocolForSimpleQueries = false,
-        queryTimeout = 2.toDuration(DurationUnit.SECONDS)
-    )
+    private val defaultConnectOptionsWithQueryTimeout =
+        PgConnectOptions(
+            host = "localhost",
+            port = port,
+            username = "postgres",
+            password = password,
+            applicationName = "KdbcTests",
+            sslMode = SslMode.Disable,
+            useExtendedProtocolForSimpleQueries = false,
+            queryTimeout = 2.toDuration(DurationUnit.SECONDS),
+        )
 
     suspend fun defaultConnectionWithQueryTimeout(): PgConnection {
         return Postgres.connection(connectOptions = defaultConnectOptionsWithQueryTimeout)
     }
 
-    private val defaultConnectOptionsSsl = PgConnectOptions(
-        host = "localhost",
-        port = port,
-        username = "postgres",
-        password = password,
-        applicationName = "KdbcTests",
-        sslMode = SslMode.Require,
-        connectionTimeout = 1.toDuration(unit = DurationUnit.SECONDS),
-    )
+    private val defaultConnectOptionsSsl =
+        PgConnectOptions(
+            host = "localhost",
+            port = port,
+            username = "postgres",
+            password = password,
+            applicationName = "KdbcTests",
+            sslMode = SslMode.Require,
+            connectionTimeout = 1.toDuration(unit = DurationUnit.SECONDS),
+        )
 
     suspend fun defaultConnectionSsl(): PgConnection {
         return Postgres.connection(connectOptions = defaultConnectOptionsSsl)

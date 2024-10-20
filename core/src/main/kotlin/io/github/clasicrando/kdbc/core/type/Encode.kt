@@ -10,5 +10,8 @@ import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
  */
 interface Encode<in T : Any> {
     /** Encode the [value] into the [buffer] as a collection of [Byte]s */
-    fun encode(value: T, buffer: ByteWriteBuffer)
+    fun encode(
+        value: T,
+        buffer: ByteWriteBuffer,
+    )
 }

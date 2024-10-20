@@ -21,9 +21,10 @@ internal object CopyInResponseDecoder : MessageDecoder<PgMessage.CopyInResponse>
         return buffer.use { buf ->
             val copyFormat = CopyFormat.fromByte(buf.readByte())
             val columnCount = buf.readShort().toInt()
-            val columnFormats = List(columnCount) {
-                CopyFormat.fromByte(buf.readByte())
-            }
+            val columnFormats =
+                List(columnCount) {
+                    CopyFormat.fromByte(buf.readByte())
+                }
 
             PgMessage.CopyInResponse(copyFormat, columnCount, columnFormats)
         }

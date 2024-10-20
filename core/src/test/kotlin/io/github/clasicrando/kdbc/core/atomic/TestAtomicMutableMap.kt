@@ -12,7 +12,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TestAtomicMutableMap {
-    private fun randomIntKeyMap(size: Int, offset: Int = 0): Map<Int, String> {
+    private fun randomIntKeyMap(
+        size: Int,
+        offset: Int = 0,
+    ): Map<Int, String> {
         return (1..size).associate { (it + offset) to randomString() }
     }
 

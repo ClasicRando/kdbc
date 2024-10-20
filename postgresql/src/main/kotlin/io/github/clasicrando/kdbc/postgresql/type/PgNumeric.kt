@@ -85,13 +85,14 @@ internal sealed class PgNumeric {
      * [pgjdbc code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L124)
      */
     internal fun toBigDecimal(): BigDecimal {
-        val number = when (this) {
-            NAN -> error("BigDecimal does not support Nan values")
-            is Number -> this
-        }
+        val number =
+            when (this) {
+                NAN -> error("BigDecimal does not support Nan values")
+                is Number -> this
+            }
 
-        //0 based number of 4 decimal digits (i.e. 2-byte shorts) before the decimal
-        //a value <= 0 indicates an absolute value < 1.
+        // 0 based number of 4 decimal digits (i.e. 2-byte shorts) before the decimal
+        // a value <= 0 indicates an absolute value < 1.
         var weight: Short = number.weight
 
         require((scale.toInt() and NUMERIC_DSCALE_MASK) == scale.toInt()) {
@@ -107,23 +108,23 @@ internal sealed class PgNumeric {
 
         var d: Short = number.digits[idx]
 
-        //if the absolute value is (0, 1), then leading '0' values
-        //do not matter for the unscaledInt, but trailing 0s do
+        // if the absolute value is (0, 1), then leading '0' values
+        // do not matter for the unscaledInt, but trailing 0s do
         if (weight < 0) {
             assert(scale > 0)
             var effectiveScale = scale.toInt()
-            //adjust weight to determine how many leading 0s after the decimal
-            //before the provided values/digits actually begin
+            // adjust weight to determine how many leading 0s after the decimal
+            // before the provided values/digits actually begin
             ++weight
             if (weight < 0) {
                 effectiveScale += 4 * weight
             }
 
             var i = 1
-            //typically there should not be leading 0 short values, as it is more
-            //efficient to represent that in the weight value
+            // typically there should not be leading 0 short values, as it is more
+            // efficient to represent that in the weight value
             while (i < number.digits.size && d.toInt() == 0) {
-                //each leading 0 value removes 4 from the effective scale
+                // each leading 0 value removes 4 from the effective scale
                 effectiveScale -= 4
                 idx++
                 d = number.digits[idx]
@@ -134,14 +135,14 @@ internal sealed class PgNumeric {
             if (effectiveScale >= 4) {
                 effectiveScale -= 4
             } else {
-                //an effective scale of less than four means that the value d
-                //has trailing 0s which are not significant
-                //so we divide by the appropriate power of 10 to reduce those
+                // an effective scale of less than four means that the value d
+                // has trailing 0s which are not significant
+                // so we divide by the appropriate power of 10 to reduce those
                 d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
                 effectiveScale = 0
             }
-            //defer moving to BigInteger as long as possible
-            //operations on the long are much faster
+            // defer moving to BigInteger as long as possible
+            // operations on the long are much faster
             var unscaledBI: BigInteger? = null
             var unscaledInt = d.toLong()
             while (i < number.digits.size) {
@@ -150,8 +151,8 @@ internal sealed class PgNumeric {
                 }
                 idx++
                 d = number.digits[idx]
-                //if effective scale is at least 4, then all 4 digits should be used
-                //and the existing number needs to be shifted 4
+                // if effective scale is at least 4, then all 4 digits should be used
+                // and the existing number needs to be shifted 4
                 if (effectiveScale >= 4) {
                     if (unscaledBI == null) {
                         unscaledInt *= 10000
@@ -160,14 +161,14 @@ internal sealed class PgNumeric {
                     }
                     effectiveScale -= 4
                 } else {
-                    //if effective scale is less than 4, then only shift left based on remaining scale
+                    // if effective scale is less than 4, then only shift left based on remaining scale
                     if (unscaledBI == null) {
                         unscaledInt *= INT_TEN_POWERS[effectiveScale]
                     } else {
                         unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
                     }
-                    //and d needs to be shifted to the right to only get correct number of
-                    //significant digits
+                    // and d needs to be shifted to the right to only get correct number of
+                    // significant digits
                     d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
                     effectiveScale = 0
                 }
@@ -180,11 +181,11 @@ internal sealed class PgNumeric {
                 }
                 i++
             }
-            //now we need BigInteger to create BigDecimal
+            // now we need BigInteger to create BigDecimal
             if (unscaledBI == null) {
                 unscaledBI = BigInteger.fromLong(unscaledInt)
             }
-            //if there is remaining effective scale, apply it here
+            // if there is remaining effective scale, apply it here
             if (effectiveScale > 0) {
                 unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
             }
@@ -195,13 +196,13 @@ internal sealed class PgNumeric {
             return unscaledBI.toBigDecimalWithTraditionalScale(scale = number.scale)
         }
 
-        //if there is no scale, then shorts are the unscaled int
+        // if there is no scale, then shorts are the unscaled int
         if (scale.toInt() == 0) {
-            //defer moving to BigInteger as long as possible
-            //operations on the long are much faster
+            // defer moving to BigInteger as long as possible
+            // operations on the long are much faster
             var unscaledBI: BigInteger? = null
             var unscaledInt = d.toLong()
-            //loop over all of the len shorts to process as the unscaled int
+            // loop over all of the len shorts to process as the unscaled int
             for (i in 1..<number.digits.size) {
                 if (i == 4) {
                     unscaledBI = BigInteger.fromLong(unscaledInt)
@@ -218,18 +219,18 @@ internal sealed class PgNumeric {
                     }
                 }
             }
-            //now we need BigInteger to create BigDecimal
+            // now we need BigInteger to create BigDecimal
             if (unscaledBI == null) {
                 unscaledBI = BigInteger.fromLong(unscaledInt)
             }
             if (sign == SIGN_NEGATIVE) {
                 unscaledBI = unscaledBI.negate()
             }
-            //the difference between len and weight (adjusted from 0 based) becomes the scale for BigDecimal
+            // the difference between len and weight (adjusted from 0 based) becomes the scale for BigDecimal
             val bigDecScale = (number.digits.size - (weight + 1)) * 4
-            //string representation always results in a BigDecimal with scale of 0
-            //the binary representation, where weight and len can infer trailing 0s, can result in a negative scale
-            //to produce a consistent BigDecimal, we return the equivalent object with scale set to 0
+            // string representation always results in a BigDecimal with scale of 0
+            // the binary representation, where weight and len can infer trailing 0s, can result in a negative scale
+            // to produce a consistent BigDecimal, we return the equivalent object with scale set to 0
             return if (bigDecScale == 0) {
                 BigDecimal.fromBigInteger(unscaledBI)
             } else {
@@ -238,12 +239,12 @@ internal sealed class PgNumeric {
             }
         }
 
-        //defer moving to BigInteger as long as possible
-        //operations on the long are much faster
+        // defer moving to BigInteger as long as possible
+        // operations on the long are much faster
         var unscaledBI: BigInteger? = null
         var unscaledInt = d.toLong()
-        //weight and scale as defined by postgresql are a bit different than how BigDecimal treats scale
-        //maintain the effective values to massage as we process through values
+        // weight and scale as defined by postgresql are a bit different than how BigDecimal treats scale
+        // maintain the effective values to massage as we process through values
         var effectiveWeight = weight.toInt()
         var effectiveScale = scale.toInt()
         for (i in 1..<number.digits.size) {
@@ -252,7 +253,7 @@ internal sealed class PgNumeric {
             }
             idx++
             d = number.digits[idx]
-            //first process effective weight down to 0
+            // first process effective weight down to 0
             if (effectiveWeight > 0) {
                 --effectiveWeight
                 if (unscaledBI == null) {
@@ -261,8 +262,8 @@ internal sealed class PgNumeric {
                     unscaledBI = unscaledBI.multiply(BI_TEN_THOUSAND)
                 }
             } else if (effectiveScale >= 4) {
-                //if effective scale is at least 4, then all 4 digits should be used
-                //and the existing number needs to be shifted 4
+                // if effective scale is at least 4, then all 4 digits should be used
+                // and the existing number needs to be shifted 4
                 effectiveScale -= 4
                 if (unscaledBI == null) {
                     unscaledInt *= 10000
@@ -270,14 +271,14 @@ internal sealed class PgNumeric {
                     unscaledBI = unscaledBI.multiply(BI_TEN_THOUSAND)
                 }
             } else {
-                //if effective scale is less than 4, then only shift left based on remaining scale
+                // if effective scale is less than 4, then only shift left based on remaining scale
                 if (unscaledBI == null) {
                     unscaledInt *= INT_TEN_POWERS[effectiveScale]
                 } else {
                     unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
                 }
-                //and d needs to be shifted to the right to only get correct number of
-                //significant digits
+                // and d needs to be shifted to the right to only get correct number of
+                // significant digits
                 d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
                 effectiveScale = 0
             }
@@ -290,15 +291,15 @@ internal sealed class PgNumeric {
             }
         }
 
-        //now we need BigInteger to create BigDecimal
+        // now we need BigInteger to create BigDecimal
         if (unscaledBI == null) {
             unscaledBI = BigInteger.fromLong(unscaledInt)
         }
-        //if there is remaining weight, apply it here
+        // if there is remaining weight, apply it here
         if (effectiveWeight > 0) {
             unscaledBI = unscaledBI.multiply(tenPower(effectiveWeight * 4))
         }
-        //if there is remaining effective scale, apply it here
+        // if there is remaining effective scale, apply it here
         if (effectiveScale > 0) {
             unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
         }
@@ -317,16 +318,19 @@ internal sealed class PgNumeric {
      * [pgjdbc code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L124)
      */
     internal fun toJBigDecimal(): java.math.BigDecimal {
-        val number = when (this) {
-            NAN -> error("BigDecimal does not support Nan values")
-            is Number -> this
-        }
+        val number =
+            when (this) {
+                NAN -> error("BigDecimal does not support Nan values")
+                is Number -> this
+            }
 
-        //0 based number of 4 decimal digits (i.e. 2-byte shorts) before the decimal
-        //a value <= 0 indicates an absolute value < 1.
+        // 0 based number of 4 decimal digits (i.e. 2-byte shorts) before the decimal
+        // a value <= 0 indicates an absolute value < 1.
         var weight: Short = number.weight
 
-        require((scale.toInt() and NUMERIC_DSCALE_MASK) == scale.toInt()) { "invalid scale in \"numeric\" value" }
+        require((scale.toInt() and NUMERIC_DSCALE_MASK) == scale.toInt()) {
+            "invalid scale in \"numeric\" value"
+        }
 
         if (number.digits.isEmpty()) {
             return java.math.BigDecimal(java.math.BigInteger.ZERO, scale.toInt())
@@ -336,23 +340,23 @@ internal sealed class PgNumeric {
 
         var d: Short = number.digits[idx]
 
-        //if the absolute value is (0, 1), then leading '0' values
-        //do not matter for the unscaledInt, but trailing 0s do
+        // if the absolute value is (0, 1), then leading '0' values
+        // do not matter for the unscaledInt, but trailing 0s do
         if (weight < 0) {
             assert(scale > 0)
             var effectiveScale = scale.toInt()
-            //adjust weight to determine how many leading 0s after the decimal
-            //before the provided values/digits actually begin
+            // adjust weight to determine how many leading 0s after the decimal
+            // before the provided values/digits actually begin
             ++weight
             if (weight < 0) {
                 effectiveScale += 4 * weight
             }
 
             var i = 1
-            //typically there should not be leading 0 short values, as it is more
-            //efficient to represent that in the weight value
+            // typically there should not be leading 0 short values, as it is more
+            // efficient to represent that in the weight value
             while (i < number.digits.size && d.toInt() == 0) {
-                //each leading 0 value removes 4 from the effective scale
+                // each leading 0 value removes 4 from the effective scale
                 effectiveScale -= 4
                 idx++
                 d = number.digits[idx]
@@ -363,14 +367,14 @@ internal sealed class PgNumeric {
             if (effectiveScale >= 4) {
                 effectiveScale -= 4
             } else {
-                //an effective scale of less than four means that the value d
-                //has trailing 0s which are not significant
-                //so we divide by the appropriate power of 10 to reduce those
+                // an effective scale of less than four means that the value d
+                // has trailing 0s which are not significant
+                // so we divide by the appropriate power of 10 to reduce those
                 d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
                 effectiveScale = 0
             }
-            //defer moving to BigInteger as long as possible
-            //operations on the long are much faster
+            // defer moving to BigInteger as long as possible
+            // operations on the long are much faster
             var unscaledBI: java.math.BigInteger? = null
             var unscaledInt = d.toLong()
             while (i < number.digits.size) {
@@ -379,8 +383,8 @@ internal sealed class PgNumeric {
                 }
                 idx++
                 d = number.digits[idx]
-                //if effective scale is at least 4, then all 4 digits should be used
-                //and the existing number needs to be shifted 4
+                // if effective scale is at least 4, then all 4 digits should be used
+                // and the existing number needs to be shifted 4
                 if (effectiveScale >= 4) {
                     if (unscaledBI == null) {
                         unscaledInt *= 10000
@@ -389,14 +393,14 @@ internal sealed class PgNumeric {
                     }
                     effectiveScale -= 4
                 } else {
-                    //if effective scale is less than 4, then only shift left based on remaining scale
+                    // if effective scale is less than 4, then only shift left based on remaining scale
                     if (unscaledBI == null) {
                         unscaledInt *= INT_TEN_POWERS[effectiveScale]
                     } else {
                         unscaledBI = unscaledBI.multiply(jTenPower(effectiveScale))
                     }
-                    //and d needs to be shifted to the right to only get correct number of
-                    //significant digits
+                    // and d needs to be shifted to the right to only get correct number of
+                    // significant digits
                     d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
                     effectiveScale = 0
                 }
@@ -409,11 +413,11 @@ internal sealed class PgNumeric {
                 }
                 i++
             }
-            //now we need BigInteger to create BigDecimal
+            // now we need BigInteger to create BigDecimal
             if (unscaledBI == null) {
                 unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
             }
-            //if there is remaining effective scale, apply it here
+            // if there is remaining effective scale, apply it here
             if (effectiveScale > 0) {
                 unscaledBI = unscaledBI!!.multiply(jTenPower(effectiveScale))
             }
@@ -424,13 +428,13 @@ internal sealed class PgNumeric {
             return java.math.BigDecimal(unscaledBI, scale.toInt())
         }
 
-        //if there is no scale, then shorts are the unscaled int
+        // if there is no scale, then shorts are the unscaled int
         if (scale.toInt() == 0) {
-            //defer moving to BigInteger as long as possible
-            //operations on the long are much faster
+            // defer moving to BigInteger as long as possible
+            // operations on the long are much faster
             var unscaledBI: java.math.BigInteger? = null
             var unscaledInt = d.toLong()
-            //loop over all of the len shorts to process as the unscaled int
+            // loop over all of the len shorts to process as the unscaled int
             for (i in 1..<number.digits.size) {
                 if (i == 4) {
                     unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
@@ -447,34 +451,34 @@ internal sealed class PgNumeric {
                     }
                 }
             }
-            //now we need BigInteger to create BigDecimal
+            // now we need BigInteger to create BigDecimal
             if (unscaledBI == null) {
                 unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
             }
             if (sign == SIGN_NEGATIVE) {
                 unscaledBI = unscaledBI!!.negate()
             }
-            //the difference between len and weight (adjusted from 0 based) becomes the scale for BigDecimal
+            // the difference between len and weight (adjusted from 0 based) becomes the scale for BigDecimal
             val bigDecScale = (number.digits.size - (weight + 1)) * 4
-            //string representation always results in a BigDecimal with scale of 0
-            //the binary representation, where weight and len can infer trailing 0s, can result in a negative scale
-            //to produce a consistent BigDecimal, we return the equivalent object with scale set to 0
+            // string representation always results in a BigDecimal with scale of 0
+            // the binary representation, where weight and len can infer trailing 0s, can result in a negative scale
+            // to produce a consistent BigDecimal, we return the equivalent object with scale set to 0
             return if (bigDecScale == 0) {
                 java.math.BigDecimal(unscaledBI)
             } else {
                 java.math.BigDecimal(
                     unscaledBI,
-                    bigDecScale
+                    bigDecScale,
                 ).setScale(0)
             }
         }
 
-        //defer moving to BigInteger as long as possible
-        //operations on the long are much faster
+        // defer moving to BigInteger as long as possible
+        // operations on the long are much faster
         var unscaledBI: java.math.BigInteger? = null
         var unscaledInt = d.toLong()
-        //weight and scale as defined by postgresql are a bit different than how BigDecimal treats scale
-        //maintain the effective values to massage as we process through values
+        // weight and scale as defined by postgresql are a bit different than how BigDecimal treats scale
+        // maintain the effective values to massage as we process through values
         var effectiveWeight = weight.toInt()
         var effectiveScale = scale.toInt()
         for (i in 1..<number.digits.size) {
@@ -483,7 +487,7 @@ internal sealed class PgNumeric {
             }
             idx++
             d = number.digits[idx]
-            //first process effective weight down to 0
+            // first process effective weight down to 0
             if (effectiveWeight > 0) {
                 --effectiveWeight
                 if (unscaledBI == null) {
@@ -492,8 +496,8 @@ internal sealed class PgNumeric {
                     unscaledBI = unscaledBI.multiply(J_BI_TEN_THOUSAND)
                 }
             } else if (effectiveScale >= 4) {
-                //if effective scale is at least 4, then all 4 digits should be used
-                //and the existing number needs to be shifted 4
+                // if effective scale is at least 4, then all 4 digits should be used
+                // and the existing number needs to be shifted 4
                 effectiveScale -= 4
                 if (unscaledBI == null) {
                     unscaledInt *= 10000
@@ -501,14 +505,14 @@ internal sealed class PgNumeric {
                     unscaledBI = unscaledBI.multiply(J_BI_TEN_THOUSAND)
                 }
             } else {
-                //if effective scale is less than 4, then only shift left based on remaining scale
+                // if effective scale is less than 4, then only shift left based on remaining scale
                 if (unscaledBI == null) {
                     unscaledInt *= INT_TEN_POWERS[effectiveScale]
                 } else {
                     unscaledBI = unscaledBI.multiply(jTenPower(effectiveScale))
                 }
-                //and d needs to be shifted to the right to only get correct number of
-                //significant digits
+                // and d needs to be shifted to the right to only get correct number of
+                // significant digits
                 d = (d / INT_TEN_POWERS[4 - effectiveScale]).toShort()
                 effectiveScale = 0
             }
@@ -521,15 +525,15 @@ internal sealed class PgNumeric {
             }
         }
 
-        //now we need BigInteger to create BigDecimal
+        // now we need BigInteger to create BigDecimal
         if (unscaledBI == null) {
             unscaledBI = java.math.BigInteger.valueOf(unscaledInt)
         }
-        //if there is remaining weight, apply it here
+        // if there is remaining weight, apply it here
         if (effectiveWeight > 0) {
             unscaledBI = unscaledBI!!.multiply(jTenPower(effectiveWeight * 4))
         }
-        //if there is remaining effective scale, apply it here
+        // if there is remaining effective scale, apply it here
         if (effectiveScale > 0) {
             unscaledBI = unscaledBI!!.multiply(jTenPower(effectiveScale))
         }
@@ -642,10 +646,11 @@ internal sealed class PgNumeric {
 
                 val lastIndex = shorts.size - 1
                 return Number(
-                    sign = when {
-                        bigDecimal.signum() == -1 -> SIGN_NEGATIVE
-                        else -> SIGN_POSITIVE
-                    },
+                    sign =
+                        when {
+                            bigDecimal.signum() == -1 -> SIGN_NEGATIVE
+                            else -> SIGN_POSITIVE
+                        },
                     scale = 0,
                     weight = weight.toShort(),
                     digits = ShortArray(shorts.size) { shorts[lastIndex - it] },
@@ -691,10 +696,11 @@ internal sealed class PgNumeric {
 
             val lastIndex = shorts.size - 1
             return Number(
-                sign = when {
-                    bigDecimal.signum() == -1 -> SIGN_NEGATIVE
-                    else -> SIGN_POSITIVE
-                },
+                sign =
+                    when {
+                        bigDecimal.signum() == -1 -> SIGN_NEGATIVE
+                        else -> SIGN_POSITIVE
+                    },
                 scale = max(scale, 0).toShort(),
                 weight = weight.toShort(),
                 digits = ShortArray(shorts.size) { shorts[lastIndex - it] },
@@ -751,10 +757,11 @@ internal sealed class PgNumeric {
 
                 val lastIndex = shorts.size - 1
                 return Number(
-                    sign = when {
-                        bigDecimal.signum() == -1 -> SIGN_NEGATIVE
-                        else -> SIGN_POSITIVE
-                    },
+                    sign =
+                        when {
+                            bigDecimal.signum() == -1 -> SIGN_NEGATIVE
+                            else -> SIGN_POSITIVE
+                        },
                     scale = 0,
                     weight = weight.toShort(),
                     digits = ShortArray(shorts.size) { shorts[lastIndex - it] },
@@ -802,10 +809,11 @@ internal sealed class PgNumeric {
 
             val lastIndex = shorts.size - 1
             return Number(
-                sign = when {
-                    bigDecimal.signum() == -1 -> SIGN_NEGATIVE
-                    else -> SIGN_POSITIVE
-                },
+                sign =
+                    when {
+                        bigDecimal.signum() == -1 -> SIGN_NEGATIVE
+                        else -> SIGN_POSITIVE
+                    },
                 scale = max(scale, 0).toShort(),
                 weight = weight.toShort(),
                 digits = ShortArray(shorts.size) { shorts[lastIndex - it] },

@@ -36,413 +36,561 @@ import kotlin.test.assertEquals
 class TestRange {
     @ParameterizedTest
     @MethodSource("int4RangeValues")
-    fun `encode should accept Int4Range when querying postgresql`(pair: Pair<String, Int4Range>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 int4range_col;"
+    fun `encode should accept Int4Range when querying postgresql`(
+        pair: Pair<String, Int4Range>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 int4range_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<Int4Range>()
-            assertEquals(value.toIntRange(), range?.toIntRange())
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<Int4Range>()
+                assertEquals(value.toIntRange(), range?.toIntRange())
+            }
         }
-    }
 
-    private suspend fun int4RangeDecodeTest(isPrepared: Boolean, value: Int4Range, typeName: String) {
+    private suspend fun int4RangeDecodeTest(
+        isPrepared: Boolean,
+        value: Int4Range,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<Int4Range>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<Int4Range>()
             assertEquals(value.toIntRange(), range?.toIntRange())
         }
     }
 
     @ParameterizedTest
     @MethodSource("int4RangeValues")
-    fun `decode should return Int4Range when simple querying postgresql range`(pair: Pair<String, Int4Range>): Unit = runBlocking {
-        val (typeName, range) = pair
-        int4RangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return Int4Range when simple querying postgresql range`(
+        pair: Pair<String, Int4Range>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            int4RangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("int4RangeValues")
-    fun `decode should return Int4Range when extended querying postgresql range`(pair: Pair<String, Int4Range>): Unit = runBlocking {
-        val (typeName, range) = pair
-        int4RangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return Int4Range when extended querying postgresql range`(
+        pair: Pair<String, Int4Range>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            int4RangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("int8rangeValues")
-    fun `encode should accept Int8Range when querying postgresql`(pair: Pair<String, Int8Range>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 int8range_col;"
+    fun `encode should accept Int8Range when querying postgresql`(
+        pair: Pair<String, Int8Range>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 int8range_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<Int8Range>()
-            assertEquals(value.toLongRange(), range?.toLongRange())
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<Int8Range>()
+                assertEquals(value.toLongRange(), range?.toLongRange())
+            }
         }
-    }
 
-    private suspend fun int8RangeDecodeTest(isPrepared: Boolean, value: Int8Range, typeName: String) {
+    private suspend fun int8RangeDecodeTest(
+        isPrepared: Boolean,
+        value: Int8Range,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<Int8Range>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<Int8Range>()
             assertEquals(value.toLongRange(), range?.toLongRange())
         }
     }
 
     @ParameterizedTest
     @MethodSource("int8rangeValues")
-    fun `decode should return Int8Range when simple querying postgresql range`(pair: Pair<String, Int8Range>): Unit = runBlocking {
-        val (typeName, range) = pair
-        int8RangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return Int8Range when simple querying postgresql range`(
+        pair: Pair<String, Int8Range>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            int8RangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("int8rangeValues")
-    fun `decode should return Int8Range when extended querying postgresql range`(pair: Pair<String, Int8Range>): Unit = runBlocking {
-        val (typeName, range) = pair
-        int8RangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return Int8Range when extended querying postgresql range`(
+        pair: Pair<String, Int8Range>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            int8RangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("numrangeValues")
-    fun `encode should accept NumRange when querying postgresql`(pair: Pair<String, NumRange>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 numrange_col;"
+    fun `encode should accept NumRange when querying postgresql`(
+        pair: Pair<String, NumRange>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 numrange_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<NumRange>()
-            assertEquals(value, range)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<NumRange>()
+                assertEquals(value, range)
+            }
         }
-    }
 
-    private suspend fun numRangeDecodeTest(isPrepared: Boolean, value: NumRange, typeName: String) {
+    private suspend fun numRangeDecodeTest(
+        isPrepared: Boolean,
+        value: NumRange,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName numrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<NumRange>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<NumRange>()
             assertEquals(value, range)
         }
     }
 
     @ParameterizedTest
     @MethodSource("numrangeValues")
-    fun `decode should return NumRange when simple querying postgresql range`(pair: Pair<String, NumRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        numRangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return NumRange when simple querying postgresql range`(
+        pair: Pair<String, NumRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            numRangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("numrangeValues")
-    fun `decode should return NumRange when extended querying postgresql range`(pair: Pair<String, NumRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        numRangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return NumRange when extended querying postgresql range`(
+        pair: Pair<String, NumRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            numRangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("jNumrangeValues")
-    fun `encode should accept JNumRange when querying postgresql`(pair: Pair<String, JNumRange>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 jnumrange_col;"
+    fun `encode should accept JNumRange when querying postgresql`(
+        pair: Pair<String, JNumRange>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 jnumrange_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<JNumRange>()
-            assertEquals(value, range)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<JNumRange>()
+                assertEquals(value, range)
+            }
         }
-    }
 
-    private suspend fun jNumRangeDecodeTest(isPrepared: Boolean, value: JNumRange, typeName: String) {
+    private suspend fun jNumRangeDecodeTest(
+        isPrepared: Boolean,
+        value: JNumRange,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jnumrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<JNumRange>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<JNumRange>()
             assertEquals(value, range)
         }
     }
 
     @ParameterizedTest
     @MethodSource("jNumrangeValues")
-    fun `decode should return JNumRange when simple querying postgresql range`(pair: Pair<String, JNumRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        jNumRangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return JNumRange when simple querying postgresql range`(
+        pair: Pair<String, JNumRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            jNumRangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("jNumrangeValues")
-    fun `decode should return JNumRange when extended querying postgresql range`(pair: Pair<String, JNumRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        jNumRangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return JNumRange when extended querying postgresql range`(
+        pair: Pair<String, JNumRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            jNumRangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("tsrangeValues")
-    fun `encode should accept TsRange when querying postgresql`(pair: Pair<String, TsRange>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 tsrange_col;"
+    fun `encode should accept TsRange when querying postgresql`(pair: Pair<String, TsRange>): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 tsrange_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<TsRange>()
-            assertEquals(value, range)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<TsRange>()
+                assertEquals(value, range)
+            }
         }
-    }
 
-    private suspend fun tsRangeDecodeTest(isPrepared: Boolean, value: TsRange, typeName: String) {
+    private suspend fun tsRangeDecodeTest(
+        isPrepared: Boolean,
+        value: TsRange,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName tsrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<TsRange>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<TsRange>()
             assertEquals(value, range)
         }
     }
 
     @ParameterizedTest
     @MethodSource("tsrangeValues")
-    fun `decode should return TsRange when simple querying postgresql range`(pair: Pair<String, TsRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        tsRangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return TsRange when simple querying postgresql range`(
+        pair: Pair<String, TsRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            tsRangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("tsrangeValues")
-    fun `decode should return TsRange when extended querying postgresql range`(pair: Pair<String, TsRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        tsRangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return TsRange when extended querying postgresql range`(
+        pair: Pair<String, TsRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            tsRangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("jTsrangeValues")
-    fun `encode should accept JTsRange when querying postgresql`(pair: Pair<String, JTsRange>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 jtsrange_col;"
+    fun `encode should accept JTsRange when querying postgresql`(
+        pair: Pair<String, JTsRange>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 jtsrange_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<JTsRange>()
-            assertEquals(value, range)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<JTsRange>()
+                assertEquals(value, range)
+            }
         }
-    }
 
-    private suspend fun jTsRangeDecodeTest(isPrepared: Boolean, value: JTsRange, typeName: String) {
+    private suspend fun jTsRangeDecodeTest(
+        isPrepared: Boolean,
+        value: JTsRange,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jtsrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<JTsRange>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<JTsRange>()
             assertEquals(value, range)
         }
     }
 
     @ParameterizedTest
     @MethodSource("jTsrangeValues")
-    fun `decode should return JTsRange when simple querying postgresql range`(pair: Pair<String, JTsRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        jTsRangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return JTsRange when simple querying postgresql range`(
+        pair: Pair<String, JTsRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            jTsRangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("jTsrangeValues")
-    fun `decode should return JTsRange when extended querying postgresql range`(pair: Pair<String, JTsRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        jTsRangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return JTsRange when extended querying postgresql range`(
+        pair: Pair<String, JTsRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            jTsRangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("tstzrangeValues")
-    fun `encode should accept TsTzRange when querying postgresql`(pair: Pair<String, TsTzRange>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 tstzrange_col;"
+    fun `encode should accept TsTzRange when querying postgresql`(
+        pair: Pair<String, TsTzRange>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 tstzrange_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<TsTzRange>()
-            assertEquals(value, range)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<TsTzRange>()
+                assertEquals(value, range)
+            }
         }
-    }
 
-    private suspend fun tstzRangeDecodeTest(isPrepared: Boolean, value: TsTzRange, typeName: String) {
+    private suspend fun tstzRangeDecodeTest(
+        isPrepared: Boolean,
+        value: TsTzRange,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName tstzrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<TsTzRange>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<TsTzRange>()
             assertEquals(value, range)
         }
     }
 
     @ParameterizedTest
     @MethodSource("tstzrangeValues")
-    fun `decode should return TsTzRange when simple querying postgresql range`(pair: Pair<String, TsTzRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        tstzRangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return TsTzRange when simple querying postgresql range`(
+        pair: Pair<String, TsTzRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            tstzRangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("tstzrangeValues")
-    fun `decode should return TsTzRange when extended querying postgresql range`(pair: Pair<String, TsTzRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        tstzRangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return TsTzRange when extended querying postgresql range`(
+        pair: Pair<String, TsTzRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            tstzRangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("jTstzrangeValues")
-    fun `encode should accept JTsTzRange when querying postgresql`(pair: Pair<String, JTsTzRange>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 jtstzrange_col;"
+    fun `encode should accept JTsTzRange when querying postgresql`(
+        pair: Pair<String, JTsTzRange>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 jtstzrange_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<JTsTzRange>()
-            assertEquals(value, range)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<JTsTzRange>()
+                assertEquals(value, range)
+            }
         }
-    }
 
-    private suspend fun jTstzRangeDecodeTest(isPrepared: Boolean, value: JTsTzRange, typeName: String) {
+    private suspend fun jTstzRangeDecodeTest(
+        isPrepared: Boolean,
+        value: JTsTzRange,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jtstzrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<JTsTzRange>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<JTsTzRange>()
             assertEquals(value, range)
         }
     }
 
     @ParameterizedTest
     @MethodSource("jTstzrangeValues")
-    fun `decode should return JTsTzRange when simple querying postgresql range`(pair: Pair<String, JTsTzRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        jTstzRangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return JTsTzRange when simple querying postgresql range`(
+        pair: Pair<String, JTsTzRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            jTstzRangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("jTstzrangeValues")
-    fun `decode should return JTsTzRange when extended querying postgresql range`(pair: Pair<String, JTsTzRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        jTstzRangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return JTsTzRange when extended querying postgresql range`(
+        pair: Pair<String, JTsTzRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            jTstzRangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("daterangeValues")
-    fun `encode should accept DateRange when querying postgresql`(pair: Pair<String, DateRange>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 daterange_col;"
+    fun `encode should accept DateRange when querying postgresql`(
+        pair: Pair<String, DateRange>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 daterange_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<DateRange>()
-            assertEquals(value.toDateRange(), range?.toDateRange())
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<DateRange>()
+                assertEquals(value.toDateRange(), range?.toDateRange())
+            }
         }
-    }
 
-    private suspend fun dateRangeDecodeTest(isPrepared: Boolean, value: DateRange, typeName: String) {
+    private suspend fun dateRangeDecodeTest(
+        isPrepared: Boolean,
+        value: DateRange,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName daterange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<DateRange>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<DateRange>()
             assertEquals(value.toDateRange(), range?.toDateRange())
         }
     }
 
     @ParameterizedTest
     @MethodSource("daterangeValues")
-    fun `decode should return DateRange when simple querying postgresql range`(pair: Pair<String, DateRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        dateRangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return DateRange when simple querying postgresql range`(
+        pair: Pair<String, DateRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            dateRangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("daterangeValues")
-    fun `decode should return DateRange when extended querying postgresql range`(pair: Pair<String, DateRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        dateRangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return DateRange when extended querying postgresql range`(
+        pair: Pair<String, DateRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            dateRangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("jDaterangeValues")
-    fun `encode should accept JDateRange when querying postgresql`(pair: Pair<String, JDateRange>): Unit = runBlocking {
-        val (_, value) = pair
-        val query = "SELECT $1 jdaterange_col;"
+    fun `encode should accept JDateRange when querying postgresql`(
+        pair: Pair<String, JDateRange>,
+    ): Unit =
+        runBlocking {
+            val (_, value) = pair
+            val query = "SELECT $1 jdaterange_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val range = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<JDateRange>()
-            assertEquals(value.toJDateRange(), range?.toJDateRange())
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val range =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<JDateRange>()
+                assertEquals(value.toJDateRange(), range?.toJDateRange())
+            }
         }
-    }
 
-    private suspend fun jDateRangeDecodeTest(isPrepared: Boolean, value: JDateRange, typeName: String) {
+    private suspend fun jDateRangeDecodeTest(
+        isPrepared: Boolean,
+        value: JDateRange,
+        typeName: String,
+    ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jdaterange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<JDateRange>()
+            val range =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<JDateRange>()
             assertEquals(value.toJDateRange(), range?.toJDateRange())
         }
     }
 
     @ParameterizedTest
     @MethodSource("jDaterangeValues")
-    fun `decode should return JDateRange when simple querying postgresql range`(pair: Pair<String, JDateRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        jDateRangeDecodeTest(isPrepared = false, value = range, typeName)
-    }
+    fun `decode should return JDateRange when simple querying postgresql range`(
+        pair: Pair<String, JDateRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            jDateRangeDecodeTest(isPrepared = false, value = range, typeName)
+        }
 
     @ParameterizedTest
     @MethodSource("jDaterangeValues")
-    fun `decode should return JDateRange when extended querying postgresql range`(pair: Pair<String, JDateRange>): Unit = runBlocking {
-        val (typeName, range) = pair
-        jDateRangeDecodeTest(isPrepared = true, value = range, typeName)
-    }
+    fun `decode should return JDateRange when extended querying postgresql range`(
+        pair: Pair<String, JDateRange>,
+    ): Unit =
+        runBlocking {
+            val (typeName, range) = pair
+            jDateRangeDecodeTest(isPrepared = true, value = range, typeName)
+        }
 
     companion object {
         private const val LOWER_INT = 1
@@ -571,14 +719,16 @@ class TestRange {
                 .stream()
         }
 
-        private val lowerTimestampTz = DateTime(
-            LocalDate(2024, 1, 1).atStartOfDayIn(TimeZone.UTC),
-            UtcOffset.ZERO
-        )
-        private val upperTimestampTz = DateTime(
-            LocalDate(2024, 2, 1).atStartOfDayIn(TimeZone.UTC),
-            UtcOffset.ZERO
-        )
+        private val lowerTimestampTz =
+            DateTime(
+                LocalDate(2024, 1, 1).atStartOfDayIn(TimeZone.UTC),
+                UtcOffset.ZERO,
+            )
+        private val upperTimestampTz =
+            DateTime(
+                LocalDate(2024, 2, 1).atStartOfDayIn(TimeZone.UTC),
+                UtcOffset.ZERO,
+            )
         private const val TSTZRANGE_TYPE_NAME = "tstzrange"
 
         @JvmStatic
@@ -598,14 +748,16 @@ class TestRange {
                 .stream()
         }
 
-        private val lowerJTimestampTz = java.time.OffsetDateTime.of(
-            java.time.LocalDate.of(2024, 1, 1).atStartOfDay(),
-            ZoneOffset.UTC
-        )
-        private val upperJTimestampTz = java.time.OffsetDateTime.of(
-            java.time.LocalDate.of(2024, 2, 1).atStartOfDay(),
-            ZoneOffset.UTC
-        )
+        private val lowerJTimestampTz =
+            java.time.OffsetDateTime.of(
+                java.time.LocalDate.of(2024, 1, 1).atStartOfDay(),
+                ZoneOffset.UTC,
+            )
+        private val upperJTimestampTz =
+            java.time.OffsetDateTime.of(
+                java.time.LocalDate.of(2024, 2, 1).atStartOfDay(),
+                ZoneOffset.UTC,
+            )
         private const val JTSTZRANGE_TYPE_NAME = "tstzrange"
 
         @JvmStatic

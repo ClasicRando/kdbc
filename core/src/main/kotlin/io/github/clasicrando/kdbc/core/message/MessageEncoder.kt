@@ -8,5 +8,8 @@ import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
  */
 interface MessageEncoder<in T> {
     /** Encode the message [value] of type [T] to the [buffer] supplied */
-    fun encode(value: T, buffer: ByteWriteBuffer)
+    fun encode(
+        value: T,
+        buffer: ByteWriteBuffer,
+    )
 }

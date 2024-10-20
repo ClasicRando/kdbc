@@ -18,14 +18,16 @@ import kotlin.test.assertFailsWith
 class TestPgMoney {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    @ValueSource(strings = [
-        "This is a test",
-        "2.63265E+10",
-        "@22.63",
-        "$22.63526",
-        "-$22.63526",
-        "22.",
-    ])
+    @ValueSource(
+        strings = [
+            "This is a test",
+            "2.63265E+10",
+            "@22.63",
+            "$22.63526",
+            "-$22.63526",
+            "22.",
+        ],
+    )
     fun `PgMoney should fail when string does not match the money regex pattern`(
         strMoney: String,
     ) {
@@ -115,41 +117,47 @@ class TestPgMoney {
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept PgMoney when querying postgresql`(): Unit = runBlocking {
-        val query = "SELECT $1 money_col;"
+    fun `encode should accept PgMoney when querying postgresql`(): Unit =
+        runBlocking {
+            val query = "SELECT $1 money_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val money = conn.createPreparedQuery(query)
-                .bind(moneyValue)
-                .fetchScalar<PgMoney>()
-            assertEquals(moneyValue, money)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val money =
+                    conn
+                        .createPreparedQuery(query)
+                        .bind(moneyValue)
+                        .fetchScalar<PgMoney>()
+                assertEquals(moneyValue, money)
+            }
         }
-    }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val money = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<PgMoney>()
+            val money =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<PgMoney>()
             assertEquals(moneyValue, money)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgMoney when simple querying postgresql money`(): Unit = runBlocking {
-        decodeTest(isPrepared = false)
-    }
+    fun `decode should return PgMoney when simple querying postgresql money`(): Unit =
+        runBlocking {
+            decodeTest(isPrepared = false)
+        }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgMoney when extended querying postgresql money`(): Unit = runBlocking {
-        decodeTest(isPrepared = true)
-    }
+    fun `decode should return PgMoney when extended querying postgresql money`(): Unit =
+        runBlocking {
+            decodeTest(isPrepared = true)
+        }
 
     companion object {
         private const val MONEY_DOUBLE_VALUE = 71.68

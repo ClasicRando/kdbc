@@ -12,6 +12,7 @@ interface ConnectionProvider<C : Connection> {
      * cancelling of the created connection when the pool needs to be closed.
      */
     suspend fun create(pool: ConnectionPool<C>): C
+
     /** Validate that a [Connection] can be safely returned to a connection pool */
     suspend fun validate(connection: C): Boolean
 }

@@ -38,9 +38,10 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
     private val connectionNeeded = Channel<CompletableDeferred<C?>>(capacity = Channel.BUFFERED)
     private val mutex = Mutex()
 
-    final override val coroutineContext: CoroutineContext = SupervisorJob(
-        parent = poolOptions.parentScope.coroutineContext.job,
-    )
+    final override val coroutineContext: CoroutineContext =
+        SupervisorJob(
+            parent = poolOptions.parentScope.coroutineContext.job,
+        )
 
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,
@@ -52,7 +53,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         connectionIds[connection.resourceId] = connection
         logger.atTrace {
             message = "Created new connection. Current pool size = ${connectionIds.size}. " +
-                    "Max size = ${poolOptions.maxConnections}"
+                "Max size = ${poolOptions.maxConnections}"
         }
         return connection
     }
@@ -96,7 +97,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
      */
     private suspend fun acquireConnection(): C? {
         val result = connections.tryReceive()
-        when  {
+        when {
             result.isSuccess -> return result.getOrThrow()
             result.isFailure -> return mutex.withLock {
                 if (!isExhausted) {
@@ -127,13 +128,14 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         }
         val deferred = CompletableDeferred<C?>(parent = coroutineContext.job)
         connectionNeeded.send(deferred)
-        val result = if (poolOptions.acquireTimeout.isInfinite()) {
-            deferred.await()
-        } else {
-            withTimeoutOrNull(poolOptions.acquireTimeout) {
+        val result =
+            if (poolOptions.acquireTimeout.isInfinite()) {
                 deferred.await()
+            } else {
+                withTimeoutOrNull(poolOptions.acquireTimeout) {
+                    deferred.await()
+                }
             }
-        }
         if (result != null) {
             return result
         }
@@ -192,7 +194,8 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         } finally {
             try {
                 initialConnection?.close()
-            } catch (ignored: Throwable) {}
+            } catch (ignored: Throwable) {
+            }
         }
         for (i in 1..<poolOptions.minConnections) {
             connections.send(createNewConnection())

@@ -18,7 +18,10 @@ internal object BigDecimalTypeDescription : PgTypeDescription<BigDecimal>(
      * using [PgNumeric.encodeToBuffer]. To get a [PgNumeric], [PgNumeric.fromBigDecimal] is called
      * to convert the [BigDecimal] value to [PgNumeric].
      */
-    override fun encode(value: BigDecimal, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: BigDecimal,
+        buffer: ByteWriteBuffer,
+    ) {
         PgNumeric.fromBigDecimal(value)
             .encodeToBuffer(buffer)
     }
@@ -52,7 +55,10 @@ internal object JBigDecimalTypeDescription : PgTypeDescription<java.math.BigDeci
      * using [PgNumeric.encodeToBuffer]. To get a [PgNumeric], [PgNumeric.fromBigDecimal] is called
      * to convert the [java.math.BigDecimal] value to [PgNumeric].
      */
-    override fun encode(value: java.math.BigDecimal, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: java.math.BigDecimal,
+        buffer: ByteWriteBuffer,
+    ) {
         PgNumeric.fromJBigDecimal(value)
             .encodeToBuffer(buffer)
     }

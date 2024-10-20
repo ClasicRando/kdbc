@@ -21,7 +21,6 @@ internal class PgDataRow(
     private val columnMapping: List<PgColumnDescription>,
     private val typeCache: PgTypeCache,
 ) : DataRow {
-
     /**
      * Check to ensure the [index] is valid for this row
      *
@@ -56,15 +55,19 @@ internal class PgDataRow(
         error("Could not find column in mapping. Column = '$column', columns = $columns")
     }
 
-    override fun get(index: Int, type: KType): Any? {
+    override fun get(
+        index: Int,
+        type: KType,
+    ): Any? {
         val pgType = getPgType(index)
         val nonNullType = type.withNullability(nullable = false)
-        val typeDescription = typeCache.getTypeDescription<Any>(nonNullType)
-            ?: throw KdbcException("Could not find type description for $nonNullType")
+        val typeDescription =
+            typeCache.getTypeDescription<Any>(nonNullType)
+                ?: throw KdbcException("Could not find type description for $nonNullType")
         if (!typeDescription.isCompatible(pgType)) {
             throw KdbcException(
                 "Actual column type is not compatible with required type. " +
-                "Actual type: $pgType, Expected type: $nonNullType"
+                    "Actual type: $pgType, Expected type: $nonNullType",
             )
         }
         return decode(index, typeDescription)

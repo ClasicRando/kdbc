@@ -29,9 +29,10 @@ open class PgBenchmarkAsyncSingleKdbc {
     private val connection: Connection = runBlocking { getKdbcAsyncConnection() }
 
     @Setup
-    open fun start(): Unit = runBlocking {
-        connection.createQuery(setupQuery).executeClosing()
-    }
+    open fun start(): Unit =
+        runBlocking {
+            connection.createQuery(setupQuery).executeClosing()
+        }
 
     private fun singleStep(): Int {
         id++
@@ -45,21 +46,23 @@ open class PgBenchmarkAsyncSingleKdbc {
     }
 
     @Benchmark
-    open fun querySingleRow(): Unit = runBlocking {
-        singleStep()
-        connection.createPreparedQuery(kdbcQuerySingle)
-            .bind(id)
-            .fetchAll(PostDataClassRowParser)
-    }
+    open fun querySingleRow(): Unit =
+        runBlocking {
+            singleStep()
+            connection.createPreparedQuery(kdbcQuerySingle)
+                .bind(id)
+                .fetchAll(PostDataClassRowParser)
+        }
 
     @Benchmark
-    open fun queryMultipleRows(): Unit = runBlocking {
-        multiStep()
-        connection.createPreparedQuery(kdbcQuery)
-            .bind(id)
-            .bind(id + 10)
-            .fetchAll(PostDataClassRowParser)
-    }
+    open fun queryMultipleRows(): Unit =
+        runBlocking {
+            multiStep()
+            connection.createPreparedQuery(kdbcQuery)
+                .bind(id)
+                .bind(id + 10)
+                .fetchAll(PostDataClassRowParser)
+        }
 
     @TearDown
     fun destroy() {

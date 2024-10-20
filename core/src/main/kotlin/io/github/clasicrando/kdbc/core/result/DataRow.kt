@@ -28,7 +28,10 @@ interface DataRow : AutoCloseable {
      * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
      * already been decoded
      */
-    operator fun get(index: Int, type: KType): Any?
+    operator fun get(
+        index: Int,
+        type: KType,
+    ): Any?
 
     /**
      * Get the value stored within the field of [column] specified. This will always decode to
@@ -38,7 +41,10 @@ interface DataRow : AutoCloseable {
      * @throws IllegalArgumentException if the [column] is not in the row or the field has already
      * been decoded
      */
-    operator fun get(column: String, type: KType): Any? = get(indexFromColumn(column), type)
+    operator fun get(
+        column: String,
+        type: KType,
+    ): Any? = get(indexFromColumn(column), type)
 }
 
 /**

@@ -38,9 +38,9 @@ internal class BaseCompositeTypeDescription<T : Any>(
     private val typeCache: PgTypeCache,
     kType: KType,
 ) : PgTypeDescription<T>(
-    dbType = PgType.ByOid(oid = typeOid),
-    kType = kType,
-) {
+        dbType = PgType.ByOid(oid = typeOid),
+        kType = kType,
+    ) {
     /**
      * To encode the values into the buffer, first fetch all the composite type instance's
      * attribute values (with value's [KType] as well) then write:
@@ -53,16 +53,20 @@ internal class BaseCompositeTypeDescription<T : Any>(
      *
      * @throws IllegalStateException if the number of
      */
-    override fun encode(value: T, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: T,
+        buffer: ByteWriteBuffer,
+    ) {
         val values = compositeTypeDefinition.extractValues(value)
         check(values.size == attributeMapping.size) {
             "Values found for composite class instance does not match the expected number. " +
-                    "Expected ${attributeMapping.size}, found ${values.size}"
+                "Expected ${attributeMapping.size}, found ${values.size}"
         }
-        val encodeBuffer = PgEncodeBuffer(
-            parameterTypeOids = attributeMapping.map { it.pgType.oid },
-            typeCache = typeCache,
-        )
+        val encodeBuffer =
+            PgEncodeBuffer(
+                parameterTypeOids = attributeMapping.map { it.pgType.oid },
+                typeCache = typeCache,
+            )
         buffer.writeInt(attributeMapping.size)
         for (i in attributeMapping.indices) {
             val column = attributeMapping[i]
@@ -82,7 +86,10 @@ internal class BaseCompositeTypeDescription<T : Any>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the
      * [CompositeTypeDefinition.fromRow] method throws an exception
      */
-    private fun decodeAsDataRow(attributes: PgDataRow, typeData: PgColumnDescription): T {
+    private fun decodeAsDataRow(
+        attributes: PgDataRow,
+        typeData: PgColumnDescription,
+    ): T {
         return try {
             compositeTypeDefinition.fromRow(attributes)
         } catch (ex: Exception) {
@@ -116,22 +123,24 @@ internal class BaseCompositeTypeDescription<T : Any>(
      */
     override fun decodeBytes(value: PgValue.Binary): T {
         val length = value.bytes.readInt()
-        val attributes = Array<PgValue?>(length) {
-            value.bytes.readInt()
+        val attributes =
+            Array<PgValue?>(length) {
+                value.bytes.readInt()
 
-            val attributeLength = value.bytes.readInt()
-            if (attributeLength == -1) {
-                return@Array null
+                val attributeLength = value.bytes.readInt()
+                if (attributeLength == -1) {
+                    return@Array null
+                }
+                val slice = value.bytes.slice(attributeLength)
+                PgValue.Binary(slice, attributeMapping[it])
             }
-            val slice = value.bytes.slice(attributeLength)
-            PgValue.Binary(slice, attributeMapping[it])
-        }
-        val dataRow = PgDataRow(
-            rowBuffer = value.bytes,
-            pgValues = attributes,
-            columnMapping = attributeMapping,
-            typeCache = typeCache,
-        )
+        val dataRow =
+            PgDataRow(
+                rowBuffer = value.bytes,
+                pgValues = attributes,
+                columnMapping = attributeMapping,
+                typeCache = typeCache,
+            )
         return decodeAsDataRow(dataRow, value.typeData)
     }
 
@@ -146,21 +155,23 @@ internal class BaseCompositeTypeDescription<T : Any>(
      * [CompositeTypeDefinition.fromRow] fails
      */
     override fun decodeText(value: PgValue.Text): T {
-        val attributes = PgCompositeLiteralParser
-            .parse(value.text)
-            .withIndex()
-            .map { (i, value) ->
-                val text = value ?: return@map null
-                PgValue.Text(text, attributeMapping[i])
-            }
-            .toList()
-            .toTypedArray<PgValue?>()
-        val dataRow = PgDataRow(
-            rowBuffer = null,
-            pgValues = attributes,
-            columnMapping = attributeMapping,
-            typeCache = typeCache,
-        )
+        val attributes =
+            PgCompositeLiteralParser
+                .parse(value.text)
+                .withIndex()
+                .map { (i, value) ->
+                    val text = value ?: return@map null
+                    PgValue.Text(text, attributeMapping[i])
+                }
+                .toList()
+                .toTypedArray<PgValue?>()
+        val dataRow =
+            PgDataRow(
+                rowBuffer = null,
+                pgValues = attributes,
+                columnMapping = attributeMapping,
+                typeCache = typeCache,
+            )
         return decodeAsDataRow(dataRow, value.typeData)
     }
 }
@@ -179,30 +190,35 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
     init {
         require(cls.isData) { "Only data classes are allowed to represent composite types" }
     }
+
     private val primaryConstructor = cls.primaryConstructor!!
     private val constructorParameterNames = primaryConstructor.parameters.map { it.name!! }
-    private val properties = constructorParameterNames.map { param ->
-        cls.memberProperties.first { it.name == param }
-    }
-    private val finalParameterNames = primaryConstructor.parameters
-        .map { param ->
-            val name = param.annotations
-                .firstOrNull { it is Rename }
-                ?.let { it as Rename }
-                ?.value
-                ?: param.name!!
-            name to param.type
+    private val properties =
+        constructorParameterNames.map { param ->
+            cls.memberProperties.first { it.name == param }
         }
+    private val finalParameterNames =
+        primaryConstructor.parameters
+            .map { param ->
+                val name =
+                    param.annotations
+                        .firstOrNull { it is Rename }
+                        ?.let { it as Rename }
+                        ?.value
+                        ?: param.name!!
+                name to param.type
+            }
 
     override fun extractValues(value: T): List<Pair<Any?, KType>> {
         return properties.map { it.call(value) to it.returnType }
     }
 
     override fun fromRow(row: DataRow): T {
-        val args = Array(finalParameterNames.size) { i ->
-            val (parameterName, parameterType) = finalParameterNames[i]
-            row[parameterName, parameterType]
-        }
+        val args =
+            Array(finalParameterNames.size) { i ->
+                val (parameterName, parameterType) = finalParameterNames[i]
+                row[parameterName, parameterType]
+            }
         return primaryConstructor.call(*args)
     }
 }

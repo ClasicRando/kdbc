@@ -17,29 +17,33 @@ sealed class PgValue private constructor(val typeData: PgColumnDescription) {
      * data in text format. The containing [text] will be parsed by decoders into the required
      * output type.
      */
-    class Text @PublishedApi internal constructor(
-        val text: String,
-        typeData: PgColumnDescription,
-    ) : PgValue(typeData) {
-        internal constructor(bytes: ByteReadBuffer, typeData: PgColumnDescription)
-                : this(bytes.readText(), typeData)
+    class Text
+        @PublishedApi
+        internal constructor(
+            val text: String,
+            typeData: PgColumnDescription,
+        ) : PgValue(typeData) {
+            internal constructor(bytes: ByteReadBuffer, typeData: PgColumnDescription) :
+                this(bytes.readText(), typeData)
 
-        override fun toString(): String {
-            return "PgValue.Text(text=$text, typeData=$typeData)"
+            override fun toString(): String {
+                return "PgValue.Text(text=$text, typeData=$typeData)"
+            }
         }
-    }
 
     /**
      * [PgValue] variant for providing database sent [Byte] data representing the output/result
      * data in binary format. The containing [bytes] will be read by decoders into the required
      * output type.
      */
-    class Binary @PublishedApi internal constructor(
-        val bytes: ByteReadBuffer,
-        typeData: PgColumnDescription,
-    ) : PgValue(typeData) {
-        override fun toString(): String {
-            return "PgValue.Binary(typeData=$typeData)"
+    class Binary
+        @PublishedApi
+        internal constructor(
+            val bytes: ByteReadBuffer,
+            typeData: PgColumnDescription,
+        ) : PgValue(typeData) {
+            override fun toString(): String {
+                return "PgValue.Binary(typeData=$typeData)"
+            }
         }
-    }
 }

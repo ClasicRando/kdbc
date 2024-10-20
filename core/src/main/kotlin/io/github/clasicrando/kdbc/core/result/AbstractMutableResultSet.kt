@@ -29,8 +29,9 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
         return columnMapping[index]
     }
 
-    override fun iterator(): Iterator<DataRow> = backingList?.iterator()
-        ?: error("Attempted to iterate on a closed/released ResultSet")
+    override fun iterator(): Iterator<DataRow> =
+        backingList?.iterator()
+            ?: error("Attempted to iterate on a closed/released ResultSet")
 
     /**
      * Remove all elements of the backing [MutableList] of this [ResultSet]. If the list is still

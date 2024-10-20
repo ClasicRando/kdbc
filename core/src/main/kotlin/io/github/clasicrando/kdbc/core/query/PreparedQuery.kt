@@ -11,6 +11,7 @@ interface PreparedQuery : Query {
      * is the order that the parameters have been bound.
      */
     val parameters: List<QueryParameter>
+
     /**
      * Bind a next [parameter] to the [PreparedQuery]. This adds the parameter to the internal
      * list of parameters in the order the parameter exists in the query regardless of the vendor

@@ -15,26 +15,32 @@ class TestBooleanType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `encode should accept Boolean when querying postgresql`(value: Boolean): Unit = runBlocking {
-        val query = "SELECT $1 bool_col;"
+    fun `encode should accept Boolean when querying postgresql`(value: Boolean): Unit =
+        runBlocking {
+            val query = "SELECT $1 bool_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val boolean = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<Boolean>()
-            assertEquals(value, boolean)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val boolean =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<Boolean>()
+                assertEquals(value, boolean)
+            }
         }
-    }
 
-    private suspend fun decodeTest(value: Boolean, isPrepared: Boolean) {
+    private suspend fun decodeTest(
+        value: Boolean,
+        isPrepared: Boolean,
+    ) {
         val query = "SELECT $value;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val boolean = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<Boolean>()
+            val boolean =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<Boolean>()
             assertEquals(value, boolean)
         }
     }
@@ -42,14 +48,18 @@ class TestBooleanType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `decode should return Boolean when simple querying postgresql bool`(value: Boolean): Unit = runBlocking {
-        decodeTest(value = value, isPrepared = false)
-    }
+    fun `decode should return Boolean when simple querying postgresql bool`(value: Boolean): Unit =
+        runBlocking {
+            decodeTest(value = value, isPrepared = false)
+        }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `decode should return Boolean when extended querying postgresql bool`(value: Boolean): Unit = runBlocking {
-        decodeTest(value = value, isPrepared = true)
-    }
+    fun `decode should return Boolean when extended querying postgresql bool`(
+        value: Boolean,
+    ): Unit =
+        runBlocking {
+            decodeTest(value = value, isPrepared = true)
+        }
 }

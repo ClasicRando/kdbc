@@ -38,15 +38,17 @@ class KtorStream(
     private val buffer = Buffer()
     private val tempBuffer = ByteArray(DEFAULT_BUFFER_SIZE)
 
-    override val isConnected: Boolean get() = this::connection.isInitialized
-            && socket.isActive && !socket.isClosed
+    override val isConnected: Boolean get() =
+        this::connection.isInitialized &&
+            socket.isActive && !socket.isClosed
 
     override suspend fun connect(timeout: Duration) {
         require(timeout.isPositive()) { "Timeout must be positive" }
         try {
-            connection = withTimeout(timeout) {
-                aSocket(selectorManager).tcp().connect(address).connection()
-            }
+            connection =
+                withTimeout(timeout) {
+                    aSocket(selectorManager).tcp().connect(address).connection()
+                }
             socket = connection.socket
             writeChannel = connection.output
             readChannel = connection.input
@@ -63,10 +65,11 @@ class KtorStream(
     }
 
     override suspend fun upgradeTls(timeout: Duration) {
-        connection = withTimeout(timeout) {
-            connection.tls(coroutineContext = selectorManager.coroutineContext)
-                .connection()
-        }
+        connection =
+            withTimeout(timeout) {
+                connection.tls(coroutineContext = selectorManager.coroutineContext)
+                    .connection()
+            }
         socket = connection.socket
         writeChannel = connection.output
         readChannel = connection.input
@@ -82,17 +85,18 @@ class KtorStream(
     private suspend fun readIntoBuffer(required: Long) {
         var bytesRequired = required
         while (true) {
-            val bytesRead = try {
-                readChannel.readAvailable(tempBuffer)
-            } catch (ex: TimeoutCancellationException) {
-                throw ex
-            } catch (ex: Exception) {
-                logWithResource(logger, Kdbc.detailedLogging) {
-                    message = "Failed to read from socket"
-                    cause = ex
+            val bytesRead =
+                try {
+                    readChannel.readAvailable(tempBuffer)
+                } catch (ex: TimeoutCancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    logWithResource(logger, Kdbc.detailedLogging) {
+                        message = "Failed to read from socket"
+                        cause = ex
+                    }
+                    throw StreamReadError(ex)
                 }
-                throw StreamReadError(ex)
-            }
 
             if (bytesRead == -1) {
                 logWithResource(logger, Kdbc.detailedLogging) {

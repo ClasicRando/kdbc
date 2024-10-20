@@ -94,12 +94,14 @@ class PgConnection internal constructor(
      * the connection.
      */
     private val mutex = Mutex()
+
     /**
      * Cache of [PgPreparedStatement] where the key is the query that initiated the prepared
      * statement. This is not thread safe, therefore it should only be accessed after querying
      * running has been disabled to ensure a single thread/coroutine is accessing the contents.
      */
     private val preparedStatements: MutableMap<String, PgPreparedStatement> = mutableMapOf()
+
     /** ID of the next prepared statement executed. Incremented after each statement is created */
     private var nextStatementId = 1
 
@@ -107,7 +109,10 @@ class PgConnection internal constructor(
      * Create a log message at the specified [level], applying the [block] to the
      * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
      */
-    private inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
+    private inline fun log(
+        level: Level,
+        crossinline block: KLoggingEventBuilder.() -> Unit,
+    ) {
         logWithResource(logger, level, block)
     }
 
@@ -138,7 +143,8 @@ class PgConnection internal constructor(
                     rollback()
                 } catch (ex2: Throwable) {
                     log(Level.WARN) {
-                        message = "Error while trying to rollback. BEGIN called while in transaction"
+                        message = "Error while trying to rollback. " +
+                            "BEGIN called while in transaction"
                         cause = ex2
                     }
                 }
@@ -197,8 +203,7 @@ class PgConnection internal constructor(
      * that was received at the end of a flow of query responses.
      */
     private fun handleTransactionStatus(transactionStatus: TransactionStatus) {
-        if (transactionStatus == TransactionStatus.FailedTransaction)
-        {
+        if (transactionStatus == TransactionStatus.FailedTransaction) {
             log(Level.WARN) {
                 this.message = "Server reported failed transaction."
             }
@@ -238,8 +243,9 @@ class PgConnection internal constructor(
         }
         queryResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
-        val error = queryResultCollector.errors.reduceToSingleOrNull()
-            ?: return queryResultCollector.buildStatementResult()
+        val error =
+            queryResultCollector.errors.reduceToSingleOrNull()
+                ?: return queryResultCollector.buildStatementResult()
         log(Kdbc.detailedLogging) {
             message = "Error during single query execution"
             cause = error
@@ -258,17 +264,16 @@ class PgConnection internal constructor(
      * one [Throwable] (if any) and thrown. Otherwise, the method exits with all [QueryResult]s
      * packed into a single [StatementResult].
      */
-    private suspend fun collectResult(
-        statement: PgPreparedStatement? = null,
-    ): StatementResult {
+    private suspend fun collectResult(statement: PgPreparedStatement? = null): StatementResult {
         val queryResultCollector = QueryResultCollector(this, typeCache)
         queryResultCollector.processNextStatement(statement)
         stream.processMessageLoop(queryResultCollector::processNextMessage)
             .onFailure(queryResultCollector.errors::add)
         queryResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
-        val error = queryResultCollector.errors.reduceToSingleOrNull()
-            ?: return queryResultCollector.buildStatementResult()
+        val error =
+            queryResultCollector.errors.reduceToSingleOrNull()
+                ?: return queryResultCollector.buildStatementResult()
         log(Kdbc.detailedLogging) {
             message = "Error during single query execution"
             cause = error
@@ -291,9 +296,7 @@ class PgConnection internal constructor(
      * @throws IllegalArgumentException if the [query] is blank
      * @throws IllegalStateException if the underlining connection is no longer active
      */
-    internal suspend fun sendSimpleQuery(
-        query: String,
-    ): StatementResult {
+    internal suspend fun sendSimpleQuery(query: String): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
 
@@ -301,16 +304,17 @@ class PgConnection internal constructor(
             return sendExtendedQuery(query, listOf())
         }
 
-        val result = measureTimedValue {
-            mutex.withLock {
-                log(connectOptions.logSettings.statementLevel) {
-                    message = "Sending query: ${query.normalizeWhitespace()}"
-                }
-                stream.writeToStream(PgMessage.Query(query))
+        val result =
+            measureTimedValue {
+                mutex.withLock {
+                    log(connectOptions.logSettings.statementLevel) {
+                        message = "Sending query: ${query.normalizeWhitespace()}"
+                    }
+                    stream.writeToStream(PgMessage.Query(query))
 
-                collectResult()
+                    collectResult()
+                }
             }
-        }
         log(Kdbc.detailedLogging) {
             this.message = "Done executing simple query. Took ${result.duration}"
         }
@@ -328,16 +332,18 @@ class PgConnection internal constructor(
         statement: PgPreparedStatement,
     ) {
         stream.writeManyToStream {
-            val parseMessage = PgMessage.Parse(
-                preparedStatementName = statement.statementName,
-                query = query,
-                parameterTypes = parameterTypes,
-            )
+            val parseMessage =
+                PgMessage.Parse(
+                    preparedStatementName = statement.statementName,
+                    query = query,
+                    parameterTypes = parameterTypes,
+                )
             yield(parseMessage)
-            val describeMessage = PgMessage.Describe(
-                target = MessageTarget.PreparedStatement,
-                name = statement.statementName,
-            )
+            val describeMessage =
+                PgMessage.Describe(
+                    target = MessageTarget.PreparedStatement,
+                    name = statement.statementName,
+                )
             yield(describeMessage)
             yield(PgMessage.Sync)
         }
@@ -361,16 +367,18 @@ class PgConnection internal constructor(
      * statement was never executed.
      */
     private suspend fun removeOldestPreparedStatement() {
-        val neverExecuted = preparedStatements.values
-            .find { it.lastExecuted == null }
+        val neverExecuted =
+            preparedStatements.values
+                .find { it.lastExecuted == null }
         if (neverExecuted != null) {
             releasePreparedStatement(neverExecuted)
             return
         }
-        val oldestQuery = preparedStatements.values
-            .asSequence()
-            .filter { it.lastExecuted != null }
-            .maxBy { it.lastExecuted!! }
+        val oldestQuery =
+            preparedStatements.values
+                .asSequence()
+                .filter { it.lastExecuted != null }
+                .maxBy { it.lastExecuted!! }
         releasePreparedStatement(oldestQuery)
     }
 
@@ -407,7 +415,7 @@ class PgConnection internal constructor(
         require(statement.paramCount == parameters.size) {
             """
             Query does not have the correct number of parameters. Expected ${statement.paramCount}, got ${parameters.size}
-            
+
             ${query.trim().replaceIndent("            ")}
             """.trimIndent()
         }
@@ -437,16 +445,18 @@ class PgConnection internal constructor(
         sendSync: Boolean = true,
     ) {
         stream.writeManyToStream {
-            val bindMessage = PgMessage.Bind(
-                portal = null,
-                statementName = statement.statementName,
-                encodeBuffer = parameters,
-            )
+            val bindMessage =
+                PgMessage.Bind(
+                    portal = null,
+                    statementName = statement.statementName,
+                    encodeBuffer = parameters,
+                )
             yield(bindMessage)
-            val executeMessage = PgMessage.Execute(
-                portalName = null,
-                maxRowCount = 0,
-            )
+            val executeMessage =
+                PgMessage.Execute(
+                    portalName = null,
+                    maxRowCount = 0,
+                )
             yield(executeMessage)
             val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
             yield(closePortalMessage)
@@ -474,26 +484,28 @@ class PgConnection internal constructor(
     internal suspend fun sendExtendedQuery(
         query: String,
         parameters: List<QueryParameter>,
-    ): StatementResult  {
+    ): StatementResult {
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
 
-        val result = measureTimedValue {
-            mutex.withLock {
-                val statement = try {
-                    prepareStatement(query, parameters)
-                } catch (ex: Throwable) {
-                    throw ex
-                }
+        val result =
+            measureTimedValue {
+                mutex.withLock {
+                    val statement =
+                        try {
+                            prepareStatement(query, parameters)
+                        } catch (ex: Throwable) {
+                            throw ex
+                        }
 
-                val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
-                for ((parameter, type) in parameters) {
-                    encodeBuffer.encodeValue(parameter, type)
+                    val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
+                    for ((parameter, type) in parameters) {
+                        encodeBuffer.encodeValue(parameter, type)
+                    }
+                    executePreparedStatement(statement, encodeBuffer)
+                    collectResult(statement = statement)
                 }
-                executePreparedStatement(statement, encodeBuffer)
-                collectResult(statement = statement)
             }
-        }
         log(Kdbc.detailedLogging) {
             this.message = "Done executing extended query. Took ${result.duration}"
         }
@@ -505,10 +517,11 @@ class PgConnection internal constructor(
      * side prepared statement and then remove the [preparedStatement] for the client cache.
      */
     private suspend fun releasePreparedStatement(preparedStatement: PgPreparedStatement) {
-        val closeMessage = PgMessage.Close(
-            target = MessageTarget.PreparedStatement,
-            targetName = preparedStatement.statementName,
-        )
+        val closeMessage =
+            PgMessage.Close(
+                target = MessageTarget.PreparedStatement,
+                targetName = preparedStatement.statementName,
+            )
         stream.writeManyToStream(closeMessage, PgMessage.Sync)
         stream.waitForOrError<PgMessage.CloseComplete>()
         stream.waitForOrError<PgMessage.ReadyForQuery>()
@@ -598,10 +611,11 @@ class PgConnection internal constructor(
         vararg queries: Pair<String, List<QueryParameter>>,
     ): StatementResult {
         return mutex.withLock {
-            val statements = Array(queries.size) { i ->
-                val (queryText, queryParams) = queries[i]
-                prepareStatement(query = queryText, parameters = queryParams)
-            }
+            val statements =
+                Array(queries.size) { i ->
+                    val (queryText, queryParams) = queries[i]
+                    prepareStatement(query = queryText, parameters = queryParams)
+                }
             for ((i, statement) in statements.withIndex()) {
                 val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
                 for ((parameter, type) in queries[i].second) {
@@ -635,7 +649,10 @@ class PgConnection internal constructor(
      * messages, the expected [PgMessage.ErrorResponse] received from the server will be treated as
      * a result message and not an error.
      */
-    private suspend fun copyInInternal(copyQuery: String, data: Flow<ByteArray>): QueryResult {
+    private suspend fun copyInInternal(
+        copyQuery: String,
+        data: Flow<ByteArray>,
+    ): QueryResult {
         log(connectOptions.logSettings.statementLevel) {
             message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
@@ -668,8 +685,9 @@ class PgConnection internal constructor(
 
         return QueryResult(
             rowsAffected = copyInResultCollector.completeMessage?.rowCount ?: 0,
-            message = copyInResultCollector.completeMessage?.message
-                ?: "Default copy in complete message",
+            message =
+                copyInResultCollector.completeMessage?.message
+                    ?: "Default copy in complete message",
         )
     }
 
@@ -705,11 +723,14 @@ class PgConnection internal constructor(
      *
      * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
      */
-    suspend fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
+    suspend fun copyIn(
+        copyInStatement: CopyStatement.From,
+        source: Source,
+    ): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
         return copyIn(
             copyInStatement = copyInStatement,
-            data = source.chunkedBytes().asFlow()
+            data = source.chunkedBytes().asFlow(),
         )
     }
 
@@ -731,7 +752,7 @@ class PgConnection internal constructor(
         require(copyInStatement is CopyStatement.CopyText)
         return copyIn(
             copyInStatement = copyInStatement,
-            data = inputStream.chunkedBytes().asFlow()
+            data = inputStream.chunkedBytes().asFlow(),
         )
     }
 
@@ -753,22 +774,24 @@ class PgConnection internal constructor(
         data: Flow<PgCsvCopyRow>,
     ): QueryResult {
         val outputStream = ByteArrayOutputStream()
-        val writer = csvWriter {
-            delimiter = copyInStatement.delimiter
-            quote {
-                char = copyInStatement.quote
+        val writer =
+            csvWriter {
+                delimiter = copyInStatement.delimiter
+                quote {
+                    char = copyInStatement.quote
+                }
+                lineTerminator = "\n"
+                nullCode = copyInStatement.nullString
             }
-            lineTerminator = "\n"
-            nullCode = copyInStatement.nullString
-        }
         return copyIn(
             copyInStatement = copyInStatement,
-            data = data.chunked(size = 50).map { chunk ->
-                writer.openAsync(outputStream) { writeRows(chunk.map { it.values }) }
-                val bytes = outputStream.toByteArray()
-                outputStream.reset()
-                bytes
-            }
+            data =
+                data.chunked(size = 50).map { chunk ->
+                    writer.openAsync(outputStream) { writeRows(chunk.map { it.values }) }
+                    val bytes = outputStream.toByteArray()
+                    outputStream.reset()
+                    bytes
+                },
         )
     }
 
@@ -789,26 +812,29 @@ class PgConnection internal constructor(
         data: Flow<PgBinaryCopyRow>,
     ): QueryResult {
         val schemaName = copyInStatement.schemaName.trim()
-        val metadata = createPreparedQuery(CopyTableMetadata.QUERY)
-            .bind(copyInStatement.tableName)
-            .bind(schemaName)
-            .fetchAll(CopyTableMetadata.Companion)
+        val metadata =
+            createPreparedQuery(CopyTableMetadata.QUERY)
+                .bind(copyInStatement.tableName)
+                .bind(schemaName)
+                .fetchAll(CopyTableMetadata.Companion)
         val fields = metadata.map { it.type.oid }
         val buffer = PgEncodeBuffer(parameterTypeOids = fields, typeCache = typeCache)
         return copyIn(
             copyInStatement = copyInStatement,
-            data = flow<ByteArray> {
-                emit(pgBinaryCopyHeader)
-                val mappedFlow = data.chunked(size = 50).map { chunk ->
-                    for (row in chunk) {
-                        buffer.innerBuffer.writeShort(row.valueCount)
-                        row.encodeValues(buffer)
-                    }
-                    buffer.innerBuffer.copyToArray()
-                }
-                emitAll(mappedFlow)
-                emit(pgBinaryCopyTrailer)
-            }
+            data =
+                flow<ByteArray> {
+                    emit(pgBinaryCopyHeader)
+                    val mappedFlow =
+                        data.chunked(size = 50).map { chunk ->
+                            for (row in chunk) {
+                                buffer.innerBuffer.writeShort(row.valueCount)
+                                row.encodeValues(buffer)
+                            }
+                            buffer.innerBuffer.copyToArray()
+                        }
+                    emitAll(mappedFlow)
+                    emit(pgBinaryCopyTrailer)
+                },
         )
     }
 
@@ -820,9 +846,7 @@ class PgConnection internal constructor(
      * 3. Process all incoming messages by yielding a [Sequence] of [ByteArray] instances from
      * [PgMessage.CopyData] messages. Exit the loop when [PgMessage.ReadyForQuery] is received.
      */
-    private suspend fun copyOutInternal(
-        copyQuery: String,
-    ): Flow<ByteArray> {
+    private suspend fun copyOutInternal(copyQuery: String): Flow<ByteArray> {
         log(connectOptions.logSettings.statementLevel) {
             message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
@@ -857,31 +881,32 @@ class PgConnection internal constructor(
      * you should always try to process each item as soon as possible or collect the elements into
      * a [List].
      */
-    suspend fun copyOut(
-        copyOutStatement: CopyStatement.To,
-    ): QueryResult {
+    suspend fun copyOut(copyOutStatement: CopyStatement.To): QueryResult {
         checkConnected()
 
         val copyQuery = copyOutStatement.toQuery()
-        val fields = when (copyOutStatement) {
-            is CopyStatement.CopyTable -> {
-                val schemaName = copyOutStatement.schemaName.trim()
-                val metadata = createPreparedQuery(CopyTableMetadata.QUERY)
-                    .bind(copyOutStatement.tableName)
-                    .bind(schemaName)
-                    .fetchAll(CopyTableMetadata.Companion)
-                CopyTableMetadata.getFields(copyOutStatement.format, metadata)
-            }
-            is CopyStatement.CopyQuery -> {
-                val statement = mutex.withLock {
-                    prepareStatement(copyOutStatement.query, emptyList())
+        val fields =
+            when (copyOutStatement) {
+                is CopyStatement.CopyTable -> {
+                    val schemaName = copyOutStatement.schemaName.trim()
+                    val metadata =
+                        createPreparedQuery(CopyTableMetadata.QUERY)
+                            .bind(copyOutStatement.tableName)
+                            .bind(schemaName)
+                            .fetchAll(CopyTableMetadata.Companion)
+                    CopyTableMetadata.getFields(copyOutStatement.format, metadata)
                 }
-                statement.resultMetadata
+                is CopyStatement.CopyQuery -> {
+                    val statement =
+                        mutex.withLock {
+                            prepareStatement(copyOutStatement.query, emptyList())
+                        }
+                    statement.resultMetadata
+                }
+                else -> throw KdbcException(
+                    "Received an invalid `CopyStatement.To`. This should never happen",
+                )
             }
-            else -> throw KdbcException(
-                "Received an invalid `CopyStatement.To`. This should never happen"
-            )
-        }
 
         return mutex.withLock {
             val flow = copyOutInternal(copyQuery)
@@ -926,9 +951,12 @@ class PgConnection internal constructor(
      * Execute a `NOTIFY` command for the specified [channelName] with the supplied [payload]. This
      * sends a notification to any connection connected to this connection's current database.
      */
-    suspend fun notify(channelName: String, payload: String) {
+    suspend fun notify(
+        channelName: String,
+        payload: String,
+    ) {
         val escapedPayload = payload.replace("'", "''")
-        sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '${escapedPayload}';")
+        sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '$escapedPayload';")
     }
 
     /**
@@ -978,7 +1006,7 @@ class PgConnection internal constructor(
      * adds simple array type descriptions as well. If the [PgTypeDescription.kType] is already
      * present within the cache, that description will be removed for the new description.
      */
-    suspend fun <T: Any> registerCustomType(typeDescription: PgTypeDescription<T>) {
+    suspend fun <T : Any> registerCustomType(typeDescription: PgTypeDescription<T>) {
         typeCache.addCustomType(connection = this, typeDescription = typeDescription)
     }
 

@@ -23,6 +23,7 @@ class AtomicMutableMap<K, V>(initial: Map<K, V> = emptyMap()) : MutableMap<K, V>
      */
     override val entries: MutableSet<MutableMap.MutableEntry<K, V>>
         get() = inner.value.toMutableMap().entries
+
     /**
      * Returns a copy of the underling [Map]'s [Map.keys]. Does not keep consistent with future
      * updates to this [MutableMap].
@@ -31,6 +32,7 @@ class AtomicMutableMap<K, V>(initial: Map<K, V> = emptyMap()) : MutableMap<K, V>
         get() = inner.value.toMutableMap().keys
     override val size: Int
         get() = inner.value.size
+
     /**
      * Returns a copy of the underling [Map]'s [Map.values]. Does not keep consistent with future
      * updates to this [MutableMap].
@@ -59,7 +61,10 @@ class AtomicMutableMap<K, V>(initial: Map<K, V> = emptyMap()) : MutableMap<K, V>
         }
     }
 
-    override fun put(key: K, value: V): V? {
+    override fun put(
+        key: K,
+        value: V,
+    ): V? {
         var result: V? = null
         inner.update { current ->
             result = current[key]

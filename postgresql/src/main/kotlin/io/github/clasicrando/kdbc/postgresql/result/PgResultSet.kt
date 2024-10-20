@@ -17,28 +17,28 @@ internal class PgResultSet(
 ) : AbstractMutableResultSet<PgDataRow, PgColumnDescription>(columnMapping) {
     fun addRow(buffer: ByteReadBuffer) {
         val count = buffer.readShort()
-        val pgValues = Array(count.toInt()) {
-            val length = buffer.readInt()
-            if (length < 0) {
-                return@Array null
+        val pgValues =
+            Array(count.toInt()) {
+                val length = buffer.readInt()
+                if (length < 0) {
+                    return@Array null
+                }
+                val slice = buffer.slice(length)
+                val columnType = columnMapping[it]
+                when (val formatCode = columnType.formatCode) {
+                    0.toShort() -> PgValue.Text(slice, columnType)
+                    1.toShort() -> PgValue.Binary(slice, columnType)
+                    else -> error("Invalid format code from row description. Got $formatCode")
+                }
             }
-            val slice = buffer.slice(length)
-            val columnType = columnMapping[it]
-            when (columnType.formatCode) {
-                0.toShort() -> PgValue.Text(slice, columnType)
-                1.toShort() -> PgValue.Binary(slice, columnType)
-                else -> error(
-                    "Invalid format code from row description. Got ${columnType.formatCode}"
-                )
-            }
-        }
 
-        val row = PgDataRow(
-            rowBuffer = buffer,
-            pgValues = pgValues,
-            columnMapping = columnMapping,
-            typeCache = typeCache,
-        )
+        val row =
+            PgDataRow(
+                rowBuffer = buffer,
+                pgValues = pgValues,
+                columnMapping = columnMapping,
+                typeCache = typeCache,
+            )
         super.addRow(row)
     }
 }

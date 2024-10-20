@@ -11,9 +11,9 @@ class RowParseError(
     exception: Throwable? = null,
     reason: String? = null,
 ) : KdbcException(
-    "Failed to parse row into type using row parser ${rowParser::class.simpleName}"
-    + if (reason != null) ".$reason" else ""
-) {
+        "Failed to parse row into type using row parser ${rowParser::class.simpleName}" +
+            if (reason != null) ".$reason" else "",
+    ) {
     init {
         addSuppressed(exception)
     }

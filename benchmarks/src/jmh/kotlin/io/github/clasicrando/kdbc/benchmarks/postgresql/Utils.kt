@@ -25,39 +25,44 @@ import java.sql.ResultSet
 import kotlin.uuid.Uuid
 import org.postgresql.jdbc.PgConnection as JdbcPgConnection
 
-val jdbcQuerySingle = """
+val jdbcQuerySingle =
+    """
     SELECT
         id, "text", creation_date, last_change_date, counter1, counter2, counter3, counter4,
         counter5, counter6, counter7, counter8, counter9
     FROM public.posts
     WHERE id = ?
-""".trimIndent()
+    """.trimIndent()
 
-val kdbcQuerySingle = """
+val kdbcQuerySingle =
+    """
     SELECT
         id, "text", creation_date, last_change_date, counter1, counter2, counter3, counter4,
         counter5, counter6, counter7, counter8, counter9
     FROM public.posts
     WHERE id = $1
-""".trimIndent()
+    """.trimIndent()
 
-val jdbcQuery = """
+val jdbcQuery =
+    """
     SELECT
         id, "text", creation_date, last_change_date, counter1, counter2, counter3, counter4,
         counter5, counter6, counter7, counter8, counter9
     FROM public.posts
     WHERE id BETWEEN ? AND ?
-""".trimIndent()
+    """.trimIndent()
 
-val kdbcQuery = """
+val kdbcQuery =
+    """
     SELECT
         id, "text", creation_date, last_change_date, counter1, counter2, counter3, counter4,
         counter5, counter6, counter7, counter8, counter9
     FROM public.posts
     WHERE id BETWEEN $1 AND $2
-""".trimIndent()
+    """.trimIndent()
 
-val setupQuery = """
+val setupQuery =
+    """
     DROP TABLE IF EXISTS public.posts;
     CREATE TABLE public.posts
     (
@@ -78,9 +83,10 @@ val setupQuery = """
     INSERT INTO public.posts("text", creation_date, last_change_date)
     SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
     FROM generate_series(1, 5000) t;
-""".trimIndent()
+    """.trimIndent()
 
-val copyOutSetupQuery = """
+val copyOutSetupQuery =
+    """
     DROP TABLE IF EXISTS public.copy_out_posts;
     CREATE TABLE public.copy_out_posts
     (
@@ -101,9 +107,10 @@ val copyOutSetupQuery = """
     INSERT INTO public.copy_out_posts("text", creation_date, last_change_date)
     SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
     FROM generate_series(1, 5000) t;
-""".trimIndent()
+    """.trimIndent()
 
-val copyInSetupQuery = """
+val copyInSetupQuery =
+    """
     DROP TABLE IF EXISTS public.copy_in_posts;
     CREATE TABLE public.copy_in_posts
     (
@@ -121,7 +128,7 @@ val copyInSetupQuery = """
         counter8 int,
         counter9 int
     );
-""".trimIndent()
+    """.trimIndent()
 
 fun createBenchmarkCsv(outputPath: Path) {
     IOUtils.createFileIfNotExists(outputPath)
@@ -129,7 +136,21 @@ fun createBenchmarkCsv(outputPath: Path) {
         csvWriter().open(sink.asOutputStream()) {
             for (i in 1..50000) {
                 val currentTimestamp = Clock.System.now().toLocalDateTime(TimeZone.UTC)
-                writeRow(i, "$i Value", currentTimestamp, currentTimestamp, null, null, null, null, null, null, null, null, null)
+                writeRow(
+                    i,
+                    "$i Value",
+                    currentTimestamp,
+                    currentTimestamp,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                )
             }
         }
     }
@@ -140,19 +161,23 @@ fun createBenchmarkCsv(outputPath: java.nio.file.Path) {
 }
 
 val kdbcCopyOut = CopyStatement.TableToCsv(schemaName = "public", tableName = "copy_out_posts")
-const val jdbcCopyOut = "COPY public.copy_out_posts TO STDOUT WITH (FORMAT csv)"
+const val JDBC_COPY_OUT = "COPY public.copy_out_posts TO STDOUT WITH (FORMAT csv)"
 
 val kdbcCopyIn = CopyStatement.TableFromCsv(schemaName = "public", tableName = "copy_in_posts")
-const val jdbcCopyIn = "COPY public.copy_in_posts FROM STDIN WITH (FORMAT csv)"
+const val JDBC_COPY_IN = "COPY public.copy_in_posts FROM STDIN WITH (FORMAT csv)"
 
-private const val missingEnvironmentVariableMessage = "To run benchmarks the environment " +
+private const val MISSING_ENVIRONMENT_VARIABLE_MESSAGE =
+    "To run benchmarks the environment " +
         "variable JDBC_PG_CONNECTION_STRING must be available"
 
-private val connectionString = System.getenv("JDBC_PG_CONNECTION_STRING")
-    ?: throw IllegalStateException(missingEnvironmentVariableMessage)
+private val connectionString =
+    System.getenv("JDBC_PG_CONNECTION_STRING")
+        ?: throw IllegalStateException(MISSING_ENVIRONMENT_VARIABLE_MESSAGE)
 
-fun getJdbcConnection(): JdbcPgConnection = DriverManager.getConnection(connectionString)
-    .unwrap(JdbcPgConnection::class.java)
+fun getJdbcConnection(): JdbcPgConnection =
+    DriverManager
+        .getConnection(connectionString)
+        .unwrap(JdbcPgConnection::class.java)
 
 fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     val connectionFactory = DriverManagerConnectionFactory(connectionString, null)
@@ -162,46 +187,52 @@ fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     return PoolingDataSource(connectionPool)
 }
 
-val kdbcConnectOptions = PgConnectOptions(
-    host = "127.0.0.1",
-    port = 5432,
-    username = "postgres",
-    password = System.getenv("PG_BENCHMARK_PASSWORD")
-        ?: error("To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"),
-    database = "postgres",
-    applicationName = "KdbcTests${Uuid.random()}",
-    logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
-)
+private const val KDBC_MISSING_ENVIRONMENT_VARIABLE_MESSAGE =
+    "To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"
 
-val poolOptions = PoolOptions(
-    maxConnections = 10,
-    minConnections = 8,
-)
+val kdbcConnectOptions =
+    PgConnectOptions(
+        host = "127.0.0.1",
+        port = 5432,
+        username = "postgres",
+        password =
+            System.getenv("PG_BENCHMARK_PASSWORD")
+                ?: error(KDBC_MISSING_ENVIRONMENT_VARIABLE_MESSAGE),
+        database = "postgres",
+        applicationName = "KdbcTests${Uuid.random()}",
+        logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
+    )
 
-suspend fun getKdbcAsyncConnection(): PgConnection {
-    return Postgres.connection(connectOptions = kdbcConnectOptions)
-}
+val poolOptions =
+    PoolOptions(
+        maxConnections = 10,
+        minConnections = 8,
+    )
 
-const val concurrencyLimit = 100
+suspend fun getKdbcAsyncConnection(): PgConnection =
+    Postgres.connection(connectOptions = kdbcConnectOptions)
+
+const val CONCURRENCY_LIMIT = 100
 
 fun extractPostDataClassListFromResultSet(resultSet: ResultSet): List<PostDataClass> {
     val items = ArrayList<PostDataClass>()
     while (resultSet.next()) {
-        val item = PostDataClass(
-            resultSet.getInt(1),
-            resultSet.getString(2),
-            resultSet.getObject(3, java.time.LocalDateTime::class.java),
-            resultSet.getObject(4, java.time.LocalDateTime::class.java),
-            resultSet.getInt(5),
-            resultSet.getInt(6),
-            resultSet.getInt(7),
-            resultSet.getInt(8),
-            resultSet.getInt(9),
-            resultSet.getInt(10),
-            resultSet.getInt(11),
-            resultSet.getInt(12),
-            resultSet.getInt(13),
-        )
+        val item =
+            PostDataClass(
+                resultSet.getInt(1),
+                resultSet.getString(2),
+                resultSet.getObject(3, java.time.LocalDateTime::class.java),
+                resultSet.getObject(4, java.time.LocalDateTime::class.java),
+                resultSet.getInt(5),
+                resultSet.getInt(6),
+                resultSet.getInt(7),
+                resultSet.getInt(8),
+                resultSet.getInt(9),
+                resultSet.getInt(10),
+                resultSet.getInt(11),
+                resultSet.getInt(12),
+                resultSet.getInt(13),
+            )
         items.add(item)
     }
     return items

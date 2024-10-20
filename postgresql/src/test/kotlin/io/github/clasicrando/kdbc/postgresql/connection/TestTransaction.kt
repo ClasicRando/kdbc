@@ -15,49 +15,58 @@ import kotlin.test.assertTrue
 
 class TestTransaction {
     @BeforeTest
-    fun cleanUp(): Unit = runBlocking {
-        pool.useConnection {
-            it.createQuery("TRUNCATE TABLE public.$TABLE_NAME").executeClosing()
+    fun cleanUp(): Unit =
+        runBlocking {
+            pool.useConnection {
+                it.createQuery("TRUNCATE TABLE public.$TABLE_NAME").executeClosing()
+            }
         }
-    }
 
     @Test
-    fun `transaction commits when successful SQL statement`(): Unit = runBlocking {
-        pool.useConnection { conn ->
-            val countBefore = conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
-                .fetchScalar<Long>()
-            assertEquals(0L, countBefore)
-            val result = conn.transactionCatching {
-                it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(1, '')")
-                    .executeClosing()
-                it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(2, '')")
-                    .executeClosing()
+    fun `transaction commits when successful SQL statement`(): Unit =
+        runBlocking {
+            pool.useConnection { conn ->
+                val countBefore =
+                    conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
+                        .fetchScalar<Long>()
+                assertEquals(0L, countBefore)
+                val result =
+                    conn.transactionCatching {
+                        it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(1, '')")
+                            .executeClosing()
+                        it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(2, '')")
+                            .executeClosing()
+                    }
+                assertTrue(result.isSuccess)
+                val count =
+                    conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
+                        .fetchScalar<Long>()
+                assertEquals(2L, count)
             }
-            assertTrue(result.isSuccess)
-            val count = conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
-                .fetchScalar<Long>()
-            assertEquals(2L, count)
         }
-    }
 
     @Test
-    fun `transaction rolls back when failed SQL statement`(): Unit = runBlocking {
-        pool.useConnection { conn ->
-            val countBefore = conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
-                .fetchScalar<Long>()
-            assertEquals(0L, countBefore)
-            val result = conn.transactionCatching {
-                it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(1, '')")
-                    .executeClosing()
-                it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(2, null)")
-                    .executeClosing()
+    fun `transaction rolls back when failed SQL statement`(): Unit =
+        runBlocking {
+            pool.useConnection { conn ->
+                val countBefore =
+                    conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
+                        .fetchScalar<Long>()
+                assertEquals(0L, countBefore)
+                val result =
+                    conn.transactionCatching {
+                        it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(1, '')")
+                            .executeClosing()
+                        it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(2, null)")
+                            .executeClosing()
+                    }
+                assertTrue(result.isFailure)
+                val countAfter =
+                    conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
+                        .fetchScalar<Long>()
+                assertEquals(0L, countAfter)
             }
-            assertTrue(result.isFailure)
-            val countAfter = conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
-                .fetchScalar<Long>()
-            assertEquals(0L, countAfter)
         }
-    }
 
     companion object {
         private const val TABLE_NAME = "transaction_test"
@@ -69,16 +78,18 @@ class TestTransaction {
 
         @JvmStatic
         @BeforeAll
-        fun setup(): Unit = runBlocking {
-            pool.useConnection {
-                it.sendSimpleQuery(CREATE_TABLE)
+        fun setup(): Unit =
+            runBlocking {
+                pool.useConnection {
+                    it.sendSimpleQuery(CREATE_TABLE)
+                }
             }
-        }
 
         @JvmStatic
         @AfterAll
-        fun tearDown(): Unit = runBlocking {
-            pool.close()
-        }
+        fun tearDown(): Unit =
+            runBlocking {
+                pool.close()
+            }
     }
 }

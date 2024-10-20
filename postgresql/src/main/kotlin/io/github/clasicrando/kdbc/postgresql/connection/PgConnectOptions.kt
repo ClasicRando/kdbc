@@ -78,27 +78,29 @@ data class PgConnectOptions(
     val tlsConfig: TLSConfigBuilder.() -> Unit = {},
 ) {
     /** Connection properties as they are sent to the database upon connection initialization */
-    val properties: List<Pair<String, String>> = listOf(
-        "user" to username,
-        "database" to database,
-        "client_encoding" to "UTF-8",
-        "DateStyle" to "ISO",
-        "intervalstyle" to "iso_8601",
-        "TimeZone" to "UTC",
-        "extra_float_digits" to extraFloatDigits.toString(),
-        "search_path" to currentSchema,
-        "bytea_output" to "hex",
-        "application_name" to applicationName,
-        "statement_timeout" to queryTimeout.coerceAtLeast(Duration.ZERO).let {
-            if (it.isZeroOrInfinite()) {
-                "0"
-            } else {
-                it.inWholeMilliseconds.coerceAtMost(Int.MAX_VALUE.toLong()).toString()
-            }
+    val properties: List<Pair<String, String>> =
+        listOf(
+            "user" to username,
+            "database" to database,
+            "client_encoding" to "UTF-8",
+            "DateStyle" to "ISO",
+            "intervalstyle" to "iso_8601",
+            "TimeZone" to "UTC",
+            "extra_float_digits" to extraFloatDigits.toString(),
+            "search_path" to currentSchema,
+            "bytea_output" to "hex",
+            "application_name" to applicationName,
+            "statement_timeout" to
+                queryTimeout.coerceAtLeast(Duration.ZERO).let {
+                    if (it.isZeroOrInfinite()) {
+                        "0"
+                    } else {
+                        it.inWholeMilliseconds.coerceAtMost(Int.MAX_VALUE.toLong()).toString()
+                    }
+                },
+        ).mapNotNull { (key, value) ->
+            value?.let { key to it }
         }
-    ).mapNotNull { (key, value) ->
-        value?.let { key to it }
-    }
 
     /**
      * Return a shallow copy of the current [PgConnectOptions] with the log statement [level]
@@ -113,11 +115,15 @@ data class PgConnectOptions(
      * Return a shallow copy of the current [PgConnectOptions] with the new log slow statement
      * [level] and [duration] altered
      */
-    fun logSlowStatements(level: Level, duration: Duration): PgConnectOptions {
-        val newLogSettings = logSettings.copy(
-            slowStatementsLevel = level,
-            slowStatementDuration = duration,
-        )
+    fun logSlowStatements(
+        level: Level,
+        duration: Duration,
+    ): PgConnectOptions {
+        val newLogSettings =
+            logSettings.copy(
+                slowStatementsLevel = level,
+                slowStatementDuration = duration,
+            )
         return copy(logSettings = newLogSettings)
     }
 
@@ -127,11 +133,12 @@ data class PgConnectOptions(
      */
     fun disableStatementLogging(): PgConnectOptions {
         return copy(
-            logSettings = LogSettings(
-                statementLevel = Level.OFF,
-                slowStatementsLevel = Level.OFF,
-                slowStatementDuration = Duration.INFINITE
-            )
+            logSettings =
+                LogSettings(
+                    statementLevel = Level.OFF,
+                    slowStatementsLevel = Level.OFF,
+                    slowStatementDuration = Duration.INFINITE,
+                ),
         )
     }
 

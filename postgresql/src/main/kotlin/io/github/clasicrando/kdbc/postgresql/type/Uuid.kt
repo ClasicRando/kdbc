@@ -14,7 +14,10 @@ internal object UuidTypeDescription : PgTypeDescription<Uuid>(
     kType = typeOf<Uuid>(),
 ) {
     /** Simply writes the bytes of the [Uuid] into the argument buffer */
-    override fun encode(value: Uuid, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: Uuid,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeBytes(value.toByteArray())
     }
 
@@ -38,7 +41,10 @@ internal object JUuidTypeDescription : PgTypeDescription<java.util.UUID>(
     kType = typeOf<java.util.UUID>(),
 ) {
     /** Simply writes the bytes of the [Uuid] into the argument buffer */
-    override fun encode(value: java.util.UUID, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: java.util.UUID,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeLong(value.mostSignificantBits)
         buffer.writeLong(value.leastSignificantBits)
     }

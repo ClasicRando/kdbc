@@ -13,15 +13,18 @@ internal object VarcharTypeDescription : PgTypeDescription<String>(
     kType = typeOf<String>(),
 ) {
     override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == PgType.Text
-                || dbType == PgType.Varchar
-                || dbType == PgType.Xml
-                || dbType == PgType.Name
-                || dbType == PgType.Bpchar
+        return dbType == PgType.Text ||
+            dbType == PgType.Varchar ||
+            dbType == PgType.Xml ||
+            dbType == PgType.Name ||
+            dbType == PgType.Bpchar
     }
 
     /** Simply writes the [String] value to the buffer in UTF8 encoding */
-    override fun encode(value: String, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: String,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeText(value)
     }
 

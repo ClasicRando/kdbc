@@ -28,11 +28,15 @@ internal object LocalTimeTypeDescription : PgTypeDescription<LocalTime>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1521)
      */
-    override fun encode(value: LocalTime, buffer: ByteWriteBuffer) {
-        val microSeconds = value
-            .toNanosecondOfDay()
-            .toDuration(DurationUnit.NANOSECONDS)
-            .inWholeMicroseconds
+    override fun encode(
+        value: LocalTime,
+        buffer: ByteWriteBuffer,
+    ) {
+        val microSeconds =
+            value
+                .toNanosecondOfDay()
+                .toDuration(DurationUnit.NANOSECONDS)
+                .inWholeMicroseconds
         buffer.writeLong(microSeconds)
     }
 
@@ -80,7 +84,10 @@ internal object PgTimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2335)
      */
-    override fun encode(value: PgTimeTz, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgTimeTz,
+        buffer: ByteWriteBuffer,
+    ) {
         LocalTimeTypeDescription.encode(value.time, buffer)
         // Offset from postgres treats west of UTC as positive which is the opposite of UtcOffset
         buffer.writeInt(value.offset.totalSeconds * -1)
@@ -132,11 +139,15 @@ internal object JLocalTimeTypeDescription : PgTypeDescription<java.time.LocalTim
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1521)
      */
-    override fun encode(value: java.time.LocalTime, buffer: ByteWriteBuffer) {
-        val microSeconds = value
-            .toNanoOfDay()
-            .toDuration(DurationUnit.NANOSECONDS)
-            .inWholeMicroseconds
+    override fun encode(
+        value: java.time.LocalTime,
+        buffer: ByteWriteBuffer,
+    ) {
+        val microSeconds =
+            value
+                .toNanoOfDay()
+                .toDuration(DurationUnit.NANOSECONDS)
+                .inWholeMicroseconds
         buffer.writeLong(microSeconds)
     }
 
@@ -186,7 +197,10 @@ internal object OffsetTimeTypeDescription : PgTypeDescription<OffsetTime>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2335)
      */
-    override fun encode(value: OffsetTime, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: OffsetTime,
+        buffer: ByteWriteBuffer,
+    ) {
         JLocalTimeTypeDescription.encode(value.toLocalTime(), buffer)
         // Offset from postgres treats west of UTC as positive which is the opposite of UtcOffset
         buffer.writeInt(value.offset.totalSeconds * -1)

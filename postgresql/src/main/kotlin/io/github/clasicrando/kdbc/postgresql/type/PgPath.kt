@@ -8,14 +8,15 @@ package io.github.clasicrando.kdbc.postgresql.type
  */
 data class PgPath(val isClosed: Boolean, val points: List<PgPoint>) : PgGeometryType {
     override val postGisLiteral: String
-        get() = buildString {
-            append(if (isClosed) '(' else '[')
-            for ((i, point) in points.withIndex()) {
-                if (i > 0) {
-                    append(',')
+        get() =
+            buildString {
+                append(if (isClosed) '(' else '[')
+                for ((i, point) in points.withIndex()) {
+                    if (i > 0) {
+                        append(',')
+                    }
+                    append(point.postGisLiteral)
                 }
-                append(point.postGisLiteral)
+                append(if (isClosed) ')' else ']')
             }
-            append(if (isClosed) ')' else ']')
-        }
 }

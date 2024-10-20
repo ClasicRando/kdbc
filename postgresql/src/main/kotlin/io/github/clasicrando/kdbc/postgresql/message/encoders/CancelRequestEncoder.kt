@@ -16,7 +16,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-CANCELREQUEST)
  */
 internal object CancelRequestEncoder : MessageEncoder<PgMessage.CancelRequest> {
-    override fun encode(value: PgMessage.CancelRequest, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMessage.CancelRequest,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeInt(16)
         buffer.writeShort(1234)
         buffer.writeShort(5678)

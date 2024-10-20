@@ -29,13 +29,14 @@ private val logger = KotlinLogging.logger {}
  */
 internal class QueryResultCollector(
     private val resource: UniqueResourceId,
-    private val typeCache: PgTypeCache
+    private val typeCache: PgTypeCache,
 ) {
     /** [MutableList] of any error found while processing the backend messages */
     val errors = mutableListOf<Throwable>()
     private var currentStatement: PgPreparedStatement? = null
     private var resultSet = PgResultSet(typeCache, emptyList())
     private val statementResultBuilder = StatementResult.Builder()
+
     /** [TransactionStatus] that should be found  */
     var transactionStatus: TransactionStatus? = null
         private set
@@ -48,10 +49,11 @@ internal class QueryResultCollector(
      */
     fun processNextStatement(statement: PgPreparedStatement?) {
         currentStatement = statement
-        resultSet = PgResultSet(
-            typeCache = typeCache,
-            columnMapping = statement?.resultMetadata ?: emptyList(),
-        )
+        resultSet =
+            PgResultSet(
+                typeCache = typeCache,
+                columnMapping = statement?.resultMetadata ?: emptyList(),
+            )
     }
 
     /**

@@ -25,6 +25,7 @@ internal sealed class PgMessage(val code: Byte) {
     data class Authentication(
         val authentication: io.github.clasicrando.kdbc.postgresql.authentication.Authentication,
     ) : PgMessage(AUTHENTICATION_CODE) // B
+
     /**
      * Backend message sent with the [BACKEND_KEY_DATA_CODE] header [Byte]. Contains the
      * [processId] and [secretKey] that a client must use to cancel a request in progress.
@@ -33,6 +34,7 @@ internal sealed class PgMessage(val code: Byte) {
         val processId: Int,
         val secretKey: Int,
     ) : PgMessage(BACKEND_KEY_DATA_CODE) // B
+
     /**
      * Frontend message sent with the [BIND_CODE] header [Byte]. Supplies the optional [portal]
      * name (if null or empty, the unnamed portal is used), the [statementName] and a
@@ -43,11 +45,13 @@ internal sealed class PgMessage(val code: Byte) {
         val statementName: String,
         val encodeBuffer: PgEncodeBuffer,
     ) : PgMessage(BIND_CODE) // F
+
     /**
      * Backend message sent with the [BIND_COMPLETE_CODE] header [Byte]. Contains no data, only
      * signifying that the previous [Bind] request by the frontend has been completed.
      */
     data object BindComplete : PgMessage(BIND_COMPLETE_CODE) // B
+
     /**
      * Frontend message sent with the no header [Byte]. Contains the [processId] and [secretKey]
      * sent from the backend during connection established.
@@ -55,16 +59,22 @@ internal sealed class PgMessage(val code: Byte) {
      * @see BackendKeyData
      */
     data class CancelRequest(val processId: Int, val secretKey: Int) : PgMessage(ZERO_CODE) // F
+
     /**
      * Frontend message sent with the [CLOSE_CODE] header [Byte]. Contains the [target] type and
      * the [targetName] (if null or empty, the unnamed statement or portal is closed).
      */
-    data class Close(val target: MessageTarget, val targetName: String?) : PgMessage(CLOSE_CODE) // F
+    data class Close(
+        val target: MessageTarget,
+        val targetName: String?,
+    ) : PgMessage(CLOSE_CODE) // F
+
     /**
      * Backend message sent with the [CLOSE_COMPLETE_CODE] header [Byte]. Contains no data, only
      * signifying that the previous [Close] request by the frontend has been completed.
      */
     data object CloseComplete : PgMessage(CLOSE_COMPLETE_CODE) // B
+
     /**
      * Backend message sent with the [COMMAND_COMPLETE_CODE] header [Byte]. Contains the number of
      * rows impacted as [rowCount] and a [message] which depends on the type of command sent.
@@ -75,6 +85,7 @@ internal sealed class PgMessage(val code: Byte) {
         val rowCount: Long,
         val message: String,
     ) : PgMessage(COMMAND_COMPLETE_CODE) // B
+
     /**
      * Backend and frontend message sent with the [COPY_DATA_CODE] header [Byte]. Contains the copy
      * [data] as a [ByteArray]. When this message is sent from the backend, the [data] represents
@@ -90,6 +101,7 @@ internal sealed class PgMessage(val code: Byte) {
     class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage { // F & B
         override val size: Int = 5 + data.size
     }
+
     /**
      * Backend and frontend message sent with the [COPY_DONE_CODE] header [Byte]. Contains no data,
      * only signifying that the copy operation is done. The frontend sends this message when the
@@ -97,11 +109,13 @@ internal sealed class PgMessage(val code: Byte) {
      * operation is done and the client should stop processing [CopyData] messages from the backend.
      */
     data object CopyDone : PgMessage(COPY_DONE_CODE) // F & B
+
     /**
      * Frontend message sent with the [COPY_FAIL_CODE] header [Byte]. Contains the [message]
      * explaining why the `COPY FROM` operation was aborted.
      */
     data class CopyFail(val message: String) : PgMessage(COPY_FAIL_CODE) // F
+
     /**
      * Backend message sent with the [COPY_IN_RESPONSE_CODE] header [Byte]. Contains the details
      * of the `COPY FROM` operation. Currently, none of the fields are used since they only echo
@@ -112,6 +126,7 @@ internal sealed class PgMessage(val code: Byte) {
         val columnCount: Int,
         val columnFormats: List<CopyFormat>,
     ) : PgMessage(COPY_IN_RESPONSE_CODE) // B
+
     /**
      * Backend message sent with the [COPY_OUT_RESPONSE_CODE] header [Byte]. Contains the details
      * of the `COPY TO` operation. Currently, none of the fields are used since they only echo sent
@@ -122,6 +137,7 @@ internal sealed class PgMessage(val code: Byte) {
         val columnCount: Int,
         val columnFormats: List<CopyFormat>,
     ) : PgMessage(COPY_OUT_RESPONSE_CODE) // B
+
     /**
      * Backend message sent with the [COPY_BOTH_RESPONSE_CODE] header [Byte]. Contains the details
      * of the copy both operation. Currently, this message is not referenced since it's only used
@@ -132,42 +148,49 @@ internal sealed class PgMessage(val code: Byte) {
         val columnCount: Int,
         val columnFormats: List<CopyFormat>,
     ) : PgMessage(COPY_BOTH_RESPONSE_CODE) // B
+
     /**
      * Backend message sent with the [DATA_ROW_CODE] header [Byte]. Contains the row data of a
      * single query result in [rowBuffer].
      */
     data class DataRow(val rowBuffer: ByteReadBuffer) : PgMessage(DATA_ROW_CODE) // B
+
     /**
      * Frontend message sent with the [DESCRIBE_CODE] header [Byte]. Contains the [target] of the
      * describe command and the name of the target to be described.
      */
     data class Describe(val target: MessageTarget, val name: String) : PgMessage(DESCRIBE_CODE) // F
+
     /**
      * Backend message sent with the [EMPTY_QUERY_RESPONSE_CODE] header [Byte]. Contains no data,
      * only signifying that a query sent is empty. This will never be encountered since empty
      * querying are caught in the client before sending to the server.
      */
     data object EmptyQueryResponse : PgMessage(EMPTY_QUERY_RESPONSE_CODE) // B
+
     /**
      * Backend message sent with the [ERROR_RESPONSE_CODE] header [Byte]. Contains the
      * [informationResponse] data sent.
      *
      * @see [InformationResponse]
      */
-    data class ErrorResponse(val informationResponse: InformationResponse)
-        : PgMessage(ERROR_RESPONSE_CODE) // B
+    data class ErrorResponse(val informationResponse: InformationResponse) :
+        PgMessage(ERROR_RESPONSE_CODE) // B
+
     /**
      * Frontend message sent with the [EXECUTE_CODE] header [Byte]. Contains the [portalName] to
      * execute (if null or empty, the unnamed portal is executed) and the [maxRowCount] of the
      * query result.
      */
     data class Execute(val portalName: String?, val maxRowCount: Int) : PgMessage(EXECUTE_CODE) // F
+
     /**
      * Frontend message sent with the [FLUSH_CODE] header [Byte]. Contains no data, only requesting
      * that the backend to send all pending messages in it's output buffer to the client. This
      * message is currently not used but exists in the message protocol.
      */
     data object Flush : PgMessage(FLUSH_CODE) // F
+
     /**
      * Frontend message sent with the [FUNCTION_CALL_CODE] header [Byte]. Contains the
      * [functionOid] (the OID of the function object) to be called and the [arguments] that will
@@ -180,6 +203,7 @@ internal sealed class PgMessage(val code: Byte) {
         val functionOid: Int,
         val arguments: List<Any?>,
     ) : PgMessage(FUNCTION_CALL_CODE) // F
+
     /**
      * Backend message sent with the [FUNCTION_CALL_RESPONSE_CODE] header [Byte]. Contains the
      * [result] value from the function call as a [ByteArray]. This message is currently not used
@@ -190,6 +214,7 @@ internal sealed class PgMessage(val code: Byte) {
     class FunctionCallResponse(val result: ByteArray?) : PgMessage(FUNCTION_CALL_RESPONSE_CODE) // B
 //    data object GssEncRequest : PgMessage(ZERO_CODE) // F
 //    class GssResponse(val data: ByteArray) : PgMessage(GSS_RESPONSE_CODE) // F
+
     /**
      * Backend message sent with the [NEGOTIATE_PROTOCOL_VERSION_CODE] header [Byte]. Contains the
      * [minProtocolVersion] and collection of [protocolOptionsNotRecognized].
@@ -198,18 +223,23 @@ internal sealed class PgMessage(val code: Byte) {
         val minProtocolVersion: Int,
         val protocolOptionsNotRecognized: List<String>,
     ) : PgMessage(NEGOTIATE_PROTOCOL_VERSION_CODE) // B
+
     /**
      * Backend message sent with the [NO_DATA_CODE] header [Byte]. Contains no data, only
      * signifying the targeted portal or statement returns no data.
      */
     data object NoData : PgMessage(NO_DATA_CODE) // B
+
     /**
      * Backend message sent with the [NOTICE_RESPONSE_CODE] header [Byte]. Contains the
      * [informationResponse] data sent.
      *
      * @see [InformationResponse]
      */
-    data class NoticeResponse(val informationResponse: InformationResponse) : PgMessage(NOTICE_RESPONSE_CODE) // B
+    data class NoticeResponse(
+        val informationResponse: InformationResponse,
+    ) : PgMessage(NOTICE_RESPONSE_CODE) // B
+
     /**
      * Backend message sent with the [NOTIFICATION_RESPONSE_CODE] header [Byte]. Contains the
      * [processId] of the backend that sent the notification, the [channelName] associated with the
@@ -220,6 +250,7 @@ internal sealed class PgMessage(val code: Byte) {
         val channelName: String,
         val payload: String,
     ) : PgMessage(NOTIFICATION_RESPONSE_CODE) // B
+
     /**
      * Backend message sent with the [PARAMETER_DESCRIPTION_CODE] header [Byte]. Contains the
      * [parameterDataTypes] of the described statement.
@@ -227,6 +258,7 @@ internal sealed class PgMessage(val code: Byte) {
     data class ParameterDescription(
         val parameterDataTypes: List<Int>,
     ) : PgMessage(PARAMETER_DESCRIPTION_CODE) // B
+
     /**
      * Backend message sent with the [PARAMETER_STATUS_CODE] header [Byte]. Contains the [name] and
      * [value] of a backend parameter.
@@ -235,6 +267,7 @@ internal sealed class PgMessage(val code: Byte) {
         val name: String,
         val value: String,
     ) : PgMessage(PARAMETER_STATUS_CODE) // B
+
     /**
      * Frontend message sent with the [PARSE_CODE] header [Byte]. Contains the
      * [preparedStatementName] (used to reference a prepared statement again), the [query] to be
@@ -245,16 +278,19 @@ internal sealed class PgMessage(val code: Byte) {
         val query: String,
         val parameterTypes: List<Int>,
     ) : PgMessage(PARSE_CODE) // F
+
     /**
      * Backend message sent with the [PARSE_COMPLETE_CODE] header [Byte]. Contains no data, only
      * signifying that the previous [Parse] request has completed.
      */
     data object ParseComplete : PgMessage(PARSE_COMPLETE_CODE) // B
+
     /**
      * Frontend message sent with the [PASSWORD_MESSAGE_CODE] header [Byte]. Contains the
      * [password] as a [ByteArray] (encrypted if required by the server).
      */
     class PasswordMessage(val password: ByteArray) : PgMessage(PASSWORD_MESSAGE_CODE) // F
+
     /**
      * Backend message sent with the [PORTAL_SUSPENDED_CODE] header [Byte]. Contains no data, only
      * signifying that the portal [Execute] request has completed with the max number of rows
@@ -262,11 +298,13 @@ internal sealed class PgMessage(val code: Byte) {
      * since this client never caps portal [Execute] requests.
      */
     data object PortalSuspended : PgMessage(PORTAL_SUSPENDED_CODE) // B
+
     /**
      * Frontend message sent with the [QUERY_CODE] header [Byte]. Contains the [query] as a
      * [String] to be executed by the server.
      */
     data class Query(val query: String) : PgMessage(QUERY_CODE) // F
+
     /**
      * Backend message sent with the [READY_FOR_QUERY_CODE] header [Byte]. Contains the
      * [transactionStatus] code telling the client the status of the current transaction block.
@@ -274,6 +312,7 @@ internal sealed class PgMessage(val code: Byte) {
     data class ReadyForQuery(
         val transactionStatus: TransactionStatus,
     ) : PgMessage(READY_FOR_QUERY_CODE) // B
+
     /**
      * Backend message sent with the [ROW_DESCRIPTION_CODE] header [Byte]. Contains the [fields]
      * of the query result rows as a [List] of [PgColumnDescription].
@@ -281,6 +320,7 @@ internal sealed class PgMessage(val code: Byte) {
     data class RowDescription(
         val fields: List<PgColumnDescription>,
     ) : PgMessage(ROW_DESCRIPTION_CODE) // B
+
     /**
      * Frontend message sent with the [PASSWORD_MESSAGE_CODE] header [Byte]. Contains the SASL
      * [mechanism] selected by the client and the [saslData] required by the server to continue the
@@ -290,28 +330,33 @@ internal sealed class PgMessage(val code: Byte) {
         val mechanism: String,
         val saslData: String,
     ) : PgMessage(PASSWORD_MESSAGE_CODE) // F
+
     /**
      * Frontend message sent with the [PASSWORD_MESSAGE_CODE] header [Byte]. Contains the
      * [saslData] required to continue the authentication flow.
      */
     data class SaslResponse(val saslData: String) : PgMessage(PASSWORD_MESSAGE_CODE) // F
+
     /**
      * Frontend message sent with the no header [Byte]. Contains no data, only signifying that the
      * client wants to initiate the connection with SSL encryption. This is sent before a
      * [StartupMessage] if specified.
      */
     data object SslRequest : PgMessage(ZERO_CODE) // F
+
     /**
      * Frontend message sent with the no header [Byte]. Contains the [params] the client wants to
      * specify as part of the connection state.
      */
     data class StartupMessage(val params: List<Pair<String, String>>) : PgMessage(ZERO_CODE) // F
+
     /**
      * Frontend message sent with the [SYNC_CODE] header [Byte]. Contains no data, only signifying
      * that the client want to close the current transaction (if any) after issuing 1 or more
      * extended query requests.
      */
     data object Sync : PgMessage(SYNC_CODE) // F
+
     /**
      * Frontend message sent with the [TERMINATE_CODE] header [Byte]. Contains no data, only
      * signifying that the client is about to close the TCP connection.

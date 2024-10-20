@@ -6,7 +6,7 @@ enum class SslMode {
     Prefer,
     Require,
     VerifyCa,
-    VerifyFull,;
+    VerifyFull, ;
 
     fun acceptInvalidCerts(): Boolean = this != VerifyCa && this != VerifyFull
 

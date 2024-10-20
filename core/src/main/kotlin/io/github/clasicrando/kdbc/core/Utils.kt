@@ -12,7 +12,7 @@ import kotlinx.io.Source
 import java.io.InputStream
 import kotlin.time.Duration
 
-const val zeroByte: Byte = 0
+const val ZERO_BYTE: Byte = 0
 
 /**
  * Sealed class representing the loop control flow statements. These can be used when a lambda
@@ -20,8 +20,10 @@ const val zeroByte: Byte = 0
  * the outer loop inside nested function calls
  */
 sealed interface Loop {
-    data object Noop: Loop
+    data object Noop : Loop
+
     data object Continue : Loop
+
     data object Break : Loop
 }
 
@@ -37,54 +39,57 @@ inline fun UniqueResourceId.logWithResource(
 ) {
     logger.at(level) {
         block()
-        val autoPayload = mapOf(
-            "resourceId" to this@logWithResource.resourceIdAsString,
-            "resourceType" to this@logWithResource.resourceType,
-        )
+        val autoPayload =
+            mapOf(
+                "resourceId" to this@logWithResource.resourceIdAsString,
+                "resourceType" to this@logWithResource.resourceType,
+            )
         payload = payload?.plus(autoPayload) ?: autoPayload
     }
 }
 
 /**
  * Split the given [ByteArray] into chunks, using the definition of a C-String (null terminated
- * string). This splits by a [zeroByte] and maps each chunk into string containing each [Byte] as
+ * string). This splits by a [ZERO_BYTE] and maps each chunk into string containing each [Byte] as
  * its ascii equivalent.
  */
-fun ByteArray.splitAsCString(): List<String> {
-    return this.splitBy(zeroByte)
+fun ByteArray.splitAsCString(): List<String> =
+    this
+        .splitBy(ZERO_BYTE)
         .map { chunk ->
-            chunk.map { it.toInt().toChar() }
+            chunk
+                .map { it.toInt().toChar() }
                 .joinToString(separator = "")
-        }
-        .toList()
-}
+        }.toList()
 
 /**
  * Return a [Sequence] generator that yields 1 or more chunks of the [ByteArray], splitting by the
  * [separator] value specified.
  */
-fun ByteArray.splitBy(separator: Byte): Sequence<Sequence<Byte>> = sequence {
-    var index = 0
-    while (index < this@splitBy.lastIndex) {
-        yield(generateSequence {
-            if (index == this@splitBy.lastIndex) {
-                return@generateSequence null
-            }
-            this@splitBy[index++].takeIf { it != separator }
-        })
+fun ByteArray.splitBy(separator: Byte): Sequence<Sequence<Byte>> =
+    sequence {
+        var index = 0
+        while (index < this@splitBy.lastIndex) {
+            yield(
+                generateSequence {
+                    if (index == this@splitBy.lastIndex) {
+                        return@generateSequence null
+                    }
+                    this@splitBy[index++].takeIf { it != separator }
+                },
+            )
+        }
     }
-}
 
 /**
  * Call [reduceOrNull] on a [List] of [Throwable] items, aggregating to a single [Throwable] where
  * every [Throwable] after the first is added the first as a suppressed exception.
  */
-fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
-    return this.reduceOrNull { acc, throwable ->
+fun List<Throwable>.reduceToSingleOrNull(): Throwable? =
+    this.reduceOrNull { acc, throwable ->
         acc.addSuppressed(throwable)
         acc
     }
-}
 
 /** Wrap the [String] as if the value was a SQL identifier */
 fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""
@@ -97,8 +102,8 @@ fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration
  * Every item will be the [size] specified except for the final item which will be at most the
  * [size] specified due to the dynamic size of the original [Flow].
  */
-fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> {
-    return flow {
+fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> =
+    flow {
         val buffer = ArrayList<T>(size)
         this@chunked.collect {
             buffer.add(it)
@@ -111,7 +116,6 @@ fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> {
             emit(buffer)
         }
     }
-}
 
 private const val DEFAULT_BUFFER_SIZE = 2048
 
@@ -119,30 +123,30 @@ private const val DEFAULT_BUFFER_SIZE = 2048
  * Chunk a [Source] into many [ByteArray]s with at most [size] bytes in each array. The final array
  * might have less than [size] if the total number of bytes is not equally divisible by [size].
  */
-fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> = generateSequence {
-    val bytes = ByteArray(size)
-    when (val bytesRead = this.readAtMostTo(bytes)) {
-        -1, 0 -> null
-        bytes.size -> bytes
-        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> =
+    generateSequence {
+        val bytes = ByteArray(size)
+        when (val bytesRead = this.readAtMostTo(bytes)) {
+            -1, 0 -> null
+            bytes.size -> bytes
+            else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+        }
     }
-}
 
 /**
  * Chunk an [InputStream] into many [ByteArray]s with at most [size] bytes in each array. The final
  * array might have less than [size] if the total number of bytes is not equally divisible by
  * [size].
  */
-fun InputStream.chunkedBytes(
-    size: Int = DEFAULT_BUFFER_SIZE,
-): Sequence<ByteArray> = generateSequence {
-    val bytes = ByteArray(size)
-    when (val bytesRead = this.read(bytes)) {
-        -1, 0 -> null
-        bytes.size -> bytes
-        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+fun InputStream.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> =
+    generateSequence {
+        val bytes = ByteArray(size)
+        when (val bytesRead = this.read(bytes)) {
+            -1, 0 -> null
+            bytes.size -> bytes
+            else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+        }
     }
-}
 
 /**
  * Get the traditional scale of the [BigDecimal] by taking the number of digits after the decimal
@@ -167,12 +171,11 @@ inline val BigDecimal.traditionalScale: Long
  * is calculated because the number of digits after the eventual simplified representation is 8 and
  * the [scale] is 4 so the effective exponent in the simplified representation is 4.
  */
-fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal {
-    return BigDecimal.fromBigIntegerWithExponent(
+fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal =
+    BigDecimal.fromBigIntegerWithExponent(
         bigInteger = this,
-        exponent = this.numberOfDecimalDigits() - 1 - scale
+        exponent = this.numberOfDecimalDigits() - 1 - scale,
     )
-}
 
 /**
  * Utility method to convert a [java.math.BigInteger] to a BigNum [BigInteger].
@@ -180,17 +183,16 @@ fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal {
  * Uses the [java.math.BigInteger.toByteArray] method to get the raw data of the integer value and
  * use that along with the [java.math.BigInteger.signum] value to construct a [BigInteger].
  */
-fun java.math.BigInteger.toBigNum(): BigInteger {
-    return BigInteger.fromByteArray(
+fun java.math.BigInteger.toBigNum(): BigInteger =
+    BigInteger.fromByteArray(
         this.toByteArray(),
         when (val sigNum = this.signum()) {
             -1 -> Sign.NEGATIVE
             0 -> Sign.ZERO
             1 -> Sign.POSITIVE
             else -> error("Unexpected BigInteger.signum(). Expected -1..1, found $sigNum")
-        }
+        },
     )
-}
 
 /**
  * Utility method to convert a [java.math.BigDecimal] to a BigNum [BigDecimal].
@@ -198,11 +200,11 @@ fun java.math.BigInteger.toBigNum(): BigInteger {
  * Uses [toBigNum] to convert the unscaled version of this decimal value to a [BigInteger], the uses
  * the scale to call [toBigDecimalWithTraditionalScale].
  */
-fun java.math.BigDecimal.toBigNum(): BigDecimal {
-    return this.unscaledValue()
+fun java.math.BigDecimal.toBigNum(): BigDecimal =
+    this
+        .unscaledValue()
         .toBigNum()
         .toBigDecimalWithTraditionalScale(this.scale().toShort())
-}
 
 /**
  * Utility method to replace all whitespace 1 or more times with a single space.

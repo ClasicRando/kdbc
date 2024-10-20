@@ -66,22 +66,26 @@ class InformationResponse internal constructor(
      */
     internal constructor(fields: Map<Byte, String>) :
         this(
-            severity = fields[SEVERITY]?.let { Severity.valueOf(it) }
-                ?: fields[SEVERITY2]?.let { Severity.valueOf(it) }
-                ?: throw InvalidInformationResponse(SEVERITY),
-            code = fields[CODE]?.let { SqlState.fromCode(it) }
-                ?: throw InvalidInformationResponse(CODE),
+            severity =
+                fields[SEVERITY]?.let { Severity.valueOf(it) }
+                    ?: fields[SEVERITY2]?.let { Severity.valueOf(it) }
+                    ?: throw InvalidInformationResponse(SEVERITY),
+            code =
+                fields[CODE]?.let { SqlState.fromCode(it) }
+                    ?: throw InvalidInformationResponse(CODE),
             message = fields[MESSAGE] ?: throw InvalidInformationResponse(MESSAGE),
             detail = fields[DETAIL],
             hint = fields[HINT],
             position = fields[POSITION]?.toIntOrNull(),
-            internalQueryData = fields[INTERNAL_POSITION]
-                ?.toIntOrNull()
-                ?.let {
-                    val internalQuery = fields[INTERNAL_QUERY]
-                        ?: throw InvalidInformationResponse(INTERNAL_QUERY)
-                    it to internalQuery
-                },
+            internalQueryData =
+                fields[INTERNAL_POSITION]
+                    ?.toIntOrNull()
+                    ?.let {
+                        val internalQuery =
+                            fields[INTERNAL_QUERY]
+                                ?: throw InvalidInformationResponse(INTERNAL_QUERY)
+                        it to internalQuery
+                    },
             where = fields[WHERE],
             schemaName = fields[SCHEMA],
             tableName = fields[TABLE],
@@ -94,9 +98,10 @@ class InformationResponse internal constructor(
         )
 
     override fun toString(): String {
-        val internalQueryString = internalQueryData?.let {
-            "Position=${it.first}, Query=${it.second}"
-        } ?: ""
+        val internalQueryString =
+            internalQueryData?.let {
+                "Position=${it.first}, Query=${it.second}"
+            } ?: ""
         return """
             Severity: $severity
             SQL State: ${code.errorCode} -> ${code.conditionName}
@@ -114,7 +119,7 @@ class InformationResponse internal constructor(
             File: $file
             Line: $line
             Routine: $routine
-        """.trimIndent()
+            """.trimIndent()
     }
 
     companion object {

@@ -33,7 +33,10 @@ internal object LocalDateTypeDescription : PgTypeDescription<LocalDate>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L209)
      */
-    override fun encode(value: LocalDate, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: LocalDate,
+        buffer: ByteWriteBuffer,
+    ) {
         val difference = postgresEpochDate.daysUntil(value)
         buffer.writeInt(difference)
     }
@@ -86,7 +89,10 @@ internal object JLocalDateTypeDescription : PgTypeDescription<java.time.LocalDat
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L209)
      */
-    override fun encode(value: java.time.LocalDate, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: java.time.LocalDate,
+        buffer: ByteWriteBuffer,
+    ) {
         val difference = postgresEpochDateJTime.until(value, ChronoUnit.DAYS)
         buffer.writeInt(difference.toInt())
     }

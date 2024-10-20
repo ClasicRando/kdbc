@@ -27,28 +27,34 @@ class TestJsonType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `encode should accept PgJson when querying postgresql`(isJsonB: Boolean): Unit = runBlocking {
-        val tableName = if (isJsonB) JSONB_TEST_TABLE else JSON_TEST_TABLE
-        val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
+    fun `encode should accept PgJson when querying postgresql`(isJsonB: Boolean): Unit =
+        runBlocking {
+            val tableName = if (isJsonB) JSONB_TEST_TABLE else JSON_TEST_TABLE
+            val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val pgJson = conn.createPreparedQuery(query)
-                .bind(pgJsonValue)
-                .fetchScalar<PgJson>()
-            assertNotNull(pgJson)
-            assertEquals(jsonValue, pgJson.decodeUsingSerialization())
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val pgJson =
+                    conn.createPreparedQuery(query)
+                        .bind(pgJsonValue)
+                        .fetchScalar<PgJson>()
+                assertNotNull(pgJson)
+                assertEquals(jsonValue, pgJson.decodeUsingSerialization())
+            }
         }
-    }
 
-    private suspend fun decodeTest(isJsonB: Boolean, isPrepared: Boolean) {
+    private suspend fun decodeTest(
+        isJsonB: Boolean,
+        isPrepared: Boolean,
+    ) {
         val query = "SELECT '$JSON_STRING'::${if (isJsonB) "jsonb" else "json"};"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val pgJson = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<PgJson>()
+            val pgJson =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<PgJson>()
             assertNotNull(pgJson)
             assertEquals(jsonValue, pgJson.decodeUsingSerialization())
         }
@@ -57,16 +63,18 @@ class TestJsonType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `decode should return PgJson when simple querying postgresql json`(value: Boolean): Unit = runBlocking {
-        decodeTest(isJsonB = value, isPrepared = false)
-    }
+    fun `decode should return PgJson when simple querying postgresql json`(value: Boolean): Unit =
+        runBlocking {
+            decodeTest(isJsonB = value, isPrepared = false)
+        }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `decode should return PgJson when extended querying postgresql json`(value: Boolean): Unit = runBlocking {
-        decodeTest(isJsonB = value, isPrepared = true)
-    }
+    fun `decode should return PgJson when extended querying postgresql json`(value: Boolean): Unit =
+        runBlocking {
+            decodeTest(isJsonB = value, isPrepared = true)
+        }
 
     companion object {
         private val jsonValue = JsonType(584.5269, "PgJson test")
@@ -77,22 +85,28 @@ class TestJsonType {
 
         @BeforeAll
         @JvmStatic
-        fun createObjects(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
-                it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
-                it.createQuery("CREATE TABLE public.$JSON_TEST_TABLE(column_1 json)").executeClosing()
-                it.createQuery("CREATE TABLE public.$JSONB_TEST_TABLE(column_1 jsonb)").executeClosing()
+        fun createObjects(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use {
+                    it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
+                    it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
+                    it.createQuery(
+                        "CREATE TABLE public.$JSON_TEST_TABLE(column_1 json)",
+                    ).executeClosing()
+                    it.createQuery(
+                        "CREATE TABLE public.$JSONB_TEST_TABLE(column_1 jsonb)",
+                    ).executeClosing()
+                }
             }
-        }
 
         @AfterAll
         @JvmStatic
-        fun cleanObjects(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
-                it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
+        fun cleanObjects(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use {
+                    it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
+                    it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
+                }
             }
-        }
     }
 }

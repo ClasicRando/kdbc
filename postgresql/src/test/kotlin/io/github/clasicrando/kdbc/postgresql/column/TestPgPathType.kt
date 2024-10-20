@@ -19,28 +19,34 @@ class TestPgPathType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `encode should accept PgPath when querying postgresql`(isClosed: Boolean): Unit = runBlocking {
-        val value = getPath(isClosed)
-        val query = "SELECT $1 path_col;"
+    fun `encode should accept PgPath when querying postgresql`(isClosed: Boolean): Unit =
+        runBlocking {
+            val value = getPath(isClosed)
+            val query = "SELECT $1 path_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val path = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<PgPath>()
-            assertEquals(value, path)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val path =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<PgPath>()
+                assertEquals(value, path)
+            }
         }
-    }
 
-    private suspend fun decodeTest(isClosed: Boolean, isPrepared: Boolean) {
+    private suspend fun decodeTest(
+        isClosed: Boolean,
+        isPrepared: Boolean,
+    ) {
         val value = getPath(isClosed)
         val query = "SELECT '${value.postGisLiteral}'::path;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val path = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<PgPath>()
+            val path =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<PgPath>()
             assertEquals(value, path)
         }
     }
@@ -48,16 +54,22 @@ class TestPgPathType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `decode should return PgPath when simple querying postgresql path`(isClosed: Boolean): Unit = runBlocking {
-        decodeTest(isClosed = isClosed, isPrepared = false)
-    }
+    fun `decode should return PgPath when simple querying postgresql path`(
+        isClosed: Boolean,
+    ): Unit =
+        runBlocking {
+            decodeTest(isClosed = isClosed, isPrepared = false)
+        }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `decode should return PgPath when extended querying postgresql path`(isClosed: Boolean): Unit = runBlocking {
-        decodeTest(isClosed = isClosed, isPrepared = true)
-    }
+    fun `decode should return PgPath when extended querying postgresql path`(
+        isClosed: Boolean,
+    ): Unit =
+        runBlocking {
+            decodeTest(isClosed = isClosed, isPrepared = true)
+        }
 
     companion object {
         private const val POST_GIS_QUERY = """
@@ -71,18 +83,19 @@ class TestPgPathType {
         private fun getPath(isClosed: Boolean): PgPath {
             return PgPath(
                 isClosed = isClosed,
-                points = listOf(PgPoint(54.89, 84.5), PgPoint(23.54, 95.24))
+                points = listOf(PgPoint(54.89, 84.5), PgPoint(23.54, 95.24)),
             )
         }
 
         @JvmStatic
         @BeforeAll
-        fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn ->
-                conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                    check(it.first().rows.first().getAsNonNull<Boolean>(0))
+        fun checkPostGis(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use { conn ->
+                    conn.sendSimpleQuery(POST_GIS_QUERY).use {
+                        check(it.first().rows.first().getAsNonNull<Boolean>(0))
+                    }
                 }
             }
-        }
     }
 }

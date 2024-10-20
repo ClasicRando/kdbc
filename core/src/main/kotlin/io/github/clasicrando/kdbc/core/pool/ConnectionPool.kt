@@ -20,6 +20,7 @@ interface ConnectionPool<C : Connection> : CoroutineScope {
      * the [PoolOptions.acquireTimeout] value specified
      */
     suspend fun acquire(): C
+
     /**
      * Method to allow for returning of a [Connection] to the pool. THIS SHOULD ONLY BE
      * USED INTERNALLY and is called implicitly when a pool [Connection] is closed.
@@ -27,18 +28,18 @@ interface ConnectionPool<C : Connection> : CoroutineScope {
      * Otherwise, return false.
      */
     suspend fun giveBack(connection: C): Boolean
+
     /**
      * Initialize resources within the pool. This involves validating the connection options
      * given to the pool can create valid connections and the pool is pre-populated with the
      * desired number of minimum connections required.
      */
     suspend fun initialize(): Boolean
+
     /** Close the connection pool and all connections that are associated with the pool */
     suspend fun close()
 }
 
-suspend inline fun <C : Connection, R> ConnectionPool<C>.useConnection(
-    block: (C) -> R
-): R {
+suspend inline fun <C : Connection, R> ConnectionPool<C>.useConnection(block: (C) -> R): R {
     return this.acquire().use(block)
 }

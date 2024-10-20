@@ -19,7 +19,10 @@ class ByteListWriteBuffer : ByteWriteBuffer {
 
     override val remaining: Int get() = Int.MAX_VALUE - innerBuffer.size
 
-    override fun set(position: Int, byte: Byte) {
+    override fun set(
+        position: Int,
+        byte: Byte,
+    ) {
         require(position < innerBuffer.size) {
             "Cannot write to a location that has not already been written"
         }
@@ -86,10 +89,14 @@ class ByteListWriteBuffer : ByteWriteBuffer {
      * @throws BufferOverflow if the buffer does not enough bytes available for write to complete
      * this operation
      */
-    override fun writeBytes(byteArray: ByteArray, offset: Int, length: Int) {
+    override fun writeBytes(
+        byteArray: ByteArray,
+        offset: Int,
+        length: Int,
+    ) {
         require(byteArray.size >= offset + length) {
             "The supplied offset = $offset and length = $length is not valid for a ByteArray of " +
-                    "size = ${byteArray.size}"
+                "size = ${byteArray.size}"
         }
         for (i in offset..<(offset + length)) {
             innerBuffer.add(byteArray[i])

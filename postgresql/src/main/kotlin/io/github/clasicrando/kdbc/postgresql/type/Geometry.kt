@@ -20,7 +20,10 @@ internal object PointTypeDescription : PgTypeDescription<PgPoint>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1853)
      */
-    override fun encode(value: PgPoint, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgPoint,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeDouble(value.x)
         buffer.writeDouble(value.y)
     }
@@ -44,24 +47,27 @@ internal object PointTypeDescription : PgTypeDescription<PgPoint>(
      * be extracted from the text
      */
     override fun decodeText(value: PgValue.Text): PgPoint {
-        val coordinates = value.text
-            .substring(1, value.text.length - 1)
-            .split(',')
+        val coordinates =
+            value.text
+                .substring(1, value.text.length - 1)
+                .split(',')
         checkOrColumnDecodeError<PgPoint>(
             check = coordinates.size == 2,
             type = value.typeData,
         ) { "Cannot decode '$value' as point. Points must have 2 coordinates" }
         return PgPoint(
-            x = coordinates[0].toDoubleOrNull()
-                ?: columnDecodeError<PgPoint>(
-                    type = value.typeData,
-                    reason = "Cannot convert first coordinate of '$value' into a Double",
-                ),
-            y = coordinates[1].toDoubleOrNull()
-                ?: columnDecodeError<PgPoint>(
-                    type = value.typeData,
-                    reason = "Cannot convert first coordinate of '$value' into a Double",
-                ),
+            x =
+                coordinates[0].toDoubleOrNull()
+                    ?: columnDecodeError<PgPoint>(
+                        type = value.typeData,
+                        reason = "Cannot convert first coordinate of '$value' into a Double",
+                    ),
+            y =
+                coordinates[1].toDoubleOrNull()
+                    ?: columnDecodeError<PgPoint>(
+                        type = value.typeData,
+                        reason = "Cannot convert first coordinate of '$value' into a Double",
+                    ),
         )
     }
 }
@@ -79,7 +85,10 @@ internal object LineTypeDescription : PgTypeDescription<PgLine>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1038)
      */
-    override fun encode(value: PgLine, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgLine,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeDouble(value.a)
         buffer.writeDouble(value.b)
         buffer.writeDouble(value.c)
@@ -108,29 +117,33 @@ internal object LineTypeDescription : PgTypeDescription<PgLine>(
      * be extracted from the text
      */
     override fun decodeText(value: PgValue.Text): PgLine {
-        val coordinates = value.text
-            .substring(1..(value.text.length - 2))
-            .split(',')
+        val coordinates =
+            value.text
+                .substring(1..(value.text.length - 2))
+                .split(',')
         checkOrColumnDecodeError<PgPoint>(
             check = coordinates.size == 3,
             type = value.typeData,
         ) { "Cannot decode '$value' as line. Lines must have 3 values" }
         return PgLine(
-            a = coordinates[0].toDoubleOrNull()
-                ?: columnDecodeError<PgLine>(
-                    type = value.typeData,
-                    reason = "Could not convert first coordinate in '$value' to Double",
-                ),
-            b = coordinates[1].toDoubleOrNull()
-                ?: columnDecodeError<PgLine>(
-                    type = value.typeData,
-                    reason = "Could not convert second coordinate in '$value' to Double",
-                ),
-            c = coordinates[2].toDoubleOrNull()
-                ?: columnDecodeError<PgLine>(
-                    type = value.typeData,
-                    reason = "Could not convert third coordinate in '$value' to Double",
-                ),
+            a =
+                coordinates[0].toDoubleOrNull()
+                    ?: columnDecodeError<PgLine>(
+                        type = value.typeData,
+                        reason = "Could not convert first coordinate in '$value' to Double",
+                    ),
+            b =
+                coordinates[1].toDoubleOrNull()
+                    ?: columnDecodeError<PgLine>(
+                        type = value.typeData,
+                        reason = "Could not convert second coordinate in '$value' to Double",
+                    ),
+            c =
+                coordinates[2].toDoubleOrNull()
+                    ?: columnDecodeError<PgLine>(
+                        type = value.typeData,
+                        reason = "Could not convert third coordinate in '$value' to Double",
+                    ),
         )
     }
 }
@@ -148,7 +161,10 @@ internal object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2092)
      */
-    override fun encode(value: PgLineSegment, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgLineSegment,
+        buffer: ByteWriteBuffer,
+    ) {
         PointTypeDescription.encode(value.point1, buffer)
         PointTypeDescription.encode(value.point2, buffer)
     }
@@ -177,9 +193,10 @@ internal object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
      */
     override fun decodeText(value: PgValue.Text): PgLineSegment {
         val pointsStr = value.text.substring(1, value.text.length - 1)
-        val points = extractPoints(pointsStr)
-            .map { PointTypeDescription.decodeText(PgValue.Text(it, value.typeData)) }
-            .toList()
+        val points =
+            extractPoints(pointsStr)
+                .map { PointTypeDescription.decodeText(PgValue.Text(it, value.typeData)) }
+                .toList()
         checkOrColumnDecodeError<PgLineSegment>(points.size == 2, value.typeData) {
             "Number of points found must be 2. Found ${points.size}"
         }
@@ -200,7 +217,10 @@ internal object BoxTypeDescription : PgTypeDescription<PgBox>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L466)
      */
-    override fun encode(value: PgBox, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgBox,
+        buffer: ByteWriteBuffer,
+    ) {
         PointTypeDescription.encode(value.high, buffer)
         PointTypeDescription.encode(value.low, buffer)
     }
@@ -228,9 +248,10 @@ internal object BoxTypeDescription : PgTypeDescription<PgBox>(
      * or parsed from the components of the box
      */
     override fun decodeText(value: PgValue.Text): PgBox {
-        val points = extractPoints(value.text)
-            .map { PointTypeDescription.decodeText(PgValue.Text(it, value.typeData)) }
-            .toList()
+        val points =
+            extractPoints(value.text)
+                .map { PointTypeDescription.decodeText(PgValue.Text(it, value.typeData)) }
+                .toList()
         checkOrColumnDecodeError<PgBox>(points.size == 2, value.typeData) {
             "Number of points found must be 2. Found ${points.size}"
         }
@@ -255,7 +276,10 @@ internal object PathTypeDescription : PgTypeDescription<PgPath>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1488)
      */
-    override fun encode(value: PgPath, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgPath,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(if (value.isClosed) 1 else 0)
         buffer.writeInt(value.points.size)
         for (point in value.points) {
@@ -299,9 +323,10 @@ internal object PathTypeDescription : PgTypeDescription<PgPath>(
         val points = value.text.substring(1, value.text.length - 1)
         return PgPath(
             isClosed = isClosed,
-            points = extractPoints(points)
-                .map { PointTypeDescription.decodeText(PgValue.Text(it, value.typeData)) }
-                .toList()
+            points =
+                extractPoints(points)
+                    .map { PointTypeDescription.decodeText(PgValue.Text(it, value.typeData)) }
+                    .toList(),
         )
     }
 }
@@ -322,7 +347,10 @@ internal object PolygonTypeDescription : PgTypeDescription<PgPolygon>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L3475)
      */
-    override fun encode(value: PgPolygon, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgPolygon,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeInt(value.points.size)
         for (point in value.points) {
             PointTypeDescription.encode(point, buffer)
@@ -367,9 +395,10 @@ internal object PolygonTypeDescription : PgTypeDescription<PgPolygon>(
      */
     override fun decodeText(value: PgValue.Text): PgPolygon {
         val pointsStr = value.text.substring(1, value.text.length - 1)
-        val points = extractPoints(pointsStr)
-            .map { PointTypeDescription.decodeText(PgValue.Text(it, value.typeData)) }
-            .toList()
+        val points =
+            extractPoints(pointsStr)
+                .map { PointTypeDescription.decodeText(PgValue.Text(it, value.typeData)) }
+                .toList()
         return PgPolygon(boundBox = makeBoundBox(points), points = points)
     }
 }
@@ -388,7 +417,10 @@ internal object CircleTypeDescription : PgTypeDescription<PgCircle>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4703)
      */
-    override fun encode(value: PgCircle, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgCircle,
+        buffer: ByteWriteBuffer,
+    ) {
         PointTypeDescription.encode(value.center, buffer)
         buffer.writeDouble(value.radius)
     }
@@ -426,12 +458,13 @@ internal object CircleTypeDescription : PgTypeDescription<PgCircle>(
         val pointValue = PgValue.Text(data.substring(0..<mid), value.typeData)
         return PgCircle(
             center = PointTypeDescription.decodeText(pointValue),
-            radius = data.substring(mid + 1)
-                .toDoubleOrNull()
-                ?: columnDecodeError<PgCircle>(
-                    type = value.typeData,
-                    reason = "Cannot convert radius in '$value' to a Double value",
-                )
+            radius =
+                data.substring(mid + 1)
+                    .toDoubleOrNull()
+                    ?: columnDecodeError<PgCircle>(
+                        type = value.typeData,
+                        reason = "Cannot convert radius in '$value' to a Double value",
+                    ),
         )
     }
 }

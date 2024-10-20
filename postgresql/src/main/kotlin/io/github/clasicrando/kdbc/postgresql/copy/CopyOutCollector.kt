@@ -53,26 +53,28 @@ internal class CopyOutCollector(
         when (copyOutStatement) {
             is CopyStatement.CopyText -> {
                 val inputStream = flow.toDelimitedInputStream()
-                rowCount = readTextData(
-                    inputStream = inputStream,
-                    resultSet = resultSet,
-                    fields = fields,
-                    typeCache = connection.typeCache,
-                    delimiter = copyOutStatement.delimiter,
-                    quote = (copyOutStatement as? CopyStatement.CopyCsv)?.quote,
-                    escape = (copyOutStatement as? CopyStatement.CopyCsv)?.escape,
-                    header = copyOutStatement.header,
-                )
+                rowCount =
+                    readTextData(
+                        inputStream = inputStream,
+                        resultSet = resultSet,
+                        fields = fields,
+                        typeCache = connection.typeCache,
+                        delimiter = copyOutStatement.delimiter,
+                        quote = (copyOutStatement as? CopyStatement.CopyCsv)?.quote,
+                        escape = (copyOutStatement as? CopyStatement.CopyCsv)?.escape,
+                        header = copyOutStatement.header,
+                    )
             }
-            else -> flow.collect { row ->
-                val buffer = getBinaryBuffer(rowCount = ++rowCount, row = row)
-                if (buffer.readShort().toInt() == -1) {
-                    return@collect
-                }
-                buffer.reset()
+            else ->
+                flow.collect { row ->
+                    val buffer = getBinaryBuffer(rowCount = ++rowCount, row = row)
+                    if (buffer.readShort().toInt() == -1) {
+                        return@collect
+                    }
+                    buffer.reset()
 
-                resultSet.addRow(buffer)
-            }
+                    resultSet.addRow(buffer)
+                }
         }
 
         return QueryResult(rowCount, "COPY $rowCount", resultSet)
@@ -82,7 +84,10 @@ internal class CopyOutCollector(
      * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row, the
      * first 19 bytes should be ignored since they are the binary copy's file header.
      */
-    private fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer {
+    private fun getBinaryBuffer(
+        rowCount: Long,
+        row: ByteArray,
+    ): ByteReadBuffer {
         return when {
             rowCount == 1L -> ByteReadBuffer(row.copyOfRange(fromIndex = 19, toIndex = row.size))
             else -> ByteReadBuffer(row)
@@ -112,16 +117,18 @@ internal class CopyOutCollector(
             val skip = if (header != null && header != CopyHeader.False) 1 else 0
             this.readAllAsSequence().drop(skip).forEach { row ->
                 rowCount++
-                val dataRow = PgDataRow(
-                    rowBuffer = null,
-                    pgValues = Array(row.size) { i ->
-                        val rowData = row[i]
-                        val fieldData = fields[i]
-                        PgValue.Text(rowData, fieldData)
-                    },
-                    columnMapping = fields,
-                    typeCache = typeCache,
-                )
+                val dataRow =
+                    PgDataRow(
+                        rowBuffer = null,
+                        pgValues =
+                            Array(row.size) { i ->
+                                val rowData = row[i]
+                                val fieldData = fields[i]
+                                PgValue.Text(rowData, fieldData)
+                            },
+                        columnMapping = fields,
+                        typeCache = typeCache,
+                    )
                 resultSet.addRow(dataRow)
             }
         }

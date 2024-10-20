@@ -45,27 +45,29 @@ open class PgBenchmarkAsyncSingleJdbc {
     }
 
     @Benchmark
-    open fun queryMultipleRows(): Unit = runBlocking(Dispatchers.IO) {
-        multiStep()
-        connection.prepareStatement(jdbcQuery).use { preparedStatement ->
-            preparedStatement.setInt(1, id)
-            preparedStatement.setInt(2, id + 10)
-            preparedStatement.executeQuery().use { resultSet ->
-                extractPostDataClassListFromResultSet(resultSet)
+    open fun queryMultipleRows(): Unit =
+        runBlocking(Dispatchers.IO) {
+            multiStep()
+            connection.prepareStatement(jdbcQuery).use { preparedStatement ->
+                preparedStatement.setInt(1, id)
+                preparedStatement.setInt(2, id + 10)
+                preparedStatement.executeQuery().use { resultSet ->
+                    extractPostDataClassListFromResultSet(resultSet)
+                }
             }
         }
-    }
 
     @Benchmark
-    open fun querySingleRow(): Unit = runBlocking(Dispatchers.IO) {
-        singleStep()
-        connection.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
-            preparedStatement.setInt(1, id)
-            preparedStatement.executeQuery().use { resultSet ->
-                extractPostDataClassListFromResultSet(resultSet)
+    open fun querySingleRow(): Unit =
+        runBlocking(Dispatchers.IO) {
+            singleStep()
+            connection.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
+                preparedStatement.setInt(1, id)
+                preparedStatement.executeQuery().use { resultSet ->
+                    extractPostDataClassListFromResultSet(resultSet)
+                }
             }
         }
-    }
 
     @TearDown
     open fun tearDown() {

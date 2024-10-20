@@ -6,24 +6,23 @@ import kotlinx.datetime.DateTimePeriod
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
 
-private const val minutesPerHour = 60L
-private const val secondsPerMinute = 60L
-private const val microsecondsPerSecond = 1_000_000L
-private const val millisecondsPerMillisecond = 1_000L
-private const val nanosecondsPerMicroseconds = 1_000.0
-private const val microsecondsPerHour = minutesPerHour * secondsPerMinute * microsecondsPerSecond
-private const val microsecondsPerMinute = secondsPerMinute * microsecondsPerSecond
+private const val MINUTES_PER_HOUR = 60L
+private const val SECONDS_PER_MINUTE = 60L
+private const val MICROSECONDS_PER_SECOND = 1_000_000L
+private const val MICROSECONDS_PER_MILLISECOND = 1_000L
+private const val NANOSECONDS_PER_MICROSECOND = 1_000.0
+private const val MICROSECONDS_PER_MINUTE = SECONDS_PER_MINUTE * MICROSECONDS_PER_SECOND
+private const val MICROSECONDS_PER_HOUR = MINUTES_PER_HOUR * MICROSECONDS_PER_MINUTE
 
 /**
  * Extract the number of whole microseconds from this [DateTimePeriod] rounding down for fractional
  * nanoseconds present.
  */
-private fun DateTimePeriod.inWholeMicroSeconds(): Long {
-    return this.hours * microsecondsPerHour +
-            this.minutes * microsecondsPerMinute +
-            this.seconds * microsecondsPerSecond +
-            kotlin.math.floor(this.nanoseconds / nanosecondsPerMicroseconds).toLong()
-}
+private fun DateTimePeriod.inWholeMicroSeconds(): Long =
+    this.hours * MICROSECONDS_PER_HOUR +
+        this.minutes * MICROSECONDS_PER_MINUTE +
+        this.seconds * MICROSECONDS_PER_SECOND +
+        kotlin.math.floor(this.nanoseconds / NANOSECONDS_PER_MICROSECOND).toLong()
 
 internal object DateTimePeriodTypeDescription : PgTypeDescription<DateTimePeriod>(
     dbType = PgType.Interval,
@@ -37,7 +36,10 @@ internal object DateTimePeriodTypeDescription : PgTypeDescription<DateTimePeriod
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L1007)
      */
-    override fun encode(value: DateTimePeriod, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: DateTimePeriod,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeLong(value.inWholeMicroSeconds())
         buffer.writeInt(value.days)
         buffer.writeInt(value.years * 12 + value.months)
@@ -65,16 +67,18 @@ internal object DateTimePeriodTypeDescription : PgTypeDescription<DateTimePeriod
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L983)
      */
-    override fun decodeText(value: PgValue.Text): DateTimePeriod {
-        return DateTimePeriod.parse(value.text)
-    }
+    override fun decodeText(value: PgValue.Text): DateTimePeriod = DateTimePeriod.parse(value.text)
 }
 
 /**
  * Custom postgres `interval` type for use instead of [DateTimePeriod]. Can be created from a
  * [Duration] but some precision loss and overflow can occur.
  */
-data class PgInterval(val months: Int, val days: Int, val microseconds: Long)
+data class PgInterval(
+    val months: Int,
+    val days: Int,
+    val microseconds: Long,
+)
 
 /**
  * Convert the duration to a postgres `interval`. Some precision is loss during the conversion if
@@ -82,19 +86,19 @@ data class PgInterval(val months: Int, val days: Int, val microseconds: Long)
  *
  * @throws IllegalStateException if the number of days exceeds [Int.MAX_VALUE]
  */
-fun Duration.toPgInterval(): PgInterval {
-    return this.toComponents { days, hours, minutes, seconds, nanoseconds ->
+fun Duration.toPgInterval(): PgInterval =
+    this.toComponents { days, hours, minutes, seconds, nanoseconds ->
         check(days <= Int.MAX_VALUE) { "Number of days cannot exceed ${Int.MAX_VALUE}" }
         PgInterval(
             months = 0,
             days = days.toInt(),
-            microseconds = hours * microsecondsPerHour +
-                minutes * microsecondsPerMinute +
-                seconds * microsecondsPerSecond +
-                kotlin.math.floor(nanoseconds / nanosecondsPerMicroseconds).toLong()
+            microseconds =
+                hours * MICROSECONDS_PER_HOUR +
+                    minutes * MICROSECONDS_PER_MINUTE +
+                    seconds * MICROSECONDS_PER_SECOND +
+                    kotlin.math.floor(nanoseconds / NANOSECONDS_PER_MICROSECOND).toLong(),
         )
     }
-}
 
 internal object PgIntervalTypeDescription : PgTypeDescription<PgInterval>(
     dbType = PgType.Interval,
@@ -108,7 +112,10 @@ internal object PgIntervalTypeDescription : PgTypeDescription<PgInterval>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L1007)
      */
-    override fun encode(value: PgInterval, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgInterval,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeLong(value.microseconds)
         buffer.writeInt(value.days)
         buffer.writeInt(value.months)
@@ -234,11 +241,12 @@ internal object PgIntervalTypeDescription : PgTypeDescription<PgInterval>(
         return PgInterval(
             months = year.toInt() * 12 + month.toInt(),
             days = week.toInt() * 7 + day.toInt(),
-            microseconds = hour * microsecondsPerHour +
-                minute * microsecondsPerMinute +
-                second * microsecondsPerSecond +
-                millisecond * millisecondsPerMillisecond +
-                microsecond,
+            microseconds =
+                hour * MICROSECONDS_PER_HOUR +
+                    minute * MICROSECONDS_PER_MINUTE +
+                    second * MICROSECONDS_PER_SECOND +
+                    millisecond * MICROSECONDS_PER_MILLISECOND +
+                    microsecond,
         )
     }
 }

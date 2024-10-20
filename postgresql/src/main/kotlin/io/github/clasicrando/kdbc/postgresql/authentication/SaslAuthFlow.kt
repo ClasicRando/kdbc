@@ -12,20 +12,20 @@ import io.github.oshai.kotlinlogging.Level
  * Using the provided [authMechanisms], initialize a [ScramClient] and create a [ScramSession] for
  * creating the first client message as well as the final client message sent in a later step.
  */
-private suspend fun PgStream.sendScramInit(
-    authMechanisms: Array<String>,
-): ScramSession {
+private suspend fun PgStream.sendScramInit(authMechanisms: Array<String>): ScramSession {
     log(Kdbc.detailedLogging) { message = "Starting Scram Client" }
-    val scramClient = ScramClient
-        .channelBinding(ScramClient.ChannelBinding.NO)
-        .stringPreparation(StringPreparations.NO_PREPARATION)
-        .selectMechanismBasedOnServerAdvertised(*authMechanisms)
-        .setup()
+    val scramClient =
+        ScramClient
+            .channelBinding(ScramClient.ChannelBinding.NO)
+            .stringPreparation(StringPreparations.NO_PREPARATION)
+            .selectMechanismBasedOnServerAdvertised(*authMechanisms)
+            .setup()
     val session = scramClient.scramSession("*")
-    val initialResponse = PgMessage.SaslInitialResponse(
-        scramClient.scramMechanism.name,
-        session.clientFirstMessage(),
-    )
+    val initialResponse =
+        PgMessage.SaslInitialResponse(
+            scramClient.scramMechanism.name,
+            session.clientFirstMessage(),
+        )
     log(Kdbc.detailedLogging) { message = "Sending initial SASL Response" }
     writeToStream(initialResponse)
     return session

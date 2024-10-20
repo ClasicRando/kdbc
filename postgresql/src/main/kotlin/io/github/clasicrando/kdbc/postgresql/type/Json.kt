@@ -23,7 +23,10 @@ internal object JsonTypeDescription : PgTypeDescription<PgJson>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonb.c#L93)
      */
-    override fun encode(value: PgJson, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgJson,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(1)
         value.writeToBuffer(buffer)
     }
@@ -88,7 +91,10 @@ internal object JsonPathTypeDescription : PgTypeDescription<PgJsonPath>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L113)
      */
-    override fun encode(value: PgJsonPath, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgJsonPath,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(1)
         buffer.writeText(value.value)
     }

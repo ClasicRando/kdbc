@@ -1,6 +1,7 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.SonatypeHost
+import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
     kotlin("jvm")
@@ -8,6 +9,7 @@ plugins {
     signing
     id("org.jetbrains.dokka")
     id("org.jetbrains.kotlinx.atomicfu")
+    id("org.jlleitschuh.gradle.ktlint")
 }
 
 allprojects {
@@ -31,6 +33,7 @@ subprojects {
     apply(plugin = "signing")
     apply(plugin = "org.jetbrains.dokka")
     apply(plugin = "com.vanniktech.maven.publish")
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
 
     repositories {
         mavenCentral()
@@ -39,10 +42,10 @@ subprojects {
     val kotlinxIoVersion: String by project
     val kotlinLoggingVersion: String by project
     val slf4jVersion: String by project
-    val kotlinxCoroutinesVersion: String by project
+    val coroutinesVersion: String by project
     val ktorVersion: String by project
     val kotlinVersion: String by project
-    val kotlinxSerializationJsonVersion: String by project
+    val serializationJsonVersion: String by project
     val kotlinxDateTimeVersion: String by project
     val junitVersion: String by project
     val logbackVersion: String by project
@@ -53,12 +56,12 @@ subprojects {
         implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
         implementation("io.github.oshai:kotlin-logging-jvm:$kotlinLoggingVersion")
         implementation("org.slf4j:slf4j-api:$slf4jVersion")
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$kotlinxCoroutinesVersion")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion")
         implementation("io.ktor:ktor-network:$ktorVersion")
         implementation("io.ktor:ktor-network-tls:$ktorVersion")
         implementation(kotlin("stdlib", version = kotlinVersion))
         implementation(kotlin("reflect", version = kotlinVersion))
-        implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationJsonVersion")
+        implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationJsonVersion")
         implementation("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDateTimeVersion")
         implementation("com.ionspin.kotlin:bignum:$bigNumVersion")
 
@@ -69,27 +72,40 @@ subprojects {
         testImplementation("io.mockk:mockk:$mockkVersion")
     }
 
+    configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        version.set("1.0.1")
+        reporters {
+            reporter(ReporterType.JSON)
+            reporter(ReporterType.HTML)
+        }
+    }
+
     tasks.test {
         workingDir = project.rootDir
         testLogging {
             setExceptionFormat("full")
-            events = setOf(
-                org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED,
-                org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED,
-                org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED,
-            )
+            events =
+                setOf(
+                    org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED,
+                    org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED,
+                    org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED,
+                )
             showStandardStreams = true
-            afterSuite(KotlinClosure2<TestDescriptor, TestResult, Unit>({ descriptor, result ->
-                if (descriptor.parent == null) {
-                    println("\nTest Result: ${result.resultType}")
-                    println("""
-                    Test summary: ${result.testCount} tests, 
-                    ${result.successfulTestCount} succeeded, 
-                    ${result.failedTestCount} failed, 
-                    ${result.skippedTestCount} skipped
-                """.trimIndent().replace("\n", ""))
-                }
-            }))
+            afterSuite(
+                KotlinClosure2<TestDescriptor, TestResult, Unit>({ descriptor, result ->
+                    if (descriptor.parent == null) {
+                        println("\nTest Result: ${result.resultType}")
+                        println(
+                            """
+                            Test summary: ${result.testCount} tests,
+                            ${result.successfulTestCount} succeeded,
+                            ${result.failedTestCount} failed,
+                            ${result.skippedTestCount} skipped
+                            """.trimIndent().replace("\n", ""),
+                        )
+                    }
+                }),
+            )
         }
         useJUnitPlatform()
     }
@@ -102,11 +118,12 @@ subprojects {
         outputDirectory.set(layout.buildDirectory.dir("documentation/javadoc"))
     }
 
-    val projName = when (project.name) {
-        "core" -> "kdbc-core"
-        "postgresql" -> "kdbc-postgresql"
-        else -> "kdbc-other"
-    }
+    val projName =
+        when (project.name) {
+            "core" -> "kdbc-core"
+            "postgresql" -> "kdbc-postgresql"
+            else -> "kdbc-other"
+        }
 
     tasks {
         jar {
@@ -115,10 +132,12 @@ subprojects {
     }
 
     mavenPublishing {
-        configure(KotlinJvm(
-            javadocJar = JavadocJar.Dokka("dokkaHtml"),
-            sourcesJar = true,
-        ))
+        configure(
+            KotlinJvm(
+                javadocJar = JavadocJar.Dokka("dokkaHtml"),
+                sourcesJar = true,
+            ),
+        )
         publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
         coordinates(group.toString(), projName, version.toString())
         pom {

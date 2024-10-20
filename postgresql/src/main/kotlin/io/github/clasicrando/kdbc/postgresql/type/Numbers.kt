@@ -14,7 +14,10 @@ internal object SmallIntTypeDescription : PgTypeDescription<Short>(
     kType = typeOf<Short>(),
 ) {
     /** Simply writes the [Short] value to the buffer */
-    override fun encode(value: Short, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: Short,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeShort(value)
     }
 
@@ -52,7 +55,10 @@ internal object IntTypeDescription : PgTypeDescription<Int>(
     }
 
     /** Simply writes the [Int] value to the buffer */
-    override fun encode(value: Int, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: Int,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeInt(value)
     }
 
@@ -86,7 +92,10 @@ internal object BigIntTypeDescription : PgTypeDescription<Long>(
     kType = typeOf<Long>(),
 ) {
     /** Simply writes the [Long] value to the buffer */
-    override fun encode(value: Long, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: Long,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeLong(value)
     }
 
@@ -120,7 +129,10 @@ internal object RealTypeDescription : PgTypeDescription<Float>(
     kType = typeOf<Float>(),
 ) {
     /** Simply writes the [Float] value to the buffer */
-    override fun encode(value: Float, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: Float,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeFloat(value)
     }
 
@@ -154,7 +166,10 @@ internal object DoublePrecisionTypeDescription : PgTypeDescription<Double>(
     kType = typeOf<Double>(),
 ) {
     /** Simply writes the [Double] value to the buffer */
-    override fun encode(value: Double, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: Double,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeDouble(value)
     }
 

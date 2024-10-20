@@ -7,7 +7,7 @@ import io.github.clasicrando.kdbc.core.result.StatementResult
  * Base implementation of [Query]. Delegates the actual statement execution to the
  * database driver specified by [C].
  */
-abstract class BaseQuery<C: Connection>(
+abstract class BaseQuery<C : Connection>(
     /** Reference to the [Connection] that backs this [Query] */
     protected var connection: C?,
     final override val sql: String,

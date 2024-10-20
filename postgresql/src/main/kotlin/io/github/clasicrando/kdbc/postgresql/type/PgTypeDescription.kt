@@ -17,6 +17,7 @@ abstract class PgTypeDescription<T : Any>(
 ) : DbType<T, PgValue, PgType> {
     /** Decode the bytes provided into the type [T] */
     abstract fun decodeBytes(value: PgValue.Binary): T
+
     /** Decode the [String] provided into the type [T] */
     abstract fun decodeText(value: PgValue.Text): T
 
@@ -46,18 +47,19 @@ abstract class PgTypeDescription<T : Any>(
                     value.bytes.reset()
                 }
             }
-            is PgValue.Text -> try {
-                decodeText(value)
-            } catch (ex: ColumnDecodeError) {
-                throw ex
-            } catch (ex: Exception) {
-                columnDecodeError(
-                    kType = kType,
-                    type = value.typeData,
-                    reason = "Failed to decode bytes for unexpected reason",
-                    cause = ex,
-                )
-            }
+            is PgValue.Text ->
+                try {
+                    decodeText(value)
+                } catch (ex: ColumnDecodeError) {
+                    throw ex
+                } catch (ex: Exception) {
+                    columnDecodeError(
+                        kType = kType,
+                        type = value.typeData,
+                        reason = "Failed to decode bytes for unexpected reason",
+                        cause = ex,
+                    )
+                }
         }
     }
 }

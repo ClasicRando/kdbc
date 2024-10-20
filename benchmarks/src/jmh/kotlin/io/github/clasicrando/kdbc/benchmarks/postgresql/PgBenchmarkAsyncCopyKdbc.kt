@@ -47,49 +47,54 @@ open class PgBenchmarkAsyncCopyKdbc {
     }
 
     @Benchmark
-    open fun copyOutSink(): Unit = runBlocking {
-        IOUtils.sink(outputPath).buffered().use { sink ->
-            connection.copyOut(
-                copyOutStatement = kdbcCopyOut,
-                sink = sink,
-            )
+    open fun copyOutSink(): Unit =
+        runBlocking {
+            IOUtils.sink(outputPath).buffered().use { sink ->
+                connection.copyOut(
+                    copyOutStatement = kdbcCopyOut,
+                    sink = sink,
+                )
+            }
         }
-    }
 
     @Benchmark
-    open fun copyOutStream(): Unit = runBlocking {
-        Files.newOutputStream(outputPathJava).use { stream ->
-            connection.copyOut(
-                copyOutStatement = kdbcCopyOut,
-                outputStream = stream,
-            )
+    open fun copyOutStream(): Unit =
+        runBlocking {
+            Files.newOutputStream(outputPathJava).use { stream ->
+                connection.copyOut(
+                    copyOutStatement = kdbcCopyOut,
+                    outputStream = stream,
+                )
+            }
         }
-    }
 
     @TearDown(Level.Invocation)
-    open fun cleanUp(): Unit = runBlocking {
-        connection.createQuery("TRUNCATE TABLE public.copy_in_posts;").executeClosing()
-    }
+    open fun cleanUp(): Unit =
+        runBlocking {
+            connection.createQuery("TRUNCATE TABLE public.copy_in_posts;").executeClosing()
+        }
 
     @Benchmark
-    open fun copyInSource(): Unit = runBlocking {
-        IOUtils.source(inputPath).buffered().use { source ->
-            connection.copyIn(
-                copyInStatement = kdbcCopyIn,
-                source = source,
-            )
+    open fun copyInSource(): Unit =
+        runBlocking {
+            IOUtils.source(inputPath).buffered().use { source ->
+                connection.copyIn(
+                    copyInStatement = kdbcCopyIn,
+                    source = source,
+                )
+            }
         }
-    }
 
     @Benchmark
-    open fun copyInStream(): Unit = runBlocking {
-        Files.newInputStream(inputPathJava).use { stream ->
-            connection.copyIn(
-                copyInStatement = kdbcCopyIn,
-                inputStream = stream,
-            )
+    open fun copyInStream(): Unit =
+        runBlocking {
+            Files.newInputStream(inputPathJava).use { stream ->
+                connection.copyIn(
+                    copyInStatement = kdbcCopyIn,
+                    inputStream = stream,
+                )
+            }
         }
-    }
 
     @TearDown
     fun destroy() {

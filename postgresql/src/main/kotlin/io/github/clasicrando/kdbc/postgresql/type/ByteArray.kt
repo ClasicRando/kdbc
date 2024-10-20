@@ -18,7 +18,10 @@ internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L471)
      */
-    override fun encode(value: ByteArray, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: ByteArray,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeBytes(value)
     }
 
@@ -54,7 +57,10 @@ private const val HEX_START = "\\x"
  *
  * @throws IllegalArgumentException if the hex character yields a negative digit
  */
-private fun charToDigit(char: Char, index: Int): Int {
+private fun charToDigit(
+    char: Char,
+    index: Int,
+): Int {
     val digit = char.digitToInt(16)
     require(digit >= 0) {
         "Illegal hexadecimal character $char at index $index"

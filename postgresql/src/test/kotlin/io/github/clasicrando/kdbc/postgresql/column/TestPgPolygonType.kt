@@ -17,46 +17,52 @@ import kotlin.test.assertEquals
 class TestPgPolygonType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept PgPolygon when querying postgresql`(): Unit = runBlocking {
-        val query = "SELECT $1 polygon_col;"
+    fun `encode should accept PgPolygon when querying postgresql`(): Unit =
+        runBlocking {
+            val query = "SELECT $1 polygon_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val polygon = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<PgPolygon>()
-            assertEquals(value, polygon)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val polygon =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<PgPolygon>()
+                assertEquals(value, polygon)
+            }
         }
-    }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::polygon;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val polygon = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<PgPolygon>()
+            val polygon =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<PgPolygon>()
             assertEquals(value, polygon)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgPolygon when simple querying postgresql polygon`(): Unit = runBlocking {
-        decodeTest(isPrepared = false)
-    }
+    fun `decode should return PgPolygon when simple querying postgresql polygon`(): Unit =
+        runBlocking {
+            decodeTest(isPrepared = false)
+        }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgPolygon when extended querying postgresql polygon`(): Unit = runBlocking {
-        decodeTest(isPrepared = true)
-    }
+    fun `decode should return PgPolygon when extended querying postgresql polygon`(): Unit =
+        runBlocking {
+            decodeTest(isPrepared = true)
+        }
 
     companion object {
-        private val value = PgPolygon(
-            points = listOf(PgPoint(54.89, 84.5), PgPoint(23.54, 95.24)),
-        )
+        private val value =
+            PgPolygon(
+                points = listOf(PgPoint(54.89, 84.5), PgPoint(23.54, 95.24)),
+            )
         private const val POST_GIS_QUERY = """
             SELECT EXISTS(
                 SELECT oid
@@ -67,12 +73,13 @@ class TestPgPolygonType {
 
         @JvmStatic
         @BeforeAll
-        fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn ->
-                conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                    check(it.first().rows.first().getAsNonNull<Boolean>(0))
+        fun checkPostGis(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use { conn ->
+                    conn.sendSimpleQuery(POST_GIS_QUERY).use {
+                        check(it.first().rows.first().getAsNonNull<Boolean>(0))
+                    }
                 }
             }
-        }
     }
 }

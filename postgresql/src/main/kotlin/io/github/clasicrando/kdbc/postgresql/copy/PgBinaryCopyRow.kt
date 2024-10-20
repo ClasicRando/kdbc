@@ -11,6 +11,7 @@ import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 interface PgBinaryCopyRow {
     /** The number of values in the row. This must be a constant value for each type */
     val valueCount: Short
+
     /**
      * Encode all data fields of this class into the [buffer] supplied. Every implementation of
      * this method should simply call [PgEncodeBuffer.encodeValue] with each data field in the

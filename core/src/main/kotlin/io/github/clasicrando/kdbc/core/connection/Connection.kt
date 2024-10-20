@@ -107,8 +107,7 @@ suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R {
  * the resources are always cleaned up before returning and all other exceptions are caught and
  * returned as a [Result].
  */
-suspend inline fun <R, C : Connection> C.transactionCatching(
-    block: (C) -> R,
-): Result<R> = runCatching {
-    transaction(block)
-}
+suspend inline fun <R, C : Connection> C.transactionCatching(block: (C) -> R): Result<R> =
+    runCatching {
+        transaction(block)
+    }

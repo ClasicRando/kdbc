@@ -15,7 +15,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-QUERY)
  */
 internal object QueryEncoder : MessageEncoder<PgMessage.Query> {
-    override fun encode(value: PgMessage.Query, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMessage.Query,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.query)

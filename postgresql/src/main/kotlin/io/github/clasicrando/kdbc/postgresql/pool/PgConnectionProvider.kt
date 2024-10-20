@@ -22,11 +22,12 @@ internal class PgConnectionProvider(
         val stream = KtorStream(address, pool.selectorManager)
         var pgStream: PgStream? = null
         try {
-            pgStream = PgStream.connect(
-                scope = pool,
-                stream = stream,
-                connectOptions = connectOptions,
-            )
+            pgStream =
+                PgStream.connect(
+                    scope = pool,
+                    stream = stream,
+                    connectOptions = connectOptions,
+                )
             return PgConnection.connect(
                 connectOptions = connectOptions,
                 stream = pgStream,

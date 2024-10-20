@@ -20,30 +20,43 @@ class TestMacAddress {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `encode should accept PgMacAddress when querying postgresql`(isMacAddr8: Boolean): Unit = runBlocking {
-        val tableName = if (isMacAddr8) MACADDR8_TEST_TABLE else MACADDR_TEST_TABLE
-        val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
-        val value = if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr()
-        println(value.isMacAddress8)
+    fun `encode should accept PgMacAddress when querying postgresql`(isMacAddr8: Boolean): Unit =
+        runBlocking {
+            val tableName = if (isMacAddr8) MACADDR8_TEST_TABLE else MACADDR_TEST_TABLE
+            val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
+            val value = if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr()
+            println(value.isMacAddress8)
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val pgMacAddress = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<PgMacAddress>()
-            assertNotNull(pgMacAddress)
-            assertEquals(value, pgMacAddress)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val pgMacAddress =
+                    conn
+                        .createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<PgMacAddress>()
+                assertNotNull(pgMacAddress)
+                assertEquals(value, pgMacAddress)
+            }
         }
-    }
 
-    private suspend fun decodeTest(isMacAddr8: Boolean, isPrepared: Boolean) {
-        val query = "SELECT ${if (isMacAddr8) "'$MAC_ADDR8_STRING'::macaddr8" else "'$MAC_ADDR_STRING'::macaddr"};"
+    private suspend fun decodeTest(
+        isMacAddr8: Boolean,
+        isPrepared: Boolean,
+    ) {
+        val select =
+            if (isMacAddr8) {
+                "'$MAC_ADDR8_STRING'::macaddr8"
+            } else {
+                "'$MAC_ADDR_STRING'::macaddr"
+            }
+        val query = "SELECT $select;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val pgMacAddress = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<PgMacAddress>()
+            val pgMacAddress =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<PgMacAddress>()
             assertNotNull(pgMacAddress)
             assertEquals(
                 if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr(),
@@ -55,16 +68,22 @@ class TestMacAddress {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `decode should return PgMacAddress when simple querying postgresql macaddr`(value: Boolean): Unit = runBlocking {
-        decodeTest(isMacAddr8 = value, isPrepared = false)
-    }
+    fun `decode should return PgMacAddress when simple querying postgresql macaddr`(
+        value: Boolean,
+    ): Unit =
+        runBlocking {
+            decodeTest(isMacAddr8 = value, isPrepared = false)
+        }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
-    fun `decode should return PgMacAddress when extended querying postgresql macaddr`(value: Boolean): Unit = runBlocking {
-        decodeTest(isMacAddr8 = value, isPrepared = true)
-    }
+    fun `decode should return PgMacAddress when extended querying postgresql macaddr`(
+        value: Boolean,
+    ): Unit =
+        runBlocking {
+            decodeTest(isMacAddr8 = value, isPrepared = true)
+        }
 
     companion object {
         private const val MACADDR_TEST_TABLE = "macaddr_test"
@@ -75,22 +94,42 @@ class TestMacAddress {
 
         @BeforeAll
         @JvmStatic
-        fun createObjects(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                it.createQuery("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").executeClosing()
-                it.createQuery("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").executeClosing()
-                it.createQuery("CREATE TABLE public.$MACADDR_TEST_TABLE(column_1 macaddr)").executeClosing()
-                it.createQuery("CREATE TABLE public.$MACADDR8_TEST_TABLE(column_1 macaddr8)").executeClosing()
+        fun createObjects(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use {
+                    it
+                        .createQuery(
+                            "DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE",
+                        ).executeClosing()
+                    it
+                        .createQuery(
+                            "DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE",
+                        ).executeClosing()
+                    it
+                        .createQuery(
+                            "CREATE TABLE public.$MACADDR_TEST_TABLE(column_1 macaddr)",
+                        ).executeClosing()
+                    it
+                        .createQuery(
+                            "CREATE TABLE public.$MACADDR8_TEST_TABLE(column_1 macaddr8)",
+                        ).executeClosing()
+                }
             }
-        }
 
         @AfterAll
         @JvmStatic
-        fun cleanObjects(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                it.createQuery("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").executeClosing()
-                it.createQuery("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").executeClosing()
+        fun cleanObjects(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use {
+                    it
+                        .createQuery(
+                            "DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE",
+                        ).executeClosing()
+                    it
+                        .createQuery(
+                            "DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE",
+                        ).executeClosing()
+                }
             }
-        }
     }
 }

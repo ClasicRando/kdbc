@@ -11,5 +11,5 @@ package io.github.clasicrando.kdbc.core.exceptions
  * be thrown to signify the connection is in an invalid/unknown state and the underlining
  * connection should be terminated.
  */
-class UnexpectedTransactionState(inTransaction: Boolean)
-    : KdbcException("Expected connection ${if (inTransaction) "" else "not "}to be transaction")
+class UnexpectedTransactionState(inTransaction: Boolean) :
+    KdbcException("Expected connection ${if (inTransaction) "" else "not "}to be transaction")

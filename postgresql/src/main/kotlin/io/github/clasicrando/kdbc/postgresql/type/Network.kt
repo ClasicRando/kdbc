@@ -14,7 +14,7 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
     kType = typeOf<PgInet>(),
 ) {
     override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == this.dbType || dbType ==PgType.Cidr
+        return dbType == this.dbType || dbType == PgType.Cidr
     }
 
     /**
@@ -30,7 +30,10 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
      *
      * @throws IllegalStateException if the address does not contain the right number of bytes
      */
-    override fun encode(value: PgInet, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgInet,
+        buffer: ByteWriteBuffer,
+    ) {
         when (val javaInetAddress = value.toInetAddress()) {
             is Inet6Address -> {
                 buffer.writeByte(PGSQL_AF_INET6)
@@ -75,7 +78,9 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the binary value cannot
      * be used to construct a [PgInet]
      */
-    override fun decodeBytes(value: io.github.clasicrando.kdbc.postgresql.column.PgValue.Binary): PgInet {
+    override fun decodeBytes(
+        value: io.github.clasicrando.kdbc.postgresql.column.PgValue.Binary,
+    ): PgInet {
         val remainingBytes = value.bytes.remaining()
         check(remainingBytes >= 8) {
             "Inet value must be at least 8 bytes. Found $remainingBytes"
@@ -105,7 +110,9 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [PgInet]
      */
-    override fun decodeText(value: _root_ide_package_.io.github.clasicrando.kdbc.postgresql.column.PgValue.Text): PgInet {
+    override fun decodeText(
+        value: _root_ide_package_.io.github.clasicrando.kdbc.postgresql.column.PgValue.Text,
+    ): PgInet {
         return try {
             PgInet.parse(value.text)
         } catch (ex: Throwable) {

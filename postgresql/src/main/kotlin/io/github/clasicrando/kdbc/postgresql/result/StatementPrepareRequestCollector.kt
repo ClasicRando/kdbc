@@ -14,7 +14,7 @@ private val logger = KotlinLogging.logger {}
 
 internal class StatementPrepareRequestCollector(
     private val resource: UniqueResourceId,
-    private val statement: PgPreparedStatement
+    private val statement: PgPreparedStatement,
 ) {
     val errors = mutableListOf<Throwable>()
     var transactionStatus: TransactionStatus? = null

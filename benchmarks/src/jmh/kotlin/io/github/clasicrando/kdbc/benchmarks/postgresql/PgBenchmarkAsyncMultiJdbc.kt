@@ -45,7 +45,7 @@ open class PgBenchmarkAsyncMultiJdbc {
     private fun executeQuery(stepId: Int) {
         dataSource.connection.use { conn ->
             conn.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
-            preparedStatement.setInt(1, stepId)
+                preparedStatement.setInt(1, stepId)
                 preparedStatement.executeQuery().use { resultSet ->
                     extractPostDataClassListFromResultSet(resultSet)
                 }
@@ -54,11 +54,13 @@ open class PgBenchmarkAsyncMultiJdbc {
     }
 
     @Benchmark
-    open fun querySingleRow(): Unit = runBlocking {
-        val results = List(concurrencyLimit) {
-            val stepId = singleStep()
-            async(Dispatchers.IO) { executeQuery(stepId) }
+    open fun querySingleRow(): Unit =
+        runBlocking {
+            val results =
+                List(CONCURRENCY_LIMIT) {
+                    val stepId = singleStep()
+                    async(Dispatchers.IO) { executeQuery(stepId) }
+                }
+            results.awaitAll()
         }
-        results.awaitAll()
-    }
 }

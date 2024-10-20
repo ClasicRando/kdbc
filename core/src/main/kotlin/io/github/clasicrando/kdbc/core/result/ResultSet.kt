@@ -21,14 +21,16 @@ interface ResultSet : Iterable<DataRow>, AutoCloseable {
 }
 
 /** Empty [ResultSet] containing no columns and yields no rows upon iteration */
-val ResultSet.Companion.EMPTY_RESULT get() = object : ResultSet {
-    val rows = emptyList<DataRow>()
-    override val columnCount: Int = 0
-    override fun columnType(index: Int): ColumnMetadata {
-        error("Empty ResultSet should never have the columnType checked")
+val ResultSet.Companion.EMPTY_RESULT get() =
+    object : ResultSet {
+        val rows = emptyList<DataRow>()
+        override val columnCount: Int = 0
+
+        override fun columnType(index: Int): ColumnMetadata {
+            error("Empty ResultSet should never have the columnType checked")
+        }
+
+        override fun iterator(): Iterator<DataRow> = rows.iterator()
+
+        override fun close() {}
     }
-
-    override fun iterator(): Iterator<DataRow> = rows.iterator()
-
-    override fun close() {}
-}

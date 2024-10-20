@@ -16,8 +16,9 @@ class StatementResult(
      *
      * @throws IllegalStateException if this method is called after [close] is called
      */
-    val size: Int get() = queryResults?.size
-        ?: error("Attempted to get size of a closed/released StatementResult")
+    val size: Int get() =
+        queryResults?.size
+            ?: error("Attempted to get size of a closed/released StatementResult")
 
     /**
      * Return the [QueryResult] backed by this [index].
@@ -38,8 +39,9 @@ class StatementResult(
      *
      * @throws IllegalStateException if this method is called after [close]
      */
-    override fun iterator(): Iterator<QueryResult> = queryResults?.iterator()
-        ?: error("Attempted to iterate over a closed/released StatementResult")
+    override fun iterator(): Iterator<QueryResult> =
+        queryResults?.iterator()
+            ?: error("Attempted to iterate over a closed/released StatementResult")
 
     /**
      * Remove all [QueryResult]s of the backing [MutableList] of this result. If the list is still

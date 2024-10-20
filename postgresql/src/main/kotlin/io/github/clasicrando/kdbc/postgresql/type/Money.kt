@@ -18,7 +18,10 @@ internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L513)
      */
-    override fun encode(value: PgMoney, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMoney,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeLong(value.integer)
     }
 

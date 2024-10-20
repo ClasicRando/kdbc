@@ -14,82 +14,91 @@ import kotlin.uuid.Uuid
 class TestUuidType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept Uuid when querying postgresql`(): Unit = runBlocking {
-        val uuid = Uuid.random()
-        val query = "SELECT $1 uuid_col;"
+    fun `encode should accept Uuid when querying postgresql`(): Unit =
+        runBlocking {
+            val uuid = Uuid.random()
+            val query = "SELECT $1 uuid_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val value = conn.createPreparedQuery(query)
-                .bind(uuid)
-                .fetchScalar<Uuid>()
-            assertEquals(uuid, value)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val value =
+                    conn.createPreparedQuery(query)
+                        .bind(uuid)
+                        .fetchScalar<Uuid>()
+                assertEquals(uuid, value)
+            }
         }
-    }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val uuid = Uuid.random()
         val query = "SELECT '$uuid'::uuid;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<Uuid>()
+            val value =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<Uuid>()
             assertEquals(uuid, value)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return Uuid when simple querying postgresql uuid`(): Unit = runBlocking {
-        decodeTest(isPrepared = false)
-    }
-
-    @Test
-    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return Uuid when extended querying postgresql uuid`(): Unit = runBlocking {
-        decodeTest(isPrepared = true)
-    }
-
-
-    @Test
-    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept Java Uuid when querying postgresql`(): Unit = runBlocking {
-        val uuid = java.util.UUID.randomUUID()
-        val query = "SELECT $1 uuid_col;"
-
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val value = conn.createPreparedQuery(query)
-                .bind(uuid)
-                .fetchScalar<java.util.UUID>()
-            assertEquals(uuid, value)
+    fun `decode should return Uuid when simple querying postgresql uuid`(): Unit =
+        runBlocking {
+            decodeTest(isPrepared = false)
         }
-    }
+
+    @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `decode should return Uuid when extended querying postgresql uuid`(): Unit =
+        runBlocking {
+            decodeTest(isPrepared = true)
+        }
+
+    @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept Java Uuid when querying postgresql`(): Unit =
+        runBlocking {
+            val uuid = java.util.UUID.randomUUID()
+            val query = "SELECT $1 uuid_col;"
+
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val value =
+                    conn.createPreparedQuery(query)
+                        .bind(uuid)
+                        .fetchScalar<java.util.UUID>()
+                assertEquals(uuid, value)
+            }
+        }
 
     private suspend fun decodeJavaTest(isPrepared: Boolean) {
         val uuid = java.util.UUID.randomUUID()
         val query = "SELECT '$uuid'::uuid;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<java.util.UUID>()
+            val value =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<java.util.UUID>()
             assertEquals(uuid, value)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return Java Uuid when simple querying postgresql uuid`(): Unit = runBlocking {
-        decodeJavaTest(isPrepared = false)
-    }
+    fun `decode should return Java Uuid when simple querying postgresql uuid`(): Unit =
+        runBlocking {
+            decodeJavaTest(isPrepared = false)
+        }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return Java Uuid when extended querying postgresql uuid`(): Unit = runBlocking {
-        decodeJavaTest(isPrepared = true)
-    }
+    fun `decode should return Java Uuid when extended querying postgresql uuid`(): Unit =
+        runBlocking {
+            decodeJavaTest(isPrepared = true)
+        }
 }

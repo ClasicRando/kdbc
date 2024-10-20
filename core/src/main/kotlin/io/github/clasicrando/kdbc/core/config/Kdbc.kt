@@ -12,24 +12,25 @@ object Kdbc {
     private const val ENV_VARIABLE_NAME = "KDBC_CONFIG"
     private const val FILE_NAME = "kdbc_config.json"
     private val options: KdbcOptions by lazy {
-        val jsonData = System
-            .getenv(ENV_VARIABLE_NAME)
-            ?.let {
-                val path = Path(it)
-                IOUtils.source(path).buffered().readString()
-            }
-            ?: Kdbc::class.java
-                .classLoader
-                .getResourceAsStream(FILE_NAME)
-                ?.asSource()
-                ?.buffered()
-                ?.readString()
-            ?: Path(".", FILE_NAME)
-                .takeIf { IOUtils.pathExists(it) }
-                ?.let(IOUtils::source)
-                ?.buffered()
-                ?.readString()
-            ?: return@lazy KdbcOptions(detailedLogging = Level.OFF)
+        val jsonData =
+            System
+                .getenv(ENV_VARIABLE_NAME)
+                ?.let {
+                    val path = Path(it)
+                    IOUtils.source(path).buffered().readString()
+                }
+                ?: Kdbc::class.java
+                    .classLoader
+                    .getResourceAsStream(FILE_NAME)
+                    ?.asSource()
+                    ?.buffered()
+                    ?.readString()
+                ?: Path(".", FILE_NAME)
+                    .takeIf { IOUtils.pathExists(it) }
+                    ?.let(IOUtils::source)
+                    ?.buffered()
+                    ?.readString()
+                ?: return@lazy KdbcOptions(detailedLogging = Level.OFF)
         Json.decodeFromString(jsonData)
     }
 

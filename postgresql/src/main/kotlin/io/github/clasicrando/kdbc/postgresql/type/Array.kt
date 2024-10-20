@@ -10,15 +10,16 @@ import kotlin.reflect.full.createType
 import kotlin.reflect.full.withNullability
 
 /** Dummy [PgColumnDescription] to create a [PgValue.Text] instance for text decoding */
-private val dummyFieldDescription = PgColumnDescription(
-    fieldName = "",
-    tableOid = 0,
-    columnAttribute = 0,
-    dataTypeSize = 0,
-    pgType = PgType.Unknown,
-    typeModifier = 0,
-    formatCode = 1,
-)
+private val dummyFieldDescription =
+    PgColumnDescription(
+        fieldName = "",
+        tableOid = 0,
+        columnAttribute = 0,
+        dataTypeSize = 0,
+        pgType = PgType.Unknown,
+        typeModifier = 0,
+        formatCode = 1,
+    )
 
 fun <T : Any> createArrayDescriptions(
     pgType: PgType,
@@ -28,13 +29,13 @@ fun <T : Any> createArrayDescriptions(
         object : ArrayTypeDescription<T>(
             pgType = pgType,
             innerType = innerType,
-            innerNullable = true
+            innerNullable = true,
         ) {},
         object : ArrayTypeDescription<T>(
             pgType = pgType,
             innerType = innerType,
-            innerNullable = false
-        ) {}
+            innerNullable = false,
+        ) {},
     )
 }
 
@@ -47,12 +48,18 @@ internal abstract class ArrayTypeDescription<T : Any>(
     private val innerType: PgTypeDescription<T>,
     innerNullable: Boolean = true,
 ) : PgTypeDescription<List<T?>>(
-    dbType = pgType,
-    kType = List::class
-        .createType(arguments = listOf(
-            KTypeProjection.invariant(innerType.kType.withNullability(nullable = innerNullable))
-        )),
-) {
+        dbType = pgType,
+        kType =
+            List::class
+                .createType(
+                    arguments =
+                        listOf(
+                            KTypeProjection.invariant(
+                                innerType.kType.withNullability(nullable = innerNullable),
+                            ),
+                        ),
+                ),
+    ) {
     /**
      * Encode a [List] of [T] into the argument [buffer]. This writes:
      *  1. The number of dimensions (always 1)
@@ -64,7 +71,10 @@ internal abstract class ArrayTypeDescription<T : Any>(
      *
      *  [pg source code](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1272)
      */
-    override fun encode(value: List<T?>, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: List<T?>,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeInt(1)
         buffer.writeInt(0)
         buffer.writeInt(innerType.dbType.oid)
@@ -108,7 +118,7 @@ internal abstract class ArrayTypeDescription<T : Any>(
             type = value.typeData,
         ) {
             "Attempted to decode an array of $dimensions dimensions. Only 1-dimensional " +
-                    "arrays are supported"
+                "arrays are supported"
         }
         // Discard flags value. No longer in use
         value.bytes.readInt()
@@ -122,15 +132,16 @@ internal abstract class ArrayTypeDescription<T : Any>(
             type = value.typeData,
         ) { "Attempted to read an array with a lower bound other than 1. Got $lowerBound" }
 
-        val fieldDescription = PgColumnDescription(
-            fieldName = "",
-            tableOid = 0,
-            columnAttribute = 0,
-            dataTypeSize = 0,
-            pgType = PgType.fromOid(elementTypeOid),
-            typeModifier = 0,
-            formatCode = 1,
-        )
+        val fieldDescription =
+            PgColumnDescription(
+                fieldName = "",
+                tableOid = 0,
+                columnAttribute = 0,
+                dataTypeSize = 0,
+                pgType = PgType.fromOid(elementTypeOid),
+                typeModifier = 0,
+                formatCode = 1,
+            )
         return List(length) {
             // Read length value but don't use it since a ReadBufferSlice cannot be constructed
             val elementLength = value.bytes.readInt()

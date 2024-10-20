@@ -23,26 +23,32 @@ class TestTimestampType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("instants")
-    fun `encode should accept Instant when querying postgresql`(instant: Instant): Unit = runBlocking {
-        val query = "SELECT $1 instant_col;"
+    fun `encode should accept Instant when querying postgresql`(instant: Instant): Unit =
+        runBlocking {
+            val query = "SELECT $1 instant_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val value = conn.createPreparedQuery(query)
-                .bind(instant)
-                .fetchScalar<Instant>()
-            assertEquals(expected = instant, actual = value)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val value =
+                    conn.createPreparedQuery(query)
+                        .bind(instant)
+                        .fetchScalar<Instant>()
+                assertEquals(expected = instant, actual = value)
+            }
         }
-    }
 
-    private suspend fun decodeTest(isPrepared: Boolean, expectedValue: Instant) {
+    private suspend fun decodeTest(
+        isPrepared: Boolean,
+        expectedValue: Instant,
+    ) {
         val query = "SELECT '$expectedValue'::timestamp;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<Instant>()
+            val value =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<Instant>()
             assertEquals(expectedValue, value)
         }
     }
@@ -50,32 +56,40 @@ class TestTimestampType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("instants")
-    fun `decode should return Instant when simple querying postgresql timestamp`(instant: Instant): Unit = runBlocking {
-        decodeTest(isPrepared = false, expectedValue = instant)
-    }
+    fun `decode should return Instant when simple querying postgresql timestamp`(
+        instant: Instant,
+    ): Unit =
+        runBlocking {
+            decodeTest(isPrepared = false, expectedValue = instant)
+        }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("instants")
-    fun `decode should return Instant when extended querying postgresql timestamp`(instant: Instant): Unit = runBlocking {
-        decodeTest(isPrepared = true, expectedValue = instant)
-    }
+    fun `decode should return Instant when extended querying postgresql timestamp`(
+        instant: Instant,
+    ): Unit =
+        runBlocking {
+            decodeTest(isPrepared = true, expectedValue = instant)
+        }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `encode should accept Java LocalDateTime when querying postgresql`(
         localDateTime: java.time.LocalDateTime,
-    ): Unit = runBlocking {
-        val query = "SELECT $1 instant_col;"
+    ): Unit =
+        runBlocking {
+            val query = "SELECT $1 instant_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val value = conn.createPreparedQuery(query)
-                .bind(localDateTime)
-                .fetchScalar<java.time.LocalDateTime>()
-            assertEquals(expected = localDateTime, actual = value)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val value =
+                    conn.createPreparedQuery(query)
+                        .bind(localDateTime)
+                        .fetchScalar<java.time.LocalDateTime>()
+                assertEquals(expected = localDateTime, actual = value)
+            }
         }
-    }
 
     private suspend fun decodeJavaTest(
         isPrepared: Boolean,
@@ -84,11 +98,12 @@ class TestTimestampType {
         val query = "SELECT '$expectedValue'::timestamp;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<java.time.LocalDateTime>()
+            val value =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<java.time.LocalDateTime>()
             assertEquals(expectedValue, value)
         }
     }
@@ -97,19 +112,21 @@ class TestTimestampType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `decode should return Java LocalDateTime when simple querying postgresql timestamp`(
-        localDateTime: java.time.LocalDateTime
-    ): Unit = runBlocking {
-        decodeJavaTest(isPrepared = false, expectedValue = localDateTime)
-    }
+        localDateTime: java.time.LocalDateTime,
+    ): Unit =
+        runBlocking {
+            decodeJavaTest(isPrepared = false, expectedValue = localDateTime)
+        }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `decode should return Java LocalDateTime when extended querying postgresql timestamp`(
-        localDateTime: java.time.LocalDateTime
-    ): Unit = runBlocking {
-        decodeJavaTest(isPrepared = true, expectedValue = localDateTime)
-    }
+        localDateTime: java.time.LocalDateTime,
+    ): Unit =
+        runBlocking {
+            decodeJavaTest(isPrepared = true, expectedValue = localDateTime)
+        }
 
     companion object {
         private val positiveLocalDate = LocalDate(year = 2024, monthNumber = 2, dayOfMonth = 25)

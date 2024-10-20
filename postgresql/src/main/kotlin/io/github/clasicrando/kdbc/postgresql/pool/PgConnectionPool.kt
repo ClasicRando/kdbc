@@ -19,9 +19,9 @@ class PgConnectionPool(
     connectOptions: PgConnectOptions,
     poolOptions: PoolOptions,
 ) : AbstractDefaultConnectionPool<PgConnection>(
-    poolOptions = poolOptions,
-    provider = PgConnectionProvider(connectOptions),
-) {
+        poolOptions = poolOptions,
+        provider = PgConnectionProvider(connectOptions),
+    ) {
     internal val typeCache = PgTypeCache()
     internal val selectorManager = SelectorManager(dispatcher = this.coroutineContext)
 

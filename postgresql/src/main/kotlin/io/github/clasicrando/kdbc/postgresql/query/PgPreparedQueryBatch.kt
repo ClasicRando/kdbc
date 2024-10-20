@@ -49,9 +49,10 @@ internal class PgPreparedQueryBatch(
 
     override suspend fun vendorExecuteQueriesAggregating(): StatementResult {
         checkNotNull(connection) { "QueryBatch already released its Connection" }
-        val pipelineQueries = Array(queries.size) {
-            queries[it].sql to queries[it].parameters
-        }
+        val pipelineQueries =
+            Array(queries.size) {
+                queries[it].sql to queries[it].parameters
+            }
         return connection!!.pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
     }
 }

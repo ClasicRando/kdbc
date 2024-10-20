@@ -16,28 +16,34 @@ class TestInetType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource(IPV4_ADDRESS_STRING, IPV6_ADDRESS_STRING)
-    fun `encode should accept PgInet when querying postgresql`(inetAddress: String): Unit = runBlocking {
-        val inet = PgInet.parse(inetAddress)
-        val query = "SELECT $1 inet_col;"
+    fun `encode should accept PgInet when querying postgresql`(inetAddress: String): Unit =
+        runBlocking {
+            val inet = PgInet.parse(inetAddress)
+            val query = "SELECT $1 inet_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val value = conn.createPreparedQuery(query)
-                .bind(inet)
-                .fetchScalar<PgInet>()
-            assertEquals(inet, value)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val value =
+                    conn.createPreparedQuery(query)
+                        .bind(inet)
+                        .fetchScalar<PgInet>()
+                assertEquals(inet, value)
+            }
         }
-    }
 
-    private suspend fun decodeTest(inetAddress: String, isPrepared: Boolean) {
+    private suspend fun decodeTest(
+        inetAddress: String,
+        isPrepared: Boolean,
+    ) {
         val inet = PgInet.parse(inetAddress)
         val query = "SELECT '$inetAddress'::inet;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<PgInet>()
+            val value =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<PgInet>()
             assertEquals(inet, value)
         }
     }
@@ -45,16 +51,22 @@ class TestInetType {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource(IPV4_ADDRESS_STRING, IPV6_ADDRESS_STRING)
-    fun `decode should return PgInet when simple querying postgresql inet`(inetAddress: String): Unit = runBlocking {
-        decodeTest(inetAddress, isPrepared = false)
-    }
+    fun `decode should return PgInet when simple querying postgresql inet`(
+        inetAddress: String,
+    ): Unit =
+        runBlocking {
+            decodeTest(inetAddress, isPrepared = false)
+        }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource(IPV4_ADDRESS_STRING, IPV6_ADDRESS_STRING)
-    fun `decode should return PgInet when extended querying postgresql inet`(inetAddress: String): Unit = runBlocking {
-        decodeTest(inetAddress, isPrepared = true)
-    }
+    fun `decode should return PgInet when extended querying postgresql inet`(
+        inetAddress: String,
+    ): Unit =
+        runBlocking {
+            decodeTest(inetAddress, isPrepared = true)
+        }
 
     companion object {
         private const val IPV4_ADDRESS_STRING = "192.168.100.128/25"

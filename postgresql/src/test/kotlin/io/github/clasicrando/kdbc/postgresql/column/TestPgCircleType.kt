@@ -17,41 +17,46 @@ import kotlin.test.assertEquals
 class TestPgCircleType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept PgCircle when querying postgresql`(): Unit = runBlocking {
-        val query = "SELECT $1 circle_col;"
+    fun `encode should accept PgCircle when querying postgresql`(): Unit =
+        runBlocking {
+            val query = "SELECT $1 circle_col;"
 
-        PgConnectionHelper.defaultConnection().use { conn ->
-            val circle = conn.createPreparedQuery(query)
-                .bind(value)
-                .fetchScalar<PgCircle>()
-            assertEquals(value, circle)
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val circle =
+                    conn.createPreparedQuery(query)
+                        .bind(value)
+                        .fetchScalar<PgCircle>()
+                assertEquals(value, circle)
+            }
         }
-    }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::circle;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val circle = if (isPrepared) {
-                conn.createPreparedQuery(query)
-            } else {
-                conn.createQuery(query)
-            }.fetchScalar<PgCircle>()
+            val circle =
+                if (isPrepared) {
+                    conn.createPreparedQuery(query)
+                } else {
+                    conn.createQuery(query)
+                }.fetchScalar<PgCircle>()
             assertEquals(value, circle)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgCircle when simple querying postgresql circle`(): Unit = runBlocking {
-        decodeTest(isPrepared = false)
-    }
+    fun `decode should return PgCircle when simple querying postgresql circle`(): Unit =
+        runBlocking {
+            decodeTest(isPrepared = false)
+        }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgCircle when extended querying postgresql circle`(): Unit = runBlocking {
-        decodeTest(isPrepared = true)
-    }
+    fun `decode should return PgCircle when extended querying postgresql circle`(): Unit =
+        runBlocking {
+            decodeTest(isPrepared = true)
+        }
 
     companion object {
         private val value = PgCircle(center = PgPoint(54.89, 84.5), radius = 2.536)
@@ -65,12 +70,13 @@ class TestPgCircleType {
 
         @JvmStatic
         @BeforeAll
-        fun checkPostGis(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn ->
-                conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                    check(it.first().rows.first().getAsNonNull<Boolean>(0))
+        fun checkPostGis(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use { conn ->
+                    conn.sendSimpleQuery(POST_GIS_QUERY).use {
+                        check(it.first().rows.first().getAsNonNull<Boolean>(0))
+                    }
                 }
             }
-        }
     }
 }

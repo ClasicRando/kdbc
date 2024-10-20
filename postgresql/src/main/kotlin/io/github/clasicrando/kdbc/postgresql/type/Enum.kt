@@ -13,42 +13,53 @@ internal class EnumTypeDescription<E : Enum<E>>(
     kType: KType,
     private val values: Array<E>,
 ) : PgTypeDescription<E>(
-    dbType = pgType,
-    kType = kType,
-) {
+        dbType = pgType,
+        kType = kType,
+    ) {
     private val nameMap: Map<E, String>
     internal val entryLookup: Map<String, E>
+
     init {
-        val renameMap: Map<String, String> = values.firstOrNull()
-            ?.declaringJavaClass
-            ?.fields
-            ?.mapNotNull { field ->
-                if (!field.isEnumConstant) {
-                    return@mapNotNull null
+        val renameMap: Map<String, String> =
+            values.firstOrNull()
+                ?.declaringJavaClass
+                ?.fields
+                ?.mapNotNull { field ->
+                    if (!field.isEnumConstant) {
+                        return@mapNotNull null
+                    }
+                    val renameAnnotation =
+                        field.annotations
+                            .asSequence()
+                            .mapNotNull { it as? Rename }
+                            .firstOrNull()
+                            ?: return@mapNotNull null
+                    field.name to renameAnnotation.value
                 }
-                val renameAnnotation = field.annotations
-                    .asSequence()
-                    .mapNotNull { it as? Rename }
-                    .firstOrNull()
-                    ?: return@mapNotNull null
-                field.name to renameAnnotation.value
-            }
-            ?.toMap()
-            ?: mapOf()
+                ?.toMap()
+                ?: mapOf()
         nameMap = values.associateWith { renameMap[it.name] ?: it.name }
-        entryLookup = nameMap.asSequence()
-            .associate { it.value to it.key }
+        entryLookup =
+            nameMap.asSequence()
+                .associate { it.value to it.key }
     }
+
     /**
      * Writes the [Enum.name] property as text to the argument buffer.
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/enum.c#L179)
      */
-    override fun encode(value: E, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: E,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeText(nameMap[value]!!)
     }
 
-    private fun getLabel(text: String, type: ColumnMetadata): E {
+    private fun getLabel(
+        text: String,
+        type: ColumnMetadata,
+    ): E {
         return entryLookup[text]
             ?: columnDecodeError(
                 kType = kType,

@@ -71,8 +71,10 @@ sealed interface CopyStatement {
     interface CopyTable {
         /** Schema of the target table */
         val schemaName: String
+
         /** Target table of the COPY operation. Must already exist */
         val tableName: String
+
         /**
          * Optional [List] of column names that will be copied. If no column list is specified then
          * all columns of the table except for the generated columns will be copied.
@@ -81,6 +83,7 @@ sealed interface CopyStatement {
     }
 
     sealed interface To : CopyStatement
+
     sealed interface From : CopyStatement
 
     /**
@@ -105,14 +108,15 @@ sealed interface CopyStatement {
     ) : To, CopyQuery, CopyCsv {
         override val format: CopyFormat = CopyFormat.CSV
 
-        override fun toQuery(): String = buildString {
-            append("COPY (").append(query).append(") TO STDOUT")
-            appendCsvOptions(this)
-            forceQuote?.let {
-                append(", FORCE_QUOTE '").append(it).append('\'')
+        override fun toQuery(): String =
+            buildString {
+                append("COPY (").append(query).append(") TO STDOUT")
+                appendCsvOptions(this)
+                forceQuote?.let {
+                    append(", FORCE_QUOTE '").append(it).append('\'')
+                }
+                append(')')
             }
-            append(')')
-        }
     }
 
     /**
@@ -133,21 +137,22 @@ sealed interface CopyStatement {
     ) : To, CopyTable, CopyCsv {
         override val format: CopyFormat = CopyFormat.CSV
 
-        override fun toQuery(): String = buildString {
-            append("COPY ")
-                .append(schemaName.quoteIdentifier())
-                .append('.')
-                .append(tableName.quoteIdentifier())
-            if (columnNames.isNotEmpty()) {
-                columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+        override fun toQuery(): String =
+            buildString {
+                append("COPY ")
+                    .append(schemaName.quoteIdentifier())
+                    .append('.')
+                    .append(tableName.quoteIdentifier())
+                if (columnNames.isNotEmpty()) {
+                    columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+                }
+                append(" TO STDOUT")
+                appendCsvOptions(this)
+                forceQuote?.let {
+                    append(", FORCE_QUOTE '").append(it).append('\'')
+                }
+                append(')')
             }
-            append(" TO STDOUT")
-            appendCsvOptions(this)
-            forceQuote?.let {
-                append(", FORCE_QUOTE '").append(it).append('\'')
-            }
-            append(')')
-        }
     }
 
     /**
@@ -163,10 +168,11 @@ sealed interface CopyStatement {
     ) : To, CopyQuery, CopyText {
         override val format: CopyFormat = CopyFormat.Text
 
-        override fun toQuery(): String = buildString {
-            append("COPY (").append(query).append(") TO STDOUT")
-            appendTextOptions(this)
-        }
+        override fun toQuery(): String =
+            buildString {
+                append("COPY (").append(query).append(") TO STDOUT")
+                appendTextOptions(this)
+            }
     }
 
     /**
@@ -184,17 +190,18 @@ sealed interface CopyStatement {
     ) : To, CopyTable, CopyText {
         override val format: CopyFormat = CopyFormat.Text
 
-        override fun toQuery(): String = buildString {
-            append("COPY ")
-                .append(schemaName.quoteIdentifier())
-                .append('.')
-                .append(tableName.quoteIdentifier())
-            if (columnNames.isNotEmpty()) {
-                columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+        override fun toQuery(): String =
+            buildString {
+                append("COPY ")
+                    .append(schemaName.quoteIdentifier())
+                    .append('.')
+                    .append(tableName.quoteIdentifier())
+                if (columnNames.isNotEmpty()) {
+                    columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+                }
+                append(" TO STDOUT")
+                appendTextOptions(this)
             }
-            append(" TO STDOUT")
-            appendTextOptions(this)
-        }
     }
 
     /**
@@ -204,9 +211,10 @@ sealed interface CopyStatement {
     data class QueryToBinary(override val query: String) : To, CopyQuery {
         override val format: CopyFormat = CopyFormat.Binary
 
-        override fun toQuery(): String = buildString {
-            append("COPY (").append(query).append(") TO STDOUT (FORMAT binary)")
-        }
+        override fun toQuery(): String =
+            buildString {
+                append("COPY (").append(query).append(") TO STDOUT (FORMAT binary)")
+            }
     }
 
     /**
@@ -220,16 +228,17 @@ sealed interface CopyStatement {
     ) : To, CopyTable {
         override val format: CopyFormat = CopyFormat.Binary
 
-        override fun toQuery(): String = buildString {
-            append("COPY ")
-                .append(schemaName.quoteIdentifier())
-                .append('.')
-                .append(tableName.quoteIdentifier())
-            if (columnNames.isNotEmpty()) {
-                columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+        override fun toQuery(): String =
+            buildString {
+                append("COPY ")
+                    .append(schemaName.quoteIdentifier())
+                    .append('.')
+                    .append(tableName.quoteIdentifier())
+                if (columnNames.isNotEmpty()) {
+                    columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+                }
+                append(" TO STDOUT (FORMAT binary)")
             }
-            append(" TO STDOUT (FORMAT binary)")
-        }
     }
 
     /**
@@ -260,22 +269,23 @@ sealed interface CopyStatement {
     ) : From, CopyTable, CopyCsv {
         override val format: CopyFormat = CopyFormat.CSV
 
-        override fun toQuery(): String = buildString {
-            append("COPY ")
-                .append(schemaName.quoteIdentifier())
-                .append('.')
-                .append(tableName.quoteIdentifier())
-            if (columnNames.isNotEmpty()) {
-                columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+        override fun toQuery(): String =
+            buildString {
+                append("COPY ")
+                    .append(schemaName.quoteIdentifier())
+                    .append('.')
+                    .append(tableName.quoteIdentifier())
+                if (columnNames.isNotEmpty()) {
+                    columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+                }
+                append(" FROM STDIN")
+                appendCsvOptions(this)
+                forceNotNull?.takeIf { it.columns.isNotEmpty() }
+                    ?.let { append(", FORCE_NOT_NULL '").append(it).append('\'') }
+                forceNull?.takeIf { it.columns.isNotEmpty() }
+                    ?.let { append(", FORCE_NULL '").append(it).append('\'') }
+                append(')')
             }
-            append(" FROM STDIN")
-            appendCsvOptions(this)
-            forceNotNull?.takeIf { it.columns.isNotEmpty() }
-                ?.let { append(", FORCE_NOT_NULL '").append(it).append('\'') }
-            forceNull?.takeIf { it.columns.isNotEmpty() }
-                ?.let { append(", FORCE_NULL '").append(it).append('\'') }
-            append(')')
-        }
     }
 
     /**
@@ -293,17 +303,18 @@ sealed interface CopyStatement {
     ) : From, CopyTable, CopyText {
         override val format: CopyFormat = CopyFormat.Text
 
-        override fun toQuery(): String = buildString {
-            append("COPY ")
-                .append(schemaName.quoteIdentifier())
-                .append('.')
-                .append(tableName.quoteIdentifier())
-            if (columnNames.isNotEmpty()) {
-                columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+        override fun toQuery(): String =
+            buildString {
+                append("COPY ")
+                    .append(schemaName.quoteIdentifier())
+                    .append('.')
+                    .append(tableName.quoteIdentifier())
+                if (columnNames.isNotEmpty()) {
+                    columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+                }
+                append(" FROM STDIN")
+                appendTextOptions(this)
             }
-            append(" FROM STDIN")
-            appendTextOptions(this)
-        }
     }
 
     /**
@@ -317,88 +328,92 @@ sealed interface CopyStatement {
     ) : From, CopyTable {
         override val format: CopyFormat = CopyFormat.Binary
 
-        override fun toQuery(): String = buildString {
-            append("COPY ")
-                .append(schemaName.quoteIdentifier())
-                .append('.')
-                .append(tableName.quoteIdentifier())
-            if (columnNames.isNotEmpty()) {
-                columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+        override fun toQuery(): String =
+            buildString {
+                append("COPY ")
+                    .append(schemaName.quoteIdentifier())
+                    .append('.')
+                    .append(tableName.quoteIdentifier())
+                if (columnNames.isNotEmpty()) {
+                    columnNames.joinTo(buffer = this, separator = ",", prefix = "(", postfix = ")")
+                }
+                append(" FROM STDIN (FORMAT binary)")
             }
-            append(" FROM STDIN (FORMAT binary)")
+    }
+}
+
+private fun CopyStatement.CopyCsv.appendCsvOptions(builder: StringBuilder) =
+    builder.apply {
+        append(" WITH (FORMAT csv")
+        if (delimiter == '\'') {
+            append(", DELIMITER ''''")
+        } else {
+            append(", DELIMITER '").append(delimiter).append('\'')
+        }
+        append(", NULL '").append(nullString.replace("'", "''")).append('\'')
+        default?.let {
+            append(", DEFAULT '").append(it.replace("'", "''")).append('\'')
+        }
+        header?.let {
+            append(", HEADER ").append(it)
+        }
+        if (quote == '\'') {
+            append(", QUOTE ''''")
+        } else {
+            append(", QUOTE '").append(quote).append('\'')
+        }
+        if (escape == '\'') {
+            append(", ESCAPE ''''")
+        } else {
+            append(", ESCAPE '").append(escape).append('\'')
         }
     }
-}
 
-private fun CopyStatement.CopyCsv.appendCsvOptions(builder: StringBuilder) = builder.apply {
-    append(" WITH (FORMAT csv")
-    if (delimiter == '\'') {
-        append(", DELIMITER ''''")
-    } else {
-        append(", DELIMITER '").append(delimiter).append('\'')
+private fun CopyStatement.CopyText.appendTextOptions(builder: StringBuilder) =
+    builder.apply {
+        append(" WITH (FORMAT text")
+        if (delimiter == '\'') {
+            append(", DELIMITER ''''")
+        } else {
+            append(", DELIMITER '").append(delimiter).append('\'')
+        }
+        append(", NULL '").append(nullString.replace("'", "''")).append('\'')
+        default?.let {
+            append(", DEFAULT '").append(it.replace("'", "''")).append('\'')
+        }
+        header?.let {
+            append(", HEADER ").append(it)
+        }
+        append(')')
     }
-    append(", NULL '").append(nullString.replace("'", "''")).append('\'')
-    default?.let {
-        append(", DEFAULT '").append(it.replace("'", "''")).append('\'')
-    }
-    header?.let {
-        append(", HEADER ").append(it)
-    }
-    if (quote == '\'') {
-        append(", QUOTE ''''")
-    } else {
-        append(", QUOTE '").append(quote).append('\'')
-    }
-    if (escape == '\'') {
-        append(", ESCAPE ''''")
-    } else {
-        append(", ESCAPE '").append(escape).append('\'')
-    }
-}
-
-private fun CopyStatement.CopyText.appendTextOptions(builder: StringBuilder) = builder.apply {
-    append(" WITH (FORMAT text")
-    if (delimiter == '\'') {
-        append(", DELIMITER ''''")
-    } else {
-        append(", DELIMITER '").append(delimiter).append('\'')
-    }
-    append(", NULL '").append(nullString.replace("'", "''")).append('\'')
-    default?.let {
-        append(", DEFAULT '").append(it.replace("'", "''")).append('\'')
-    }
-    header?.let {
-        append(", HEADER ").append(it)
-    }
-    append(')')
-}
 
 /**
  * Magic header value required at the start a binary COPY operation
  *
  * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
  */
-val pgBinaryCopyHeader = byteArrayOf(
-    'P'.code.toByte(),
-    'G'.code.toByte(),
-    'C'.code.toByte(),
-    'O'.code.toByte(),
-    'P'.code.toByte(),
-    'Y'.code.toByte(),
-    0x0A,
-    -1,
-    0x0D,
-    0x0A,
-    0x00,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-)
+val pgBinaryCopyHeader =
+    byteArrayOf(
+        'P'.code.toByte(),
+        'G'.code.toByte(),
+        'C'.code.toByte(),
+        'O'.code.toByte(),
+        'P'.code.toByte(),
+        'Y'.code.toByte(),
+        0x0A,
+        -1,
+        0x0D,
+        0x0A,
+        0x00,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
 
 /**
  * Magic trailer value required before the end of a binary COPY operation

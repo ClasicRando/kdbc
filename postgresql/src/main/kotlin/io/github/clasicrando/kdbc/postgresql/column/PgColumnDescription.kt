@@ -32,7 +32,10 @@ data class PgColumnDescription(
     override val typeSize: Long = dataTypeSize.toLong()
 
     companion object {
-        fun dummyDescription(pgType: PgType, formatCode: Short): PgColumnDescription {
+        fun dummyDescription(
+            pgType: PgType,
+            formatCode: Short,
+        ): PgColumnDescription {
             return PgColumnDescription(
                 fieldName = "",
                 tableOid = 0,

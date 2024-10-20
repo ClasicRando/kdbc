@@ -77,7 +77,8 @@ class ByteReadBuffer(
         checkRemaining(2)
         val result = (
             innerBuffer[offset + position++].toInt() and 0xff shl 8
-            or (innerBuffer[offset + position++].toInt() and 0xff))
+                or (innerBuffer[offset + position++].toInt() and 0xff)
+        )
         return result.toShort()
     }
 
@@ -90,9 +91,10 @@ class ByteReadBuffer(
         checkRemaining(4)
         val result = (
             (innerBuffer[offset + position++].toInt() and 0xff shl 24)
-            or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
-            or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
-            or (innerBuffer[offset + position++].toInt() and 0xff))
+                or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
+                or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
+                or (innerBuffer[offset + position++].toInt() and 0xff)
+        )
         return result
     }
 
@@ -105,13 +107,14 @@ class ByteReadBuffer(
         checkRemaining(8)
         val result = (
             (innerBuffer[offset + position++].toLong() and 0xffL shl 56)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 48)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 40)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 32)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 24)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 16)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 8)
-            or (innerBuffer[offset + position++].toLong() and 0xffL))
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 48)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 40)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 32)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 24)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 16)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 8)
+                or (innerBuffer[offset + position++].toLong() and 0xffL)
+        )
         return result
     }
 

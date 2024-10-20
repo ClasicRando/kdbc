@@ -14,63 +14,68 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestSimpleQuerySpec {
-
     @Test
-    fun `sendSimpleQuery should return 1 result when regular query`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use {
-            val result = it.sendSimpleQuery(QUERY_SERIES).toList()
-            assertEquals(1, result.size)
-            val queryResult = result[0]
-            assertEquals(10, queryResult.rowsAffected)
-            var rowCount = 0
-            for ((i, row) in queryResult.rows.withIndex()) {
-                rowCount++
-                assertEquals(i + 1, row.getAsNonNull(0))
-                assertEquals("Regular Query", row.getAsNonNull(1))
+    fun `sendSimpleQuery should return 1 result when regular query`(): Unit =
+        runBlocking {
+            PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+                val result = it.sendSimpleQuery(QUERY_SERIES).toList()
+                assertEquals(1, result.size)
+                val queryResult = result[0]
+                assertEquals(10, queryResult.rowsAffected)
+                var rowCount = 0
+                for ((i, row) in queryResult.rows.withIndex()) {
+                    rowCount++
+                    assertEquals(i + 1, row.getAsNonNull(0))
+                    assertEquals("Regular Query", row.getAsNonNull(1))
+                }
+                assertEquals(10, rowCount)
             }
-            assertEquals(10, rowCount)
         }
-    }
 
     @Test
-    fun `sendSimpleQuery should return 1 result when stored procedure with out parameter`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use {
-            val result = it.sendSimpleQuery("CALL public.$TEST_PROC_NAME(null, null)").toList()
-            assertEquals(1, result.size)
-            val queryResult = result[0]
-            assertEquals(0, queryResult.rowsAffected)
-            val rows = queryResult.rows.toList()
-            assertEquals(1, rows.size)
-            assertEquals(4, rows[0].getAsNonNull(0))
-            assertEquals("This is a test", rows[0].getAsNonNull(1))
+    fun `sendSimpleQuery should return 1 result when stored procedure with out parameter`(): Unit =
+        runBlocking {
+            PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+                val result = it.sendSimpleQuery("CALL public.$TEST_PROC_NAME(null, null)").toList()
+                assertEquals(1, result.size)
+                val queryResult = result[0]
+                assertEquals(0, queryResult.rowsAffected)
+                val rows = queryResult.rows.toList()
+                assertEquals(1, rows.size)
+                assertEquals(4, rows[0].getAsNonNull(0))
+                assertEquals("This is a test", rows[0].getAsNonNull(1))
+            }
         }
-    }
 
     @Test
-    fun `sendSimpleQuery should return multiple results when multiple statements`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { connection ->
-            val queries = """
-                CALL public.$TEST_PROC_NAME(null, null);
-                SELECT 1 test_i;
-            """.trimIndent()
-            val results = connection.sendSimpleQuery(queries).toList()
-            assertEquals(2, results.size)
-            assertEquals(0, results[0].rowsAffected)
-            assertEquals(4, results[0].rows.firstOrNull()?.getAs(0))
-            assertEquals(1, results[1].rowsAffected)
-            assertEquals(1, results[1].rows.firstOrNull()?.getAs("test_i"))
+    fun `sendSimpleQuery should return multiple results when multiple statements`(): Unit =
+        runBlocking {
+            PgConnectionHelper.defaultConnectionWithForcedSimple().use { connection ->
+                val queries =
+                    """
+                    CALL public.$TEST_PROC_NAME(null, null);
+                    SELECT 1 test_i;
+                    """.trimIndent()
+                val results = connection.sendSimpleQuery(queries).toList()
+                assertEquals(2, results.size)
+                assertEquals(0, results[0].rowsAffected)
+                assertEquals(4, results[0].rows.firstOrNull()?.getAs(0))
+                assertEquals(1, results[1].rowsAffected)
+                assertEquals(1, results[1].rows.firstOrNull()?.getAs("test_i"))
+            }
         }
-    }
 
     @Test
-    fun `sendSimpleQuery should timeout when long running query with timeout specified`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnectionWithQueryTimeout().use { connection ->
-            val queries = "CALL public.$LONG_RUNNING_TEST_PROC_NAME()"
-            val exception = assertThrows<GeneralPostgresError> { connection.sendSimpleQuery(queries) }
-            assertEquals(Severity.ERROR, exception.errorInformation.severity)
-            assertEquals(SqlState.QueryCanceled, exception.errorInformation.code)
+    fun `sendSimpleQuery should timeout when long running query with timeout specified`(): Unit =
+        runBlocking {
+            PgConnectionHelper.defaultConnectionWithQueryTimeout().use { connection ->
+                val queries = "CALL public.$LONG_RUNNING_TEST_PROC_NAME()"
+                val exception =
+                    assertThrows<GeneralPostgresError> { connection.sendSimpleQuery(queries) }
+                assertEquals(Severity.ERROR, exception.errorInformation.severity)
+                assertEquals(SqlState.QueryCanceled, exception.errorInformation.code)
+            }
         }
-    }
 
     companion object {
         const val TEST_PROC_NAME = "test_proc"
@@ -100,10 +105,11 @@ class TestSimpleQuerySpec {
 
         @JvmStatic
         @BeforeAll
-        fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                it.sendSimpleQuery(STARTUP_SCRIPT)
+        fun setup(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use {
+                    it.sendSimpleQuery(STARTUP_SCRIPT)
+                }
             }
-        }
     }
 }

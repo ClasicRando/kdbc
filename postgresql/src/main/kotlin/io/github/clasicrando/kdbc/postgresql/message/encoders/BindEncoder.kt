@@ -24,7 +24,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BIND)
  */
 internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
-    override fun encode(value: PgMessage.Bind, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMessage.Bind,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.portal ?: "")

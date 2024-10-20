@@ -14,7 +14,10 @@ internal object CharTypeDescription : PgTypeDescription<Byte>(
     kType = typeOf<Byte>(),
 ) {
     /** Simply write the [Byte] value to the buffer */
-    override fun encode(value: Byte, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: Byte,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(value)
     }
 
@@ -53,10 +56,11 @@ internal object CharTypeDescription : PgTypeDescription<Byte>(
             }
             1 -> value.text[0].code.toByte()
             0 -> 0.toByte()
-            else -> columnDecodeError<Byte>(
-                type = value.typeData,
-                reason = "Received invalid \"char\" text, '${value.text}'",
-            )
+            else ->
+                columnDecodeError<Byte>(
+                    type = value.typeData,
+                    reason = "Received invalid \"char\" text, '${value.text}'",
+                )
         }
     }
 }
