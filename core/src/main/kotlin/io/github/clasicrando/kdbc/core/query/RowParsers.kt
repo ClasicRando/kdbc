@@ -5,6 +5,7 @@ import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import kotlinx.datetime.Instant
+import java.time.OffsetDateTime
 import kotlin.uuid.Uuid
 
 /**
@@ -57,6 +58,13 @@ object BigDecimalRowParser : RowParser<BigDecimal> {
 }
 
 /**
+ * Standard [RowParser] for rows with a single [java.math.BigDecimal] field
+ */
+object JavaBigDecimalRowParser : RowParser<java.math.BigDecimal> {
+    override fun fromRow(row: DataRow): java.math.BigDecimal = row.getAsNonNull(0)
+}
+
+/**
  * Standard [RowParser] for rows with a single [String] field
  */
 object StringRowParser : RowParser<String> {
@@ -71,6 +79,13 @@ object InstantRowParser : RowParser<Instant> {
 }
 
 /**
+ * Standard [RowParser] for rows with a single [java.time.LocalDateTime] field
+ */
+object JavaLocalDateTimeRowParser : RowParser<java.time.LocalDateTime> {
+    override fun fromRow(row: DataRow): java.time.LocalDateTime = row.getAsNonNull(0)
+}
+
+/**
  * Standard [RowParser] for rows with a single [DateTime] field
  */
 object DateTimeRowParser : RowParser<DateTime> {
@@ -78,8 +93,22 @@ object DateTimeRowParser : RowParser<DateTime> {
 }
 
 /**
+ * Standard [RowParser] for rows with a single [OffsetDateTime] field
+ */
+object OffsetDateTimeRowParser : RowParser<OffsetDateTime> {
+    override fun fromRow(row: DataRow): OffsetDateTime = row.getAsNonNull(0)
+}
+
+/**
  * Standard [RowParser] for rows with a single [Uuid] field
  */
 object UuidRowParser : RowParser<Uuid> {
     override fun fromRow(row: DataRow): Uuid = row.getAsNonNull(0)
+}
+
+/**
+ * Standard [RowParser] for rows with a single [java.util.UUID] field
+ */
+object JavaUuidRowParser : RowParser<java.util.UUID> {
+    override fun fromRow(row: DataRow): java.util.UUID = row.getAsNonNull(0)
 }

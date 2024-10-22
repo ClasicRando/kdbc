@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgInterval
@@ -21,9 +23,9 @@ class TestIntervalType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(dateTimePeriod)
-                        .fetchScalar<DateTimePeriod>()
+                        .fetchScalar<DateTimePeriod>(conn)
                 assertEquals(expected = dateTimePeriod, actual = value)
             }
         }
@@ -32,12 +34,13 @@ class TestIntervalType {
         val query = "SELECT interval '1 year 4 month 9 day 5 hour 45 minute 8.009005 second';"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<DateTimePeriod>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<DateTimePeriod>(conn)
             assertEquals(dateTimePeriod, value)
         }
     }
@@ -64,9 +67,9 @@ class TestIntervalType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(pgInterval)
-                        .fetchScalar<PgInterval>()
+                        .fetchScalar<PgInterval>(conn)
                 assertEquals(expected = pgInterval, actual = value)
             }
         }
@@ -75,12 +78,13 @@ class TestIntervalType {
         val query = "SELECT interval '25 months 14 days 1 hour 1 minute 20 seconds 20 milliseconds 100 microseconds';"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgInterval>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<PgInterval>(conn)
             assertEquals(pgInterval, value)
         }
     }

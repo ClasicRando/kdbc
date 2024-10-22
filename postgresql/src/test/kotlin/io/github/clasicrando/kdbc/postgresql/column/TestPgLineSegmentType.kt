@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -23,9 +25,9 @@ class TestPgLineSegmentType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val lineSegment =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<PgLineSegment>()
+                        .fetchScalar<PgLineSegment>(conn)
                 assertEquals(value, lineSegment)
             }
         }
@@ -34,12 +36,13 @@ class TestPgLineSegmentType {
         val query = "SELECT '${value.postGisLiteral}'::lseg;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val lineSegment =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgLineSegment>()
+                    query(query)
+                }
+            val lineSegment = dbQuery.fetchScalar<PgLineSegment>(conn)
             assertEquals(value, lineSegment)
         }
     }
@@ -78,7 +81,13 @@ class TestPgLineSegmentType {
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { conn ->
                     conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                        check(it.first().rows.first().getAsNonNull<Boolean>(0))
+                        check(
+                            it
+                                .first()
+                                .rows
+                                .first()
+                                .getAsNonNull<Boolean>(0),
+                        )
                     }
                 }
             }

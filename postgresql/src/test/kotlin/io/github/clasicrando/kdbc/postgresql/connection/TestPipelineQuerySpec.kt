@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.core.useCatching
@@ -18,10 +19,11 @@ class TestPipelineQuerySpec {
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
                 val results =
-                    connection.pipelineQueriesSyncAll(
-                        "SELECT $1 i" to listOf(QueryParameter(1)),
-                        "SELECT $1 t" to listOf(QueryParameter("Pipeline Query")),
-                    ).toList()
+                    connection
+                        .pipelineQueriesSyncAll(
+                            "SELECT $1 i" to listOf(QueryParameter(1)),
+                            "SELECT $1 t" to listOf(QueryParameter("Pipeline Query")),
+                        ).toList()
                 assertEquals(2, results.size)
                 assertEquals(1, results[0].rowsAffected)
                 assertEquals(1, results[0].rows.first().getAsNonNull(0))
@@ -41,14 +43,15 @@ class TestPipelineQuerySpec {
             }
             val result =
                 PgConnectionHelper.defaultConnection().useCatching {
-                    it.pipelineQueriesSyncAll(
-                        "INSERT INTO public.rollback_check VALUES($1,$2)" to
-                            listOf(
-                                QueryParameter(1),
-                                QueryParameter("Pipeline Query"),
-                            ),
-                        "SELECT $1::int t" to listOf(QueryParameter("not int")),
-                    ).toList()
+                    it
+                        .pipelineQueriesSyncAll(
+                            "INSERT INTO public.rollback_check VALUES($1,$2)" to
+                                listOf(
+                                    QueryParameter(1),
+                                    QueryParameter("Pipeline Query"),
+                                ),
+                            "SELECT $1::int t" to listOf(QueryParameter("not int")),
+                        ).toList()
                 }
             assertTrue(result.isFailure)
             val exception = result.exceptionOrNull()
@@ -58,8 +61,8 @@ class TestPipelineQuerySpec {
             )
             PgConnectionHelper.defaultConnection().use {
                 val count =
-                    it.createQuery("SELECT COUNT(*) FROM public.rollback_check")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(*) FROM public.rollback_check")
+                        .fetchScalar<Long>(it)
                 assertEquals(1, count)
             }
         }
@@ -75,15 +78,16 @@ class TestPipelineQuerySpec {
             }
             val result =
                 PgConnectionHelper.defaultConnection().useCatching {
-                    it.pipelineQueriesSyncAll(
-                        "INSERT INTO public.rollback_check VALUES($1,$2)" to
-                            listOf(
-                                QueryParameter(1),
-                                QueryParameter("Pipeline Query"),
-                            ),
-                        "SELECT $1::int t" to listOf(QueryParameter("not int")),
-                        "SELECT $1 t" to listOf(QueryParameter("not int")),
-                    ).toList()
+                    it
+                        .pipelineQueriesSyncAll(
+                            "INSERT INTO public.rollback_check VALUES($1,$2)" to
+                                listOf(
+                                    QueryParameter(1),
+                                    QueryParameter("Pipeline Query"),
+                                ),
+                            "SELECT $1::int t" to listOf(QueryParameter("not int")),
+                            "SELECT $1 t" to listOf(QueryParameter("not int")),
+                        ).toList()
                 }
             assertTrue(result.isFailure)
             val exception = result.exceptionOrNull()
@@ -93,8 +97,8 @@ class TestPipelineQuerySpec {
             )
             PgConnectionHelper.defaultConnection().use {
                 val count =
-                    it.createQuery("SELECT COUNT(*) FROM public.rollback_check")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(*) FROM public.rollback_check")
+                        .fetchScalar<Long>(it)
                 assertEquals(1, count)
             }
         }
@@ -110,18 +114,19 @@ class TestPipelineQuerySpec {
             }
             val result =
                 PgConnectionHelper.defaultConnection().useCatching {
-                    it.pipelineQueries(
-                        syncAll = false,
-                        queries =
-                            arrayOf(
-                                "INSERT INTO public.rollback_check VALUES($1,$2)" to
-                                    listOf(
-                                        QueryParameter(1),
-                                        QueryParameter("Pipeline Query"),
-                                    ),
-                                "SELECT $1::int t" to listOf(QueryParameter("not int")),
-                            ),
-                    ).toList()
+                    it
+                        .pipelineQueries(
+                            syncAll = false,
+                            queries =
+                                arrayOf(
+                                    "INSERT INTO public.rollback_check VALUES($1,$2)" to
+                                        listOf(
+                                            QueryParameter(1),
+                                            QueryParameter("Pipeline Query"),
+                                        ),
+                                    "SELECT $1::int t" to listOf(QueryParameter("not int")),
+                                ),
+                        ).toList()
                 }
             assertTrue(result.isFailure)
             val exception = result.exceptionOrNull()
@@ -131,8 +136,8 @@ class TestPipelineQuerySpec {
             )
             PgConnectionHelper.defaultConnection().use {
                 val count =
-                    it.createQuery("SELECT COUNT(*) FROM public.rollback_check")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(*) FROM public.rollback_check")
+                        .fetchScalar<Long>(it)
                 assertEquals(0, count)
             }
         }

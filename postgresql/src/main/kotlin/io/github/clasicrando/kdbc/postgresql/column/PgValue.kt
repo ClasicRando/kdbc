@@ -11,7 +11,9 @@ import io.github.clasicrando.kdbc.postgresql.column.PgValue.Text
  * For the [Binary] variant, the buffer is retained in the value, and it is accessible for
  * subsequent reads to extract the binary data needed for decoding.
  */
-sealed class PgValue private constructor(val typeData: PgColumnDescription) {
+sealed class PgValue private constructor(
+    val typeData: PgColumnDescription,
+) {
     /**
      * [PgValue] variant for providing database sent [String] data representing the output/result
      * data in text format. The containing [text] will be parsed by decoders into the required
@@ -26,9 +28,7 @@ sealed class PgValue private constructor(val typeData: PgColumnDescription) {
             internal constructor(bytes: ByteReadBuffer, typeData: PgColumnDescription) :
                 this(bytes.readText(), typeData)
 
-            override fun toString(): String {
-                return "PgValue.Text(text=$text, typeData=$typeData)"
-            }
+            override fun toString(): String = "PgValue.Text(text=$text, typeData=$typeData)"
         }
 
     /**
@@ -42,8 +42,6 @@ sealed class PgValue private constructor(val typeData: PgColumnDescription) {
             val bytes: ByteReadBuffer,
             typeData: PgColumnDescription,
         ) : PgValue(typeData) {
-            override fun toString(): String {
-                return "PgValue.Binary(typeData=$typeData)"
-            }
+            override fun toString(): String = "PgValue.Binary(typeData=$typeData)"
         }
 }

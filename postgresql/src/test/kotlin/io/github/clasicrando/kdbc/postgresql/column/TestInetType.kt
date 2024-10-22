@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgInet
@@ -23,9 +25,9 @@ class TestInetType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(inet)
-                        .fetchScalar<PgInet>()
+                        .fetchScalar<PgInet>(conn)
                 assertEquals(inet, value)
             }
         }
@@ -38,12 +40,13 @@ class TestInetType {
         val query = "SELECT '$inetAddress'::inet;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgInet>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<PgInet>(conn)
             assertEquals(inet, value)
         }
     }

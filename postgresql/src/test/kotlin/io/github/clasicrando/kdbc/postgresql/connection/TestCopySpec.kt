@@ -2,8 +2,9 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import io.github.clasicrando.kdbc.core.pool.useConnection
-import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.useCatching
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
@@ -28,7 +29,7 @@ class TestCopySpec {
     fun `copyIn should copy all rows`(): Unit =
         runBlocking {
             pool.useConnection {
-                it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+                query("TRUNCATE public.copy_in_test;").execute(it)
                 val copyInStatement =
                     CopyStatement.TableFromCsv(
                         schemaName = "public",
@@ -42,8 +43,8 @@ class TestCopySpec {
                 assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
                 assertEquals("COPY $ROW_COUNT", copyResult.message)
                 val count =
-                    it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(*) FROM public.copy_in_test")
+                        .fetchScalar<Long>(it)
                 assertEquals(ROW_COUNT_LONG, count)
             }
         }
@@ -54,7 +55,7 @@ class TestCopySpec {
             val testFilePath = createTempCsvForCopy(rowCount = ROW_COUNT)
             try {
                 pool.useConnection {
-                    it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+                    query("TRUNCATE public.copy_in_test;").execute(it)
                     val copyInStatement =
                         CopyStatement.TableFromCsv(
                             schemaName = "public",
@@ -70,8 +71,8 @@ class TestCopySpec {
                     assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
                     assertEquals("COPY $ROW_COUNT", copyResult.message)
                     val count =
-                        it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
-                            .fetchScalar<Long>()
+                        query("SELECT COUNT(*) FROM public.copy_in_test")
+                            .fetchScalar<Long>(it)
                     assertEquals(ROW_COUNT_LONG, count)
                 }
             } finally {
@@ -83,7 +84,7 @@ class TestCopySpec {
     fun `copyIn should copy all PgCsvRow values as csv`(): Unit =
         runBlocking {
             pool.useConnection {
-                it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+                query("TRUNCATE public.copy_in_test;").execute(it)
                 val copyInStatement =
                     CopyStatement.TableFromCsv(
                         schemaName = "public",
@@ -92,14 +93,15 @@ class TestCopySpec {
                 val copyResult =
                     it.copyIn(
                         copyInStatement,
-                        (1..ROW_COUNT).asFlow()
+                        (1..ROW_COUNT)
+                            .asFlow()
                             .map { i -> CopyInTestRow(id = i, textValue = "$i Value") },
                     )
                 assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
                 assertEquals("COPY $ROW_COUNT", copyResult.message)
                 val count =
-                    it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(*) FROM public.copy_in_test")
+                        .fetchScalar<Long>(it)
                 assertEquals(ROW_COUNT_LONG, count)
             }
         }
@@ -108,7 +110,7 @@ class TestCopySpec {
     fun `copyIn should copy all PgCsvRow values as binary`(): Unit =
         runBlocking {
             pool.useConnection {
-                it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+                query("TRUNCATE public.copy_in_test;").execute(it)
                 val copyInStatement =
                     CopyStatement.TableFromBinary(
                         schemaName = "public",
@@ -117,14 +119,15 @@ class TestCopySpec {
                 val copyResult =
                     it.copyIn(
                         copyInStatement,
-                        (1..ROW_COUNT).asFlow()
+                        (1..ROW_COUNT)
+                            .asFlow()
                             .map { i -> CopyInTestRow(id = i, textValue = "$i Value") },
                     )
                 assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
                 assertEquals("COPY $ROW_COUNT", copyResult.message)
                 val count =
-                    it.createQuery("SELECT COUNT(*) FROM public.copy_in_test")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(*) FROM public.copy_in_test")
+                        .fetchScalar<Long>(it)
                 assertEquals(ROW_COUNT_LONG, count)
             }
         }
@@ -134,7 +137,7 @@ class TestCopySpec {
         runBlocking {
             val result =
                 pool.acquire().useCatching {
-                    it.createQuery("TRUNCATE public.copy_in_test;").executeClosing()
+                    query("TRUNCATE public.copy_in_test;").execute(it)
                     val copyInStatement =
                         CopyStatement.TableFromCsv(
                             schemaName = "public",
@@ -149,8 +152,8 @@ class TestCopySpec {
             assertTrue(result.exceptionOrNull() is GeneralPostgresError)
             pool.useConnection {
                 val count =
-                    it.createQuery("SELECT COUNT(*) FROM public.copy_in_test;")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(*) FROM public.copy_in_test;")
+                        .fetchScalar<Long>(it)
                 assertEquals(0, count)
             }
         }

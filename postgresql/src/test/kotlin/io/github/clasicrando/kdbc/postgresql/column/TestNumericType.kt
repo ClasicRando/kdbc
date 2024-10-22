@@ -4,6 +4,8 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -24,9 +26,9 @@ class TestNumericType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val bigDecimal =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<BigDecimal>()
+                        .fetchScalar<BigDecimal>(conn)
                 assertEquals(value, bigDecimal)
             }
         }
@@ -37,12 +39,13 @@ class TestNumericType {
         val query = "SELECT $number numeric_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val bigDecimal =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<BigDecimal>()
+                    query(query)
+                }
+            val bigDecimal = dbQuery.fetchScalar<BigDecimal>(conn)
             assertEquals(expectedResult, bigDecimal)
         }
     }
@@ -71,9 +74,9 @@ class TestNumericType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val bigDecimal =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<java.math.BigDecimal>()
+                        .fetchScalar<java.math.BigDecimal>(conn)
                 assertEquals(value, bigDecimal)
             }
         }
@@ -84,12 +87,13 @@ class TestNumericType {
         val query = "SELECT $number jnumeric_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val bigDecimal =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<java.math.BigDecimal>()
+                    query(query)
+                }
+            val bigDecimal = dbQuery.fetchScalar<java.math.BigDecimal>(conn)
             assertEquals(expectedResult, bigDecimal)
         }
     }

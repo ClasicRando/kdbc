@@ -4,6 +4,8 @@ import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -28,9 +30,9 @@ class TestTimestampTzType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(dateTime)
-                        .fetchScalar<DateTime>()
+                        .fetchScalar<DateTime>(conn)
                 assertEquals(expected = dateTime.withOffset(UtcOffset.ZERO), actual = value)
             }
         }
@@ -39,12 +41,13 @@ class TestTimestampTzType {
         val query = "SELECT '2024-02-25T05:25:51+02'::timestamptz;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<DateTime>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<DateTime>(conn)
             assertEquals(dateTime.withOffset(UtcOffset.ZERO), value)
         }
     }
@@ -71,9 +74,9 @@ class TestTimestampTzType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(offsetDateTime)
-                        .fetchScalar<OffsetDateTime>()
+                        .fetchScalar<OffsetDateTime>(conn)
                 assertEquals(
                     expected = offsetDateTime.toInstant().atOffset(ZoneOffset.UTC),
                     actual = value,
@@ -85,12 +88,13 @@ class TestTimestampTzType {
         val query = "SELECT '2024-02-25T05:25:51+02'::timestamptz;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<OffsetDateTime>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<OffsetDateTime>(conn)
             assertEquals(
                 expected = offsetDateTime.toInstant().atOffset(ZoneOffset.UTC),
                 actual = value,

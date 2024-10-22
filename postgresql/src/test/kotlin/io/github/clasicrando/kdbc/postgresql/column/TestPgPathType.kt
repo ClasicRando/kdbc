@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -26,9 +28,9 @@ class TestPgPathType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val path =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<PgPath>()
+                        .fetchScalar<PgPath>(conn)
                 assertEquals(value, path)
             }
         }
@@ -41,12 +43,13 @@ class TestPgPathType {
         val query = "SELECT '${value.postGisLiteral}'::path;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val path =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgPath>()
+                    query(query)
+                }
+            val path = dbQuery.fetchScalar<PgPath>(conn)
             assertEquals(value, path)
         }
     }
@@ -80,12 +83,11 @@ class TestPgPathType {
             ) post_gis_exists
         """
 
-        private fun getPath(isClosed: Boolean): PgPath {
-            return PgPath(
+        private fun getPath(isClosed: Boolean): PgPath =
+            PgPath(
                 isClosed = isClosed,
                 points = listOf(PgPoint(54.89, 84.5), PgPoint(23.54, 95.24)),
             )
-        }
 
         @JvmStatic
         @BeforeAll
@@ -93,7 +95,13 @@ class TestPgPathType {
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { conn ->
                     conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                        check(it.first().rows.first().getAsNonNull<Boolean>(0))
+                        check(
+                            it
+                                .first()
+                                .rows
+                                .first()
+                                .getAsNonNull<Boolean>(0),
+                        )
                     }
                 }
             }

@@ -35,8 +35,8 @@ data class PgColumnDescription(
         fun dummyDescription(
             pgType: PgType,
             formatCode: Short,
-        ): PgColumnDescription {
-            return PgColumnDescription(
+        ): PgColumnDescription =
+            PgColumnDescription(
                 fieldName = "",
                 tableOid = 0,
                 columnAttribute = 0,
@@ -45,6 +45,5 @@ data class PgColumnDescription(
                 typeModifier = 0,
                 formatCode = formatCode,
             )
-        }
     }
 }

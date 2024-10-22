@@ -1,8 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.query.StringRowParser
-import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -20,8 +22,7 @@ class TestListenNotifySpec {
             PgConnectionHelper.defaultListener().use {
                 it.listen(CHANNEL_NAME)
                 PgConnectionHelper.defaultConnection().use { conn ->
-                    conn.createQuery("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')")
-                        .executeClosing()
+                    query("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')").execute(conn)
                 }
 
                 val notification = withTimeout(1000) { it.receiveNotification() }
@@ -36,10 +37,8 @@ class TestListenNotifySpec {
             PgConnectionHelper.defaultListener().use {
                 it.listen(CHANNEL_NAME, CHANNEL_NAME2)
                 PgConnectionHelper.defaultConnection().use { conn ->
-                    conn.createQuery("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')")
-                        .executeClosing()
-                    conn.createQuery("select pg_notify('$CHANNEL_NAME2', '$PAYLOAD')")
-                        .executeClosing()
+                    query("select pg_notify('$CHANNEL_NAME', '$PAYLOAD')").execute(conn)
+                    query("select pg_notify('$CHANNEL_NAME2', '$PAYLOAD')").execute(conn)
                 }
 
                 val notification1 = withTimeout(1000) { it.receiveNotification() }
@@ -61,9 +60,8 @@ class TestListenNotifySpec {
             PgConnectionHelper.defaultListener().use {
                 it.listen(CHANNEL_NAME)
                 val channelsBefore =
-                    it.connection
-                        .createPreparedQuery(LISTENER_QUERY)
-                        .fetchAll(StringRowParser)
+                    preparedQuery(LISTENER_QUERY)
+                        .fetchAll(it.connection, StringRowParser)
                 assertEquals(1, channelsBefore.size)
                 assertEquals(CHANNEL_NAME, channelsBefore[0])
 
@@ -73,9 +71,8 @@ class TestListenNotifySpec {
                     it.unlisten(CHANNEL_NAME)
                 }
                 val channelsAfter =
-                    it.connection
-                        .createPreparedQuery(LISTENER_QUERY)
-                        .fetchAll(StringRowParser)
+                    preparedQuery(LISTENER_QUERY)
+                        .fetchAll(it.connection, StringRowParser)
                 assertEquals(0, channelsAfter.size)
             }
         }

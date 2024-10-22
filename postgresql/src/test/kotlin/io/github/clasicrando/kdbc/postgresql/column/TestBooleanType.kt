@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -21,9 +23,9 @@ class TestBooleanType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val boolean =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<Boolean>()
+                        .fetchScalar<Boolean>(conn)
                 assertEquals(value, boolean)
             }
         }
@@ -37,10 +39,10 @@ class TestBooleanType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val boolean =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<Boolean>()
+                    query(query)
+                }.fetchScalar<Boolean>(conn)
             assertEquals(value, boolean)
         }
     }

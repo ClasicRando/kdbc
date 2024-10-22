@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -21,9 +23,9 @@ class TestDateType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(localDate)
-                        .fetchScalar<LocalDate>()
+                        .fetchScalar<LocalDate>(conn)
                 assertEquals(localDate, value)
             }
         }
@@ -32,12 +34,13 @@ class TestDateType {
         val query = "SELECT '2024-02-25'::date;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<LocalDate>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<LocalDate>(conn)
             assertEquals(localDate, value)
         }
     }
@@ -64,9 +67,9 @@ class TestDateType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(javaLocalDate)
-                        .fetchScalar<java.time.LocalDate>()
+                        .fetchScalar<java.time.LocalDate>(conn)
                 assertEquals(javaLocalDate, value)
             }
         }
@@ -75,12 +78,13 @@ class TestDateType {
         val query = "SELECT '2024-02-25'::date;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<java.time.LocalDate>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<java.time.LocalDate>(conn)
             assertEquals(javaLocalDate, value)
         }
     }

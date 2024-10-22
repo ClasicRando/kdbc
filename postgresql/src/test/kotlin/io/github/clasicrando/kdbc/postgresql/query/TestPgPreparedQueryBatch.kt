@@ -1,6 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
 import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -13,11 +15,12 @@ class TestPgPreparedQueryBatch {
     fun `executeQueries should return StatementResult`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                connection.createPreparedQueryBatch().use { queryBatch ->
-                    queryBatch.addPreparedQuery("SELECT $ID")
-                    queryBatch.addPreparedQuery("SELECT $1::text")
-                        .bind(TEXT)
-                    queryBatch.executeQueries().use { statementResult ->
+                connection
+                    .executeQueryBatch(
+                        query("SELECT $ID"),
+                        preparedQuery("SELECT $1::text")
+                            .bind(TEXT),
+                    ).use { statementResult ->
                         assertEquals(2, statementResult.size)
 
                         val firstResult = statementResult[0]
@@ -28,7 +31,6 @@ class TestPgPreparedQueryBatch {
                         assertEquals(1, secondResult.rowsAffected)
                         assertEquals(TEXT, secondResult.rows.first().getAsNonNull(0))
                     }
-                }
             }
         }
 

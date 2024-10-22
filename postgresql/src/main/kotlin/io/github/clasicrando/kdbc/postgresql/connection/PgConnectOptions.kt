@@ -131,8 +131,8 @@ data class PgConnectOptions(
      * Return a shallow copy of the current [PgConnectOptions] with both log statement levels set
      * to [Level.OFF] and the slow statement duration set to [Duration.INFINITE].
      */
-    fun disableStatementLogging(): PgConnectOptions {
-        return copy(
+    fun disableStatementLogging(): PgConnectOptions =
+        copy(
             logSettings =
                 LogSettings(
                     statementLevel = Level.OFF,
@@ -140,10 +140,9 @@ data class PgConnectOptions(
                     slowStatementDuration = Duration.INFINITE,
                 ),
         )
-    }
 
-    override fun toString(): String {
-        return buildString {
+    override fun toString(): String =
+        buildString {
             append("PgConnectOptions(host=")
             append(host)
             append(",port=")
@@ -168,5 +167,4 @@ data class PgConnectOptions(
             append(currentSchema)
             append(")")
         }
-    }
 }

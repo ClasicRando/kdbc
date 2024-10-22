@@ -2,8 +2,10 @@ package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.query.bind
-import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -31,7 +33,7 @@ open class PgBenchmarkAsyncSingleKdbc {
     @Setup
     open fun start(): Unit =
         runBlocking {
-            connection.createQuery(setupQuery).executeClosing()
+            query(setupQuery).execute(connection)
         }
 
     private fun singleStep(): Int {
@@ -49,19 +51,19 @@ open class PgBenchmarkAsyncSingleKdbc {
     open fun querySingleRow(): Unit =
         runBlocking {
             singleStep()
-            connection.createPreparedQuery(kdbcQuerySingle)
+            preparedQuery(kdbcQuerySingle)
                 .bind(id)
-                .fetchAll(PostDataClassRowParser)
+                .fetchAll(connection, PostDataClassRowParser)
         }
 
     @Benchmark
     open fun queryMultipleRows(): Unit =
         runBlocking {
             multiStep()
-            connection.createPreparedQuery(kdbcQuery)
+            preparedQuery(kdbcQuery)
                 .bind(id)
                 .bind(id + 10)
-                .fetchAll(PostDataClassRowParser)
+                .fetchAll(connection, PostDataClassRowParser)
         }
 
     @TearDown

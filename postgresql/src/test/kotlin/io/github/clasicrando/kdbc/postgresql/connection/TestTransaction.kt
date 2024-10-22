@@ -2,8 +2,9 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.connection.transactionCatching
 import io.github.clasicrando.kdbc.core.pool.useConnection
-import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterAll
@@ -18,7 +19,7 @@ class TestTransaction {
     fun cleanUp(): Unit =
         runBlocking {
             pool.useConnection {
-                it.createQuery("TRUNCATE TABLE public.$TABLE_NAME").executeClosing()
+                query("TRUNCATE TABLE public.$TABLE_NAME").execute(it)
             }
         }
 
@@ -27,20 +28,18 @@ class TestTransaction {
         runBlocking {
             pool.useConnection { conn ->
                 val countBefore =
-                    conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(0) FROM public.$TABLE_NAME")
+                        .fetchScalar<Long>(conn)
                 assertEquals(0L, countBefore)
                 val result =
                     conn.transactionCatching {
-                        it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(1, '')")
-                            .executeClosing()
-                        it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(2, '')")
-                            .executeClosing()
+                        query("INSERT INTO public.$TABLE_NAME VALUES(1, '')").execute(it)
+                        query("INSERT INTO public.$TABLE_NAME VALUES(2, '')").execute(it)
                     }
                 assertTrue(result.isSuccess)
                 val count =
-                    conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(0) FROM public.$TABLE_NAME")
+                        .fetchScalar<Long>(conn)
                 assertEquals(2L, count)
             }
         }
@@ -50,20 +49,18 @@ class TestTransaction {
         runBlocking {
             pool.useConnection { conn ->
                 val countBefore =
-                    conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(0) FROM public.$TABLE_NAME")
+                        .fetchScalar<Long>(conn)
                 assertEquals(0L, countBefore)
                 val result =
                     conn.transactionCatching {
-                        it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(1, '')")
-                            .executeClosing()
-                        it.createQuery("INSERT INTO public.$TABLE_NAME VALUES(2, null)")
-                            .executeClosing()
+                        query("INSERT INTO public.$TABLE_NAME VALUES(1, '')").execute(it)
+                        query("INSERT INTO public.$TABLE_NAME VALUES(2, null)").execute(it)
                     }
                 assertTrue(result.isFailure)
                 val countAfter =
-                    conn.createQuery("SELECT COUNT(0) FROM public.$TABLE_NAME")
-                        .fetchScalar<Long>()
+                    query("SELECT COUNT(0) FROM public.$TABLE_NAME")
+                        .fetchScalar<Long>(conn)
                 assertEquals(0L, countAfter)
             }
         }

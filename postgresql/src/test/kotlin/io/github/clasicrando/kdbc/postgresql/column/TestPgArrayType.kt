@@ -6,6 +6,8 @@ import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
@@ -31,8 +33,8 @@ internal object IntArrayTypeDescription : ArrayTypeDescription<Int>(
 )
 
 class TestPgArrayType {
-    private fun fieldDescription(pgType: PgType): PgColumnDescription {
-        return PgColumnDescription(
+    private fun fieldDescription(pgType: PgType): PgColumnDescription =
+        PgColumnDescription(
             fieldName = "",
             tableOid = 0,
             columnAttribute = 0,
@@ -41,7 +43,6 @@ class TestPgArrayType {
             typeModifier = 0,
             formatCode = 0,
         )
-    }
 
     @Test
     fun `decode should return decoded value when valid array literal 1`() {
@@ -63,13 +64,12 @@ class TestPgArrayType {
                 pgType = PgType.VarcharArray,
                 innerType = VarcharTypeDescription,
             ) {
-                override fun isCompatible(dbType: PgType): Boolean {
-                    return dbType == PgType.TextArray ||
+                override fun isCompatible(dbType: PgType): Boolean =
+                    dbType == PgType.TextArray ||
                         dbType == PgType.VarcharArray ||
                         dbType == PgType.XmlArray ||
                         dbType == PgType.NameArray ||
                         dbType == PgType.BpcharArray
-                }
             }
         val result = description.decode(pgValue)
 
@@ -112,9 +112,10 @@ class TestPgArrayType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val ints =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(values)
                         .fetchAll(
+                            conn,
                             object : RowParser<Int> {
                                 override fun fromRow(row: DataRow): Int = row.getAsNonNull(0)
                             },
@@ -128,12 +129,13 @@ class TestPgArrayType {
         val query = "SELECT ARRAY[1,2,3,4]::int[]"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val ints =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<List<Int>>()
+                    query(query)
+                }
+            val ints = dbQuery.fetchScalar<List<Int>>(conn)
             Assertions.assertIterableEquals(expectedResult, ints)
         }
     }

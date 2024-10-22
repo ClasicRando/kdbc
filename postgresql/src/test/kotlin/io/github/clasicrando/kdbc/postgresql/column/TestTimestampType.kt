@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -29,9 +31,9 @@ class TestTimestampType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(instant)
-                        .fetchScalar<Instant>()
+                        .fetchScalar<Instant>(conn)
                 assertEquals(expected = instant, actual = value)
             }
         }
@@ -43,12 +45,13 @@ class TestTimestampType {
         val query = "SELECT '$expectedValue'::timestamp;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<Instant>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<Instant>(conn)
             assertEquals(expectedValue, value)
         }
     }
@@ -84,9 +87,9 @@ class TestTimestampType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(localDateTime)
-                        .fetchScalar<java.time.LocalDateTime>()
+                        .fetchScalar<java.time.LocalDateTime>(conn)
                 assertEquals(expected = localDateTime, actual = value)
             }
         }
@@ -98,12 +101,13 @@ class TestTimestampType {
         val query = "SELECT '$expectedValue'::timestamp;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<java.time.LocalDateTime>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<java.time.LocalDateTime>(conn)
             assertEquals(expectedValue, value)
         }
     }
@@ -140,16 +144,13 @@ class TestTimestampType {
         private val negativeInstant = negativeLocalDateTime.toInstant(UtcOffset.ZERO)
 
         @JvmStatic
-        private fun instants(): Stream<Instant> {
-            return listOf(positiveInstant, negativeInstant).stream()
-        }
+        private fun instants(): Stream<Instant> = listOf(positiveInstant, negativeInstant).stream()
 
         @JvmStatic
-        private fun localDateTimes(): Stream<java.time.LocalDateTime> {
-            return listOf(
+        private fun localDateTimes(): Stream<java.time.LocalDateTime> =
+            listOf(
                 positiveLocalDateTime.toJavaLocalDateTime(),
                 negativeLocalDateTime.toJavaLocalDateTime(),
             ).stream()
-        }
     }
 }

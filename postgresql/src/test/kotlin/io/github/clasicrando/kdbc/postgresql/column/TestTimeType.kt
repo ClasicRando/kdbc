@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -21,9 +23,9 @@ class TestTimeType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(localTime)
-                        .fetchScalar<LocalTime>()
+                        .fetchScalar<LocalTime>(conn)
                 assertEquals(expected = localTime, actual = value)
             }
         }
@@ -32,12 +34,13 @@ class TestTimeType {
         val query = "SELECT '05:25:51'::time;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<LocalTime>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<LocalTime>(conn)
             assertEquals(localTime, value)
         }
     }
@@ -64,9 +67,9 @@ class TestTimeType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(javaLocalTime)
-                        .fetchScalar<java.time.LocalTime>()
+                        .fetchScalar<java.time.LocalTime>(conn)
                 assertEquals(expected = javaLocalTime, actual = value)
             }
         }
@@ -75,12 +78,13 @@ class TestTimeType {
         val query = "SELECT '05:25:51'::time;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<java.time.LocalTime>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<java.time.LocalTime>(conn)
             assertEquals(javaLocalTime, value)
         }
     }

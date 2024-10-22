@@ -4,6 +4,8 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.Bound
@@ -45,9 +47,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<Int4Range>()
+                        .fetchScalar<Int4Range>(conn)
                 assertEquals(value.toIntRange(), range?.toIntRange())
             }
         }
@@ -60,12 +62,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<Int4Range>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<Int4Range>(conn)
             assertEquals(value.toIntRange(), range?.toIntRange())
         }
     }
@@ -101,9 +104,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<Int8Range>()
+                        .fetchScalar<Int8Range>(conn)
                 assertEquals(value.toLongRange(), range?.toLongRange())
             }
         }
@@ -116,12 +119,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<Int8Range>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<Int8Range>(conn)
             assertEquals(value.toLongRange(), range?.toLongRange())
         }
     }
@@ -157,9 +161,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<NumRange>()
+                        .fetchScalar<NumRange>(conn)
                 assertEquals(value, range)
             }
         }
@@ -172,12 +176,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName numrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<NumRange>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<NumRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -213,9 +218,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<JNumRange>()
+                        .fetchScalar<JNumRange>(conn)
                 assertEquals(value, range)
             }
         }
@@ -228,12 +233,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jnumrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<JNumRange>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<JNumRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -267,9 +273,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<TsRange>()
+                        .fetchScalar<TsRange>(conn)
                 assertEquals(value, range)
             }
         }
@@ -282,12 +288,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName tsrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<TsRange>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<TsRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -323,9 +330,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<JTsRange>()
+                        .fetchScalar<JTsRange>(conn)
                 assertEquals(value, range)
             }
         }
@@ -338,12 +345,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jtsrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<JTsRange>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<JTsRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -379,9 +387,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<TsTzRange>()
+                        .fetchScalar<TsTzRange>(conn)
                 assertEquals(value, range)
             }
         }
@@ -394,12 +402,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName tstzrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<TsTzRange>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<TsTzRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -435,9 +444,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<JTsTzRange>()
+                        .fetchScalar<JTsTzRange>(conn)
                 assertEquals(value, range)
             }
         }
@@ -450,12 +459,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jtstzrange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<JTsTzRange>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<JTsTzRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -491,9 +501,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<DateRange>()
+                        .fetchScalar<DateRange>(conn)
                 assertEquals(value.toDateRange(), range?.toDateRange())
             }
         }
@@ -506,12 +516,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName daterange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<DateRange>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<DateRange>(conn)
             assertEquals(value.toDateRange(), range?.toDateRange())
         }
     }
@@ -547,9 +558,9 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<JDateRange>()
+                        .fetchScalar<JDateRange>(conn)
                 assertEquals(value.toJDateRange(), range?.toJDateRange())
             }
         }
@@ -562,12 +573,13 @@ class TestRange {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jdaterange_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val range =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<JDateRange>()
+                    query(query)
+                }
+            val range = dbQuery.fetchScalar<JDateRange>(conn)
             assertEquals(value.toJDateRange(), range?.toJDateRange())
         }
     }
@@ -598,8 +610,8 @@ class TestRange {
         private const val INT4RANGE_TYPE_NAME = "int4range"
 
         @JvmStatic
-        fun int4RangeValues(): Stream<Pair<String, Int4Range>> {
-            return listOf(
+        fun int4RangeValues(): Stream<Pair<String, Int4Range>> =
+            listOf(
                 Int4Range(Bound.Included(LOWER_INT), Bound.Included(UPPER_INT)),
                 Int4Range(Bound.Included(LOWER_INT), Bound.Excluded(UPPER_INT)),
                 Int4Range(Bound.Included(LOWER_INT), Bound.Unbounded()),
@@ -609,18 +621,16 @@ class TestRange {
                 Int4Range(Bound.Unbounded(), Bound.Included(3)),
                 Int4Range(Bound.Unbounded(), Bound.Excluded(3)),
                 Int4Range(Bound.Unbounded(), Bound.Unbounded()),
-            )
-                .map { INT4RANGE_TYPE_NAME to it }
+            ).map { INT4RANGE_TYPE_NAME to it }
                 .stream()
-        }
 
         private const val LOWER_LONG = 1L
         private const val UPPER_LONG = 3L
         private const val INT8RANGE_TYPE_NAME = "int8range"
 
         @JvmStatic
-        fun int8rangeValues(): Stream<Pair<String, Int8Range>> {
-            return listOf(
+        fun int8rangeValues(): Stream<Pair<String, Int8Range>> =
+            listOf(
                 Int8Range(Bound.Included(LOWER_LONG), Bound.Included(UPPER_LONG)),
                 Int8Range(Bound.Included(LOWER_LONG), Bound.Excluded(UPPER_LONG)),
                 Int8Range(Bound.Included(LOWER_LONG), Bound.Unbounded()),
@@ -630,18 +640,16 @@ class TestRange {
                 Int8Range(Bound.Unbounded(), Bound.Included(UPPER_LONG)),
                 Int8Range(Bound.Unbounded(), Bound.Excluded(UPPER_LONG)),
                 Int8Range(Bound.Unbounded(), Bound.Unbounded()),
-            )
-                .map { INT8RANGE_TYPE_NAME to it }
+            ).map { INT8RANGE_TYPE_NAME to it }
                 .stream()
-        }
 
         private val lowerBigDecimal = BigDecimal.fromLong(1L)
         private val upperBigDecimal = BigDecimal.fromLong(3L)
         private const val NUMRANGE_TYPE_NAME = "numrange"
 
         @JvmStatic
-        fun numrangeValues(): Stream<Pair<String, NumRange>> {
-            return listOf(
+        fun numrangeValues(): Stream<Pair<String, NumRange>> =
+            listOf(
                 Bound.Included(lowerBigDecimal) to Bound.Included(upperBigDecimal),
                 Bound.Included(lowerBigDecimal) to Bound.Excluded(upperBigDecimal),
                 Bound.Included(lowerBigDecimal) to Bound.Unbounded(),
@@ -651,18 +659,16 @@ class TestRange {
                 Bound.Unbounded<BigDecimal>() to Bound.Included(upperBigDecimal),
                 Bound.Unbounded<BigDecimal>() to Bound.Excluded(upperBigDecimal),
                 Bound.Unbounded<BigDecimal>() to Bound.Unbounded(),
-            )
-                .map { NUMRANGE_TYPE_NAME to NumRange(it.first, it.second) }
+            ).map { NUMRANGE_TYPE_NAME to NumRange(it.first, it.second) }
                 .stream()
-        }
 
         private val lowerJBigDecimal = java.math.BigDecimal.valueOf(1L)
         private val upperJBigDecimal = java.math.BigDecimal.valueOf(3L)
         private const val JNUMRANGE_TYPE_NAME = "numrange"
 
         @JvmStatic
-        fun jNumrangeValues(): Stream<Pair<String, JNumRange>> {
-            return listOf(
+        fun jNumrangeValues(): Stream<Pair<String, JNumRange>> =
+            listOf(
                 Bound.Included(lowerJBigDecimal) to Bound.Included(upperJBigDecimal),
                 Bound.Included(lowerJBigDecimal) to Bound.Excluded(upperJBigDecimal),
                 Bound.Included(lowerJBigDecimal) to Bound.Unbounded(),
@@ -672,18 +678,16 @@ class TestRange {
                 Bound.Unbounded<java.math.BigDecimal>() to Bound.Included(upperJBigDecimal),
                 Bound.Unbounded<java.math.BigDecimal>() to Bound.Excluded(upperJBigDecimal),
                 Bound.Unbounded<java.math.BigDecimal>() to Bound.Unbounded(),
-            )
-                .map { JNUMRANGE_TYPE_NAME to JNumRange(it.first, it.second) }
+            ).map { JNUMRANGE_TYPE_NAME to JNumRange(it.first, it.second) }
                 .stream()
-        }
 
         private val lowerTimestamp = LocalDate(2024, 1, 1).atStartOfDayIn(TimeZone.UTC)
         private val upperTimestamp = LocalDate(2024, 2, 1).atStartOfDayIn(TimeZone.UTC)
         private const val TSRANGE_TYPE_NAME = "tsrange"
 
         @JvmStatic
-        fun tsrangeValues(): Stream<Pair<String, TsRange>> {
-            return listOf(
+        fun tsrangeValues(): Stream<Pair<String, TsRange>> =
+            listOf(
                 Bound.Included(lowerTimestamp) to Bound.Included(upperTimestamp),
                 Bound.Included(lowerTimestamp) to Bound.Excluded(upperTimestamp),
                 Bound.Included(lowerTimestamp) to Bound.Unbounded(),
@@ -693,18 +697,22 @@ class TestRange {
                 Bound.Unbounded<Instant>() to Bound.Included(upperTimestamp),
                 Bound.Unbounded<Instant>() to Bound.Excluded(upperTimestamp),
                 Bound.Unbounded<Instant>() to Bound.Unbounded(),
-            )
-                .map { TSRANGE_TYPE_NAME to TsRange(it.first, it.second) }
+            ).map { TSRANGE_TYPE_NAME to TsRange(it.first, it.second) }
                 .stream()
-        }
 
-        private val lowerJTimestamp = java.time.LocalDate.of(2024, 1, 1).atStartOfDay()
-        private val upperJTimestamp = java.time.LocalDate.of(2024, 2, 1).atStartOfDay()
+        private val lowerJTimestamp =
+            java.time.LocalDate
+                .of(2024, 1, 1)
+                .atStartOfDay()
+        private val upperJTimestamp =
+            java.time.LocalDate
+                .of(2024, 2, 1)
+                .atStartOfDay()
         private const val JTSRANGE_TYPE_NAME = "tsrange"
 
         @JvmStatic
-        fun jTsrangeValues(): Stream<Pair<String, JTsRange>> {
-            return listOf(
+        fun jTsrangeValues(): Stream<Pair<String, JTsRange>> =
+            listOf(
                 Bound.Included(lowerJTimestamp) to Bound.Included(upperJTimestamp),
                 Bound.Included(lowerJTimestamp) to Bound.Excluded(upperJTimestamp),
                 Bound.Included(lowerJTimestamp) to Bound.Unbounded(),
@@ -714,10 +722,8 @@ class TestRange {
                 Bound.Unbounded<java.time.LocalDateTime>() to Bound.Included(upperJTimestamp),
                 Bound.Unbounded<java.time.LocalDateTime>() to Bound.Excluded(upperJTimestamp),
                 Bound.Unbounded<java.time.LocalDateTime>() to Bound.Unbounded(),
-            )
-                .map { JTSRANGE_TYPE_NAME to JTsRange(it.first, it.second) }
+            ).map { JTSRANGE_TYPE_NAME to JTsRange(it.first, it.second) }
                 .stream()
-        }
 
         private val lowerTimestampTz =
             DateTime(
@@ -732,8 +738,8 @@ class TestRange {
         private const val TSTZRANGE_TYPE_NAME = "tstzrange"
 
         @JvmStatic
-        fun tstzrangeValues(): Stream<Pair<String, TsTzRange>> {
-            return listOf(
+        fun tstzrangeValues(): Stream<Pair<String, TsTzRange>> =
+            listOf(
                 Bound.Included(lowerTimestampTz) to Bound.Included(upperTimestampTz),
                 Bound.Included(lowerTimestampTz) to Bound.Excluded(upperTimestampTz),
                 Bound.Included(lowerTimestampTz) to Bound.Unbounded(),
@@ -743,26 +749,28 @@ class TestRange {
                 Bound.Unbounded<DateTime>() to Bound.Included(upperTimestampTz),
                 Bound.Unbounded<DateTime>() to Bound.Excluded(upperTimestampTz),
                 Bound.Unbounded<DateTime>() to Bound.Unbounded(),
-            )
-                .map { TSTZRANGE_TYPE_NAME to TsTzRange(it.first, it.second) }
+            ).map { TSTZRANGE_TYPE_NAME to TsTzRange(it.first, it.second) }
                 .stream()
-        }
 
         private val lowerJTimestampTz =
             java.time.OffsetDateTime.of(
-                java.time.LocalDate.of(2024, 1, 1).atStartOfDay(),
+                java.time.LocalDate
+                    .of(2024, 1, 1)
+                    .atStartOfDay(),
                 ZoneOffset.UTC,
             )
         private val upperJTimestampTz =
             java.time.OffsetDateTime.of(
-                java.time.LocalDate.of(2024, 2, 1).atStartOfDay(),
+                java.time.LocalDate
+                    .of(2024, 2, 1)
+                    .atStartOfDay(),
                 ZoneOffset.UTC,
             )
         private const val JTSTZRANGE_TYPE_NAME = "tstzrange"
 
         @JvmStatic
-        fun jTstzrangeValues(): Stream<Pair<String, JTsTzRange>> {
-            return listOf(
+        fun jTstzrangeValues(): Stream<Pair<String, JTsTzRange>> =
+            listOf(
                 Bound.Included(lowerJTimestampTz) to Bound.Included(upperJTimestampTz),
                 Bound.Included(lowerJTimestampTz) to Bound.Excluded(upperJTimestampTz),
                 Bound.Included(lowerJTimestampTz) to Bound.Unbounded(),
@@ -772,18 +780,16 @@ class TestRange {
                 Bound.Unbounded<java.time.OffsetDateTime>() to Bound.Included(upperJTimestampTz),
                 Bound.Unbounded<java.time.OffsetDateTime>() to Bound.Excluded(upperJTimestampTz),
                 Bound.Unbounded<java.time.OffsetDateTime>() to Bound.Unbounded(),
-            )
-                .map { JTSTZRANGE_TYPE_NAME to JTsTzRange(it.first, it.second) }
+            ).map { JTSTZRANGE_TYPE_NAME to JTsTzRange(it.first, it.second) }
                 .stream()
-        }
 
         private val lowerDate = LocalDate(2024, 1, 1)
         private val upperDate = LocalDate(2024, 2, 1)
         private const val DATERANGE_TYPE_NAME = "daterange"
 
         @JvmStatic
-        fun daterangeValues(): Stream<Pair<String, DateRange>> {
-            return listOf(
+        fun daterangeValues(): Stream<Pair<String, DateRange>> =
+            listOf(
                 Bound.Included(lowerDate) to Bound.Included(upperDate),
                 Bound.Included(lowerDate) to Bound.Excluded(upperDate),
                 Bound.Included(lowerDate) to Bound.Unbounded(),
@@ -793,18 +799,16 @@ class TestRange {
                 Bound.Unbounded<LocalDate>() to Bound.Included(upperDate),
                 Bound.Unbounded<LocalDate>() to Bound.Excluded(upperDate),
                 Bound.Unbounded<LocalDate>() to Bound.Unbounded(),
-            )
-                .map { DATERANGE_TYPE_NAME to DateRange(it.first, it.second) }
+            ).map { DATERANGE_TYPE_NAME to DateRange(it.first, it.second) }
                 .stream()
-        }
 
         private val lowerJDate = java.time.LocalDate.of(2024, 1, 1)
         private val upperJDate = java.time.LocalDate.of(2024, 2, 1)
         private const val JDATERANGE_TYPE_NAME = "daterange"
 
         @JvmStatic
-        fun jDaterangeValues(): Stream<Pair<String, JDateRange>> {
-            return listOf(
+        fun jDaterangeValues(): Stream<Pair<String, JDateRange>> =
+            listOf(
                 Bound.Included(lowerJDate) to Bound.Included(upperJDate),
                 Bound.Included(lowerJDate) to Bound.Excluded(upperJDate),
                 Bound.Included(lowerJDate) to Bound.Unbounded(),
@@ -814,9 +818,7 @@ class TestRange {
                 Bound.Unbounded<java.time.LocalDate>() to Bound.Included(upperJDate),
                 Bound.Unbounded<java.time.LocalDate>() to Bound.Excluded(upperJDate),
                 Bound.Unbounded<java.time.LocalDate>() to Bound.Unbounded(),
-            )
-                .map { JDATERANGE_TYPE_NAME to JDateRange(it.first, it.second) }
+            ).map { JDATERANGE_TYPE_NAME to JDateRange(it.first, it.second) }
                 .stream()
-        }
     }
 }

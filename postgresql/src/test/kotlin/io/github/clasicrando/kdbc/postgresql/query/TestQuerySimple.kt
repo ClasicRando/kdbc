@@ -10,6 +10,7 @@ import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchFirst
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.fetchSingle
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
@@ -23,43 +24,42 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class TestPgQuery {
-    data class Row(val intValue: Int, val stringValue: String)
+class TestQuerySimple {
+    data class Row(
+        val intValue: Int,
+        val stringValue: String,
+    )
 
     object GoodRowParserTest : RowParser<Row> {
-        override fun fromRow(row: DataRow): Row {
-            return Row(
+        override fun fromRow(row: DataRow): Row =
+            Row(
                 intValue = row.getAsNonNull("int_value"),
                 stringValue = row.getAsNonNull("string_value"),
             )
-        }
     }
 
     object BadRowParserTest : RowParser<Row> {
-        override fun fromRow(row: DataRow): Row {
-            return Row(
+        override fun fromRow(row: DataRow): Row =
+            Row(
                 intValue = row.getAsNonNull(3),
                 stringValue = row.getAsNonNull("string_value"),
             )
-        }
     }
 
     object BadRowParserTest2 : RowParser<Row> {
-        override fun fromRow(row: DataRow): Row {
-            return Row(
+        override fun fromRow(row: DataRow): Row =
+            Row(
                 intValue = row.getAsNonNull("int_value"),
                 stringValue = row.getAsNonNull("string_value"),
             )
-        }
     }
 
     @Test
     fun `execute should succeed when valid query`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                connection.createQuery("SELECT 1").use {
-                    it.execute()
-                }
+                val query = query("SELECT 1")
+                connection.executeQuery(query)
             }
         }
 
@@ -67,7 +67,7 @@ class TestPgQuery {
     fun `fetchScalar should succeed when valid query with basic type`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                val scalar = connection.createQuery("SELECT 1").fetchScalar<Int>()
+                val scalar = query("SELECT 1").fetchScalar<Int>(connection)
                 assertNotNull(scalar)
                 assertEquals(1, scalar)
             }
@@ -77,11 +77,9 @@ class TestPgQuery {
     fun `fetchScalar should succeed when valid query with custom type`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                connection.createQuery("SELECT '{1,2,3}'::int[]").use {
-                    val scalar = it.fetchScalar<List<Int>>()
-                    assertNotNull(scalar)
-                    Assertions.assertIterableEquals(listOf(1, 2, 3), scalar)
-                }
+                val scalar = query("SELECT '{1,2,3}'::int[]").fetchScalar<List<Int>>(connection)
+                assertNotNull(scalar)
+                Assertions.assertIterableEquals(listOf(1, 2, 3), scalar)
             }
         }
 
@@ -91,7 +89,7 @@ class TestPgQuery {
             PgConnectionHelper.defaultConnection().use { connection ->
                 val ex =
                     assertThrows<KdbcException> {
-                        connection.createQuery("SELECT 1").fetchScalar<List<Int>>()
+                        query("SELECT 1").fetchScalar<List<Int>>(connection)
                     }
                 assertNotNull(ex.message)
                 assertContains(
@@ -106,10 +104,8 @@ class TestPgQuery {
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
                 val row =
-                    connection.createQuery(
-                        "SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value",
-                    )
-                        .fetchFirst(GoodRowParserTest)
+                    query("SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value")
+                        .fetchFirst(connection, GoodRowParserTest)
                 assertNotNull(row)
                 assertEquals(INT_VALUE, row.intValue)
                 assertEquals(STRING_VALUE, row.stringValue)
@@ -120,11 +116,8 @@ class TestPgQuery {
     fun `fetchFirst should fail when bad row parser`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                connection.createQuery(
-                    "SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value",
-                ).use {
-                    assertThrows<RowParseError> { it.fetchFirst(BadRowParserTest) }
-                }
+                val query = query("SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value")
+                assertThrows<RowParseError> { query.fetchFirst(connection, BadRowParserTest) }
             }
         }
 
@@ -133,10 +126,8 @@ class TestPgQuery {
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
                 val row =
-                    connection.createQuery(
-                        "SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value",
-                    )
-                        .fetchSingle(GoodRowParserTest)
+                    query("SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value")
+                        .fetchSingle(connection, GoodRowParserTest)
                 assertNotNull(row)
                 assertEquals(INT_VALUE, row.intValue)
                 assertEquals(STRING_VALUE, row.stringValue)
@@ -147,15 +138,15 @@ class TestPgQuery {
     fun `fetchSingle should fail when no rows are returned`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                connection.createQuery(
-                    """
-                    SELECT *
-                    FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
-                    WHERE 1 = 2
-                    """.trimIndent(),
-                ).use {
-                    assertThrows<EmptyQueryResult> { it.fetchSingle(BadRowParserTest) }
-                }
+                val query =
+                    query(
+                        """
+                        SELECT *
+                        FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
+                        WHERE 1 = 2
+                        """.trimIndent(),
+                    )
+                assertThrows<EmptyQueryResult> { query.fetchSingle(connection, BadRowParserTest) }
             }
         }
 
@@ -163,15 +154,15 @@ class TestPgQuery {
     fun `fetchSingle should fail when multiple rows are returned`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                connection.createQuery(
-                    """
-                    SELECT *
-                    FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
-                    CROSS JOIN generate_series(1,2) s
-                    """.trimIndent(),
-                ).use {
-                    assertThrows<TooManyRows> { it.fetchSingle(BadRowParserTest) }
-                }
+                val query =
+                    query(
+                        """
+                        SELECT *
+                        FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
+                        CROSS JOIN generate_series(1,2) s
+                        """.trimIndent(),
+                    )
+                assertThrows<TooManyRows> { query.fetchSingle(connection, BadRowParserTest) }
             }
         }
 
@@ -180,13 +171,13 @@ class TestPgQuery {
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
                 val rows =
-                    connection.createQuery(
+                    query(
                         """
                         SELECT *
                         FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
                         CROSS JOIN generate_series(1,2) s
                         """.trimIndent(),
-                    ).fetchAll(GoodRowParserTest)
+                    ).fetchAll(connection, GoodRowParserTest)
                 assertEquals(2, rows.size)
                 for (row in rows) {
                     assertEquals(INT_VALUE, row.intValue)
@@ -199,27 +190,30 @@ class TestPgQuery {
     fun `fetchAll should fail when unexpected exception is thrown`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
-                connection.createQuery(
-                    """
-                    SELECT *
-                    FROM (SELECT null int_value, '$STRING_VALUE' string_value) t
-                    CROSS JOIN generate_series(1,2) s
-                    """.trimIndent(),
-                ).use {
-                    val exception = assertThrows<RowParseError> { it.fetchAll(BadRowParserTest2) }
-                    val suppressedExceptions = exception.suppressedExceptions
-                    assertEquals(1, suppressedExceptions.size)
-                    val suppressedException = suppressedExceptions.first()
-                    assertTrue(
-                        suppressedException is KdbcException,
-                        "Actual exception: $suppressedException",
+                val query =
+                    query(
+                        """
+                        SELECT *
+                        FROM (SELECT null int_value, '$STRING_VALUE' string_value) t
+                        CROSS JOIN generate_series(1,2) s
+                        """.trimIndent(),
                     )
-                    assertNotNull(suppressedException.message)
-                    assertContains(
-                        suppressedException.message!!,
-                        "Actual column type is not compatible with required type",
-                    )
-                }
+                val exception =
+                    assertThrows<RowParseError> {
+                        query.fetchAll(connection, BadRowParserTest2)
+                    }
+                val suppressedExceptions = exception.suppressedExceptions
+                assertEquals(1, suppressedExceptions.size)
+                val suppressedException = suppressedExceptions.first()
+                assertTrue(
+                    suppressedException is KdbcException,
+                    "Actual exception: $suppressedException",
+                )
+                assertNotNull(suppressedException.message)
+                assertContains(
+                    suppressedException.message!!,
+                    "Actual column type is not compatible with required type",
+                )
             }
         }
 
@@ -228,13 +222,13 @@ class TestPgQuery {
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
                 val rows =
-                    connection.createQuery(
+                    query(
                         """
                         SELECT *
                         FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
                         CROSS JOIN generate_series(1,2) s
                         """.trimIndent(),
-                    ).fetch(GoodRowParserTest)
+                    ).fetch(connection, GoodRowParserTest)
                 var count = 0
                 rows.collect { row ->
                     count++

@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -21,9 +23,9 @@ class TestUuidType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(uuid)
-                        .fetchScalar<Uuid>()
+                        .fetchScalar<Uuid>(conn)
                 assertEquals(uuid, value)
             }
         }
@@ -33,12 +35,13 @@ class TestUuidType {
         val query = "SELECT '$uuid'::uuid;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<Uuid>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<Uuid>(conn)
             assertEquals(uuid, value)
         }
     }
@@ -66,9 +69,9 @@ class TestUuidType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(uuid)
-                        .fetchScalar<java.util.UUID>()
+                        .fetchScalar<java.util.UUID>(conn)
                 assertEquals(uuid, value)
             }
         }
@@ -78,12 +81,13 @@ class TestUuidType {
         val query = "SELECT '$uuid'::uuid;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<java.util.UUID>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<java.util.UUID>(conn)
             assertEquals(uuid, value)
         }
     }

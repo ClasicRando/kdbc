@@ -4,6 +4,8 @@ import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -39,9 +41,9 @@ class TestEnumType {
             PgConnectionHelper.defaultConnection().use { conn ->
                 conn.registerEnumType<EnumType>("enum_type")
                 val fetchValue =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<EnumType>()
+                        .fetchScalar<EnumType>(conn)
                 assertEquals(value, fetchValue)
             }
         }
@@ -54,12 +56,13 @@ class TestEnumType {
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             conn.registerEnumType<EnumType>("enum_type")
-            val fetchValue =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<EnumType>()
+                    query(query)
+                }
+            val fetchValue = dbQuery.fetchScalar<EnumType>(conn)
             assertEquals(value, fetchValue)
         }
     }
@@ -90,27 +93,29 @@ class TestEnumType {
         fun setup(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { connection ->
-                    connection.sendSimpleQuery(
-                        """
-                        DROP TYPE IF EXISTS public.enum_type;
-                        CREATE TYPE public.enum_type AS ENUM
-                        (
-                            'First',
-                            'Second',
-                            'Third'
-                        );
-                        """.trimIndent(),
-                    ).close()
-                    connection.sendSimpleQuery(
-                        """
-                        DROP TYPE IF EXISTS public.rename_enum;
-                        CREATE TYPE public.rename_enum AS ENUM
-                        (
-                            'OriginalName',
-                            'renamed-name'
-                        );
-                        """.trimIndent(),
-                    ).close()
+                    connection
+                        .sendSimpleQuery(
+                            """
+                            DROP TYPE IF EXISTS public.enum_type;
+                            CREATE TYPE public.enum_type AS ENUM
+                            (
+                                'First',
+                                'Second',
+                                'Third'
+                            );
+                            """.trimIndent(),
+                        ).close()
+                    connection
+                        .sendSimpleQuery(
+                            """
+                            DROP TYPE IF EXISTS public.rename_enum;
+                            CREATE TYPE public.rename_enum AS ENUM
+                            (
+                                'OriginalName',
+                                'renamed-name'
+                            );
+                            """.trimIndent(),
+                        ).close()
                 }
             }
     }

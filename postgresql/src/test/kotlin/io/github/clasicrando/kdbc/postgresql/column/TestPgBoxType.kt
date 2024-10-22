@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -23,9 +25,9 @@ class TestPgBoxType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val box =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<PgBox>()
+                        .fetchScalar<PgBox>(conn)
                 assertEquals(value, box)
             }
         }
@@ -34,12 +36,13 @@ class TestPgBoxType {
         val query = "SELECT '${value.postGisLiteral}'::box;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val box =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgBox>()
+                    query(query)
+                }
+            val box = dbQuery.fetchScalar<PgBox>(conn)
             assertEquals(value, box)
         }
     }
@@ -78,7 +81,13 @@ class TestPgBoxType {
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { conn ->
                     conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                        check(it.first().rows.first().getAsNonNull<Boolean>(0))
+                        check(
+                            it
+                                .first()
+                                .rows
+                                .first()
+                                .getAsNonNull<Boolean>(0),
+                        )
                     }
                 }
             }

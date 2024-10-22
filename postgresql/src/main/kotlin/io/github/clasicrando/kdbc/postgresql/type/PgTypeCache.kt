@@ -7,6 +7,7 @@ import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -159,7 +160,11 @@ internal class PgTypeCache {
         kType: KType,
     ) {
         require(kClass.isValue) { "Type must be a value type to create wrapper type description" }
-        val innerType = kClass.primaryConstructor!!.parameters.first().type
+        val innerType =
+            kClass.primaryConstructor!!
+                .parameters
+                .first()
+                .type
         val innerTypeDescription =
             getTypeDescription<Any>(innerType)
                 ?: throw KdbcException("Could not find type description for inner type $innerType")
@@ -301,26 +306,24 @@ internal class PgTypeCache {
                     innerType = VarcharTypeDescription,
                     innerNullable = true,
                 ) {
-                    override fun isCompatible(dbType: PgType): Boolean {
-                        return dbType == PgType.TextArray ||
+                    override fun isCompatible(dbType: PgType): Boolean =
+                        dbType == PgType.TextArray ||
                             dbType == PgType.VarcharArray ||
                             dbType == PgType.XmlArray ||
                             dbType == PgType.NameArray ||
                             dbType == PgType.BpcharArray
-                    }
                 },
                 object : ArrayTypeDescription<String>(
                     pgType = PgType.Varchar,
                     innerType = VarcharTypeDescription,
                     innerNullable = false,
                 ) {
-                    override fun isCompatible(dbType: PgType): Boolean {
-                        return dbType == PgType.TextArray ||
+                    override fun isCompatible(dbType: PgType): Boolean =
+                        dbType == PgType.TextArray ||
                             dbType == PgType.VarcharArray ||
                             dbType == PgType.XmlArray ||
                             dbType == PgType.NameArray ||
                             dbType == PgType.BpcharArray
-                    }
                 },
                 LocalTimeTypeDescription,
                 *createArrayDescriptions(PgType.TimeArray, LocalTimeTypeDescription),
@@ -421,10 +424,10 @@ internal class PgTypeCache {
             }
 
             val oid =
-                connection.createPreparedQuery(pgCompositeTypeByName)
+                preparedQuery(pgCompositeTypeByName)
                     .bind(typeName)
                     .bind(schema)
-                    .fetchScalar<Int>()
+                    .fetchScalar<Int>(connection)
             if (oid == null) {
                 logger.atWarn {
                     message = "Could not find composite type by name = '$name'"
@@ -442,11 +445,10 @@ internal class PgTypeCache {
         private suspend fun getCompositeAttributeData(
             connection: PgConnection,
             oid: Int,
-        ): List<PgColumnDescription> {
-            return connection.createPreparedQuery(pgCompositeTypeDetailsByOid)
+        ): List<PgColumnDescription> =
+            preparedQuery(pgCompositeTypeDetailsByOid)
                 .bind(oid)
-                .fetchAll(CompositeAttributeDataRowParser)
-        }
+                .fetchAll(connection, CompositeAttributeDataRowParser)
 
         /**
          * Fetch and return the type OID for an enum with the [name]. Queries the database using
@@ -469,10 +471,10 @@ internal class PgTypeCache {
             }
 
             val oid =
-                connection.createPreparedQuery(pgEnumTypeByName)
+                preparedQuery(pgEnumTypeByName)
                     .bind(typeName)
                     .bind(schema)
-                    .fetchScalar<Int>()
+                    .fetchScalar<Int>(connection)
             if (oid == null) {
                 logger.atWarn {
                     message = "Could not find enum type for name = '$name'"
@@ -489,11 +491,10 @@ internal class PgTypeCache {
         private suspend fun getEnumLabels(
             connection: PgConnection,
             oid: Int,
-        ): List<String> {
-            return connection.createPreparedQuery(pgEnumLabelsByOid)
+        ): List<String> =
+            preparedQuery(pgEnumLabelsByOid)
                 .bind(oid)
-                .fetchAll(EnumLabelRowParser)
-        }
+                .fetchAll(connection, EnumLabelRowParser)
 
         /**
          * Fetch and return the array OID for a type whose inner [oid] is specified. Queries the
@@ -505,9 +506,9 @@ internal class PgTypeCache {
             oid: Int,
         ): Int? {
             val arrayOid =
-                connection.createPreparedQuery(pgArrayTypeByInnerOid)
+                preparedQuery(pgArrayTypeByInnerOid)
                     .bind(oid)
-                    .fetchScalar<Int>()
+                    .fetchScalar<Int>(connection)
 
             if (arrayOid == null) {
                 logger.atWarn {
@@ -520,8 +521,8 @@ internal class PgTypeCache {
 
         /** [RowParser] for parsing the query result of composite type attributes */
         object CompositeAttributeDataRowParser : RowParser<PgColumnDescription> {
-            override fun fromRow(row: DataRow): PgColumnDescription {
-                return PgColumnDescription(
+            override fun fromRow(row: DataRow): PgColumnDescription =
+                PgColumnDescription(
                     fieldName = row.getAsNonNull("attname"),
                     tableOid = row.getAsNonNull("attrelid"),
                     columnAttribute = row.getAsNonNull("attnum"),
@@ -530,14 +531,11 @@ internal class PgTypeCache {
                     typeModifier = row.getAsNonNull("atttypmod"),
                     formatCode = 0,
                 )
-            }
         }
 
         /** [RowParser] for parsing the query result of enum type labels */
         object EnumLabelRowParser : RowParser<String> {
-            override fun fromRow(row: DataRow): String {
-                return row.getAsNonNull("enumlabel")
-            }
+            override fun fromRow(row: DataRow): String = row.getAsNonNull("enumlabel")
         }
     }
 }

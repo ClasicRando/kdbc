@@ -11,12 +11,11 @@ import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.normalizeWhitespace
-import io.github.clasicrando.kdbc.core.query.PreparedQuery
-import io.github.clasicrando.kdbc.core.query.PreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.Query
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
@@ -33,9 +32,6 @@ import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
-import io.github.clasicrando.kdbc.postgresql.query.PgPreparedQuery
-import io.github.clasicrando.kdbc.postgresql.query.PgPreparedQueryBatch
-import io.github.clasicrando.kdbc.postgresql.query.PgQuery
 import io.github.clasicrando.kdbc.postgresql.result.CopyInResultCollector
 import io.github.clasicrando.kdbc.postgresql.result.QueryResultCollector
 import io.github.clasicrando.kdbc.postgresql.result.StatementPrepareRequestCollector
@@ -84,7 +80,8 @@ class PgConnection internal constructor(
     internal val pool: PgConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
     @PublishedApi internal val typeCache: PgTypeCache = pool.typeCache,
-) : Connection, DefaultUniqueResourceId() {
+) : DefaultUniqueResourceId(),
+    Connection {
     private val _inTransaction: AtomicBoolean = atomic(false)
     override val inTransaction: Boolean get() = _inTransaction.value
 
@@ -177,14 +174,32 @@ class PgConnection internal constructor(
         }
     }
 
-    override fun createQuery(query: String): Query = PgQuery(this, query)
+    override suspend fun executeQuery(query: Query): StatementResult =
+        when (query) {
+            is Query.Prepared -> sendExtendedQuery(query.sql, query.parameters)
+            is Query.Simple -> sendSimpleQuery(query.sql)
+        }
 
-    override fun createPreparedQuery(query: String): PreparedQuery {
-        return PgPreparedQuery(this, query)
+    override suspend fun executeQueryBatch(vararg batch: Query): StatementResult {
+        val pipelineQueries =
+            Array(batch.size) { i ->
+                when (val query = batch[i]) {
+                    is Query.Prepared -> query.sql to query.parameters
+                    is Query.Simple -> query.sql to emptyList()
+                }
+            }
+        return pipelineQueries(syncAll = true, queries = pipelineQueries)
     }
 
-    override fun createPreparedQueryBatch(): PreparedQueryBatch {
-        return PgPreparedQueryBatch(this)
+    override suspend fun executeQueryBatch(batch: List<Query>): StatementResult {
+        val pipelineQueries =
+            Array(batch.size) { i ->
+                when (val query = batch[i]) {
+                    is Query.Prepared -> query.sql to query.parameters
+                    is Query.Simple -> query.sql to emptyList()
+                }
+            }
+        return pipelineQueries(syncAll = true, queries = pipelineQueries)
     }
 
     /**
@@ -235,7 +250,8 @@ class PgConnection internal constructor(
         val queryResultCollector = QueryResultCollector(this, typeCache)
         for (preparedStatement in statements) {
             queryResultCollector.processNextStatement(preparedStatement)
-            stream.processMessageLoop(queryResultCollector::processNextMessage)
+            stream
+                .processMessageLoop(queryResultCollector::processNextMessage)
                 .onFailure(queryResultCollector.errors::add)
             if (queryResultCollector.errors.isNotEmpty() && !isAutoCommit) {
                 break
@@ -267,7 +283,8 @@ class PgConnection internal constructor(
     private suspend fun collectResult(statement: PgPreparedStatement? = null): StatementResult {
         val queryResultCollector = QueryResultCollector(this, typeCache)
         queryResultCollector.processNextStatement(statement)
-        stream.processMessageLoop(queryResultCollector::processNextMessage)
+        stream
+            .processMessageLoop(queryResultCollector::processNextMessage)
             .onFailure(queryResultCollector.errors::add)
         queryResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
@@ -349,7 +366,8 @@ class PgConnection internal constructor(
         }
 
         val prepareRequestCollector = StatementPrepareRequestCollector(this, statement)
-        stream.processMessageLoop(prepareRequestCollector::processNextMessage)
+        stream
+            .processMessageLoop(prepareRequestCollector::processNextMessage)
             .onFailure(prepareRequestCollector.errors::add)
         prepareRequestCollector.transactionStatus?.let(::handleTransactionStatus)
 
@@ -565,9 +583,7 @@ class PgConnection internal constructor(
      */
     internal suspend fun pipelineQueriesSyncAll(
         vararg queries: Pair<String, List<QueryParameter>>,
-    ): Iterable<QueryResult> {
-        return pipelineQueries(queries = queries)
-    }
+    ): Iterable<QueryResult> = pipelineQueries(queries = queries)
 
     /**
      * Execute the prepared [queries] provided using the Postgresql query pipelining method. This
@@ -609,8 +625,8 @@ class PgConnection internal constructor(
     internal suspend fun pipelineQueries(
         syncAll: Boolean = true,
         vararg queries: Pair<String, List<QueryParameter>>,
-    ): StatementResult {
-        return mutex.withLock {
+    ): StatementResult =
+        mutex.withLock {
             val statements =
                 Array(queries.size) { i ->
                     val (queryText, queryParams) = queries[i]
@@ -630,7 +646,6 @@ class PgConnection internal constructor(
             }
             collectResults(syncAll, statements)
         }
-    }
 
     /**
      * Internal method for executing a `COPY IN` command. Steps are:
@@ -674,7 +689,8 @@ class PgConnection internal constructor(
 
         val copyInResultCollector = CopyInResultCollector(this, wasFailed)
         failureReason?.let { copyInResultCollector.errors.add(it) }
-        stream.processMessageLoop(copyInResultCollector::processMessage)
+        stream
+            .processMessageLoop(copyInResultCollector::processMessage)
             .onFailure(copyInResultCollector.errors::add)
         copyInResultCollector.transactionStatus?.let(::handleTransactionStatus)
 
@@ -813,10 +829,10 @@ class PgConnection internal constructor(
     ): QueryResult {
         val schemaName = copyInStatement.schemaName.trim()
         val metadata =
-            createPreparedQuery(CopyTableMetadata.QUERY)
+            preparedQuery(CopyTableMetadata.QUERY)
                 .bind(copyInStatement.tableName)
                 .bind(schemaName)
-                .fetchAll(CopyTableMetadata.Companion)
+                .fetchAll(this, CopyTableMetadata.Companion)
         val fields = metadata.map { it.type.oid }
         val buffer = PgEncodeBuffer(parameterTypeOids = fields, typeCache = typeCache)
         return copyIn(
@@ -854,23 +870,24 @@ class PgConnection internal constructor(
         stream.waitForOrError<PgMessage.CopyOutResponse>()
 
         return flow {
-            stream.processMessageLoop { message ->
-                when (message) {
-                    is PgMessage.ErrorResponse -> {
-                        throw GeneralPostgresError(message)
+            stream
+                .processMessageLoop { message ->
+                    when (message) {
+                        is PgMessage.ErrorResponse -> {
+                            throw GeneralPostgresError(message)
+                        }
+                        is PgMessage.CopyData -> {
+                            emit(message.data)
+                            Loop.Continue
+                        }
+                        is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
+                        is PgMessage.ReadyForQuery -> {
+                            handleTransactionStatus(message.transactionStatus)
+                            Loop.Break
+                        }
+                        else -> logUnexpectedMessage(message)
                     }
-                    is PgMessage.CopyData -> {
-                        emit(message.data)
-                        Loop.Continue
-                    }
-                    is PgMessage.CopyDone, is PgMessage.CommandComplete -> Loop.Continue
-                    is PgMessage.ReadyForQuery -> {
-                        handleTransactionStatus(message.transactionStatus)
-                        Loop.Break
-                    }
-                    else -> logUnexpectedMessage(message)
-                }
-            }.getOrThrow()
+                }.getOrThrow()
         }
     }
 
@@ -890,10 +907,10 @@ class PgConnection internal constructor(
                 is CopyStatement.CopyTable -> {
                     val schemaName = copyOutStatement.schemaName.trim()
                     val metadata =
-                        createPreparedQuery(CopyTableMetadata.QUERY)
+                        preparedQuery(CopyTableMetadata.QUERY)
                             .bind(copyOutStatement.tableName)
                             .bind(schemaName)
-                            .fetchAll(CopyTableMetadata.Companion)
+                            .fetchAll(this, CopyTableMetadata.Companion)
                     CopyTableMetadata.getFields(copyOutStatement.format, metadata)
                 }
                 is CopyStatement.CopyQuery -> {

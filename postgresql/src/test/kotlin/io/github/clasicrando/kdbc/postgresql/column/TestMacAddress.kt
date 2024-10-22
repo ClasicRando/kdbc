@@ -2,8 +2,10 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
-import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
@@ -29,10 +31,9 @@ class TestMacAddress {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val pgMacAddress =
-                    conn
-                        .createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<PgMacAddress>()
+                        .fetchScalar<PgMacAddress>(conn)
                 assertNotNull(pgMacAddress)
                 assertEquals(value, pgMacAddress)
             }
@@ -51,12 +52,13 @@ class TestMacAddress {
         val query = "SELECT $select;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val pgMacAddress =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgMacAddress>()
+                    query(query)
+                }
+            val pgMacAddress = dbQuery.fetchScalar<PgMacAddress>(conn)
             assertNotNull(pgMacAddress)
             assertEquals(
                 if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr(),
@@ -97,22 +99,11 @@ class TestMacAddress {
         fun createObjects(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use {
-                    it
-                        .createQuery(
-                            "DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE",
-                        ).executeClosing()
-                    it
-                        .createQuery(
-                            "DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE",
-                        ).executeClosing()
-                    it
-                        .createQuery(
-                            "CREATE TABLE public.$MACADDR_TEST_TABLE(column_1 macaddr)",
-                        ).executeClosing()
-                    it
-                        .createQuery(
-                            "CREATE TABLE public.$MACADDR8_TEST_TABLE(column_1 macaddr8)",
-                        ).executeClosing()
+                    query("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").execute(it)
+                    query("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").execute(it)
+                    query("CREATE TABLE public.$MACADDR_TEST_TABLE(column_1 macaddr)").execute(it)
+                    query("CREATE TABLE public.$MACADDR8_TEST_TABLE(column_1 macaddr8)")
+                        .execute(it)
                 }
             }
 
@@ -121,14 +112,8 @@ class TestMacAddress {
         fun cleanObjects(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use {
-                    it
-                        .createQuery(
-                            "DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE",
-                        ).executeClosing()
-                    it
-                        .createQuery(
-                            "DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE",
-                        ).executeClosing()
+                    query("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").execute(it)
+                    query("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").execute(it)
                 }
             }
     }

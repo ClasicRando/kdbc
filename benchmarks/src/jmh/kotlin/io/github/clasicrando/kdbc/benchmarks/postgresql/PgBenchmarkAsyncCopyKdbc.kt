@@ -1,7 +1,8 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.benchmarks.IOUtils
-import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.execute
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.buffered
@@ -31,18 +32,20 @@ open class PgBenchmarkAsyncCopyKdbc {
     private val connection: PgConnection = runBlocking { getKdbcAsyncConnection() }
     private val outputPath = Path(".", "temp", "kdbc-async-copy-out-benchmark.csv")
     private val inputPath = Path(".", "temp", "kdbc-async-copy-in-benchmark.csv")
-    private val outputPathJava = java.nio.file.Path.of(outputPath.toString())
-    private val inputPathJava = java.nio.file.Path.of(inputPath.toString())
+    private val outputPathJava =
+        java.nio.file.Path
+            .of(outputPath.toString())
+    private val inputPathJava =
+        java.nio.file.Path
+            .of(inputPath.toString())
 
     @Setup
     open fun start() {
         IOUtils.createFileIfNotExists(outputPath)
         createBenchmarkCsv(inputPath)
         runBlocking {
-            connection.createQuery(copyOutSetupQuery)
-                .executeClosing()
-            connection.createQuery(copyInSetupQuery)
-                .executeClosing()
+            query(copyOutSetupQuery).execute(connection)
+            query(copyInSetupQuery).execute(connection)
         }
     }
 
@@ -71,7 +74,7 @@ open class PgBenchmarkAsyncCopyKdbc {
     @TearDown(Level.Invocation)
     open fun cleanUp(): Unit =
         runBlocking {
-            connection.createQuery("TRUNCATE TABLE public.copy_in_posts;").executeClosing()
+            query("TRUNCATE TABLE public.copy_in_posts;").execute(connection)
         }
 
     @Benchmark

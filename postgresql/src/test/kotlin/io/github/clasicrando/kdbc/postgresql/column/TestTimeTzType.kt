@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgTimeTz
@@ -25,9 +27,9 @@ class TestTimeTzType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(timeTz)
-                        .fetchScalar<PgTimeTz>()
+                        .fetchScalar<PgTimeTz>(conn)
                 assertEquals(expected = timeTz, actual = value)
             }
         }
@@ -36,12 +38,13 @@ class TestTimeTzType {
         val query = "SELECT '05:25:51+02:00'::timetz;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgTimeTz>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<PgTimeTz>(conn)
             assertEquals(timeTz, value)
         }
     }
@@ -68,9 +71,9 @@ class TestTimeTzType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(offsetTime)
-                        .fetchScalar<OffsetTime>()
+                        .fetchScalar<OffsetTime>(conn)
                 assertEquals(expected = offsetTime, actual = value)
             }
         }
@@ -79,12 +82,13 @@ class TestTimeTzType {
         val query = "SELECT '05:25:51+02:00'::timetz;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<OffsetTime>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<OffsetTime>(conn)
             assertEquals(offsetTime, value)
         }
     }

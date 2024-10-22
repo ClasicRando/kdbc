@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgMoney
@@ -123,10 +125,9 @@ class TestPgMoney {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val money =
-                    conn
-                        .createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(moneyValue)
-                        .fetchScalar<PgMoney>()
+                        .fetchScalar<PgMoney>(conn)
                 assertEquals(moneyValue, money)
             }
         }
@@ -135,12 +136,13 @@ class TestPgMoney {
         val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val money =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgMoney>()
+                    query(query)
+                }
+            val money = dbQuery.fetchScalar<PgMoney>(conn)
             assertEquals(moneyValue, money)
         }
     }

@@ -2,8 +2,10 @@ package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
-import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.PgJson
@@ -22,7 +24,10 @@ import kotlin.test.assertNotNull
 
 class TestJsonType {
     @Serializable
-    data class JsonType(val number: Double, val text: String)
+    data class JsonType(
+        val number: Double,
+        val text: String,
+    )
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
@@ -34,9 +39,9 @@ class TestJsonType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val pgJson =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(pgJsonValue)
-                        .fetchScalar<PgJson>()
+                        .fetchScalar<PgJson>(conn)
                 assertNotNull(pgJson)
                 assertEquals(jsonValue, pgJson.decodeUsingSerialization())
             }
@@ -49,12 +54,13 @@ class TestJsonType {
         val query = "SELECT '$JSON_STRING'::${if (isJsonB) "jsonb" else "json"};"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val pgJson =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<PgJson>()
+                    query(query)
+                }
+            val pgJson = dbQuery.fetchScalar<PgJson>(conn)
             assertNotNull(pgJson)
             assertEquals(jsonValue, pgJson.decodeUsingSerialization())
         }
@@ -88,14 +94,10 @@ class TestJsonType {
         fun createObjects(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use {
-                    it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
-                    it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
-                    it.createQuery(
-                        "CREATE TABLE public.$JSON_TEST_TABLE(column_1 json)",
-                    ).executeClosing()
-                    it.createQuery(
-                        "CREATE TABLE public.$JSONB_TEST_TABLE(column_1 jsonb)",
-                    ).executeClosing()
+                    query("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").execute(it)
+                    query("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").execute(it)
+                    query("CREATE TABLE public.$JSON_TEST_TABLE(column_1 json)").execute(it)
+                    query("CREATE TABLE public.$JSONB_TEST_TABLE(column_1 jsonb)").execute(it)
                 }
             }
 
@@ -104,8 +106,8 @@ class TestJsonType {
         fun cleanObjects(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use {
-                    it.createQuery("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").executeClosing()
-                    it.createQuery("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").executeClosing()
+                    query("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").execute(it)
+                    query("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").execute(it)
                 }
             }
     }

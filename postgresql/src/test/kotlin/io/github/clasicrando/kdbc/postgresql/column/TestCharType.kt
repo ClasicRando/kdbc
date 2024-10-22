@@ -5,6 +5,8 @@ import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
@@ -28,9 +30,9 @@ class TestCharType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val char =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(value)
-                        .fetchScalar<Byte>()
+                        .fetchScalar<Byte>(conn)
                 assertEquals(value, char)
             }
         }
@@ -43,13 +45,15 @@ class TestCharType {
         val query = "SELECT char_field FROM char_test ORDER BY char_field;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val chars =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
+                    query(query)
                 }
-                    .fetchAll(CharTestRowParser)
+            val chars =
+                dbQuery
+                    .fetchAll(conn, CharTestRowParser)
                     .toByteArray()
             Assertions.assertArrayEquals(bytes, chars)
         }
@@ -77,14 +81,17 @@ class TestCharType {
         fun setup(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { connection ->
-                    connection.sendSimpleQuery(
-                        """
-                        DROP TABLE IF EXISTS public.char_test;
-                        CREATE TABLE public.char_test(char_field "char" not null);
-                        INSERT INTO public.char_test(char_field)
-                        VALUES${bytes.joinToString(separator = ",") { "(CAST($it as \"char\"))" }};
-                        """.trimIndent(),
-                    ).close()
+                    connection
+                        .sendSimpleQuery(
+                            """
+                            DROP TABLE IF EXISTS public.char_test;
+                            CREATE TABLE public.char_test(char_field "char" not null);
+                            INSERT INTO public.char_test(char_field)
+                            VALUES${bytes.joinToString(
+                                separator = ",",
+                            ) { "(CAST($it as \"char\"))" }};
+                            """.trimIndent(),
+                        ).close()
                 }
             }
     }

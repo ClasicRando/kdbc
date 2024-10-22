@@ -5,6 +5,8 @@ import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
@@ -23,7 +25,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestCompositeType {
-    data class CompositeType(val id: Int, val text: String, val timestamp: DateTime)
+    data class CompositeType(
+        val id: Int,
+        val text: String,
+        val timestamp: DateTime,
+    )
 
     data class CompositeTable(
         val id: Int,
@@ -40,19 +46,17 @@ class TestCompositeType {
         val text: String,
     ) {
         companion object : CompositeTypeDefinition<CompositeDef> {
-            override fun extractValues(value: CompositeDef): List<Pair<Any?, KType>> {
-                return listOf(
+            override fun extractValues(value: CompositeDef): List<Pair<Any?, KType>> =
+                listOf(
                     value.id to typeOf<Int>(),
                     value.text to typeOf<String>(),
                 )
-            }
 
-            override fun fromRow(row: DataRow): CompositeDef {
-                return CompositeDef(
+            override fun fromRow(row: DataRow): CompositeDef =
+                CompositeDef(
                     id = row.getAsNonNull("id"),
                     text = row.getAsNonNull("text"),
                 )
-            }
         }
     }
 
@@ -65,9 +69,9 @@ class TestCompositeType {
             PgConnectionHelper.defaultConnection().use { conn ->
                 conn.registerCompositeType<CompositeType>("composite_type")
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(type)
-                        .fetchScalar<CompositeType>()
+                        .fetchScalar<CompositeType>(conn)
                 assertEquals(type, value)
             }
         }
@@ -81,9 +85,9 @@ class TestCompositeType {
             PgConnectionHelper.defaultConnection().use { conn ->
                 conn.registerCompositeType<CompositeTable>("table_composite")
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(table)
-                        .fetchScalar<CompositeTable>()
+                        .fetchScalar<CompositeTable>(conn)
                 assertEquals(table, value)
             }
         }
@@ -97,9 +101,9 @@ class TestCompositeType {
             PgConnectionHelper.defaultConnection().use { conn ->
                 conn.registerCompositeType<CompositeDef>("composite_def")
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(def)
-                        .fetchScalar<CompositeDef>()
+                        .fetchScalar<CompositeDef>(conn)
                 assertEquals(def, value)
             }
         }
@@ -109,12 +113,13 @@ class TestCompositeType {
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<CompositeType>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<CompositeType>(conn)
             assertEquals(type, value)
         }
     }
@@ -138,12 +143,13 @@ class TestCompositeType {
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             conn.registerCompositeType<CompositeTable>("table_composite")
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<CompositeTable>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<CompositeTable>(conn)
             assertEquals(table, value)
         }
     }
@@ -167,12 +173,13 @@ class TestCompositeType {
 
         PgConnectionHelper.defaultConnection().use { conn ->
             conn.registerCompositeType<CompositeDef>("composite_def")
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<CompositeDef>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<CompositeDef>(conn)
             assertEquals(def, value)
         }
     }
@@ -221,39 +228,42 @@ class TestCompositeType {
         fun setup(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { connection ->
-                    connection.sendSimpleQuery(
-                        """
-                        DROP TYPE IF EXISTS public.composite_type;
-                        CREATE TYPE public.composite_type AS
-                        (
-                            id int,
-                            "text" text,
-                            "timestamp" timestamptz
-                        );
-                        """.trimIndent(),
-                    ).close()
-                    connection.sendSimpleQuery(
-                        """
-                        DROP TABLE IF EXISTS public.table_composite;
-                        CREATE TABLE public.table_composite
-                        (
-                            id int not null,
-                            record_order integer not null,
-                            sub_id bigint,
-                            json_value jsonb
-                        );
-                        """.trimIndent(),
-                    ).close()
-                    connection.sendSimpleQuery(
-                        """
-                        DROP TYPE IF EXISTS public.composite_def;
-                        CREATE TYPE public.composite_def AS
-                        (
-                            id int,
-                            "text" text
-                        );
-                        """.trimIndent(),
-                    ).close()
+                    connection
+                        .sendSimpleQuery(
+                            """
+                            DROP TYPE IF EXISTS public.composite_type;
+                            CREATE TYPE public.composite_type AS
+                            (
+                                id int,
+                                "text" text,
+                                "timestamp" timestamptz
+                            );
+                            """.trimIndent(),
+                        ).close()
+                    connection
+                        .sendSimpleQuery(
+                            """
+                            DROP TABLE IF EXISTS public.table_composite;
+                            CREATE TABLE public.table_composite
+                            (
+                                id int not null,
+                                record_order integer not null,
+                                sub_id bigint,
+                                json_value jsonb
+                            );
+                            """.trimIndent(),
+                        ).close()
+                    connection
+                        .sendSimpleQuery(
+                            """
+                            DROP TYPE IF EXISTS public.composite_def;
+                            CREATE TYPE public.composite_def AS
+                            (
+                                id int,
+                                "text" text
+                            );
+                            """.trimIndent(),
+                        ).close()
                 }
             }
     }

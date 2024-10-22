@@ -3,6 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.type.ByteaTypeDescription
@@ -66,9 +68,9 @@ class TestPgByteArrayType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                         .bind(expectedResult)
-                        .fetchScalar<ByteArray>()
+                        .fetchScalar<ByteArray>(conn)
                 Assertions.assertArrayEquals(expectedResult, value)
             }
         }
@@ -78,12 +80,13 @@ class TestPgByteArrayType {
         val query = "SELECT decode('4f5a90', 'hex') bytea_col;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val value =
+            val dbQuery =
                 if (isPrepared) {
-                    conn.createPreparedQuery(query)
+                    preparedQuery(query)
                 } else {
-                    conn.createQuery(query)
-                }.fetchScalar<ByteArray>()
+                    query(query)
+                }
+            val value = dbQuery.fetchScalar<ByteArray>(conn)
             Assertions.assertArrayEquals(expectedResult, value)
         }
     }
