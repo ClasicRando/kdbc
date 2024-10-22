@@ -9,7 +9,8 @@ package io.github.clasicrando.kdbc.core.result
  */
 class StatementResult(
     private var queryResults: List<QueryResult>?,
-) : Iterable<QueryResult>, AutoCloseable {
+) : Iterable<QueryResult>,
+    AutoCloseable {
     /**
      * Return the number of [QueryResult]s that the database returned from the previously executed
      * statement.

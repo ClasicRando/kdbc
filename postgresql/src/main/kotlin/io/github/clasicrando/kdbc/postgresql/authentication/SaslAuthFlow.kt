@@ -153,7 +153,7 @@ internal suspend fun PgStream.saslAuthFlow(auth: Authentication.Sasl) {
         this.receiveOkAuthMessage()
     } catch (ex: PgAuthenticationError) {
         throw ex
-    } catch (ex: Throwable) {
+    } catch (ex: Exception) {
         this.log(Kdbc.detailedLogging) {
             message = "SASL auth flow error"
             cause = ex

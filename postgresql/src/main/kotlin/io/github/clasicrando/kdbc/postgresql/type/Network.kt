@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import java.net.Inet6Address
 import kotlin.reflect.typeOf
 
@@ -13,9 +14,8 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
     dbType = PgType.Inet,
     kType = typeOf<PgInet>(),
 ) {
-    override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == this.dbType || dbType == PgType.Cidr
-    }
+    override fun isCompatible(dbType: PgType): Boolean =
+        dbType == this.dbType || dbType == PgType.Cidr
 
     /**
      * Writes 5 values to the buffer:
@@ -78,9 +78,7 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the binary value cannot
      * be used to construct a [PgInet]
      */
-    override fun decodeBytes(
-        value: io.github.clasicrando.kdbc.postgresql.column.PgValue.Binary,
-    ): PgInet {
+    override fun decodeBytes(value: PgValue.Binary): PgInet {
         val remainingBytes = value.bytes.remaining()
         check(remainingBytes >= 8) {
             "Inet value must be at least 8 bytes. Found $remainingBytes"
@@ -110,17 +108,14 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [PgInet]
      */
-    override fun decodeText(
-        value: _root_ide_package_.io.github.clasicrando.kdbc.postgresql.column.PgValue.Text,
-    ): PgInet {
-        return try {
+    override fun decodeText(value: PgValue.Text): PgInet =
+        try {
             PgInet.parse(value.text)
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             columnDecodeError<PgInet>(
                 type = value.typeData,
                 reason = "Cannot parse a PgInet from '${value.text}'",
                 cause = ex,
             )
         }
-    }
 }

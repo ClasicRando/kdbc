@@ -33,7 +33,7 @@ internal class PgConnectionProvider(
                 stream = pgStream,
                 pool = pool,
             )
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             pgStream?.close()
             throw ex
         }

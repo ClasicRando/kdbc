@@ -80,7 +80,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
                 message = "Invalidating connection id = $connectionId"
             }
             disposeConnection(connection)
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             logger.atError {
                 cause = ex
                 message = "Error while closing invalid connection, '$connectionId'"
@@ -150,9 +150,8 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
     private val isExhausted: Boolean get() = connectionIds.size >= poolOptions.maxConnections
 
     /** Checks the [connectionIds] lookup table for the [poolConnection]'s ID */
-    internal fun hasConnection(poolConnection: C): Boolean {
-        return connectionIds.contains(poolConnection.resourceId)
-    }
+    internal fun hasConnection(poolConnection: C): Boolean =
+        connectionIds.contains(poolConnection.resourceId)
 
     override suspend fun giveBack(connection: C): Boolean {
         if (!hasConnection(connection)) {
@@ -185,7 +184,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
             if (!provider.validate(initialConnection)) {
                 return false
             }
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             logger.atError {
                 message = "Could not create the initial connection needed to validate the pool"
                 cause = ex

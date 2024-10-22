@@ -67,7 +67,7 @@ internal suspend fun PgStream.simplePasswordAuthFlow(
         }
     } catch (ex: PgAuthenticationError) {
         throw ex
-    } catch (ex: Throwable) {
+    } catch (ex: Exception) {
         val error = PgAuthenticationError("Generic SimplePassword auth error")
         error.addSuppressed(ex)
         throw error

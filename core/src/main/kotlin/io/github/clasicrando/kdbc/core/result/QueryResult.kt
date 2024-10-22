@@ -42,18 +42,18 @@ open class QueryResult(
      * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
      * [RowParseError] are wrapped into a [RowParseError]
      */
-    fun <T : Any, R : RowParser<T>> extractFirst(rowParser: R): T? {
-        return rows.firstOrNull()
+    fun <T : Any, R : RowParser<T>> extractFirst(rowParser: R): T? =
+        rows
+            .firstOrNull()
             ?.use { row ->
                 try {
                     rowParser.fromRow(row)
                 } catch (ex: RowParseError) {
                     throw ex
-                } catch (ex: Throwable) {
+                } catch (ex: Exception) {
                     throw RowParseError(rowParser, ex)
                 }
             }
-    }
 
     /**
      * Return the all rows as a [List] where each row is parsed as the type [T] by the supplied
@@ -65,21 +65,18 @@ open class QueryResult(
      * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
      * [RowParseError] are wrapped into a [RowParseError]
      */
-    fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): List<T> {
-        return rows.map { row ->
+    fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): List<T> =
+        rows.map { row ->
             try {
                 rowParser.fromRow(row)
             } catch (ex: RowParseError) {
                 throw ex
-            } catch (ex: Throwable) {
+            } catch (ex: Exception) {
                 throw RowParseError(rowParser, ex)
             }
         }
-    }
 
-    override fun toString(): String {
-        return "QueryResult(rowsAffected=$rowsAffected,message=$message)"
-    }
+    override fun toString(): String = "QueryResult(rowsAffected=$rowsAffected,message=$message)"
 
     /** Releases all [rows] found within this result */
     override fun close() {

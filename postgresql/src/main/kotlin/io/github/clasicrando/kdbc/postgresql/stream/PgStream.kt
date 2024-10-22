@@ -132,7 +132,7 @@ internal class PgStream(
             }
         } catch (ex: CancellationException) {
             throw ex
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             return Result.failure(ex)
         }
         if (!isActive) {

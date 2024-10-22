@@ -60,7 +60,6 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.reflect.typeOf
-import kotlin.time.measureTimedValue
 
 private val logger = KotlinLogging.logger {}
 
@@ -144,6 +143,7 @@ class PgConnection internal constructor(
                             "BEGIN called while in transaction"
                         cause = ex2
                     }
+                    ex.addSuppressed(ex2)
                 }
             }
             throw ex
@@ -321,21 +321,14 @@ class PgConnection internal constructor(
             return sendExtendedQuery(query, listOf())
         }
 
-        val result =
-            measureTimedValue {
-                mutex.withLock {
-                    log(connectOptions.logSettings.statementLevel) {
-                        message = "Sending query: ${query.normalizeWhitespace()}"
-                    }
-                    stream.writeToStream(PgMessage.Query(query))
-
-                    collectResult()
-                }
+        return mutex.withLock {
+            log(connectOptions.logSettings.statementLevel) {
+                message = "Sending query: ${query.normalizeWhitespace()}"
             }
-        log(Kdbc.detailedLogging) {
-            this.message = "Done executing simple query. Took ${result.duration}"
+            stream.writeToStream(PgMessage.Query(query))
+
+            collectResult()
         }
-        return result.value
     }
 
     /**
@@ -506,28 +499,21 @@ class PgConnection internal constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
 
-        val result =
-            measureTimedValue {
-                mutex.withLock {
-                    val statement =
-                        try {
-                            prepareStatement(query, parameters)
-                        } catch (ex: Throwable) {
-                            throw ex
-                        }
-
-                    val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
-                    for ((parameter, type) in parameters) {
-                        encodeBuffer.encodeValue(parameter, type)
-                    }
-                    executePreparedStatement(statement, encodeBuffer)
-                    collectResult(statement = statement)
+        return mutex.withLock {
+            val statement =
+                try {
+                    prepareStatement(query, parameters)
+                } catch (ex: Exception) {
+                    throw ex
                 }
+
+            val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
+            for ((parameter, type) in parameters) {
+                encodeBuffer.encodeValue(parameter, type)
             }
-        log(Kdbc.detailedLogging) {
-            this.message = "Done executing extended query. Took ${result.duration}"
+            executePreparedStatement(statement, encodeBuffer)
+            collectResult(statement = statement)
         }
-        return result.value
     }
 
     /**
@@ -558,7 +544,7 @@ class PgConnection internal constructor(
                     this.message = "Successfully sent termination message"
                 }
             }
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             log(Level.WARN) {
                 this.message = "Error sending terminate message"
                 cause = ex
@@ -1044,7 +1030,7 @@ class PgConnection internal constructor(
                     throw KdbcException("Could not initialize connection")
                 }
                 return connection
-            } catch (ex: Throwable) {
+            } catch (ex: Exception) {
                 try {
                     connection?.close()
                 } catch (ex2: Throwable) {

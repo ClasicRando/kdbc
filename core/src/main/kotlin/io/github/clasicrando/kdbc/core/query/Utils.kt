@@ -152,7 +152,7 @@ fun <T : Any, R : RowParser<T>> Query.fetch(
                             emit(rowParser.fromRow(row))
                         } catch (ex: RowParseError) {
                             throw ex
-                        } catch (ex: Throwable) {
+                        } catch (ex: Exception) {
                             throw RowParseError(rowParser, ex)
                         }
                     }
