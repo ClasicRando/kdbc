@@ -29,17 +29,14 @@ class TestPgPolygonType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT '${value.postGisLiteral}'::polygon;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val polygon = dbQuery.fetchScalar<PgPolygon>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val polygon = query(query).fetchScalar<PgPolygon>(conn)
             assertEquals(value, polygon)
         }
     }
@@ -48,14 +45,14 @@ class TestPgPolygonType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgPolygon when simple querying postgresql polygon`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgPolygon when extended querying postgresql polygon`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     companion object {

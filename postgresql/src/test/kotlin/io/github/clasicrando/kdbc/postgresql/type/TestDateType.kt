@@ -29,17 +29,14 @@ class TestDateType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT '2024-02-25'::date;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<LocalDate>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<LocalDate>(conn)
             assertEquals(localDate, value)
         }
     }
@@ -48,14 +45,14 @@ class TestDateType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return LocalDate when simple querying postgresql date`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return LocalDate when extended querying postgresql date`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     @Test
@@ -73,17 +70,14 @@ class TestDateType {
             }
         }
 
-    private suspend fun decodeJavaTest(isPrepared: Boolean) {
+    private suspend fun decodeJavaTest(isExtended: Boolean) {
         val query = "SELECT '2024-02-25'::date;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<java.time.LocalDate>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<java.time.LocalDate>(conn)
             assertEquals(javaLocalDate, value)
         }
     }
@@ -92,14 +86,14 @@ class TestDateType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java LocalDate when simple querying postgresql date`(): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = false)
+            decodeJavaTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java LocalDate when extended querying postgresql date`(): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = true)
+            decodeJavaTest(isExtended = true)
         }
 
     companion object {

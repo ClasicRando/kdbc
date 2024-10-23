@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
@@ -105,18 +106,16 @@ class TestCompositeType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT row(1,'Composite Type','2024-02-25T05:25:51Z')::composite_type;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
             conn.registerCompositeType<CompositeType>("composite_type")
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<CompositeType>(conn)
+            val value = query(query).fetchScalar<CompositeType>(conn)
             assertEquals(type, value)
         }
     }
@@ -125,28 +124,26 @@ class TestCompositeType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeType when simple querying postgresql composite`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeType when extended querying postgresql composite`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
-    private suspend fun decodeTableTest(isPrepared: Boolean) {
+    private suspend fun decodeTableTest(isExtended: Boolean) {
         val query = "SELECT row(1,1,2930,NULL)::table_composite;"
 
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
             conn.registerCompositeType<CompositeTable>("table_composite")
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<CompositeTable>(conn)
+            val value = query(query).fetchScalar<CompositeTable>(conn)
             assertEquals(table, value)
         }
     }
@@ -155,28 +152,25 @@ class TestCompositeType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeTable when simple querying postgresql composite`(): Unit =
         runBlocking {
-            decodeTableTest(isPrepared = false)
+            decodeTableTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeTable when extended querying postgresql composite`(): Unit =
         runBlocking {
-            decodeTableTest(isPrepared = true)
+            decodeTableTest(isExtended = true)
         }
 
-    private suspend fun decodeDefTest(isPrepared: Boolean) {
+    private suspend fun decodeDefTest(isExtended: Boolean) {
         val query = "SELECT row(1,'Composite Def')::composite_def;"
-
-        PgConnectionHelper.defaultConnection().use { conn ->
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
             conn.registerCompositeType<CompositeDef>("composite_def")
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<CompositeDef>(conn)
+            val value = query(query).fetchScalar<CompositeDef>(conn)
             assertEquals(def, value)
         }
     }
@@ -185,14 +179,14 @@ class TestCompositeType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeDef when simple querying postgresql composite`(): Unit =
         runBlocking {
-            decodeDefTest(isPrepared = false)
+            decodeDefTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return CompositeDef when extended querying postgresql composite`(): Unit =
         runBlocking {
-            decodeDefTest(isPrepared = true)
+            decodeDefTest(isExtended = true)
         }
 
     companion object {
@@ -225,42 +219,39 @@ class TestCompositeType {
         fun setup(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { connection ->
-                    connection
-                        .sendSimpleQuery(
-                            """
-                            DROP TYPE IF EXISTS public.composite_type;
-                            CREATE TYPE public.composite_type AS
-                            (
-                                id int,
-                                "text" text,
-                                "timestamp" timestamptz
-                            );
-                            """.trimIndent(),
-                        ).close()
-                    connection
-                        .sendSimpleQuery(
-                            """
-                            DROP TABLE IF EXISTS public.table_composite;
-                            CREATE TABLE public.table_composite
-                            (
-                                id int not null,
-                                record_order integer not null,
-                                sub_id bigint,
-                                json_value jsonb
-                            );
-                            """.trimIndent(),
-                        ).close()
-                    connection
-                        .sendSimpleQuery(
-                            """
-                            DROP TYPE IF EXISTS public.composite_def;
-                            CREATE TYPE public.composite_def AS
-                            (
-                                id int,
-                                "text" text
-                            );
-                            """.trimIndent(),
-                        ).close()
+                    query(
+                        """
+                        DROP TYPE IF EXISTS public.composite_type;
+                        CREATE TYPE public.composite_type AS
+                        (
+                            id int,
+                            "text" text,
+                            "timestamp" timestamptz
+                        );
+                        """.trimIndent(),
+                    ).execute(connection)
+                    query(
+                        """
+                        DROP TABLE IF EXISTS public.table_composite;
+                        CREATE TABLE public.table_composite
+                        (
+                            id int not null,
+                            record_order integer not null,
+                            sub_id bigint,
+                            json_value jsonb
+                        );
+                        """.trimIndent(),
+                    ).execute(connection)
+                    query(
+                        """
+                        DROP TYPE IF EXISTS public.composite_def;
+                        CREATE TYPE public.composite_def AS
+                        (
+                            id int,
+                            "text" text
+                        );
+                        """.trimIndent(),
+                    ).execute(connection)
                 }
             }
     }

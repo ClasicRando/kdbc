@@ -39,20 +39,17 @@ class TestRange {
         }
 
     private suspend fun int4RangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: Int4Range,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<Int4Range>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<Int4Range>(conn)
             assertEquals(value.toIntRange(), range?.toIntRange())
         }
     }
@@ -64,7 +61,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            int4RangeDecodeTest(isPrepared = false, value = range, typeName)
+            int4RangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -74,7 +71,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            int4RangeDecodeTest(isPrepared = true, value = range, typeName)
+            int4RangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -96,20 +93,17 @@ class TestRange {
         }
 
     private suspend fun int8RangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: Int8Range,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<Int8Range>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<Int8Range>(conn)
             assertEquals(value.toLongRange(), range?.toLongRange())
         }
     }
@@ -121,7 +115,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            int8RangeDecodeTest(isPrepared = false, value = range, typeName)
+            int8RangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -131,7 +125,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            int8RangeDecodeTest(isPrepared = true, value = range, typeName)
+            int8RangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -153,20 +147,17 @@ class TestRange {
         }
 
     private suspend fun numRangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: NumRange,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName numrange_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<NumRange>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<NumRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -178,7 +169,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            numRangeDecodeTest(isPrepared = false, value = range, typeName)
+            numRangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -188,7 +179,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            numRangeDecodeTest(isPrepared = true, value = range, typeName)
+            numRangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -210,20 +201,17 @@ class TestRange {
         }
 
     private suspend fun jNumRangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: JNumRange,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jnumrange_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<JNumRange>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<JNumRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -235,7 +223,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            jNumRangeDecodeTest(isPrepared = false, value = range, typeName)
+            jNumRangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -245,7 +233,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            jNumRangeDecodeTest(isPrepared = true, value = range, typeName)
+            jNumRangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -265,20 +253,17 @@ class TestRange {
         }
 
     private suspend fun tsRangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: TsRange,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName tsrange_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<TsRange>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<TsRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -290,7 +275,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            tsRangeDecodeTest(isPrepared = false, value = range, typeName)
+            tsRangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -300,7 +285,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            tsRangeDecodeTest(isPrepared = true, value = range, typeName)
+            tsRangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -322,20 +307,17 @@ class TestRange {
         }
 
     private suspend fun jTsRangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: JTsRange,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jtsrange_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<JTsRange>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<JTsRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -347,7 +329,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            jTsRangeDecodeTest(isPrepared = false, value = range, typeName)
+            jTsRangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -357,7 +339,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            jTsRangeDecodeTest(isPrepared = true, value = range, typeName)
+            jTsRangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -379,20 +361,17 @@ class TestRange {
         }
 
     private suspend fun tstzRangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: TsTzRange,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName tstzrange_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<TsTzRange>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<TsTzRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -404,7 +383,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            tstzRangeDecodeTest(isPrepared = false, value = range, typeName)
+            tstzRangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -414,7 +393,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            tstzRangeDecodeTest(isPrepared = true, value = range, typeName)
+            tstzRangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -436,20 +415,17 @@ class TestRange {
         }
 
     private suspend fun jTstzRangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: JTsTzRange,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jtstzrange_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<JTsTzRange>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<JTsTzRange>(conn)
             assertEquals(value, range)
         }
     }
@@ -461,7 +437,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            jTstzRangeDecodeTest(isPrepared = false, value = range, typeName)
+            jTstzRangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -471,7 +447,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            jTstzRangeDecodeTest(isPrepared = true, value = range, typeName)
+            jTstzRangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -493,20 +469,17 @@ class TestRange {
         }
 
     private suspend fun dateRangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: DateRange,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName daterange_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<DateRange>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<DateRange>(conn)
             assertEquals(value.toDateRange(), range?.toDateRange())
         }
     }
@@ -518,7 +491,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            dateRangeDecodeTest(isPrepared = false, value = range, typeName)
+            dateRangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -528,7 +501,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            dateRangeDecodeTest(isPrepared = true, value = range, typeName)
+            dateRangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -550,20 +523,17 @@ class TestRange {
         }
 
     private suspend fun jDateRangeDecodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         value: JDateRange,
         typeName: String,
     ) {
         val query = "SELECT '${value.postgresqlLiteral}'::$typeName jdaterange_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val range = dbQuery.fetchScalar<JDateRange>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val range = query(query).fetchScalar<JDateRange>(conn)
             assertEquals(value.toJDateRange(), range?.toJDateRange())
         }
     }
@@ -575,7 +545,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            jDateRangeDecodeTest(isPrepared = false, value = range, typeName)
+            jDateRangeDecodeTest(isExtended = false, value = range, typeName)
         }
 
     @ParameterizedTest
@@ -585,7 +555,7 @@ class TestRange {
     ): Unit =
         runBlocking {
             val (typeName, range) = pair
-            jDateRangeDecodeTest(isPrepared = true, value = range, typeName)
+            jDateRangeDecodeTest(isExtended = true, value = range, typeName)
         }
 
     companion object {

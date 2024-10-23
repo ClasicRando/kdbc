@@ -120,18 +120,15 @@ class TestPgArrayType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val expectedResult = listOf(1, 2, 3, 4)
         val query = "SELECT ARRAY[1,2,3,4]::int[]"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val ints = dbQuery.fetchScalar<List<Int>>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val ints = query(query).fetchScalar<List<Int>>(conn)
             Assertions.assertIterableEquals(expectedResult, ints)
         }
     }
@@ -140,13 +137,13 @@ class TestPgArrayType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return int list when simple querying postgresql int array`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return int list when extended querying postgresql int array`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 }

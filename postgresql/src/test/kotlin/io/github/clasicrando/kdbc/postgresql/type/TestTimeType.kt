@@ -29,17 +29,14 @@ class TestTimeType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT '05:25:51'::time;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<LocalTime>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<LocalTime>(conn)
             assertEquals(localTime, value)
         }
     }
@@ -48,14 +45,14 @@ class TestTimeType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return LocalTime when simple querying postgresql time`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return LocalTime when extended querying postgresql time`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     @Test
@@ -73,17 +70,14 @@ class TestTimeType {
             }
         }
 
-    private suspend fun decodeJavaTest(isPrepared: Boolean) {
+    private suspend fun decodeJavaTest(isExtended: Boolean) {
         val query = "SELECT '05:25:51'::time;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<java.time.LocalTime>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<java.time.LocalTime>(conn)
             assertEquals(javaLocalTime, value)
         }
     }
@@ -92,14 +86,14 @@ class TestTimeType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java LocalTime when simple querying postgresql time`(): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = false)
+            decodeJavaTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java LocalTime when extended querying postgresql time`(): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = true)
+            decodeJavaTest(isExtended = true)
         }
 
     companion object {

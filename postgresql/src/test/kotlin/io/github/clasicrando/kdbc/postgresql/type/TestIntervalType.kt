@@ -28,17 +28,14 @@ class TestIntervalType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT interval '1 year 4 month 9 day 5 hour 45 minute 8.009005 second';"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<DateTimePeriod>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<DateTimePeriod>(conn)
             assertEquals(dateTimePeriod, value)
         }
     }
@@ -47,14 +44,14 @@ class TestIntervalType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return DateTimePeriod when simple querying postgresql interval`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return DateTimePeriod when extended querying postgresql interval`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     @Test
@@ -72,17 +69,14 @@ class TestIntervalType {
             }
         }
 
-    private suspend fun decodePgIntervalTest(isPrepared: Boolean) {
+    private suspend fun decodePgIntervalTest(isExtended: Boolean) {
         val query = "SELECT interval '25 months 14 days 1 hour 1 minute 20 seconds 20 milliseconds 100 microseconds';"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<PgInterval>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<PgInterval>(conn)
             assertEquals(pgInterval, value)
         }
     }
@@ -91,14 +85,14 @@ class TestIntervalType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgInterval when simple querying postgresql interval`(): Unit =
         runBlocking {
-            decodePgIntervalTest(isPrepared = false)
+            decodePgIntervalTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgInterval when extended querying postgresql interval`(): Unit =
         runBlocking {
-            decodePgIntervalTest(isPrepared = true)
+            decodePgIntervalTest(isExtended = true)
         }
 
     companion object {

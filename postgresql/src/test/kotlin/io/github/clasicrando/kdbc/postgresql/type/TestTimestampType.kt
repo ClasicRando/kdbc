@@ -38,19 +38,16 @@ class TestTimestampType {
         }
 
     private suspend fun decodeTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         expectedValue: Instant,
     ) {
         val query = "SELECT '$expectedValue'::timestamp;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<Instant>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<Instant>(conn)
             assertEquals(expectedValue, value)
         }
     }
@@ -62,7 +59,7 @@ class TestTimestampType {
         instant: Instant,
     ): Unit =
         runBlocking {
-            decodeTest(isPrepared = false, expectedValue = instant)
+            decodeTest(isExtended = false, expectedValue = instant)
         }
 
     @ParameterizedTest
@@ -72,7 +69,7 @@ class TestTimestampType {
         instant: Instant,
     ): Unit =
         runBlocking {
-            decodeTest(isPrepared = true, expectedValue = instant)
+            decodeTest(isExtended = true, expectedValue = instant)
         }
 
     @ParameterizedTest
@@ -94,19 +91,16 @@ class TestTimestampType {
         }
 
     private suspend fun decodeJavaTest(
-        isPrepared: Boolean,
+        isExtended: Boolean,
         expectedValue: java.time.LocalDateTime,
     ) {
         val query = "SELECT '$expectedValue'::timestamp;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<java.time.LocalDateTime>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<java.time.LocalDateTime>(conn)
             assertEquals(expectedValue, value)
         }
     }
@@ -118,7 +112,7 @@ class TestTimestampType {
         localDateTime: java.time.LocalDateTime,
     ): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = false, expectedValue = localDateTime)
+            decodeJavaTest(isExtended = false, expectedValue = localDateTime)
         }
 
     @ParameterizedTest
@@ -128,7 +122,7 @@ class TestTimestampType {
         localDateTime: java.time.LocalDateTime,
     ): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = true, expectedValue = localDateTime)
+            decodeJavaTest(isExtended = true, expectedValue = localDateTime)
         }
 
     companion object {

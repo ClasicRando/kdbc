@@ -47,18 +47,15 @@ class TestJsonType {
 
     private suspend fun decodeTest(
         isJsonB: Boolean,
-        isPrepared: Boolean,
+        isExtended: Boolean,
     ) {
         val query = "SELECT '$JSON_STRING'::${if (isJsonB) "jsonb" else "json"};"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val pgJson = dbQuery.fetchScalar<PgJson>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val pgJson = query(query).fetchScalar<PgJson>(conn)
             assertNotNull(pgJson)
             assertEquals(jsonValue, pgJson.decodeUsingSerialization())
         }
@@ -69,7 +66,7 @@ class TestJsonType {
     @ValueSource(booleans = [true, false])
     fun `decode should return PgJson when simple querying postgresql json`(value: Boolean): Unit =
         runBlocking {
-            decodeTest(isJsonB = value, isPrepared = false)
+            decodeTest(isJsonB = value, isExtended = false)
         }
 
     @ParameterizedTest
@@ -77,7 +74,7 @@ class TestJsonType {
     @ValueSource(booleans = [true, false])
     fun `decode should return PgJson when extended querying postgresql json`(value: Boolean): Unit =
         runBlocking {
-            decodeTest(isJsonB = value, isPrepared = true)
+            decodeTest(isJsonB = value, isExtended = true)
         }
 
     companion object {

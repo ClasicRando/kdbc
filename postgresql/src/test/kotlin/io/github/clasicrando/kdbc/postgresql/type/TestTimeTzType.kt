@@ -32,17 +32,14 @@ class TestTimeTzType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT '05:25:51+02:00'::timetz;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<PgTimeTz>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<PgTimeTz>(conn)
             assertEquals(timeTz, value)
         }
     }
@@ -51,14 +48,14 @@ class TestTimeTzType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgTimeTz when simple querying postgresql timetz`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgTimeTz when extended querying postgresql timetz`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     @Test
@@ -76,17 +73,14 @@ class TestTimeTzType {
             }
         }
 
-    private suspend fun decodeOffsetTimeTest(isPrepared: Boolean) {
+    private suspend fun decodeOffsetTimeTest(isExtended: Boolean) {
         val query = "SELECT '05:25:51+02:00'::timetz;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<OffsetTime>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<OffsetTime>(conn)
             assertEquals(offsetTime, value)
         }
     }
@@ -95,14 +89,14 @@ class TestTimeTzType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return OffsetTime when simple querying postgresql timetz`(): Unit =
         runBlocking {
-            decodeOffsetTimeTest(isPrepared = false)
+            decodeOffsetTimeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return OffsetTime when extended querying postgresql timetz`(): Unit =
         runBlocking {
-            decodeOffsetTimeTest(isPrepared = true)
+            decodeOffsetTimeTest(isExtended = true)
         }
 
     companion object {

@@ -40,24 +40,21 @@ class TestCharType {
         override fun fromRow(row: DataRow): Byte = row.getAsNonNull(0)
     }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT char_field FROM char_test ORDER BY char_field;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
             val chars =
-                dbQuery
+                query(query)
                     .fetchAll(
                         conn,
-                        io.github.clasicrando.kdbc.postgresql.type.TestCharType.CharTestRowParser,
+                        CharTestRowParser,
                     ).toByteArray()
             Assertions.assertArrayEquals(
-                io.github.clasicrando.kdbc.postgresql.type.TestCharType.Companion.bytes,
+                bytes,
                 chars,
             )
         }
@@ -67,14 +64,14 @@ class TestCharType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Byte when simple querying postgresql char`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Byte when extended querying postgresql char`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     companion object {
@@ -92,7 +89,7 @@ class TestCharType {
                             CREATE TABLE public.char_test(char_field "char" not null);
                             INSERT INTO public.char_test(char_field)
                             VALUES${
-                                io.github.clasicrando.kdbc.postgresql.type.TestCharType.Companion.bytes.joinToString(
+                                bytes.joinToString(
                                     separator = ",",
                                 ) { "(CAST($it as \"char\"))" }};
                             """.trimIndent(),

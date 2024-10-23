@@ -130,17 +130,14 @@ class TestPgMoney {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val money = dbQuery.fetchScalar<PgMoney>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val money = query(query).fetchScalar<PgMoney>(conn)
             assertEquals(moneyValue, money)
         }
     }
@@ -149,14 +146,14 @@ class TestPgMoney {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgMoney when simple querying postgresql money`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return PgMoney when extended querying postgresql money`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     companion object {

@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.type
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
@@ -49,19 +50,16 @@ class TestEnumType {
 
     private suspend fun decodeTest(
         value: EnumType,
-        isPrepared: Boolean,
+        isExtended: Boolean,
     ) {
         val query = "SELECT '$value'::enum_type;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
             conn.registerEnumType<EnumType>("enum_type")
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val fetchValue = dbQuery.fetchScalar<EnumType>(conn)
+            val fetchValue = query(query).fetchScalar<EnumType>(conn)
             assertEquals(value, fetchValue)
         }
     }
@@ -73,7 +71,7 @@ class TestEnumType {
         value: EnumType,
     ): Unit =
         runBlocking {
-            decodeTest(value = value, isPrepared = false)
+            decodeTest(value = value, isExtended = false)
         }
 
     @ParameterizedTest
@@ -83,7 +81,7 @@ class TestEnumType {
         value: EnumType,
     ): Unit =
         runBlocking {
-            decodeTest(value = value, isPrepared = true)
+            decodeTest(value = value, isExtended = true)
         }
 
     companion object {
@@ -92,29 +90,27 @@ class TestEnumType {
         fun setup(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { connection ->
-                    connection
-                        .sendSimpleQuery(
-                            """
-                            DROP TYPE IF EXISTS public.enum_type;
-                            CREATE TYPE public.enum_type AS ENUM
-                            (
-                                'First',
-                                'Second',
-                                'Third'
-                            );
-                            """.trimIndent(),
-                        ).close()
-                    connection
-                        .sendSimpleQuery(
-                            """
-                            DROP TYPE IF EXISTS public.rename_enum;
-                            CREATE TYPE public.rename_enum AS ENUM
-                            (
-                                'OriginalName',
-                                'renamed-name'
-                            );
-                            """.trimIndent(),
-                        ).close()
+                    query(
+                        """
+                        DROP TYPE IF EXISTS public.enum_type;
+                        CREATE TYPE public.enum_type AS ENUM
+                        (
+                            'First',
+                            'Second',
+                            'Third'
+                        );
+                        """.trimIndent(),
+                    ).execute(connection)
+                    query(
+                        """
+                        DROP TYPE IF EXISTS public.rename_enum;
+                        CREATE TYPE public.rename_enum AS ENUM
+                        (
+                            'OriginalName',
+                            'renamed-name'
+                        );
+                        """.trimIndent(),
+                    ).execute(connection)
                 }
             }
     }

@@ -32,19 +32,16 @@ class TestNumericType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val number = "2548.52489"
         val expectedResult = BigDecimal.parseString(number)
         val query = "SELECT $number numeric_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val bigDecimal = dbQuery.fetchScalar<BigDecimal>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val bigDecimal = query(query).fetchScalar<BigDecimal>(conn)
             assertEquals(expectedResult, bigDecimal)
         }
     }
@@ -53,14 +50,14 @@ class TestNumericType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return BigDecimal when simple querying postgresql numeric`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return BigDecimal when extended querying postgresql numeric`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     @ParameterizedTest
@@ -80,19 +77,16 @@ class TestNumericType {
             }
         }
 
-    private suspend fun decodeJavaTest(isPrepared: Boolean) {
+    private suspend fun decodeJavaTest(isExtended: Boolean) {
         val number = "2548.52489"
         val expectedResult = java.math.BigDecimal(number)
         val query = "SELECT $number jnumeric_col;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val bigDecimal = dbQuery.fetchScalar<java.math.BigDecimal>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val bigDecimal = query(query).fetchScalar<java.math.BigDecimal>(conn)
             assertEquals(expectedResult, bigDecimal)
         }
     }
@@ -101,13 +95,13 @@ class TestNumericType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java BigDecimal when simple querying postgresql numeric`(): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = false)
+            decodeJavaTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java BigDecimal when extended querying postgresql numeric`(): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = true)
+            decodeJavaTest(isExtended = true)
         }
 }

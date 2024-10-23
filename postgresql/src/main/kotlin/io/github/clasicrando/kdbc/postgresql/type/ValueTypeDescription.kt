@@ -32,6 +32,8 @@ internal class ValueTypeDescription<T : Any, I : Any>(
                 .first { it.name == innerValuePropertyName } as KProperty1<T, I>
     }
 
+    override fun isCompatible(dbType: PgType): Boolean = innerTypeDescription.isCompatible(dbType)
+
     override fun encode(
         value: T,
         buffer: ByteWriteBuffer,
@@ -39,19 +41,17 @@ internal class ValueTypeDescription<T : Any, I : Any>(
         innerTypeDescription.encode(innerTypeProperty.get(value), buffer)
     }
 
-    override fun decodeBytes(value: PgValue.Binary): T {
-        return try {
+    override fun decodeBytes(value: PgValue.Binary): T =
+        try {
             valueClassConstructor.call(innerTypeDescription.decodeBytes(value))
         } catch (ex: IllegalArgumentException) {
             throw KdbcException(message = "Could not construct value class", suppressed = ex)
         }
-    }
 
-    override fun decodeText(value: PgValue.Text): T {
-        return try {
+    override fun decodeText(value: PgValue.Text): T =
+        try {
             valueClassConstructor.call(innerTypeDescription.decodeText(value))
         } catch (ex: IllegalArgumentException) {
             throw KdbcException(message = "Could not construct value class", suppressed = ex)
         }
-    }
 }

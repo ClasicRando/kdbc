@@ -39,7 +39,7 @@ class TestMacAddress {
 
     private suspend fun decodeTest(
         isMacAddr8: Boolean,
-        isPrepared: Boolean,
+        isExtended: Boolean,
     ) {
         val select =
             if (isMacAddr8) {
@@ -48,15 +48,12 @@ class TestMacAddress {
                 "'$MAC_ADDR_STRING'::macaddr"
             }
         val query = "SELECT $select;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val pgMacAddress = dbQuery.fetchScalar<PgMacAddress>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val pgMacAddress = query(query).fetchScalar<PgMacAddress>(conn)
             assertNotNull(pgMacAddress)
             assertEquals(
                 if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr(),
@@ -72,7 +69,7 @@ class TestMacAddress {
         value: Boolean,
     ): Unit =
         runBlocking {
-            decodeTest(isMacAddr8 = value, isPrepared = false)
+            decodeTest(isMacAddr8 = value, isExtended = false)
         }
 
     @ParameterizedTest
@@ -82,7 +79,7 @@ class TestMacAddress {
         value: Boolean,
     ): Unit =
         runBlocking {
-            decodeTest(isMacAddr8 = value, isPrepared = true)
+            decodeTest(isMacAddr8 = value, isExtended = true)
         }
 
     companion object {

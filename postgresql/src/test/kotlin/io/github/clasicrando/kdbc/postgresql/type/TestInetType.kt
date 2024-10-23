@@ -32,19 +32,16 @@ class TestInetType {
 
     private suspend fun decodeTest(
         inetAddress: String,
-        isPrepared: Boolean,
+        isExtended: Boolean,
     ) {
         val inet = PgInet.parse(inetAddress)
         val query = "SELECT '$inetAddress'::inet;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<PgInet>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<PgInet>(conn)
             assertEquals(inet, value)
         }
     }
@@ -56,7 +53,7 @@ class TestInetType {
         inetAddress: String,
     ): Unit =
         runBlocking {
-            decodeTest(inetAddress, isPrepared = false)
+            decodeTest(inetAddress, isExtended = false)
         }
 
     @ParameterizedTest
@@ -66,7 +63,7 @@ class TestInetType {
         inetAddress: String,
     ): Unit =
         runBlocking {
-            decodeTest(inetAddress, isPrepared = true)
+            decodeTest(inetAddress, isExtended = true)
         }
 
     companion object {

@@ -29,18 +29,15 @@ class TestUuidType {
             }
         }
 
-    private suspend fun decodeTest(isPrepared: Boolean) {
+    private suspend fun decodeTest(isExtended: Boolean) {
         val uuid = Uuid.random()
         val query = "SELECT '$uuid'::uuid;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<Uuid>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<Uuid>(conn)
             assertEquals(uuid, value)
         }
     }
@@ -49,14 +46,14 @@ class TestUuidType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Uuid when simple querying postgresql uuid`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = false)
+            decodeTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Uuid when extended querying postgresql uuid`(): Unit =
         runBlocking {
-            decodeTest(isPrepared = true)
+            decodeTest(isExtended = true)
         }
 
     @Test
@@ -75,18 +72,15 @@ class TestUuidType {
             }
         }
 
-    private suspend fun decodeJavaTest(isPrepared: Boolean) {
+    private suspend fun decodeJavaTest(isExtended: Boolean) {
         val uuid = java.util.UUID.randomUUID()
         val query = "SELECT '$uuid'::uuid;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val value = dbQuery.fetchScalar<java.util.UUID>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val value = query(query).fetchScalar<java.util.UUID>(conn)
             assertEquals(uuid, value)
         }
     }
@@ -95,13 +89,13 @@ class TestUuidType {
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java Uuid when simple querying postgresql uuid`(): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = false)
+            decodeJavaTest(isExtended = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return Java Uuid when extended querying postgresql uuid`(): Unit =
         runBlocking {
-            decodeJavaTest(isPrepared = true)
+            decodeJavaTest(isExtended = true)
         }
 }

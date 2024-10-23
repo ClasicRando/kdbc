@@ -31,17 +31,15 @@ class TestBooleanType {
 
     private suspend fun decodeTest(
         value: Boolean,
-        isPrepared: Boolean,
+        isExtended: Boolean,
     ) {
         val query = "SELECT $value;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val boolean =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }.fetchScalar<Boolean>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val boolean = query(query).fetchScalar<Boolean>(conn)
             assertEquals(value, boolean)
         }
     }
@@ -51,7 +49,7 @@ class TestBooleanType {
     @ValueSource(booleans = [true, false])
     fun `decode should return Boolean when simple querying postgresql bool`(value: Boolean): Unit =
         runBlocking {
-            decodeTest(value = value, isPrepared = false)
+            decodeTest(value = value, isExtended = false)
         }
 
     @ParameterizedTest
@@ -61,6 +59,6 @@ class TestBooleanType {
         value: Boolean,
     ): Unit =
         runBlocking {
-            decodeTest(value = value, isPrepared = true)
+            decodeTest(value = value, isExtended = true)
         }
 }

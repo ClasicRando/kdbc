@@ -34,19 +34,16 @@ class TestPgPathType {
 
     private suspend fun decodeTest(
         isClosed: Boolean,
-        isPrepared: Boolean,
+        isExtended: Boolean,
     ) {
         val value = getPath(isClosed)
         val query = "SELECT '${value.postGisLiteral}'::path;"
-
-        PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
-            val dbQuery =
-                if (isPrepared) {
-                    query(query)
-                } else {
-                    query(query)
-                }
-            val path = dbQuery.fetchScalar<PgPath>(conn)
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val path = query(query).fetchScalar<PgPath>(conn)
             assertEquals(value, path)
         }
     }
@@ -58,7 +55,7 @@ class TestPgPathType {
         isClosed: Boolean,
     ): Unit =
         runBlocking {
-            decodeTest(isClosed = isClosed, isPrepared = false)
+            decodeTest(isClosed = isClosed, isExtended = false)
         }
 
     @ParameterizedTest
@@ -68,7 +65,7 @@ class TestPgPathType {
         isClosed: Boolean,
     ): Unit =
         runBlocking {
-            decodeTest(isClosed = isClosed, isPrepared = true)
+            decodeTest(isClosed = isClosed, isExtended = true)
         }
 
     companion object {
