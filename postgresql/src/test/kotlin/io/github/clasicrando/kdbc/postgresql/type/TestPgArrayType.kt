@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
@@ -11,11 +11,8 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import io.github.clasicrando.kdbc.postgresql.type.ArrayTypeDescription
-import io.github.clasicrando.kdbc.postgresql.type.InstantTypeDescription
-import io.github.clasicrando.kdbc.postgresql.type.IntTypeDescription
-import io.github.clasicrando.kdbc.postgresql.type.PgType
-import io.github.clasicrando.kdbc.postgresql.type.VarcharTypeDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime

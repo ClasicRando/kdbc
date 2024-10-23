@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
@@ -7,7 +7,6 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import io.github.clasicrando.kdbc.postgresql.type.PgMacAddress
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll

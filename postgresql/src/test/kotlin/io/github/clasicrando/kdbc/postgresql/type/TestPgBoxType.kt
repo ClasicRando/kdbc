@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
@@ -7,39 +7,30 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import io.github.clasicrando.kdbc.postgresql.type.PgPath
-import io.github.clasicrando.kdbc.postgresql.type.PgPoint
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgPathType {
-    @ParameterizedTest
+class TestPgBoxType {
+    @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    @ValueSource(booleans = [true, false])
-    fun `encode should accept PgPath when querying postgresql`(isClosed: Boolean): Unit =
+    fun `encode should accept PgBox when querying postgresql`(): Unit =
         runBlocking {
-            val value = getPath(isClosed)
-            val query = "SELECT $1 path_col;"
+            val query = "SELECT $1 box_col;"
 
             PgConnectionHelper.defaultConnection().use { conn ->
-                val path =
+                val box =
                     query(query)
                         .bind(value)
-                        .fetchScalar<PgPath>(conn)
-                assertEquals(value, path)
+                        .fetchScalar<PgBox>(conn)
+                assertEquals(value, box)
             }
         }
 
-    private suspend fun decodeTest(
-        isClosed: Boolean,
-        isPrepared: Boolean,
-    ) {
-        val value = getPath(isClosed)
-        val query = "SELECT '${value.postGisLiteral}'::path;"
+    private suspend fun decodeTest(isPrepared: Boolean) {
+        val query = "SELECT '${value.postGisLiteral}'::box;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
@@ -48,32 +39,31 @@ class TestPgPathType {
                 } else {
                     query(query)
                 }
-            val path = dbQuery.fetchScalar<PgPath>(conn)
-            assertEquals(value, path)
+            val box = dbQuery.fetchScalar<PgBox>(conn)
+            assertEquals(value, box)
         }
     }
 
-    @ParameterizedTest
+    @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    @ValueSource(booleans = [true, false])
-    fun `decode should return PgPath when simple querying postgresql path`(
-        isClosed: Boolean,
-    ): Unit =
+    fun `decode should return PgBox when simple querying postgresql box`(): Unit =
         runBlocking {
-            decodeTest(isClosed = isClosed, isPrepared = false)
+            decodeTest(isPrepared = false)
         }
 
-    @ParameterizedTest
+    @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    @ValueSource(booleans = [true, false])
-    fun `decode should return PgPath when extended querying postgresql path`(
-        isClosed: Boolean,
-    ): Unit =
+    fun `decode should return PgBox when extended querying postgresql box`(): Unit =
         runBlocking {
-            decodeTest(isClosed = isClosed, isPrepared = true)
+            decodeTest(isPrepared = true)
         }
 
     companion object {
+        private val value =
+            PgBox(
+                high = PgPoint(54.89, 95.24),
+                low = PgPoint(23.54, 84.5),
+            )
         private const val POST_GIS_QUERY = """
             SELECT EXISTS(
                 SELECT oid
@@ -81,12 +71,6 @@ class TestPgPathType {
                 WHERE extname = 'postgis'
             ) post_gis_exists
         """
-
-        private fun getPath(isClosed: Boolean): PgPath =
-            PgPath(
-                isClosed = isClosed,
-                points = listOf(PgPoint(54.89, 84.5), PgPoint(23.54, 95.24)),
-            )
 
         @JvmStatic
         @BeforeAll

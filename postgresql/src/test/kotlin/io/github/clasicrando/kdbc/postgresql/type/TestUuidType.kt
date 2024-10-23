@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
@@ -7,30 +7,31 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.toJavaLocalDate
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.uuid.Uuid
 
-class TestDateType {
+class TestUuidType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept LocalDate when querying postgresql`(): Unit =
+    fun `encode should accept Uuid when querying postgresql`(): Unit =
         runBlocking {
-            val query = "SELECT $1 date_col;"
+            val uuid = Uuid.random()
+            val query = "SELECT $1 uuid_col;"
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
                     query(query)
-                        .bind(localDate)
-                        .fetchScalar<LocalDate>(conn)
-                assertEquals(localDate, value)
+                        .bind(uuid)
+                        .fetchScalar<Uuid>(conn)
+                assertEquals(uuid, value)
             }
         }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
-        val query = "SELECT '2024-02-25'::date;"
+        val uuid = Uuid.random()
+        val query = "SELECT '$uuid'::uuid;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
@@ -39,42 +40,44 @@ class TestDateType {
                 } else {
                     query(query)
                 }
-            val value = dbQuery.fetchScalar<LocalDate>(conn)
-            assertEquals(localDate, value)
+            val value = dbQuery.fetchScalar<Uuid>(conn)
+            assertEquals(uuid, value)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return LocalDate when simple querying postgresql date`(): Unit =
+    fun `decode should return Uuid when simple querying postgresql uuid`(): Unit =
         runBlocking {
             decodeTest(isPrepared = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return LocalDate when extended querying postgresql date`(): Unit =
+    fun `decode should return Uuid when extended querying postgresql uuid`(): Unit =
         runBlocking {
             decodeTest(isPrepared = true)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept Java LocalDate when querying postgresql`(): Unit =
+    fun `encode should accept Java Uuid when querying postgresql`(): Unit =
         runBlocking {
-            val query = "SELECT $1 date_col;"
+            val uuid = java.util.UUID.randomUUID()
+            val query = "SELECT $1 uuid_col;"
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
                     query(query)
-                        .bind(javaLocalDate)
-                        .fetchScalar<java.time.LocalDate>(conn)
-                assertEquals(javaLocalDate, value)
+                        .bind(uuid)
+                        .fetchScalar<java.util.UUID>(conn)
+                assertEquals(uuid, value)
             }
         }
 
     private suspend fun decodeJavaTest(isPrepared: Boolean) {
-        val query = "SELECT '2024-02-25'::date;"
+        val uuid = java.util.UUID.randomUUID()
+        val query = "SELECT '$uuid'::uuid;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
@@ -83,27 +86,22 @@ class TestDateType {
                 } else {
                     query(query)
                 }
-            val value = dbQuery.fetchScalar<java.time.LocalDate>(conn)
-            assertEquals(javaLocalDate, value)
+            val value = dbQuery.fetchScalar<java.util.UUID>(conn)
+            assertEquals(uuid, value)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return Java LocalDate when simple querying postgresql date`(): Unit =
+    fun `decode should return Java Uuid when simple querying postgresql uuid`(): Unit =
         runBlocking {
             decodeJavaTest(isPrepared = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return Java LocalDate when extended querying postgresql date`(): Unit =
+    fun `decode should return Java Uuid when extended querying postgresql uuid`(): Unit =
         runBlocking {
             decodeJavaTest(isPrepared = true)
         }
-
-    companion object {
-        private val localDate = LocalDate(year = 2024, monthNumber = 2, dayOfMonth = 25)
-        private val javaLocalDate = localDate.toJavaLocalDate()
-    }
 }

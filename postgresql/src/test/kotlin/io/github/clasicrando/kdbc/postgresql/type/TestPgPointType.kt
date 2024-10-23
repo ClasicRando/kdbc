@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
@@ -7,32 +7,30 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import io.github.clasicrando.kdbc.postgresql.type.PgCircle
-import io.github.clasicrando.kdbc.postgresql.type.PgPoint
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgCircleType {
+class TestPgPointType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept PgCircle when querying postgresql`(): Unit =
+    fun `encode should accept PgPoint when querying postgresql`(): Unit =
         runBlocking {
-            val query = "SELECT $1 circle_col;"
+            val query = "SELECT $1 point_col;"
 
             PgConnectionHelper.defaultConnection().use { conn ->
-                val circle =
+                val point =
                     query(query)
                         .bind(value)
-                        .fetchScalar<PgCircle>(conn)
-                assertEquals(value, circle)
+                        .fetchScalar<PgPoint>(conn)
+                assertEquals(value, point)
             }
         }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
-        val query = "SELECT '${value.postGisLiteral}'::circle;"
+        val query = "SELECT '${value.postGisLiteral}'::point;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
@@ -41,27 +39,27 @@ class TestPgCircleType {
                 } else {
                     query(query)
                 }
-            val circle = dbQuery.fetchScalar<PgCircle>(conn)
-            assertEquals(value, circle)
+            val point = dbQuery.fetchScalar<PgPoint>(conn)
+            assertEquals(value, point)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgCircle when simple querying postgresql circle`(): Unit =
+    fun `decode should return PgPoint when simple querying postgresql point`(): Unit =
         runBlocking {
             decodeTest(isPrepared = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgCircle when extended querying postgresql circle`(): Unit =
+    fun `decode should return PgPoint when extended querying postgresql point`(): Unit =
         runBlocking {
             decodeTest(isPrepared = true)
         }
 
     companion object {
-        private val value = PgCircle(center = PgPoint(54.89, 84.5), radius = 2.536)
+        private val value = PgPoint(54.89, 84.5)
         private const val POST_GIS_QUERY = """
             SELECT EXISTS(
                 SELECT oid

@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.RowParser
@@ -52,9 +52,14 @@ class TestCharType {
                 }
             val chars =
                 dbQuery
-                    .fetchAll(conn, CharTestRowParser)
-                    .toByteArray()
-            Assertions.assertArrayEquals(bytes, chars)
+                    .fetchAll(
+                        conn,
+                        io.github.clasicrando.kdbc.postgresql.type.TestCharType.CharTestRowParser,
+                    ).toByteArray()
+            Assertions.assertArrayEquals(
+                io.github.clasicrando.kdbc.postgresql.type.TestCharType.Companion.bytes,
+                chars,
+            )
         }
     }
 
@@ -86,9 +91,10 @@ class TestCharType {
                             DROP TABLE IF EXISTS public.char_test;
                             CREATE TABLE public.char_test(char_field "char" not null);
                             INSERT INTO public.char_test(char_field)
-                            VALUES${bytes.joinToString(
-                                separator = ",",
-                            ) { "(CAST($it as \"char\"))" }};
+                            VALUES${
+                                io.github.clasicrando.kdbc.postgresql.type.TestCharType.Companion.bytes.joinToString(
+                                    separator = ",",
+                                ) { "(CAST($it as \"char\"))" }};
                             """.trimIndent(),
                         ).close()
                 }

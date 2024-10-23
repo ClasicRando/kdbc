@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.datetime.DateTime
@@ -7,21 +7,6 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import io.github.clasicrando.kdbc.postgresql.type.Bound
-import io.github.clasicrando.kdbc.postgresql.type.DateRange
-import io.github.clasicrando.kdbc.postgresql.type.Int4Range
-import io.github.clasicrando.kdbc.postgresql.type.Int8Range
-import io.github.clasicrando.kdbc.postgresql.type.JDateRange
-import io.github.clasicrando.kdbc.postgresql.type.JNumRange
-import io.github.clasicrando.kdbc.postgresql.type.JTsRange
-import io.github.clasicrando.kdbc.postgresql.type.JTsTzRange
-import io.github.clasicrando.kdbc.postgresql.type.NumRange
-import io.github.clasicrando.kdbc.postgresql.type.TsRange
-import io.github.clasicrando.kdbc.postgresql.type.TsTzRange
-import io.github.clasicrando.kdbc.postgresql.type.toDateRange
-import io.github.clasicrando.kdbc.postgresql.type.toIntRange
-import io.github.clasicrando.kdbc.postgresql.type.toJDateRange
-import io.github.clasicrando.kdbc.postgresql.type.toLongRange
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate

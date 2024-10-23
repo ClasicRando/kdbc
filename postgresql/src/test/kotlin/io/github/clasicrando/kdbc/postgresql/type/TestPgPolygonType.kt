@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
@@ -7,32 +7,30 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import io.github.clasicrando.kdbc.postgresql.type.PgLineSegment
-import io.github.clasicrando.kdbc.postgresql.type.PgPoint
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgLineSegmentType {
+class TestPgPolygonType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept PgLineSegment when querying postgresql`(): Unit =
+    fun `encode should accept PgPolygon when querying postgresql`(): Unit =
         runBlocking {
-            val query = "SELECT $1 lseg_col;"
+            val query = "SELECT $1 polygon_col;"
 
             PgConnectionHelper.defaultConnection().use { conn ->
-                val lineSegment =
+                val polygon =
                     query(query)
                         .bind(value)
-                        .fetchScalar<PgLineSegment>(conn)
-                assertEquals(value, lineSegment)
+                        .fetchScalar<PgPolygon>(conn)
+                assertEquals(value, polygon)
             }
         }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
-        val query = "SELECT '${value.postGisLiteral}'::lseg;"
+        val query = "SELECT '${value.postGisLiteral}'::polygon;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
@@ -41,30 +39,29 @@ class TestPgLineSegmentType {
                 } else {
                     query(query)
                 }
-            val lineSegment = dbQuery.fetchScalar<PgLineSegment>(conn)
-            assertEquals(value, lineSegment)
+            val polygon = dbQuery.fetchScalar<PgPolygon>(conn)
+            assertEquals(value, polygon)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgLineSegment when simple querying postgresql lseg`(): Unit =
+    fun `decode should return PgPolygon when simple querying postgresql polygon`(): Unit =
         runBlocking {
             decodeTest(isPrepared = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgLineSegment when extended querying postgresql lseg`(): Unit =
+    fun `decode should return PgPolygon when extended querying postgresql polygon`(): Unit =
         runBlocking {
             decodeTest(isPrepared = true)
         }
 
     companion object {
         private val value =
-            PgLineSegment(
-                point1 = PgPoint(54.89, 84.5),
-                point2 = PgPoint(23.54, 95.24),
+            PgPolygon(
+                points = listOf(PgPoint(54.89, 84.5), PgPoint(23.54, 95.24)),
             )
         private const val POST_GIS_QUERY = """
             SELECT EXISTS(

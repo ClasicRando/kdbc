@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.column
+package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
@@ -7,32 +7,30 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import io.github.clasicrando.kdbc.postgresql.type.PgBox
-import io.github.clasicrando.kdbc.postgresql.type.PgPoint
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgBoxType {
+class TestPgLineType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept PgBox when querying postgresql`(): Unit =
+    fun `encode should accept PgLine when querying postgresql`(): Unit =
         runBlocking {
-            val query = "SELECT $1 box_col;"
+            val query = "SELECT $1 line_col;"
 
             PgConnectionHelper.defaultConnection().use { conn ->
-                val box =
+                val line =
                     query(query)
                         .bind(value)
-                        .fetchScalar<PgBox>(conn)
-                assertEquals(value, box)
+                        .fetchScalar<PgLine>(conn)
+                assertEquals(value, line)
             }
         }
 
     private suspend fun decodeTest(isPrepared: Boolean) {
-        val query = "SELECT '${value.postGisLiteral}'::box;"
+        val query = "SELECT '${value.postGisLiteral}'::line;"
 
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
@@ -41,31 +39,27 @@ class TestPgBoxType {
                 } else {
                     query(query)
                 }
-            val box = dbQuery.fetchScalar<PgBox>(conn)
-            assertEquals(value, box)
+            val line = dbQuery.fetchScalar<PgLine>(conn)
+            assertEquals(value, line)
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgBox when simple querying postgresql box`(): Unit =
+    fun `decode should return PgLine when simple querying postgresql line`(): Unit =
         runBlocking {
             decodeTest(isPrepared = false)
         }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgBox when extended querying postgresql box`(): Unit =
+    fun `decode should return PgLine when extended querying postgresql line`(): Unit =
         runBlocking {
             decodeTest(isPrepared = true)
         }
 
     companion object {
-        private val value =
-            PgBox(
-                high = PgPoint(54.89, 95.24),
-                low = PgPoint(23.54, 84.5),
-            )
+        private val value = PgLine(54.89, 84.5, 74.526)
         private const val POST_GIS_QUERY = """
             SELECT EXISTS(
                 SELECT oid
