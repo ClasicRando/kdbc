@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.connection
 import io.github.clasicrando.kdbc.core.query.StringRowParser
 import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -60,7 +59,7 @@ class TestListenNotifySpec {
             PgConnectionHelper.defaultListener().use {
                 it.listen(CHANNEL_NAME)
                 val channelsBefore =
-                    preparedQuery(LISTENER_QUERY)
+                    query(LISTENER_QUERY)
                         .fetchAll(it.connection, StringRowParser)
                 assertEquals(1, channelsBefore.size)
                 assertEquals(CHANNEL_NAME, channelsBefore[0])
@@ -71,7 +70,7 @@ class TestListenNotifySpec {
                     it.unlisten(CHANNEL_NAME)
                 }
                 val channelsAfter =
-                    preparedQuery(LISTENER_QUERY)
+                    query(LISTENER_QUERY)
                         .fetchAll(it.connection, StringRowParser)
                 assertEquals(0, channelsAfter.size)
             }

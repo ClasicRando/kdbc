@@ -5,7 +5,6 @@ import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -30,7 +29,7 @@ class TestCharType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val char =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<Byte>(conn)
                 assertEquals(value, char)
@@ -47,7 +46,7 @@ class TestCharType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

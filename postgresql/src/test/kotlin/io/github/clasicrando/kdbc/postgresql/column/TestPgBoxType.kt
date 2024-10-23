@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
@@ -25,7 +24,7 @@ class TestPgBoxType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val box =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<PgBox>(conn)
                 assertEquals(value, box)
@@ -38,7 +37,7 @@ class TestPgBoxType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

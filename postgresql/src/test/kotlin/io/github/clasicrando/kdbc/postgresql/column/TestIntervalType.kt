@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -23,7 +22,7 @@ class TestIntervalType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    preparedQuery(query)
+                    query(query)
                         .bind(dateTimePeriod)
                         .fetchScalar<DateTimePeriod>(conn)
                 assertEquals(expected = dateTimePeriod, actual = value)
@@ -36,7 +35,7 @@ class TestIntervalType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -67,7 +66,7 @@ class TestIntervalType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    preparedQuery(query)
+                    query(query)
                         .bind(pgInterval)
                         .fetchScalar<PgInterval>(conn)
                 assertEquals(expected = pgInterval, actual = value)
@@ -80,7 +79,7 @@ class TestIntervalType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

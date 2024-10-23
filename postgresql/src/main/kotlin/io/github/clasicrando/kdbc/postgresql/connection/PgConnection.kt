@@ -15,7 +15,7 @@ import io.github.clasicrando.kdbc.core.query.Query
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
-import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.core.reduceToSingleOrNull
 import io.github.clasicrando.kdbc.core.result.QueryResult
@@ -174,31 +174,20 @@ class PgConnection internal constructor(
         }
     }
 
-    override suspend fun executeQuery(query: Query): StatementResult =
-        when (query) {
-            is Query.Prepared -> sendExtendedQuery(query.sql, query.parameters)
-            is Query.Simple -> sendSimpleQuery(query.sql)
+    override suspend fun executeQuery(query: Query): StatementResult {
+        if (query.parameters.isEmpty()) {
+            return sendSimpleQuery(query.sql)
         }
+        return sendExtendedQuery(query.sql, query.parameters)
+    }
 
     override suspend fun executeQueryBatch(vararg batch: Query): StatementResult {
-        val pipelineQueries =
-            Array(batch.size) { i ->
-                when (val query = batch[i]) {
-                    is Query.Prepared -> query.sql to query.parameters
-                    is Query.Simple -> query.sql to emptyList()
-                }
-            }
+        val pipelineQueries = Array(batch.size) { i -> batch[i].sql to batch[i].parameters }
         return pipelineQueries(syncAll = true, queries = pipelineQueries)
     }
 
     override suspend fun executeQueryBatch(batch: List<Query>): StatementResult {
-        val pipelineQueries =
-            Array(batch.size) { i ->
-                when (val query = batch[i]) {
-                    is Query.Prepared -> query.sql to query.parameters
-                    is Query.Simple -> query.sql to emptyList()
-                }
-            }
+        val pipelineQueries = Array(batch.size) { i -> batch[i].sql to batch[i].parameters }
         return pipelineQueries(syncAll = true, queries = pipelineQueries)
     }
 
@@ -317,8 +306,16 @@ class PgConnection internal constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
 
-        if (!query.contains(";") && connectOptions.useExtendedProtocolForSimpleQueries) {
-            return sendExtendedQuery(query, listOf())
+        if (connectOptions.useExtendedProtocolForSimpleQueries && !query.contains('$')) {
+            val queries = splitQuery(query)
+            return if (queries.size == 1) {
+                sendExtendedQuery(query, listOf())
+            } else {
+                pipelineQueries(
+                    syncAll = true,
+                    queries = Array(queries.size) { i -> queries[i] to listOf() },
+                )
+            }
         }
 
         return mutex.withLock {
@@ -330,6 +327,32 @@ class PgConnection internal constructor(
             collectResult()
         }
     }
+
+    private fun splitQuery(query: String): List<String> =
+        buildList {
+            val builder = StringBuilder()
+            var inQuote = false
+            val iter = query.iterator()
+            while (iter.hasNext()) {
+                when (val char = iter.nextChar()) {
+                    '\'' -> {
+                        inQuote = !inQuote
+                        builder.append(char)
+                    }
+                    ';' ->
+                        if (inQuote) {
+                            builder.append(char)
+                        } else {
+                            add(builder.toString())
+                            builder.clear()
+                        }
+                    else -> builder.append(char)
+                }
+            }
+            if (builder.isNotEmpty()) {
+                add(builder.toString())
+            }
+        }
 
     /**
      * Prepare the specified [statement] by requesting the server parse and describe the prepared
@@ -815,7 +838,7 @@ class PgConnection internal constructor(
     ): QueryResult {
         val schemaName = copyInStatement.schemaName.trim()
         val metadata =
-            preparedQuery(CopyTableMetadata.QUERY)
+            query(CopyTableMetadata.QUERY)
                 .bind(copyInStatement.tableName)
                 .bind(schemaName)
                 .fetchAll(this, CopyTableMetadata.Companion)
@@ -893,7 +916,7 @@ class PgConnection internal constructor(
                 is CopyStatement.CopyTable -> {
                     val schemaName = copyOutStatement.schemaName.trim()
                     val metadata =
-                        preparedQuery(CopyTableMetadata.QUERY)
+                        query(CopyTableMetadata.QUERY)
                             .bind(copyOutStatement.tableName)
                             .bind(schemaName)
                             .fetchAll(this, CopyTableMetadata.Companion)

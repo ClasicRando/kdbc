@@ -4,7 +4,6 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -47,7 +46,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<Int4Range>(conn)
                 assertEquals(value.toIntRange(), range?.toIntRange())
@@ -64,7 +63,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -104,7 +103,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<Int8Range>(conn)
                 assertEquals(value.toLongRange(), range?.toLongRange())
@@ -121,7 +120,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -161,7 +160,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<NumRange>(conn)
                 assertEquals(value, range)
@@ -178,7 +177,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -218,7 +217,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<JNumRange>(conn)
                 assertEquals(value, range)
@@ -235,7 +234,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -273,7 +272,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<TsRange>(conn)
                 assertEquals(value, range)
@@ -290,7 +289,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -330,7 +329,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<JTsRange>(conn)
                 assertEquals(value, range)
@@ -347,7 +346,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -387,7 +386,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<TsTzRange>(conn)
                 assertEquals(value, range)
@@ -404,7 +403,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -444,7 +443,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<JTsTzRange>(conn)
                 assertEquals(value, range)
@@ -461,7 +460,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -501,7 +500,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<DateRange>(conn)
                 assertEquals(value.toDateRange(), range?.toDateRange())
@@ -518,7 +517,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -558,7 +557,7 @@ class TestRange {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val range =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<JDateRange>(conn)
                 assertEquals(value.toJDateRange(), range?.toJDateRange())
@@ -575,7 +574,7 @@ class TestRange {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

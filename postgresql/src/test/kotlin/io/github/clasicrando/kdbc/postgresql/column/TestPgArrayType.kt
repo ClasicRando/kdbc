@@ -6,7 +6,6 @@ import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -112,7 +111,7 @@ class TestPgArrayType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val ints =
-                    preparedQuery(query)
+                    query(query)
                         .bind(values)
                         .fetchAll(
                             conn,
@@ -131,7 +130,7 @@ class TestPgArrayType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

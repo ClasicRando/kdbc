@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.benchmarks.postgresql
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
@@ -52,7 +51,7 @@ open class PgBenchmarkAsyncMultiKdbc {
 
     private suspend fun executeQuery(stepId: Int): List<PostDataClass> =
         pool.acquire().use { conn ->
-            preparedQuery(kdbcQuerySingle)
+            query(kdbcQuerySingle)
                 .bind(stepId)
                 .fetchAll(conn, PostDataClassRowParser)
         }

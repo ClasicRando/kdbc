@@ -4,7 +4,6 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -26,7 +25,7 @@ class TestNumericType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val bigDecimal =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<BigDecimal>(conn)
                 assertEquals(value, bigDecimal)
@@ -41,7 +40,7 @@ class TestNumericType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -74,7 +73,7 @@ class TestNumericType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val bigDecimal =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<java.math.BigDecimal>(conn)
                 assertEquals(value, bigDecimal)
@@ -89,7 +88,7 @@ class TestNumericType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

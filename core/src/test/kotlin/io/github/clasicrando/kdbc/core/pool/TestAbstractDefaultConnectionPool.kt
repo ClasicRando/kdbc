@@ -201,8 +201,8 @@ class TestAbstractDefaultConnectionPool {
         runBlocking {
             val factory = mockk<ConnectionProvider<Connection>>()
             coEvery { factory.validate(any()) } returns true
-            val throwableMessage = "Special Throwable"
-            coEvery { factory.create(any()) } throws Throwable(throwableMessage)
+            val exceptionMessage = "Special Throwable"
+            coEvery { factory.create(any()) } throws Exception(exceptionMessage)
             val options =
                 PoolOptions(
                     maxConnections = 1,

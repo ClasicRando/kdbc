@@ -23,17 +23,13 @@ object PgConnectionHelper {
             sslMode = SslMode.Disable,
         )
 
-    fun defaultPool(): PgConnectionPool {
-        return PgConnectionPool(defaultConnectOptions, PoolOptions())
-    }
+    fun defaultPool(): PgConnectionPool = PgConnectionPool(defaultConnectOptions, PoolOptions())
 
-    suspend fun defaultConnection(): PgConnection {
-        return Postgres.connection(connectOptions = defaultConnectOptions)
-    }
+    suspend fun defaultConnection(): PgConnection =
+        Postgres.connection(connectOptions = defaultConnectOptions)
 
-    suspend fun defaultListener(): PgListener {
-        return Postgres.listener(connectOptions = defaultConnectOptions)
-    }
+    suspend fun defaultListener(): PgListener =
+        Postgres.listener(connectOptions = defaultConnectOptions)
 
     private val defaultConnectOptionsWithForcedSimple =
         PgConnectOptions(
@@ -46,9 +42,8 @@ object PgConnectionHelper {
             useExtendedProtocolForSimpleQueries = false,
         )
 
-    suspend fun defaultConnectionWithForcedSimple(): PgConnection {
-        return Postgres.connection(connectOptions = defaultConnectOptionsWithForcedSimple)
-    }
+    suspend fun defaultConnectionWithForcedSimple(): PgConnection =
+        Postgres.connection(connectOptions = defaultConnectOptionsWithForcedSimple)
 
     private val defaultConnectOptionsWithQueryTimeout =
         PgConnectOptions(
@@ -62,9 +57,8 @@ object PgConnectionHelper {
             queryTimeout = 2.toDuration(DurationUnit.SECONDS),
         )
 
-    suspend fun defaultConnectionWithQueryTimeout(): PgConnection {
-        return Postgres.connection(connectOptions = defaultConnectOptionsWithQueryTimeout)
-    }
+    suspend fun defaultConnectionWithQueryTimeout(): PgConnection =
+        Postgres.connection(connectOptions = defaultConnectOptionsWithQueryTimeout)
 
     private val defaultConnectOptionsSsl =
         PgConnectOptions(
@@ -77,7 +71,6 @@ object PgConnectionHelper {
             connectionTimeout = 1.toDuration(unit = DurationUnit.SECONDS),
         )
 
-    suspend fun defaultConnectionSsl(): PgConnection {
-        return Postgres.connection(connectOptions = defaultConnectOptionsSsl)
-    }
+    suspend fun defaultConnectionSsl(): PgConnection =
+        Postgres.connection(connectOptions = defaultConnectOptionsSsl)
 }

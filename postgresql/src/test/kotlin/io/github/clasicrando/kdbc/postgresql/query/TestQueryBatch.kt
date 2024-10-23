@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
 import io.github.clasicrando.kdbc.core.query.bind
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
@@ -10,7 +9,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestPgPreparedQueryBatch {
+class TestQueryBatch {
     @Test
     fun `executeQueries should return StatementResult`(): Unit =
         runBlocking {
@@ -18,7 +17,7 @@ class TestPgPreparedQueryBatch {
                 connection
                     .executeQueryBatch(
                         query("SELECT $ID"),
-                        preparedQuery("SELECT $1::text")
+                        query("SELECT $1::text")
                             .bind(TEXT),
                     ).use { statementResult ->
                         assertEquals(2, statementResult.size)

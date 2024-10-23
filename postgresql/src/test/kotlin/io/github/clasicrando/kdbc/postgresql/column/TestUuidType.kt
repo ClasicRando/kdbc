@@ -3,7 +3,6 @@ package io.github.clasicrando.kdbc.postgresql.column
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -23,7 +22,7 @@ class TestUuidType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    preparedQuery(query)
+                    query(query)
                         .bind(uuid)
                         .fetchScalar<Uuid>(conn)
                 assertEquals(uuid, value)
@@ -37,7 +36,7 @@ class TestUuidType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -69,7 +68,7 @@ class TestUuidType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val value =
-                    preparedQuery(query)
+                    query(query)
                         .bind(uuid)
                         .fetchScalar<java.util.UUID>(conn)
                 assertEquals(uuid, value)
@@ -83,7 +82,7 @@ class TestUuidType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

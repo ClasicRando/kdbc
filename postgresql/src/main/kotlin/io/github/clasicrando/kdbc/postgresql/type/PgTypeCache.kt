@@ -7,7 +7,7 @@ import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -424,7 +424,7 @@ internal class PgTypeCache {
             }
 
             val oid =
-                preparedQuery(pgCompositeTypeByName)
+                query(pgCompositeTypeByName)
                     .bind(typeName)
                     .bind(schema)
                     .fetchScalar<Int>(connection)
@@ -446,7 +446,7 @@ internal class PgTypeCache {
             connection: PgConnection,
             oid: Int,
         ): List<PgColumnDescription> =
-            preparedQuery(pgCompositeTypeDetailsByOid)
+            query(pgCompositeTypeDetailsByOid)
                 .bind(oid)
                 .fetchAll(connection, CompositeAttributeDataRowParser)
 
@@ -471,7 +471,7 @@ internal class PgTypeCache {
             }
 
             val oid =
-                preparedQuery(pgEnumTypeByName)
+                query(pgEnumTypeByName)
                     .bind(typeName)
                     .bind(schema)
                     .fetchScalar<Int>(connection)
@@ -492,7 +492,7 @@ internal class PgTypeCache {
             connection: PgConnection,
             oid: Int,
         ): List<String> =
-            preparedQuery(pgEnumLabelsByOid)
+            query(pgEnumLabelsByOid)
                 .bind(oid)
                 .fetchAll(connection, EnumLabelRowParser)
 
@@ -506,7 +506,7 @@ internal class PgTypeCache {
             oid: Int,
         ): Int? {
             val arrayOid =
-                preparedQuery(pgArrayTypeByInnerOid)
+                query(pgArrayTypeByInnerOid)
                     .bind(oid)
                     .fetchScalar<Int>(connection)
 

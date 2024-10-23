@@ -5,7 +5,6 @@ import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
@@ -69,7 +68,7 @@ class TestCompositeType {
             PgConnectionHelper.defaultConnection().use { conn ->
                 conn.registerCompositeType<CompositeType>("composite_type")
                 val value =
-                    preparedQuery(query)
+                    query(query)
                         .bind(type)
                         .fetchScalar<CompositeType>(conn)
                 assertEquals(type, value)
@@ -85,7 +84,7 @@ class TestCompositeType {
             PgConnectionHelper.defaultConnection().use { conn ->
                 conn.registerCompositeType<CompositeTable>("table_composite")
                 val value =
-                    preparedQuery(query)
+                    query(query)
                         .bind(table)
                         .fetchScalar<CompositeTable>(conn)
                 assertEquals(table, value)
@@ -101,7 +100,7 @@ class TestCompositeType {
             PgConnectionHelper.defaultConnection().use { conn ->
                 conn.registerCompositeType<CompositeDef>("composite_def")
                 val value =
-                    preparedQuery(query)
+                    query(query)
                         .bind(def)
                         .fetchScalar<CompositeDef>(conn)
                 assertEquals(def, value)
@@ -115,7 +114,7 @@ class TestCompositeType {
             conn.registerCompositeType<CompositeType>("composite_type")
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -145,7 +144,7 @@ class TestCompositeType {
             conn.registerCompositeType<CompositeTable>("table_composite")
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
@@ -175,7 +174,7 @@ class TestCompositeType {
             conn.registerCompositeType<CompositeDef>("composite_def")
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

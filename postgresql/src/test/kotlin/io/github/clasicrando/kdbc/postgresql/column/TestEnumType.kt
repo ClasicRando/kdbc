@@ -4,7 +4,6 @@ import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -41,7 +40,7 @@ class TestEnumType {
             PgConnectionHelper.defaultConnection().use { conn ->
                 conn.registerEnumType<EnumType>("enum_type")
                 val fetchValue =
-                    preparedQuery(query)
+                    query(query)
                         .bind(value)
                         .fetchScalar<EnumType>(conn)
                 assertEquals(value, fetchValue)
@@ -58,7 +57,7 @@ class TestEnumType {
             conn.registerEnumType<EnumType>("enum_type")
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }

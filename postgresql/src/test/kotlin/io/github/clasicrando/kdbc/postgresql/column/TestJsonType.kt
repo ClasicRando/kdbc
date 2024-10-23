@@ -4,7 +4,6 @@ import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.preparedQuery
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
@@ -39,7 +38,7 @@ class TestJsonType {
 
             PgConnectionHelper.defaultConnection().use { conn ->
                 val pgJson =
-                    preparedQuery(query)
+                    query(query)
                         .bind(pgJsonValue)
                         .fetchScalar<PgJson>(conn)
                 assertNotNull(pgJson)
@@ -56,7 +55,7 @@ class TestJsonType {
         PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
             val dbQuery =
                 if (isPrepared) {
-                    preparedQuery(query)
+                    query(query)
                 } else {
                     query(query)
                 }
