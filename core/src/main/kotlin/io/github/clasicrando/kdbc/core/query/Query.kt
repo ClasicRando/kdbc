@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.core.query
 
+import kotlin.reflect.typeOf
+
 /**
  * API to perform a single query against a database
  */
@@ -50,7 +52,8 @@ fun query(sql: String): Query = Query(sql)
  * Extension method to call [Query.bind] and construct the [QueryParameter] using the utility
  * methods that construct the required type data implicitly.
  */
-inline fun <reified T : Any> Query.bind(parameter: T?): Query = bind(QueryParameter(parameter))
+inline fun <reified T : Any> Query.bind(parameter: T?): Query =
+    bind(QueryParameter(value = parameter, parameterType = typeOf<T>()))
 
 /**
  * Extension method to call [Query.bind] and construct the [QueryParameter] using the utility
@@ -59,11 +62,12 @@ inline fun <reified T : Any> Query.bind(parameter: T?): Query = bind(QueryParame
  */
 @JvmName("QueryParameterNonNullItem")
 inline fun <reified T : Any> Query.bind(parameter: List<T?>): Query =
-    bind(QueryParameter(parameter))
+    bind(QueryParameter(value = parameter, parameterType = typeOf<List<T?>>()))
 
 /**
  * Extension method to call [Query.bind] and construct the [QueryParameter] using the utility
  * methods that construct the required type data implicitly. Special case for a [List] of non-null
  * elements.
  */
-inline fun <reified T : Any> Query.bind(parameter: List<T>): Query = bind(QueryParameter(parameter))
+inline fun <reified T : Any> Query.bind(parameter: List<T>): Query =
+    bind(QueryParameter(value = parameter, parameterType = typeOf<List<T>>()))

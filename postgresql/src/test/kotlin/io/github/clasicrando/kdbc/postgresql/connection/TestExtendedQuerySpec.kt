@@ -7,6 +7,7 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
+import kotlin.reflect.typeOf
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,7 +29,10 @@ class TestExtendedQuerySpec {
                     it
                         .sendExtendedQuery(
                             QUERY_SERIES,
-                            listOf(QueryParameter(1), QueryParameter(10)),
+                            listOf(
+                                QueryParameter(1, typeOf<Int>()),
+                                QueryParameter(10, typeOf<Int>()),
+                            ),
                         ).toList()
                 assertEquals(1, result.size)
                 val queryResult = result[0]
@@ -49,7 +53,11 @@ class TestExtendedQuerySpec {
             PgConnectionHelper.defaultConnection().use {
                 val param1 = 2
                 val param2 = "start"
-                val params = listOf(QueryParameter(param1), QueryParameter(param2))
+                val params =
+                    listOf(
+                        QueryParameter(param1, typeOf<Int>()),
+                        QueryParameter(param2, typeOf<String>()),
+                    )
                 val result =
                     it
                         .sendExtendedQuery(

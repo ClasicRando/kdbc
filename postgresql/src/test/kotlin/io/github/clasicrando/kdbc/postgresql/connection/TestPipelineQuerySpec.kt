@@ -9,6 +9,7 @@ import io.github.clasicrando.kdbc.core.useCatching
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
+import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -21,8 +22,9 @@ class TestPipelineQuerySpec {
                 val results =
                     connection
                         .pipelineQueriesSyncAll(
-                            "SELECT $1 i" to listOf(QueryParameter(1)),
-                            "SELECT $1 t" to listOf(QueryParameter("Pipeline Query")),
+                            "SELECT $1 i" to listOf(QueryParameter(1, typeOf<Int>())),
+                            "SELECT $1 t" to
+                                listOf(QueryParameter("Pipeline Query", typeOf<String>())),
                         ).toList()
                 assertEquals(2, results.size)
                 assertEquals(1, results[0].rowsAffected)
@@ -47,10 +49,11 @@ class TestPipelineQuerySpec {
                         .pipelineQueriesSyncAll(
                             "INSERT INTO public.rollback_check VALUES($1,$2)" to
                                 listOf(
-                                    QueryParameter(1),
-                                    QueryParameter("Pipeline Query"),
+                                    QueryParameter(1, typeOf<Int>()),
+                                    QueryParameter("Pipeline Query", typeOf<String>()),
                                 ),
-                            "SELECT $1::int t" to listOf(QueryParameter("not int")),
+                            "SELECT $1::int t" to
+                                listOf(QueryParameter("not int", typeOf<String>())),
                         ).toList()
                 }
             assertTrue(result.isFailure)
@@ -82,11 +85,12 @@ class TestPipelineQuerySpec {
                         .pipelineQueriesSyncAll(
                             "INSERT INTO public.rollback_check VALUES($1,$2)" to
                                 listOf(
-                                    QueryParameter(1),
-                                    QueryParameter("Pipeline Query"),
+                                    QueryParameter(1, typeOf<Int>()),
+                                    QueryParameter("Pipeline Query", typeOf<String>()),
                                 ),
-                            "SELECT $1::int t" to listOf(QueryParameter("not int")),
-                            "SELECT $1 t" to listOf(QueryParameter("not int")),
+                            "SELECT $1::int t" to
+                                listOf(QueryParameter("not int", typeOf<String>())),
+                            "SELECT $1 t" to listOf(QueryParameter("not int", typeOf<String>())),
                         ).toList()
                 }
             assertTrue(result.isFailure)
@@ -121,10 +125,11 @@ class TestPipelineQuerySpec {
                                 arrayOf(
                                     "INSERT INTO public.rollback_check VALUES($1,$2)" to
                                         listOf(
-                                            QueryParameter(1),
-                                            QueryParameter("Pipeline Query"),
+                                            QueryParameter(1, typeOf<Int>()),
+                                            QueryParameter("Pipeline Query", typeOf<String>()),
                                         ),
-                                    "SELECT $1::int t" to listOf(QueryParameter("not int")),
+                                    "SELECT $1::int t" to
+                                        listOf(QueryParameter("not int", typeOf<String>())),
                                 ),
                         ).toList()
                 }
