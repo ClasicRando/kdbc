@@ -13,6 +13,8 @@ import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
     val columnMapping: List<C>,
 ) : ResultSet {
+    final override val rowCount: Int get() = backingList?.size ?: 0
+
     private var backingList: MutableList<R>? = ArrayList()
 
     /** Add a new [row] to the end of this [ResultSet] */

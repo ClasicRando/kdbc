@@ -9,6 +9,13 @@ import io.github.clasicrando.kdbc.core.result.StatementResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
+/**
+ * Execute the query and return the raw [StatementResult] from the query execution. Although a
+ * [StatementResult] does not hold active resources (just buffered results) the result should be
+ * closed after use.
+ *
+ * @param connection [Connection] to execute the query against
+ */
 suspend fun Query.execute(connection: Connection): StatementResult = connection.executeQuery(this)
 
 /**
@@ -30,9 +37,7 @@ suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): 
         if (statementResult.size == 0) {
             throw NoResultFound(sql)
         }
-        statementResult
-            .first()
-            .use { queryResult -> queryResult.extractScalar() }
+        statementResult[0].use { queryResult -> queryResult.extractScalar() }
     }
 
 /**
@@ -56,9 +61,7 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(
         if (statementResult.size == 0) {
             throw NoResultFound(sql)
         }
-        statementResult
-            .first()
-            .use { queryResult -> queryResult.extractFirst(rowParser) }
+        statementResult[0].use { queryResult -> queryResult.extractFirst(rowParser) }
     }
 
 /**
@@ -85,8 +88,7 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(
         if (statementResult.size == 0) {
             throw NoResultFound(sql)
         }
-        statementResult
-            .first()
+        statementResult[0]
             .use { queryResult ->
                 if (queryResult.rowsAffected > 1) {
                     throw TooManyRows(sql)
@@ -116,9 +118,7 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(
         if (statementResult.size == 0) {
             throw NoResultFound(sql)
         }
-        statementResult
-            .first()
-            .use { queryResult -> queryResult.extractAll(rowParser) }
+        statementResult[0].use { queryResult -> queryResult.extractAll(rowParser) }
     }
 
 /**

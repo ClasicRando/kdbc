@@ -192,6 +192,96 @@ class PgConnection internal constructor(
     }
 
     /**
+     * Execute the [batch] of prepared queries using the Postgresql query pipelining method. This
+     * allows for sending multiple prepared queries at once to the server, so you do not need to
+     * wait for previous queries to complete to request another result.
+     *
+     * ```
+     * Regular Pipelined
+     * | Client         | Server          |    | Client         | Server          |
+     * |----------------|-----------------|    |----------------|-----------------|
+     * | send query 1   |                 |    | send query 1   |                 |
+     * |                | process query 1 |    | send query 2   | process query 1 |
+     * | receive rows 1 |                 |    | send query 3   | process query 2 |
+     * | send query 2   |                 |    | receive rows 1 | process query 3 |
+     * |                | process query 2 |    | receive rows 2 |                 |
+     * | receive rows 2 |                 |    | receive rows 3 |                 |
+     * | send query 3   |                 |
+     * |                | process query 3 |
+     * | receive rows 3 |                 |
+     * ```
+     *
+     * This can reduce server round trips, however there is one limitation to this client's
+     * implementation of query pipelining. Currently, the client takes an isolation approach where
+     * sync messages are sent after each query (instructing an autocommit by the server unless
+     * already in an open transaction) by default. To override this behaviour, allowing all
+     * statements after the failed one to be skipped and all previous statement changes to be rolled
+     * back, change the [syncAll] parameter to false.
+     *
+     * If you are sure each one of your statements do not impact each other and can be handled in
+     * separate transactions, keep the [syncAll] as true and catch exception thrown during query
+     * execution. Alternatively, you can also manually begin a transaction using [begin] and handle
+     * the transaction state of your connection yourself. In that case, any sync message sent to the
+     * server does not cause implicit transactional behaviour.
+     *
+     * If you are unsure of how this works or what the implications of pipelining has on your
+     * database, you should opt to either send multiple statements in separate calls to
+     * [sendExtendedQuery] or package your queries into a stored procedure.
+     */
+    suspend fun executeQueryBatch(
+        syncAll: Boolean,
+        batch: List<Query>,
+    ): StatementResult {
+        val pipelineQueries = Array(batch.size) { i -> batch[i].sql to batch[i].parameters }
+        return pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
+    }
+
+    /**
+     * Execute the [batch] of prepared queries using the Postgresql query pipelining method. This
+     * allows for sending multiple prepared queries at once to the server, so you do not need to
+     * wait for previous queries to complete to request another result.
+     *
+     * ```
+     * Regular Pipelined
+     * | Client         | Server          |    | Client         | Server          |
+     * |----------------|-----------------|    |----------------|-----------------|
+     * | send query 1   |                 |    | send query 1   |                 |
+     * |                | process query 1 |    | send query 2   | process query 1 |
+     * | receive rows 1 |                 |    | send query 3   | process query 2 |
+     * | send query 2   |                 |    | receive rows 1 | process query 3 |
+     * |                | process query 2 |    | receive rows 2 |                 |
+     * | receive rows 2 |                 |    | receive rows 3 |                 |
+     * | send query 3   |                 |
+     * |                | process query 3 |
+     * | receive rows 3 |                 |
+     * ```
+     *
+     * This can reduce server round trips, however there is one limitation to this client's
+     * implementation of query pipelining. Currently, the client takes an isolation approach where
+     * sync messages are sent after each query (instructing an autocommit by the server unless
+     * already in an open transaction) by default. To override this behaviour, allowing all
+     * statements after the failed one to be skipped and all previous statement changes to be rolled
+     * back, change the [syncAll] parameter to false.
+     *
+     * If you are sure each one of your statements do not impact each other and can be handled in
+     * separate transactions, keep the [syncAll] as true and catch exception thrown during query
+     * execution. Alternatively, you can also manually begin a transaction using [begin] and handle
+     * the transaction state of your connection yourself. In that case, any sync message sent to the
+     * server does not cause implicit transactional behaviour.
+     *
+     * If you are unsure of how this works or what the implications of pipelining has on your
+     * database, you should opt to either send multiple statements in separate calls to
+     * [sendExtendedQuery] or package your queries into a stored procedure.
+     */
+    suspend fun executeQueryBatch(
+        syncAll: Boolean,
+        vararg batch: Query,
+    ): StatementResult {
+        val pipelineQueries = Array(batch.size) { i -> batch[i].sql to batch[i].parameters }
+        return pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
+    }
+
+    /**
      * Log a [message] that is processed but ignored since it's not important during the current
      * operation
      */
@@ -583,16 +673,6 @@ class PgConnection internal constructor(
             dispose()
         }
     }
-
-    /**
-     * Allows for vararg specification of prepared statements using [pipelineQueries] where syncAll
-     * is the default true. See the other method doc for more information.
-     *
-     * @see pipelineQueries
-     */
-    internal suspend fun pipelineQueriesSyncAll(
-        vararg queries: Pair<String, List<QueryParameter>>,
-    ): Iterable<QueryResult> = pipelineQueries(queries = queries)
 
     /**
      * Execute the prepared [queries] provided using the Postgresql query pipelining method. This

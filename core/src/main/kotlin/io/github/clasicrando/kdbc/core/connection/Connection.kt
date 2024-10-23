@@ -56,17 +56,57 @@ interface Connection :
     suspend fun rollback()
 
     /**
+     * Execute a single [Query] against this connection and returns the zero or more result sets as
+     * a single [StatementResult].
      *
+     * This sends the query to the database for execution and waits for all results to be sent to
+     * the client before returning. Although this may require buffering more resources on the
+     * client, it allows the connection state to be more consistent and not require the use of
+     * database cursors to buffer results. The operation is also non-blocking while waiting for the
+     * server response and will only resume processing results once the server replies so waiting
+     * for all the data should not hold back your application given enough concurrency bandwidth.
      */
     suspend fun executeQuery(query: Query): StatementResult
 
     /**
+     * Execute a zero or more [Query]s against this connection and returns the zero or more result
+     * sets as a single [StatementResult].
      *
+     * The actual implementation of the batching will vary from driver to driver and will fall back
+     * to simple sequential query execution if the database does not support query batching
+     * natively. Also, by default query batches are executed in isolation so if the second query
+     * fails the first query's action will be commited (if it modified the database). You can get
+     * around this by manually starting a transaction before executing the batch or consulting the
+     * specific driver to see if it permits a custom method that batches queries and handles the
+     * entire operation in a single transaction.
+     *
+     * This sends the queries to the database for execution and waits for all results to be sent to
+     * the client before returning. Although this may require buffering more resources on the
+     * client, it allows the connection state to be more consistent and not require the use of
+     * database cursors to buffer results. The operation is also non-blocking while waiting for the
+     * server response and will only resume processing results once the server replies so waiting
+     * for all the data should not hold back your application given enough concurrency bandwidth.
      */
     suspend fun executeQueryBatch(batch: List<Query>): StatementResult
 
     /**
+     * Execute a zero or more [Query]s against this connection and returns the zero or more result
+     * sets as a single [StatementResult].
      *
+     * The actual implementation of the batching will vary from driver to driver and will fall back
+     * to simple sequential query execution if the database does not support query batching
+     * natively. Also, by default query batches are executed in isolation so if the second query
+     * fails the first query's action will be commited (if it modified the database). You can get
+     * around this by manually starting a transaction before executing the batch or consulting the
+     * specific driver to see if it permits a custom method that batches queries and handles the
+     * entire operation in a single transaction.
+     *
+     * This sends the queries to the database for execution and waits for all results to be sent to
+     * the client before returning. Although this may require buffering more resources on the
+     * client, it allows the connection state to be more consistent and not require the use of
+     * database cursors to buffer results. The operation is also non-blocking while waiting for the
+     * server response and will only resume processing results once the server replies so waiting
+     * for all the data should not hold back your application given enough concurrency bandwidth.
      */
     suspend fun executeQueryBatch(vararg batch: Query): StatementResult
 }

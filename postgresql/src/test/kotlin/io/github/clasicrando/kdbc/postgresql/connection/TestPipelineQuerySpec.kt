@@ -21,7 +21,8 @@ class TestPipelineQuerySpec {
             PgConnectionHelper.defaultConnection().use { connection ->
                 val results =
                     connection
-                        .pipelineQueriesSyncAll(
+                        .pipelineQueries(
+                            syncAll = true,
                             "SELECT $1 i" to listOf(QueryParameter(1, typeOf<Int>())),
                             "SELECT $1 t" to
                                 listOf(QueryParameter("Pipeline Query", typeOf<String>())),
@@ -46,7 +47,8 @@ class TestPipelineQuerySpec {
             val result =
                 PgConnectionHelper.defaultConnection().useCatching {
                     it
-                        .pipelineQueriesSyncAll(
+                        .pipelineQueries(
+                            syncAll = true,
                             "INSERT INTO public.rollback_check VALUES($1,$2)" to
                                 listOf(
                                     QueryParameter(1, typeOf<Int>()),
@@ -82,7 +84,8 @@ class TestPipelineQuerySpec {
             val result =
                 PgConnectionHelper.defaultConnection().useCatching {
                     it
-                        .pipelineQueriesSyncAll(
+                        .pipelineQueries(
+                            syncAll = true,
                             "INSERT INTO public.rollback_check VALUES($1,$2)" to
                                 listOf(
                                     QueryParameter(1, typeOf<Int>()),

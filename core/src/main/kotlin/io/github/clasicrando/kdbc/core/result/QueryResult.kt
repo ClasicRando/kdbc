@@ -66,13 +66,15 @@ open class QueryResult(
      * [RowParseError] are wrapped into a [RowParseError]
      */
     fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): List<T> =
-        rows.map { row ->
-            try {
-                rowParser.fromRow(row)
-            } catch (ex: RowParseError) {
-                throw ex
-            } catch (ex: Exception) {
-                throw RowParseError(rowParser, ex)
+        buildList(rows.rowCount) {
+            for (row in rows) {
+                try {
+                    add(rowParser.fromRow(row))
+                } catch (ex: RowParseError) {
+                    throw ex
+                } catch (ex: Exception) {
+                    throw RowParseError(rowParser, ex)
+                }
             }
         }
 
