@@ -19,7 +19,6 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Buffer
 import kotlinx.io.readTo
@@ -30,7 +29,8 @@ private val logger = KotlinLogging.logger {}
 class KtorStream(
     private val address: SocketAddress,
     private val selectorManager: SelectorManager,
-) : Stream, DefaultUniqueResourceId() {
+) : DefaultUniqueResourceId(),
+    Stream {
     private lateinit var connection: Connection
     private lateinit var socket: Socket
     private lateinit var writeChannel: ByteWriteChannel
@@ -39,8 +39,7 @@ class KtorStream(
     private val tempBuffer = ByteArray(DEFAULT_BUFFER_SIZE)
 
     override val isConnected: Boolean get() =
-        this::connection.isInitialized &&
-            socket.isActive && !socket.isClosed
+        this::connection.isInitialized && !socket.isClosed
 
     override suspend fun connect(timeout: Duration) {
         require(timeout.isPositive()) { "Timeout must be positive" }
@@ -67,7 +66,8 @@ class KtorStream(
     override suspend fun upgradeTls(timeout: Duration) {
         connection =
             withTimeout(timeout) {
-                connection.tls(coroutineContext = selectorManager.coroutineContext)
+                connection
+                    .tls(coroutineContext = selectorManager.coroutineContext)
                     .connection()
             }
         socket = connection.socket

@@ -10,13 +10,13 @@ import io.github.clasicrando.kdbc.core.column.ColumnMetadata
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-interface ResultSet :
-    Iterable<DataRow>,
-    AutoCloseable {
+interface ResultSet : Iterable<DataRow> {
     val rowCount: Int
 
     /** Number of columns found within each [DataRow] entry */
     val columnCount: Int
+
+    operator fun get(index: Int): DataRow
 
     /** Returns the [ColumnMetadata] for the specified column [index] */
     fun columnType(index: Int): ColumnMetadata
@@ -33,11 +33,13 @@ val ResultSet.Companion.EMPTY_RESULT get() =
 
         override val columnCount: Int = 0
 
+        override fun get(index: Int): DataRow {
+            error("Empty ResultSet never contains rows")
+        }
+
         override fun columnType(index: Int): ColumnMetadata {
             error("Empty ResultSet should never have the columnType checked")
         }
 
         override fun iterator(): Iterator<DataRow> = rows.iterator()
-
-        override fun close() {}
     }

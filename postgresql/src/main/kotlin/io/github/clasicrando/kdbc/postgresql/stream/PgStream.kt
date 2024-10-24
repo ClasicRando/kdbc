@@ -270,18 +270,7 @@ internal class PgStream(
     }
 
     /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
-    suspend inline fun writeManyToStream(
-        crossinline messages: suspend SequenceScope<PgMessage>.() -> Unit,
-    ) {
-        writeToBuffer { buffer ->
-            for (message in sequence { messages() }) {
-                PgMessageEncoders.encode(message, buffer)
-            }
-        }
-    }
-
-    /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
-    suspend inline fun writeManyToStream(vararg messages: PgMessage) {
+    suspend fun writeManyToStream(vararg messages: PgMessage) {
         writeToBuffer { buffer ->
             for (message in messages) {
                 PgMessageEncoders.encode(message, buffer)

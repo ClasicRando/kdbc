@@ -12,7 +12,7 @@ import kotlin.reflect.typeOf
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-interface DataRow : AutoCloseable {
+interface DataRow {
     /**
      * Return the index of the specified [column] name.
      *
@@ -72,9 +72,8 @@ inline fun <reified T : Any> DataRow.getAs(index: Int): T? {
  * @throws IllegalArgumentException if the [index] is out of range of the row
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
-inline fun <reified T : Any> DataRow.getAsNonNull(index: Int): T {
-    return getAs(index) ?: throw NullPointerException("Expected non-null field value but got null")
-}
+inline fun <reified T : Any> DataRow.getAsNonNull(index: Int): T =
+    getAs(index) ?: throw NullPointerException("Expected non-null field value but got null")
 
 /**
  * Get the value stored within the field at the [column] specified and return the value if it
@@ -94,6 +93,5 @@ inline fun <reified T : Any> DataRow.getAs(column: String): T? = getAs(indexFrom
  * @throws IllegalArgumentException if the [column] is out of range of the row
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
-inline fun <reified T : Any> DataRow.getAsNonNull(column: String): T {
-    return getAsNonNull(indexFromColumn(column))
-}
+inline fun <reified T : Any> DataRow.getAsNonNull(column: String): T =
+    getAsNonNull(indexFromColumn(column))

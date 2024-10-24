@@ -398,13 +398,8 @@ class PgConnection internal constructor(
 
         if (connectOptions.useExtendedProtocolForSimpleQueries && !query.contains('$')) {
             val queries = splitQuery(query)
-            return if (queries.size == 1) {
-                sendExtendedQuery(query, listOf())
-            } else {
-                pipelineQueries(
-                    syncAll = true,
-                    queries = Array(queries.size) { i -> queries[i] to listOf() },
-                )
+            if (queries.size == 1) {
+                return sendExtendedQuery(query, listOf())
             }
         }
 
@@ -454,22 +449,18 @@ class PgConnection internal constructor(
         parameterTypes: List<Int>,
         statement: PgPreparedStatement,
     ) {
-        stream.writeManyToStream {
-            val parseMessage =
-                PgMessage.Parse(
-                    preparedStatementName = statement.statementName,
-                    query = query,
-                    parameterTypes = parameterTypes,
-                )
-            yield(parseMessage)
-            val describeMessage =
-                PgMessage.Describe(
-                    target = MessageTarget.PreparedStatement,
-                    name = statement.statementName,
-                )
-            yield(describeMessage)
-            yield(PgMessage.Sync)
-        }
+        stream.writeManyToStream(
+            PgMessage.Parse(
+                preparedStatementName = statement.statementName,
+                query = query,
+                parameterTypes = parameterTypes,
+            ),
+            PgMessage.Describe(
+                target = MessageTarget.PreparedStatement,
+                name = statement.statementName,
+            ),
+            PgMessage.Sync,
+        )
 
         val prepareRequestCollector = StatementPrepareRequestCollector(this, statement)
         stream
@@ -568,25 +559,27 @@ class PgConnection internal constructor(
         parameters: PgEncodeBuffer,
         sendSync: Boolean = true,
     ) {
-        stream.writeManyToStream {
-            val bindMessage =
-                PgMessage.Bind(
-                    portal = null,
-                    statementName = statement.statementName,
-                    encodeBuffer = parameters,
-                )
-            yield(bindMessage)
-            val executeMessage =
-                PgMessage.Execute(
-                    portalName = null,
-                    maxRowCount = 0,
-                )
-            yield(executeMessage)
-            val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
-            yield(closePortalMessage)
-            if (sendSync) {
-                yield(PgMessage.Sync)
-            }
+        val bindMessage =
+            PgMessage.Bind(
+                portal = null,
+                statementName = statement.statementName,
+                encodeBuffer = parameters,
+            )
+        val executeMessage =
+            PgMessage.Execute(
+                portalName = null,
+                maxRowCount = 0,
+            )
+        val closePortalMessage = PgMessage.Close(MessageTarget.Portal, null)
+        if (sendSync) {
+            stream.writeManyToStream(
+                bindMessage,
+                executeMessage,
+                closePortalMessage,
+                PgMessage.Sync,
+            )
+        } else {
+            stream.writeManyToStream(bindMessage, executeMessage, closePortalMessage)
         }
         statement.lastExecuted = Clock.System.now()
         log(connectOptions.logSettings.statementLevel) {
@@ -613,13 +606,7 @@ class PgConnection internal constructor(
         checkConnected()
 
         return mutex.withLock {
-            val statement =
-                try {
-                    prepareStatement(query, parameters)
-                } catch (ex: Exception) {
-                    throw ex
-                }
-
+            val statement = prepareStatement(query, parameters)
             val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
             for ((parameter, type) in parameters) {
                 encodeBuffer.encodeValue(parameter, type)

@@ -72,9 +72,4 @@ internal class PgDataRow(
         }
         return decode(index, typeDescription)
     }
-
-    override fun close() {
-        rowBuffer?.close()
-        pgValues = emptyArray()
-    }
 }

@@ -32,13 +32,13 @@ suspend fun Query.execute(connection: Connection): StatementResult = connection.
  * not an instance of the type [T], this checked by [kotlin.reflect.KClass.isInstance] on the
  * first value
  */
-suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): T? =
-    connection.executeQuery(this).use { statementResult ->
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
-        }
-        statementResult[0].use { queryResult -> queryResult.extractScalar() }
+suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): T? {
+    val statementResult = connection.executeQuery(this)
+    if (statementResult.size == 0) {
+        throw NoResultFound(sql)
     }
+    return statementResult[0].extractScalar()
+}
 
 /**
  * Execute the query and return the first row parsed as the type [T] by the supplied
@@ -56,13 +56,13 @@ suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): 
 suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(
     connection: Connection,
     rowParser: R,
-): T? =
-    connection.executeQuery(this).use { statementResult ->
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
-        }
-        statementResult[0].use { queryResult -> queryResult.extractFirst(rowParser) }
+): T? {
+    val statementResult = connection.executeQuery(this)
+    if (statementResult.size == 0) {
+        throw NoResultFound(sql)
     }
+    return statementResult[0].extractFirst(rowParser)
+}
 
 /**
  * Execute the query and return the first row parsed as the type [T] by the supplied
@@ -83,19 +83,17 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(
 suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(
     connection: Connection,
     rowParser: R,
-): T =
-    connection.executeQuery(this).use { statementResult ->
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
-        }
-        statementResult[0]
-            .use { queryResult ->
-                if (queryResult.rowsAffected > 1) {
-                    throw TooManyRows(sql)
-                }
-                queryResult.extractFirst(rowParser) ?: throw EmptyQueryResult(sql)
-            }
+): T {
+    val statementResult = connection.executeQuery(this)
+    if (statementResult.size == 0) {
+        throw NoResultFound(sql)
     }
+    val queryResult = statementResult[0]
+    if (queryResult.rowsAffected > 1) {
+        throw TooManyRows(sql)
+    }
+    return queryResult.extractFirst(rowParser) ?: throw EmptyQueryResult(sql)
+}
 
 /**
  * Execute the query and return the all rows in a [List] where each row is parsed as the type
@@ -113,13 +111,13 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(
 suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(
     connection: Connection,
     rowParser: R,
-): List<T> =
-    connection.executeQuery(this).use { statementResult ->
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
-        }
-        statementResult[0].use { queryResult -> queryResult.extractAll(rowParser) }
+): List<T> {
+    val statementResult = connection.executeQuery(this)
+    if (statementResult.size == 0) {
+        throw NoResultFound(sql)
     }
+    return statementResult[0].extractAll(rowParser)
+}
 
 /**
  * Execute the query and return the all rows as a [Flow] where each row is parsed as the type
@@ -140,22 +138,18 @@ fun <T : Any, R : RowParser<T>> Query.fetch(
     rowParser: R,
 ): Flow<T> =
     flow {
-        connection.executeQuery(this@fetch).use { statementResult ->
-            if (statementResult.size == 0) {
-                throw NoResultFound(sql)
+        val statementResult = connection.executeQuery(this@fetch)
+        if (statementResult.size == 0) {
+            throw NoResultFound(sql)
+        }
+        val queryResult = statementResult[0]
+        for (row in queryResult.rows) {
+            try {
+                emit(rowParser.fromRow(row))
+            } catch (ex: RowParseError) {
+                throw ex
+            } catch (ex: Exception) {
+                throw RowParseError(rowParser, ex)
             }
-            statementResult
-                .first()
-                .use { queryResult ->
-                    for (row in queryResult.rows) {
-                        try {
-                            emit(rowParser.fromRow(row))
-                        } catch (ex: RowParseError) {
-                            throw ex
-                        } catch (ex: Exception) {
-                            throw RowParseError(rowParser, ex)
-                        }
-                    }
-                }
         }
     }

@@ -85,11 +85,16 @@ fun ByteArray.splitBy(separator: Byte): Sequence<Sequence<Byte>> =
  * Call [reduceOrNull] on a [List] of [Throwable] items, aggregating to a single [Throwable] where
  * every [Throwable] after the first is added the first as a suppressed exception.
  */
-fun List<Throwable>.reduceToSingleOrNull(): Throwable? =
-    this.reduceOrNull { acc, throwable ->
-        acc.addSuppressed(throwable)
-        acc
+fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
+    if (this.isEmpty()) {
+        return null
     }
+    val accumulator = this[0]
+    for (i in 1..<this.size) {
+        accumulator.addSuppressed(this[i])
+    }
+    return accumulator
+}
 
 /** Wrap the [String] as if the value was a SQL identifier */
 fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""
