@@ -16,8 +16,7 @@ import kotlin.reflect.typeOf
 open class QueryResult(
     val rowsAffected: Long,
     val message: String,
-    @PublishedApi
-    internal val rows: ResultSet = ResultSet.EMPTY_RESULT,
+    val rows: ResultSet = ResultSet.EMPTY_RESULT,
 ) {
     /**
      * Execute the query and return the first row's first column as the type [T]. Returns null if

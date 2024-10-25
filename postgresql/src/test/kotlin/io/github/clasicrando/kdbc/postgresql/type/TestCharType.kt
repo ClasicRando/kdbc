@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.type
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
@@ -82,18 +83,17 @@ class TestCharType {
         fun setup(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { connection ->
-                    connection
-                        .sendSimpleQuery(
-                            """
-                            DROP TABLE IF EXISTS public.char_test;
-                            CREATE TABLE public.char_test(char_field "char" not null);
-                            INSERT INTO public.char_test(char_field)
-                            VALUES${
-                                bytes.joinToString(
-                                    separator = ",",
-                                ) { "(CAST($it as \"char\"))" }};
-                            """.trimIndent(),
-                        ).close()
+                    query(
+                        """
+                        DROP TABLE IF EXISTS public.char_test;
+                        CREATE TABLE public.char_test(char_field "char" not null);
+                        INSERT INTO public.char_test(char_field)
+                        VALUES${
+                            bytes.joinToString(
+                                separator = ",",
+                            ) { "(CAST($it as \"char\"))" }};
+                        """.trimIndent(),
+                    ).execute(connection)
                 }
             }
     }

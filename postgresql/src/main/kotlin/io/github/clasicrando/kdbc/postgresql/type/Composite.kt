@@ -8,7 +8,7 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
-import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
+import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.memberProperties
@@ -62,18 +62,12 @@ internal class BaseCompositeTypeDescription<T : Any>(
             "Values found for composite class instance does not match the expected number. " +
                 "Expected ${attributeMapping.size}, found ${values.size}"
         }
-        val encodeBuffer =
-            PgEncodeBuffer(
-                parameterTypeOids = attributeMapping.map { it.pgType.oid },
-                typeCache = typeCache,
-            )
         buffer.writeInt(attributeMapping.size)
         for (i in attributeMapping.indices) {
             val column = attributeMapping[i]
             buffer.writeInt(column.pgType.oid)
             val (attribute, kType) = values[i]
-            encodeBuffer.encodeValue(attribute, kType)
-            buffer.copyFrom(encodeBuffer.innerBuffer)
+            buffer.encodeValue(attribute, kType, typeCache)
         }
     }
 
@@ -89,8 +83,8 @@ internal class BaseCompositeTypeDescription<T : Any>(
     private fun decodeAsDataRow(
         attributes: PgDataRow,
         typeData: PgColumnDescription,
-    ): T {
-        return try {
+    ): T =
+        try {
             compositeTypeDefinition.fromRow(attributes)
         } catch (ex: Exception) {
             columnDecodeError(
@@ -100,7 +94,6 @@ internal class BaseCompositeTypeDescription<T : Any>(
                 cause = ex,
             )
         }
-    }
 
     /**
      * Decode the binary [value] as an [Array] of [PgValue]s that are used in a call to the
@@ -162,8 +155,7 @@ internal class BaseCompositeTypeDescription<T : Any>(
                 .map { (i, value) ->
                     val text = value ?: return@map null
                     PgValue.Text(text, attributeMapping[i])
-                }
-                .toList()
+                }.toList()
                 .toTypedArray<PgValue?>()
         val dataRow =
             PgDataRow(
@@ -209,9 +201,10 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
                 name to param.type
             }
 
-    override fun extractValues(value: T): List<Pair<Any?, KType>> {
-        return properties.map { it.call(value) to it.returnType }
-    }
+    override fun extractValues(value: T): List<Pair<Any?, KType>> =
+        properties.map {
+            it.call(value) to it.returnType
+        }
 
     override fun fromRow(row: DataRow): T {
         val args =

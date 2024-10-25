@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.postgresql.statement
+package io.github.clasicrando.kdbc.postgresql.copy
 
 import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
@@ -8,13 +8,10 @@ import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
-class PgEncodeBuffer internal constructor(
-    private val parameterTypeOids: List<Int>,
+class PgCopyEncodeBuffer internal constructor(
     private val typeCache: PgTypeCache,
 ) : AutoCloseable {
     internal val innerBuffer: ByteWriteBuffer = ByteListWriteBuffer()
-    var paramCount = 0
-        private set
     private val innerTypes = mutableListOf<Int>()
     val types: List<Int> get() = innerTypes
 
@@ -35,12 +32,10 @@ class PgEncodeBuffer internal constructor(
         kType: KType,
     ) {
         if (value == null) {
-            paramCount++
             innerBuffer.writeInt(-1)
             return
         }
         encodeNonNullValue(value, kType)
-        paramCount++
     }
 
     inline fun <reified T : Any> encodeValue(value: T?) {

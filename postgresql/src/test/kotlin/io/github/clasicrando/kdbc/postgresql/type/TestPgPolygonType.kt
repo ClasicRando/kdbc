@@ -4,7 +4,6 @@ import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
-import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import kotlinx.coroutines.runBlocking
@@ -73,15 +72,10 @@ class TestPgPolygonType {
         fun checkPostGis(): Unit =
             runBlocking {
                 PgConnectionHelper.defaultConnection().use { conn ->
-                    conn.sendSimpleQuery(POST_GIS_QUERY).use {
-                        check(
-                            it
-                                .first()
-                                .rows
-                                .first()
-                                .getAsNonNull<Boolean>(0),
-                        )
-                    }
+                    val hasPostGis =
+                        query(POST_GIS_QUERY)
+                            .fetchScalar<Boolean>(conn)
+                    check(hasPostGis ?: false)
                 }
             }
     }

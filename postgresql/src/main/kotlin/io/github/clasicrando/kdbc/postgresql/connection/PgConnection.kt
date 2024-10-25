@@ -25,6 +25,7 @@ import io.github.clasicrando.kdbc.postgresql.copy.CopyOutCollector
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata
 import io.github.clasicrando.kdbc.postgresql.copy.PgBinaryCopyRow
+import io.github.clasicrando.kdbc.postgresql.copy.PgCopyEncodeBuffer
 import io.github.clasicrando.kdbc.postgresql.copy.PgCsvCopyRow
 import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyHeader
 import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyTrailer
@@ -35,7 +36,6 @@ import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import io.github.clasicrando.kdbc.postgresql.result.CopyInResultCollector
 import io.github.clasicrando.kdbc.postgresql.result.QueryResultCollector
 import io.github.clasicrando.kdbc.postgresql.result.StatementPrepareRequestCollector
-import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.github.clasicrando.kdbc.postgresql.type.CompositeTypeDefinition
@@ -556,14 +556,15 @@ class PgConnection internal constructor(
      */
     private suspend fun executePreparedStatement(
         statement: PgPreparedStatement,
-        parameters: PgEncodeBuffer,
+        parameters: List<QueryParameter>,
         sendSync: Boolean = true,
     ) {
         val bindMessage =
             PgMessage.Bind(
                 portal = null,
                 statementName = statement.statementName,
-                encodeBuffer = parameters,
+                parameters = parameters,
+                typeCache = typeCache,
             )
         val executeMessage =
             PgMessage.Execute(
@@ -607,11 +608,7 @@ class PgConnection internal constructor(
 
         return mutex.withLock {
             val statement = prepareStatement(query, parameters)
-            val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
-            for ((parameter, type) in parameters) {
-                encodeBuffer.encodeValue(parameter, type)
-            }
-            executePreparedStatement(statement, encodeBuffer)
+            executePreparedStatement(statement, parameters)
             collectResult(statement = statement)
         }
     }
@@ -708,15 +705,11 @@ class PgConnection internal constructor(
                     val (queryText, queryParams) = queries[i]
                     prepareStatement(query = queryText, parameters = queryParams)
                 }
-            for ((i, statement) in statements.withIndex()) {
-                val encodeBuffer = PgEncodeBuffer(statement.parameterTypeOids, typeCache)
-                for ((parameter, type) in queries[i].second) {
-                    encodeBuffer.encodeValue(parameter, type)
-                }
-
+            for (i in statements.indices) {
+                val statement = statements[i]
                 executePreparedStatement(
                     statement = statement,
-                    parameters = encodeBuffer,
+                    parameters = queries[i].second,
                     sendSync = syncAll || i == queries.size - 1,
                 )
             }
@@ -890,7 +883,7 @@ class PgConnection internal constructor(
     /**
      * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
      * each [PgBinaryCopyRow] supplied to the COPY sink by calling [PgBinaryCopyRow.encodeValues]
-     * with a [PgEncodeBuffer] to encode the table rows as binary values.
+     * with a [PgCopyEncodeBuffer] to encode the table rows as binary values.
      *
      * If the server sends an error message during or at completion of streaming the copy data, the
      * message will be captured and thrown after completing the COPY process and the connection
@@ -903,14 +896,7 @@ class PgConnection internal constructor(
         copyInStatement: CopyStatement.TableFromBinary,
         data: Flow<PgBinaryCopyRow>,
     ): QueryResult {
-        val schemaName = copyInStatement.schemaName.trim()
-        val metadata =
-            query(CopyTableMetadata.QUERY)
-                .bind(copyInStatement.tableName)
-                .bind(schemaName)
-                .fetchAll(this, CopyTableMetadata.Companion)
-        val fields = metadata.map { it.type.oid }
-        val buffer = PgEncodeBuffer(parameterTypeOids = fields, typeCache = typeCache)
+        val buffer = PgCopyEncodeBuffer(typeCache = typeCache)
         return copyIn(
             copyInStatement = copyInStatement,
             data =

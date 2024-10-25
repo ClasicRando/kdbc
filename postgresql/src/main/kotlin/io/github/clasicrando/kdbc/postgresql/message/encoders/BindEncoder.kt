@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
 
 /**
  * [MessageEncoder] for [PgMessage.Bind]. This message is sent to initiate the backend to bind
@@ -34,8 +35,10 @@ internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
             writeCString(value.statementName)
             writeShort(1)
             writeShort(1)
-            writeShort(value.encodeBuffer.paramCount.toShort())
-            copyFrom(value.encodeBuffer.innerBuffer)
+            writeShort(value.parameters.size.toShort())
+            for ((parameter, type) in value.parameters) {
+                this.encodeValue(parameter, type, value.typeCache)
+            }
             writeShort(1)
             writeShort(1)
         }

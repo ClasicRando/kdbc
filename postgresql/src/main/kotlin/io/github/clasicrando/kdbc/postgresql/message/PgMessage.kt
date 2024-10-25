@@ -2,10 +2,11 @@ package io.github.clasicrando.kdbc.postgresql.message
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.SizedMessage
+import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
 import io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse
-import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
+import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 
 /**
  * Specified frontend and backend messages that can be sent to and received from the database
@@ -17,7 +18,9 @@ import io.github.clasicrando.kdbc.postgresql.statement.PgEncodeBuffer
  * [message flow docs](https://www.postgresql.org/docs/current/protocol-flow.html)
  */
 @Suppress("unused")
-internal sealed class PgMessage(val code: Byte) {
+internal sealed class PgMessage(
+    val code: Byte,
+) {
     /**
      * Backend message sent with the [AUTHENTICATION_CODE] header [Byte]. Contains the
      * [authentication] data that needs to be handled.
@@ -37,13 +40,14 @@ internal sealed class PgMessage(val code: Byte) {
 
     /**
      * Frontend message sent with the [BIND_CODE] header [Byte]. Supplies the optional [portal]
-     * name (if null or empty, the unnamed portal is used), the [statementName] and a
-     * [PgEncodeBuffer] containing the arguments to be bound to the portal.
+     * name (if null or empty, the unnamed portal is used), the [statementName], the [parameters] to
+     * be bound to the portal and the type cache to encode the parameters.
      */
     data class Bind(
         val portal: String?,
         val statementName: String,
-        val encodeBuffer: PgEncodeBuffer,
+        val parameters: List<QueryParameter>,
+        val typeCache: PgTypeCache,
     ) : PgMessage(BIND_CODE) // F
 
     /**
@@ -58,7 +62,10 @@ internal sealed class PgMessage(val code: Byte) {
      *
      * @see BackendKeyData
      */
-    data class CancelRequest(val processId: Int, val secretKey: Int) : PgMessage(ZERO_CODE) // F
+    data class CancelRequest(
+        val processId: Int,
+        val secretKey: Int,
+    ) : PgMessage(ZERO_CODE) // F
 
     /**
      * Frontend message sent with the [CLOSE_CODE] header [Byte]. Contains the [target] type and
@@ -98,7 +105,10 @@ internal sealed class PgMessage(val code: Byte) {
      * backend. This is to avoid complex chunking logic of the data users might provide to the copy
      * method and copying data only once (into the buffer).
      */
-    class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage { // F & B
+    class CopyData(
+        val data: ByteArray,
+    ) : PgMessage(COPY_DATA_CODE),
+        SizedMessage { // F & B
         override val size: Int = 5 + data.size
     }
 
@@ -114,7 +124,9 @@ internal sealed class PgMessage(val code: Byte) {
      * Frontend message sent with the [COPY_FAIL_CODE] header [Byte]. Contains the [message]
      * explaining why the `COPY FROM` operation was aborted.
      */
-    data class CopyFail(val message: String) : PgMessage(COPY_FAIL_CODE) // F
+    data class CopyFail(
+        val message: String,
+    ) : PgMessage(COPY_FAIL_CODE) // F
 
     /**
      * Backend message sent with the [COPY_IN_RESPONSE_CODE] header [Byte]. Contains the details
@@ -153,13 +165,18 @@ internal sealed class PgMessage(val code: Byte) {
      * Backend message sent with the [DATA_ROW_CODE] header [Byte]. Contains the row data of a
      * single query result in [rowBuffer].
      */
-    data class DataRow(val rowBuffer: ByteReadBuffer) : PgMessage(DATA_ROW_CODE) // B
+    data class DataRow(
+        val rowBuffer: ByteReadBuffer,
+    ) : PgMessage(DATA_ROW_CODE) // B
 
     /**
      * Frontend message sent with the [DESCRIBE_CODE] header [Byte]. Contains the [target] of the
      * describe command and the name of the target to be described.
      */
-    data class Describe(val target: MessageTarget, val name: String) : PgMessage(DESCRIBE_CODE) // F
+    data class Describe(
+        val target: MessageTarget,
+        val name: String,
+    ) : PgMessage(DESCRIBE_CODE) // F
 
     /**
      * Backend message sent with the [EMPTY_QUERY_RESPONSE_CODE] header [Byte]. Contains no data,
@@ -174,15 +191,19 @@ internal sealed class PgMessage(val code: Byte) {
      *
      * @see [InformationResponse]
      */
-    data class ErrorResponse(val informationResponse: InformationResponse) :
-        PgMessage(ERROR_RESPONSE_CODE) // B
+    data class ErrorResponse(
+        val informationResponse: InformationResponse,
+    ) : PgMessage(ERROR_RESPONSE_CODE) // B
 
     /**
      * Frontend message sent with the [EXECUTE_CODE] header [Byte]. Contains the [portalName] to
      * execute (if null or empty, the unnamed portal is executed) and the [maxRowCount] of the
      * query result.
      */
-    data class Execute(val portalName: String?, val maxRowCount: Int) : PgMessage(EXECUTE_CODE) // F
+    data class Execute(
+        val portalName: String?,
+        val maxRowCount: Int,
+    ) : PgMessage(EXECUTE_CODE) // F
 
     /**
      * Frontend message sent with the [FLUSH_CODE] header [Byte]. Contains no data, only requesting
@@ -211,7 +232,9 @@ internal sealed class PgMessage(val code: Byte) {
      *
      * [docs](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-FUNCTION-CALL)
      */
-    class FunctionCallResponse(val result: ByteArray?) : PgMessage(FUNCTION_CALL_RESPONSE_CODE) // B
+    class FunctionCallResponse(
+        val result: ByteArray?,
+    ) : PgMessage(FUNCTION_CALL_RESPONSE_CODE) // B
 //    data object GssEncRequest : PgMessage(ZERO_CODE) // F
 //    class GssResponse(val data: ByteArray) : PgMessage(GSS_RESPONSE_CODE) // F
 
@@ -289,7 +312,9 @@ internal sealed class PgMessage(val code: Byte) {
      * Frontend message sent with the [PASSWORD_MESSAGE_CODE] header [Byte]. Contains the
      * [password] as a [ByteArray] (encrypted if required by the server).
      */
-    class PasswordMessage(val password: ByteArray) : PgMessage(PASSWORD_MESSAGE_CODE) // F
+    class PasswordMessage(
+        val password: ByteArray,
+    ) : PgMessage(PASSWORD_MESSAGE_CODE) // F
 
     /**
      * Backend message sent with the [PORTAL_SUSPENDED_CODE] header [Byte]. Contains no data, only
@@ -303,7 +328,9 @@ internal sealed class PgMessage(val code: Byte) {
      * Frontend message sent with the [QUERY_CODE] header [Byte]. Contains the [query] as a
      * [String] to be executed by the server.
      */
-    data class Query(val query: String) : PgMessage(QUERY_CODE) // F
+    data class Query(
+        val query: String,
+    ) : PgMessage(QUERY_CODE) // F
 
     /**
      * Backend message sent with the [READY_FOR_QUERY_CODE] header [Byte]. Contains the
@@ -335,7 +362,9 @@ internal sealed class PgMessage(val code: Byte) {
      * Frontend message sent with the [PASSWORD_MESSAGE_CODE] header [Byte]. Contains the
      * [saslData] required to continue the authentication flow.
      */
-    data class SaslResponse(val saslData: String) : PgMessage(PASSWORD_MESSAGE_CODE) // F
+    data class SaslResponse(
+        val saslData: String,
+    ) : PgMessage(PASSWORD_MESSAGE_CODE) // F
 
     /**
      * Frontend message sent with the no header [Byte]. Contains no data, only signifying that the
@@ -348,7 +377,9 @@ internal sealed class PgMessage(val code: Byte) {
      * Frontend message sent with the no header [Byte]. Contains the [params] the client wants to
      * specify as part of the connection state.
      */
-    data class StartupMessage(val params: List<Pair<String, String>>) : PgMessage(ZERO_CODE) // F
+    data class StartupMessage(
+        val params: List<Pair<String, String>>,
+    ) : PgMessage(ZERO_CODE) // F
 
     /**
      * Frontend message sent with the [SYNC_CODE] header [Byte]. Contains no data, only signifying

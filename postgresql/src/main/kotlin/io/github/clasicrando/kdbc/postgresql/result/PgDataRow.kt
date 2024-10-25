@@ -60,7 +60,12 @@ internal class PgDataRow(
         type: KType,
     ): Any? {
         val pgType = getPgType(index)
-        val nonNullType = type.withNullability(nullable = false)
+        val nonNullType =
+            if (type.isMarkedNullable) {
+                type.withNullability(nullable = false)
+            } else {
+                type
+            }
         val typeDescription =
             typeCache.getTypeDescription<Any>(nonNullType)
                 ?: throw KdbcException("Could not find type description for $nonNullType")
