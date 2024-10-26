@@ -6,7 +6,7 @@ enum class SslMode {
     Prefer,
     Require,
     VerifyCa,
-    VerifyFull,;
+    VerifyFull, ;
 
     fun acceptInvalidCerts(): Boolean = this != VerifyCa && this != VerifyFull
 
@@ -15,8 +15,8 @@ enum class SslMode {
     companion object {
         val DEFAULT = Prefer
 
-        fun fromString(str: String): SslMode {
-            return when (str.lowercase()) {
+        fun fromString(str: String): SslMode =
+            when (str.lowercase()) {
                 "disable" -> Disable
                 "allow" -> Allow
                 "prefer" -> Prefer
@@ -25,6 +25,5 @@ enum class SslMode {
                 "verify-full" -> VerifyFull
                 else -> error("Unknown value $str for 'ssl_mode'")
             }
-        }
     }
 }

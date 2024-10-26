@@ -18,12 +18,14 @@ import kotlin.math.absoluteValue
  * [docs](https://www.postgresql.org/docs/16/datatype-money.html)
  */
 @Serializable(with = PgMoney.Companion::class)
-class PgMoney internal constructor(internal val integer: Long) {
+class PgMoney internal constructor(
+    internal val integer: Long,
+) {
     /**
      * Create a new [PgMoney] by passing the [double] to [BigDecimal.fromDouble] and constructing
      * the [Long] value needed from that [BigDecimal].
      */
-    constructor(double: Double): this(BigDecimal.fromDouble(double))
+    constructor(double: Double) : this(BigDecimal.fromDouble(double))
 
     /**
      * Create a new [PgMoney] by converting the [decimal] value to a 2 scale [BigDecimal],
@@ -32,16 +34,17 @@ class PgMoney internal constructor(internal val integer: Long) {
      *
      * @throws IllegalArgumentException if the [decimal] value has a [BigDecimal.scale] > 2
      */
-    constructor(decimal: BigDecimal): this(
+    constructor(decimal: BigDecimal) : this(
         when (decimal.traditionalScale) {
             0L -> (decimal.significand * 100).longValue()
             1L -> (decimal.significand * 10).longValue()
             2L -> decimal.significand.longValue()
-            else -> error(
-                "Money values cannot be constructed from decimal values with more than 2 values " +
-                "after the decimal place. Otherwise, precision would be lost"
-            )
-        }
+            else ->
+                error(
+                    "Money values cannot be constructed from decimal values with more than 2 " +
+                        "values after the decimal place. Otherwise, precision would be lost",
+                )
+        },
     )
 
     private val strRep: String by lazy {
@@ -76,13 +79,9 @@ class PgMoney internal constructor(internal val integer: Long) {
         }
     }
 
-    operator fun plus(other: PgMoney): PgMoney {
-        return PgMoney(this.integer + other.integer)
-    }
+    operator fun plus(other: PgMoney): PgMoney = PgMoney(this.integer + other.integer)
 
-    operator fun minus(other: PgMoney): PgMoney {
-        return PgMoney(this.integer - other.integer)
-    }
+    operator fun minus(other: PgMoney): PgMoney = PgMoney(this.integer - other.integer)
 
     override fun equals(other: Any?): Boolean {
         if (other !is PgMoney) {
@@ -91,23 +90,25 @@ class PgMoney internal constructor(internal val integer: Long) {
         return other.integer == this.integer
     }
 
-    override fun hashCode(): Int {
-        return integer.hashCode()
-    }
+    override fun hashCode(): Int = integer.hashCode()
 
     override fun toString(): String = strRep
 
     companion object : KSerializer<PgMoney> {
         private val MONEY_REGEX = Regex("^-?\\$?\\d+(.\\d{1,2})?$")
 
-        override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
-            "PgMoney",
-            PrimitiveKind.STRING,
-        )
+        override val descriptor: SerialDescriptor =
+            PrimitiveSerialDescriptor(
+                "PgMoney",
+                PrimitiveKind.STRING,
+            )
 
         override fun deserialize(decoder: Decoder): PgMoney = fromString(decoder.decodeString())
 
-        override fun serialize(encoder: Encoder, value: PgMoney) {
+        override fun serialize(
+            encoder: Encoder,
+            value: PgMoney,
+        ) {
             encoder.encodeString(value.strRep)
         }
 

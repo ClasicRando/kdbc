@@ -21,7 +21,7 @@ private val logger = KotlinLogging.logger {}
  */
 internal class CopyInResultCollector(
     private val resource: UniqueResourceId,
-    private val wasFailed: Boolean
+    private val wasFailed: Boolean,
 ) {
     /**
      * Query completion message that was found while collecting result messages. Null means the
@@ -29,6 +29,7 @@ internal class CopyInResultCollector(
      */
     var completeMessage: PgMessage.CommandComplete? = null
         private set
+
     /** [MutableList] of any error found while processing the backend messages */
     val errors = mutableListOf<Throwable>()
 
@@ -56,10 +57,11 @@ internal class CopyInResultCollector(
         return when (message) {
             is PgMessage.ErrorResponse -> {
                 if (wasFailed) {
-                    completeMessage = PgMessage.CommandComplete(
-                        rowCount = 0,
-                        message = "CopyFail Issued by client",
-                    )
+                    completeMessage =
+                        PgMessage.CommandComplete(
+                            rowCount = 0,
+                            message = "CopyFail Issued by client",
+                        )
                     resource.logWithResource(logger, Level.WARN) {
                         this.message = "CopyIn operation failed by client"
                     }

@@ -13,11 +13,20 @@ import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
     val columnMapping: List<C>,
 ) : ResultSet {
-    private var backingList: MutableList<R>? = ArrayList()
+    final override val rowCount: Int get() = backingList.size
+
+    private var backingList: MutableList<R> = ArrayList()
+
+    final override fun get(index: Int): R {
+        require(index in 0..<rowCount) {
+            "Specified index, $index is not in row. Row size = ${columnMapping.size}"
+        }
+        return backingList[index]
+    }
 
     /** Add a new [row] to the end of this [ResultSet] */
     fun addRow(row: R) {
-        backingList?.add(row)
+        backingList.add(row)
     }
 
     override val columnCount: Int get() = columnMapping.size
@@ -29,19 +38,5 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
         return columnMapping[index]
     }
 
-    override fun iterator(): Iterator<DataRow> = backingList?.iterator()
-        ?: error("Attempted to iterate on a closed/released ResultSet")
-
-    /**
-     * Remove all elements of the backing [MutableList] of this [ResultSet]. If the list is still
-     * populated, each row will be released as well.
-     */
-    override fun close() {
-        backingList?.let {
-            for (item in it) {
-                item.close()
-            }
-        }
-        backingList = null
-    }
+    override fun iterator(): Iterator<DataRow> = backingList.iterator()
 }

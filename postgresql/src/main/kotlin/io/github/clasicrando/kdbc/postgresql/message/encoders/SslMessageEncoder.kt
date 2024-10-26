@@ -14,7 +14,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SSLREQUEST)
  */
 internal object SslMessageEncoder : MessageEncoder<PgMessage.SslRequest> {
-    override fun encode(value: PgMessage.SslRequest, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMessage.SslRequest,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeLengthPrefixed(includeLength = true) {
             writeShort(1234)
             writeShort(5679)

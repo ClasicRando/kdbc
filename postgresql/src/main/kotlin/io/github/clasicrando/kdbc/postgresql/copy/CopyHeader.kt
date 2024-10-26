@@ -8,7 +8,7 @@ package io.github.clasicrando.kdbc.postgresql.copy
 enum class CopyHeader {
     True,
     False,
-    Match,;
+    Match, ;
 
     override fun toString(): String {
         return when (this) {

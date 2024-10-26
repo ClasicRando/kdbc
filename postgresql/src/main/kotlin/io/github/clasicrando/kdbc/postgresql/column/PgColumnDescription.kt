@@ -1,13 +1,14 @@
 package io.github.clasicrando.kdbc.postgresql.column
 
 import io.github.clasicrando.kdbc.core.column.ColumnMetadata
+import io.github.clasicrando.kdbc.postgresql.type.PgType
 
 /**
  * Postgresql specified implementation of [ColumnMetadata]. Provides the required fields using data
  * provided from row description messages sent from the postgres backend. Other fields as also
  * included that related to postgres specific properties.
  */
-internal data class PgColumnDescription(
+data class PgColumnDescription(
     override val fieldName: String,
     /** OID of the table this field. If the field is not part of a table, the value is 0. */
     val tableOid: Int,
@@ -31,8 +32,11 @@ internal data class PgColumnDescription(
     override val typeSize: Long = dataTypeSize.toLong()
 
     companion object {
-        fun dummyDescription(pgType: PgType, formatCode: Short): PgColumnDescription {
-            return PgColumnDescription(
+        fun dummyDescription(
+            pgType: PgType,
+            formatCode: Short,
+        ): PgColumnDescription =
+            PgColumnDescription(
                 fieldName = "",
                 tableOid = 0,
                 columnAttribute = 0,
@@ -41,6 +45,5 @@ internal data class PgColumnDescription(
                 typeModifier = 0,
                 formatCode = formatCode,
             )
-        }
     }
 }

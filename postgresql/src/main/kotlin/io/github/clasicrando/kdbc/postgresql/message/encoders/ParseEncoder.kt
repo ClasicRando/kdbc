@@ -19,7 +19,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PARSE)
  */
 internal object ParseEncoder : MessageEncoder<PgMessage.Parse> {
-    override fun encode(value: PgMessage.Parse, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMessage.Parse,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.preparedStatementName)

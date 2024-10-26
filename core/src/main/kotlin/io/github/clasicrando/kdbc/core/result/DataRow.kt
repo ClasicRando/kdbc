@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.core.result
 
 import io.github.clasicrando.kdbc.core.column.ColumnExtractError
+import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 /**
@@ -11,7 +12,7 @@ import kotlin.reflect.typeOf
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-interface DataRow : AutoCloseable {
+interface DataRow {
     /**
      * Return the index of the specified [column] name.
      *
@@ -27,7 +28,10 @@ interface DataRow : AutoCloseable {
      * @throws IllegalArgumentException if the [index] is out of range of the row or the field has
      * already been decoded
      */
-    operator fun get(index: Int): Any?
+    operator fun get(
+        index: Int,
+        type: KType,
+    ): Any?
 
     /**
      * Get the value stored within the field of [column] specified. This will always decode to
@@ -37,7 +41,10 @@ interface DataRow : AutoCloseable {
      * @throws IllegalArgumentException if the [column] is not in the row or the field has already
      * been decoded
      */
-    operator fun get(column: String): Any? = get(indexFromColumn(column))
+    operator fun get(
+        column: String,
+        type: KType,
+    ): Any? = get(indexFromColumn(column), type)
 }
 
 /**
@@ -50,7 +57,7 @@ interface DataRow : AutoCloseable {
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
 inline fun <reified T : Any> DataRow.getAs(index: Int): T? {
-    val value = get(index) ?: return null
+    val value = get(index, typeOf<T>()) ?: return null
     if (value is T) {
         return value
     }
@@ -65,9 +72,8 @@ inline fun <reified T : Any> DataRow.getAs(index: Int): T? {
  * @throws IllegalArgumentException if the [index] is out of range of the row
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
-inline fun <reified T : Any> DataRow.getAsNonNull(index: Int): T {
-    return getAs(index) ?: throw NullPointerException("Expected non-null field value but got null")
-}
+inline fun <reified T : Any> DataRow.getAsNonNull(index: Int): T =
+    getAs(index) ?: throw NullPointerException("Expected non-null field value but got null")
 
 /**
  * Get the value stored within the field at the [column] specified and return the value if it
@@ -87,6 +93,5 @@ inline fun <reified T : Any> DataRow.getAs(column: String): T? = getAs(indexFrom
  * @throws IllegalArgumentException if the [column] is out of range of the row
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
  */
-inline fun <reified T : Any> DataRow.getAsNonNull(column: String): T {
-    return getAsNonNull(indexFromColumn(column))
-}
+inline fun <reified T : Any> DataRow.getAsNonNull(column: String): T =
+    getAsNonNull(indexFromColumn(column))

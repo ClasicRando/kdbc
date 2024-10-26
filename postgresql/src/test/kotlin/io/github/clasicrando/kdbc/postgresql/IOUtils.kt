@@ -23,9 +23,7 @@ object IOUtils {
      *
      * @throws kotlinx.io.IOException
      */
-    fun pathExists(path: Path): Boolean {
-        return SystemFileSystem.exists(path = path)
-    }
+    fun pathExists(path: Path): Boolean = SystemFileSystem.exists(path = path)
 
     /**
      * Creates the file defined by the [path] if it doesn't already exist.
@@ -37,7 +35,9 @@ object IOUtils {
             return
         }
 
-        val parent = java.nio.file.Path.of(path.parent!!.toString())
+        val parent =
+            java.nio.file.Path
+                .of(path.parent!!.toString())
         try {
             Files.createDirectories(parent)
             Files.createFile(parent.resolve(path.name))
@@ -54,7 +54,10 @@ object IOUtils {
      * [mustExist] is true
      * @throws kotlinx.io.IOException
      */
-    fun delete(path: Path, mustExist: Boolean = true) {
+    fun delete(
+        path: Path,
+        mustExist: Boolean = true,
+    ) {
         SystemFileSystem.delete(path = path, mustExist = mustExist)
     }
 
@@ -62,7 +65,10 @@ object IOUtils {
      * Executes [delete], catching any [kotlinx.io.IOException] exception and logging as an error.
      * The underlining exception is effectively ignored.
      */
-    fun deleteCatching(path: Path, mustExist: Boolean = true) {
+    fun deleteCatching(
+        path: Path,
+        mustExist: Boolean = true,
+    ) {
         try {
             delete(path = path, mustExist = mustExist)
         } catch (ex: kotlinx.io.IOException) {
@@ -74,12 +80,11 @@ object IOUtils {
      * Open the [path] as a writable [RawSink]. If [append] is true, all contents written to the
      * [RawSink] are added to the end of the file.
      */
-    fun sink(path: Path, append: Boolean = false): RawSink {
-        return SystemFileSystem.sink(path = path, append = append)
-    }
+    fun sink(
+        path: Path,
+        append: Boolean = false,
+    ): RawSink = SystemFileSystem.sink(path = path, append = append)
 
     /** Open the [path] as a readable [RawSource] */
-    fun source(path: Path): RawSource {
-        return SystemFileSystem.source(path = path)
-    }
+    fun source(path: Path): RawSource = SystemFileSystem.source(path = path)
 }

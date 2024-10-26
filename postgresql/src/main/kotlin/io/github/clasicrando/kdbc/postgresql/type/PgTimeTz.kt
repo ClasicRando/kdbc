@@ -23,9 +23,11 @@ data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
         if (other !is PgTimeTz) {
             return false
         }
-        val otherNanoSeconds = other.time.toNanosecondOfDay() +
+        val otherNanoSeconds =
+            other.time.toNanosecondOfDay() +
                 other.offset.totalSeconds * NANOSECONDS_TO_SECONDS
-        val thisNanoSeconds = this.time.toNanosecondOfDay() +
+        val thisNanoSeconds =
+            this.time.toNanosecondOfDay() +
                 this.offset.totalSeconds * NANOSECONDS_TO_SECONDS
         return otherNanoSeconds == thisNanoSeconds
     }

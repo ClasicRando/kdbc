@@ -24,7 +24,10 @@ sealed interface ByteWriteBuffer : AutoCloseable {
      * @throws IllegalArgumentException if the [position] is not a position that has already been
      * written
      */
-    operator fun set(position: Int, byte: Byte)
+    operator fun set(
+        position: Int,
+        byte: Byte,
+    )
 
     /**
      * Write a single [byte] to the buffer
@@ -87,7 +90,11 @@ sealed interface ByteWriteBuffer : AutoCloseable {
      * @throws BufferOverflow if the buffer does not enough bytes available to complete this
      * operation
      */
-    fun writeBytes(byteArray: ByteArray, offset: Int, length: Int)
+    fun writeBytes(
+        byteArray: ByteArray,
+        offset: Int,
+        length: Int,
+    )
 
     /**
      * Write the entire contents of the supplied [byteArray] to the buffer
@@ -95,7 +102,7 @@ sealed interface ByteWriteBuffer : AutoCloseable {
      * @throws BufferOverflow if the buffer does not enough bytes available to complete this
      * operation
      */
-    fun writeBytes(byteArray: ByteArray)  {
+    fun writeBytes(byteArray: ByteArray) {
         writeBytes(byteArray = byteArray, offset = 0, length = byteArray.size)
     }
 
@@ -117,7 +124,10 @@ sealed interface ByteWriteBuffer : AutoCloseable {
      * operation
      * @throws java.nio.charset.MalformedInputException error encoding the [text] into bytes
      */
-    fun writeText(text: String, charset: Charset) {
+    fun writeText(
+        text: String,
+        charset: Charset,
+    ) {
         writeBytes(text.toByteArray(charset = charset))
     }
 
@@ -130,7 +140,10 @@ sealed interface ByteWriteBuffer : AutoCloseable {
      * operation
      * @throws java.nio.charset.MalformedInputException error encoding the [text] into bytes
      */
-    fun writeCString(text: String, charset: Charset = Charsets.UTF_8) {
+    fun writeCString(
+        text: String,
+        charset: Charset = Charsets.UTF_8,
+    ) {
         val bytes = text.toByteArray(charset = charset)
         writeBytes(bytes)
         writeByte(0)

@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.message.decoders
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
-import io.github.clasicrando.kdbc.postgresql.column.PgType
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import io.github.clasicrando.kdbc.postgresql.type.PgType
 
 /**
  * [MessageDecoder] for [PgMessage.RowDescription]. This message is sent when the client issues a
@@ -27,19 +27,20 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object RowDescriptionDecoder : MessageDecoder<PgMessage.RowDescription> {
     override fun decode(buffer: ByteReadBuffer): PgMessage.RowDescription {
-        val descriptions = buffer.use { buf ->
-            List(buf.readShort().toInt()) {
-                PgColumnDescription(
-                    fieldName = buf.readCString(),
-                    tableOid = buf.readInt(),
-                    columnAttribute = buf.readShort(),
-                    pgType = PgType.fromOid(buf.readInt()),
-                    dataTypeSize = buf.readShort(),
-                    typeModifier = buf.readInt(),
-                    formatCode = buf.readShort(),
-                )
+        val descriptions =
+            buffer.use { buf ->
+                List(buf.readShort().toInt()) {
+                    PgColumnDescription(
+                        fieldName = buf.readCString(),
+                        tableOid = buf.readInt(),
+                        columnAttribute = buf.readShort(),
+                        pgType = PgType.fromOid(buf.readInt()),
+                        dataTypeSize = buf.readShort(),
+                        typeModifier = buf.readInt(),
+                        formatCode = buf.readShort(),
+                    )
+                }
             }
-        }
         return PgMessage.RowDescription(descriptions)
     }
 }

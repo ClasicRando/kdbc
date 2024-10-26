@@ -24,11 +24,12 @@ class PgListener internal constructor(
      * can be received using the [receiveNotification] method.
      */
     suspend fun listen(vararg channelName: String) {
-        val query = channelName.joinToString(
-            separator = "; LISTEN",
-            prefix = "LISTEN ",
-            postfix = ";",
-        ) { it.quoteIdentifier() }
+        val query =
+            channelName.joinToString(
+                separator = "; LISTEN",
+                prefix = "LISTEN ",
+                postfix = ";",
+            ) { it.quoteIdentifier() }
         connection.sendSimpleQuery(query)
     }
 

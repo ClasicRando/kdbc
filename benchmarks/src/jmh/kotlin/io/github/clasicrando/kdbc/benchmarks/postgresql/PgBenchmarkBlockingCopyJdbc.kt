@@ -45,7 +45,7 @@ open class PgBenchmarkBlockingCopyJdbc {
     @Benchmark
     open fun copyOut() {
         Files.newOutputStream(outputPath).use { stream ->
-            connection.copyAPI.copyOut(jdbcCopyOut, stream)
+            connection.copyAPI.copyOut(JDBC_COPY_OUT, stream)
         }
     }
 
@@ -57,7 +57,7 @@ open class PgBenchmarkBlockingCopyJdbc {
     @Benchmark
     open fun copyIn() {
         Files.newInputStream(inputPath).use { stream ->
-            connection.copyAPI.copyIn(jdbcCopyIn, stream)
+            connection.copyAPI.copyIn(JDBC_COPY_IN, stream)
         }
     }
 

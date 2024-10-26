@@ -17,7 +17,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-DESCRIBE)
  */
 internal object DescribeEncoder : MessageEncoder<PgMessage.Describe> {
-    override fun encode(value: PgMessage.Describe, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMessage.Describe,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeByte(value.target.code)

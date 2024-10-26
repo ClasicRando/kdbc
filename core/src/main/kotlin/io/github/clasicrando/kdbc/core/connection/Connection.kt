@@ -2,9 +2,8 @@ package io.github.clasicrando.kdbc.core.connection
 
 import io.github.clasicrando.kdbc.core.AutoCloseableAsync
 import io.github.clasicrando.kdbc.core.UniqueResourceId
-import io.github.clasicrando.kdbc.core.query.PreparedQuery
-import io.github.clasicrando.kdbc.core.query.PreparedQueryBatch
 import io.github.clasicrando.kdbc.core.query.Query
+import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.core.useCatching
 
@@ -24,7 +23,9 @@ private const val RESOURCE_TYPE = "Connection"
  * outside the scope of a single method) you should find a way to always close the
  * [Connection].
  */
-interface Connection : UniqueResourceId, AutoCloseableAsync {
+interface Connection :
+    UniqueResourceId,
+    AutoCloseableAsync {
     override val resourceType: String get() = RESOURCE_TYPE
 
     /**
@@ -55,28 +56,59 @@ interface Connection : UniqueResourceId, AutoCloseableAsync {
     suspend fun rollback()
 
     /**
-     * Create a new [Query] for this [Connection] with the specified [query]
-     * string. [Query] instances are for SQL queries that do not accept parameters and
-     * aren't executed frequently enough to require a precomputed query plan that is generated with
-     * a [PreparedQuery]. This means that even if your query doesn't accept parameters, a
-     * [PreparedQuery] is recommended when frequently executing a static query.
+     * Execute a single [Query] against this connection and returns the zero or more result sets as
+     * a single [StatementResult].
+     *
+     * This sends the query to the database for execution and waits for all results to be sent to
+     * the client before returning. Although this may require buffering more resources on the
+     * client, it allows the connection state to be more consistent and not require the use of
+     * database cursors to buffer results. The operation is also non-blocking while waiting for the
+     * server response and will only resume processing results once the server replies so waiting
+     * for all the data should not hold back your application given enough concurrency bandwidth.
      */
-    fun createQuery(query: String): Query
+    suspend fun executeQuery(query: Query): StatementResult
 
     /**
-     * Create a new [PreparedQuery] for this [Connection] with the specified [query] string.
-     * [PreparedQuery]s are for SQL queries that either accept parameters or are executed frequently
-     * so a precomputed query plan is best.
+     * Execute a zero or more [Query]s against this connection and returns the zero or more result
+     * sets as a single [StatementResult].
+     *
+     * The actual implementation of the batching will vary from driver to driver and will fall back
+     * to simple sequential query execution if the database does not support query batching
+     * natively. Also, by default query batches are executed in isolation so if the second query
+     * fails the first query's action will be commited (if it modified the database). You can get
+     * around this by manually starting a transaction before executing the batch or consulting the
+     * specific driver to see if it permits a custom method that batches queries and handles the
+     * entire operation in a single transaction.
+     *
+     * This sends the queries to the database for execution and waits for all results to be sent to
+     * the client before returning. Although this may require buffering more resources on the
+     * client, it allows the connection state to be more consistent and not require the use of
+     * database cursors to buffer results. The operation is also non-blocking while waiting for the
+     * server response and will only resume processing results once the server replies so waiting
+     * for all the data should not hold back your application given enough concurrency bandwidth.
      */
-    fun createPreparedQuery(query: String): PreparedQuery
+    suspend fun executeQueryBatch(batch: List<Query>): StatementResult
 
     /**
-     * Create a new [PreparedQueryBatch] for this [Connection]. This allows
-     * executing 1 or more [PreparedQuery] instances within a single batch of commands. This is not
-     * guaranteed to improve performance but some databases provide optimized protocols for sending
-     * multiple queries at the same time.
+     * Execute a zero or more [Query]s against this connection and returns the zero or more result
+     * sets as a single [StatementResult].
+     *
+     * The actual implementation of the batching will vary from driver to driver and will fall back
+     * to simple sequential query execution if the database does not support query batching
+     * natively. Also, by default query batches are executed in isolation so if the second query
+     * fails the first query's action will be commited (if it modified the database). You can get
+     * around this by manually starting a transaction before executing the batch or consulting the
+     * specific driver to see if it permits a custom method that batches queries and handles the
+     * entire operation in a single transaction.
+     *
+     * This sends the queries to the database for execution and waits for all results to be sent to
+     * the client before returning. Although this may require buffering more resources on the
+     * client, it allows the connection state to be more consistent and not require the use of
+     * database cursors to buffer results. The operation is also non-blocking while waiting for the
+     * server response and will only resume processing results once the server replies so waiting
+     * for all the data should not hold back your application given enough concurrency bandwidth.
      */
-    fun createPreparedQueryBatch(): PreparedQueryBatch
+    suspend fun executeQueryBatch(vararg batch: Query): StatementResult
 }
 
 /**
@@ -86,8 +118,8 @@ interface Connection : UniqueResourceId, AutoCloseableAsync {
  * and the original exception is rethrown. This all happens within a [AutoCloseableAsync.use]
  * block so the resources are always cleaned up before returning.
  */
-suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R {
-    return try {
+suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R =
+    try {
         this.begin()
         val result = block(this)
         commit()
@@ -96,7 +128,6 @@ suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R {
         rollback()
         throw ex
     }
-}
 
 /**
  * Use a [Connection] within the scope of a transaction. This means an implicit
@@ -107,8 +138,7 @@ suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R {
  * the resources are always cleaned up before returning and all other exceptions are caught and
  * returned as a [Result].
  */
-suspend inline fun <R, C : Connection> C.transactionCatching(
-    block: (C) -> R,
-): Result<R> = runCatching {
-    transaction(block)
-}
+suspend inline fun <R, C : Connection> C.transactionCatching(block: (C) -> R): Result<R> =
+    runCatching {
+        transaction(block)
+    }

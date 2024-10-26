@@ -12,6 +12,7 @@ import kotlinx.serialization.json.JsonElement
  */
 sealed class PgJson {
     class Bytes(val bytes: ByteArray) : PgJson()
+
     class Text(val text: String) : PgJson()
 
     /** Write the underlining JSON value to the [buffer] */

@@ -23,7 +23,8 @@ jmh {
         jmhImplementation("org.openjdk.jmh:jmh-generator-annprocess:1.36")
         jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.36")
     }
-    resultsFile = rootProject.rootDir
-        .resolve("benchmark-results")
-        .resolve("results.txt")
+    resultsFile =
+        rootProject.rootDir
+            .resolve("benchmark-results")
+            .resolve("results.txt")
 }

@@ -14,10 +14,10 @@ import kotlinx.datetime.toInstant
  * that stored a [datetime] and the [offset].
  */
 data class DateTime(val datetime: Instant, val offset: UtcOffset) {
-    constructor(date: LocalDate, time: LocalTime, offset: UtcOffset)
-            : this(LocalDateTime(date, time).toInstant(offset), offset)
-    constructor(localDateTime: LocalDateTime, offset: UtcOffset)
-            : this(localDateTime.toInstant(offset), offset)
+    constructor(date: LocalDate, time: LocalTime, offset: UtcOffset) :
+        this(LocalDateTime(date, time).toInstant(offset), offset)
+    constructor(localDateTime: LocalDateTime, offset: UtcOffset) :
+        this(localDateTime.toInstant(offset), offset)
 
     /**
      * Return a new [DateTime] instance with the same scalar timestamp value, but with the new

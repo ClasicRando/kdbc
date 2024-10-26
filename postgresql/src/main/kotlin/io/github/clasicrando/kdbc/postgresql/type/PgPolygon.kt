@@ -8,7 +8,7 @@ package io.github.clasicrando.kdbc.postgresql.type
  * [docs](https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-POLYGON)
  */
 data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) : PgGeometryType {
-    constructor(points: List<PgPoint>): this(makeBoundBox(points), points)
+    constructor(points: List<PgPoint>) : this(makeBoundBox(points), points)
 
     override val postGisLiteral: String
         get() = "(${points.joinToString(separator = ",") { it.postGisLiteral }})"

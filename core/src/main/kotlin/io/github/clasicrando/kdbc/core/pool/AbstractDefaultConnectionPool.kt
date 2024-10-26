@@ -38,9 +38,10 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
     private val connectionNeeded = Channel<CompletableDeferred<C?>>(capacity = Channel.BUFFERED)
     private val mutex = Mutex()
 
-    final override val coroutineContext: CoroutineContext = SupervisorJob(
-        parent = poolOptions.parentScope?.coroutineContext?.job,
-    )
+    final override val coroutineContext: CoroutineContext =
+        SupervisorJob(
+            parent = poolOptions.parentScope.coroutineContext.job,
+        )
 
     /**
      * Create a new connection using the pool's [provider], set the connection's pool reference,
@@ -52,7 +53,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         connectionIds[connection.resourceId] = connection
         logger.atTrace {
             message = "Created new connection. Current pool size = ${connectionIds.size}. " +
-                    "Max size = ${poolOptions.maxConnections}"
+                "Max size = ${poolOptions.maxConnections}"
         }
         return connection
     }
@@ -79,7 +80,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
                 message = "Invalidating connection id = $connectionId"
             }
             disposeConnection(connection)
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             logger.atError {
                 cause = ex
                 message = "Error while closing invalid connection, '$connectionId'"
@@ -96,7 +97,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
      */
     private suspend fun acquireConnection(): C? {
         val result = connections.tryReceive()
-        when  {
+        when {
             result.isSuccess -> return result.getOrThrow()
             result.isFailure -> return mutex.withLock {
                 if (!isExhausted) {
@@ -127,13 +128,14 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         }
         val deferred = CompletableDeferred<C?>(parent = coroutineContext.job)
         connectionNeeded.send(deferred)
-        val result = if (poolOptions.acquireTimeout.isInfinite()) {
-            deferred.await()
-        } else {
-            withTimeoutOrNull(poolOptions.acquireTimeout) {
+        val result =
+            if (poolOptions.acquireTimeout.isInfinite()) {
                 deferred.await()
+            } else {
+                withTimeoutOrNull(poolOptions.acquireTimeout) {
+                    deferred.await()
+                }
             }
-        }
         if (result != null) {
             return result
         }
@@ -148,9 +150,8 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
     private val isExhausted: Boolean get() = connectionIds.size >= poolOptions.maxConnections
 
     /** Checks the [connectionIds] lookup table for the [poolConnection]'s ID */
-    internal fun hasConnection(poolConnection: C): Boolean {
-        return connectionIds.contains(poolConnection.resourceId)
-    }
+    internal fun hasConnection(poolConnection: C): Boolean =
+        connectionIds.contains(poolConnection.resourceId)
 
     override suspend fun giveBack(connection: C): Boolean {
         if (!hasConnection(connection)) {
@@ -183,7 +184,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
             if (!provider.validate(initialConnection)) {
                 return false
             }
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             logger.atError {
                 message = "Could not create the initial connection needed to validate the pool"
                 cause = ex
@@ -192,7 +193,8 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
         } finally {
             try {
                 initialConnection?.close()
-            } catch (ignored: Throwable) {}
+            } catch (ignored: Throwable) {
+            }
         }
         for (i in 1..<poolOptions.minConnections) {
             connections.send(createNewConnection())

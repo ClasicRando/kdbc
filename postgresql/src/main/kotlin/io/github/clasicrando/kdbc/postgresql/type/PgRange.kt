@@ -4,10 +4,13 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import java.time.temporal.ChronoUnit
 
 sealed interface Bound<T> {
     data class Included<T>(val value: T) : Bound<T>
-    data class Excluded<T>(val value: T): Bound<T>
+
+    data class Excluded<T>(val value: T) : Bound<T>
+
     class Unbounded<T> : Bound<T> {
         override fun equals(other: Any?): Boolean {
             return other is Unbounded<*>
@@ -57,47 +60,82 @@ data class PgRange<T : Any>(
 }
 
 fun PgRange<Int>.toIntRange(): IntRange? {
-    val start = when (this.lower) {
-        is Bound.Excluded -> lower.value + 1
-        is Bound.Included -> lower.value
-        is Bound.Unbounded -> return null
-    }
-    val endInclusive = when (this.upper) {
-        is Bound.Excluded -> upper.value - 1
-        is Bound.Included -> upper.value
-        is Bound.Unbounded -> return null
-    }
+    val start =
+        when (this.lower) {
+            is Bound.Excluded -> lower.value + 1
+            is Bound.Included -> lower.value
+            is Bound.Unbounded -> return null
+        }
+    val endInclusive =
+        when (this.upper) {
+            is Bound.Excluded -> upper.value - 1
+            is Bound.Included -> upper.value
+            is Bound.Unbounded -> return null
+        }
     return IntRange(start, endInclusive)
 }
 
 fun PgRange<Long>.toLongRange(): LongRange? {
-    val start = when (this.lower) {
-        is Bound.Excluded -> lower.value + 1
-        is Bound.Included -> lower.value
-        is Bound.Unbounded -> return null
-    }
-    val endInclusive = when (this.upper) {
-        is Bound.Excluded -> upper.value - 1
-        is Bound.Included -> upper.value
-        is Bound.Unbounded -> return null
-    }
+    val start =
+        when (this.lower) {
+            is Bound.Excluded -> lower.value + 1
+            is Bound.Included -> lower.value
+            is Bound.Unbounded -> return null
+        }
+    val endInclusive =
+        when (this.upper) {
+            is Bound.Excluded -> upper.value - 1
+            is Bound.Included -> upper.value
+            is Bound.Unbounded -> return null
+        }
     return LongRange(start, endInclusive)
 }
 
 fun PgRange<LocalDate>.toDateRange(): ClosedRange<LocalDate>? {
-    val startDate = when (this.lower) {
-        is Bound.Excluded -> lower.value.plus(1, DateTimeUnit.DAY)
-        is Bound.Included -> lower.value
-        is Bound.Unbounded -> return null
-    }
-    val endDateInclusive = when (this.upper) {
-        is Bound.Excluded -> upper.value.minus(1, DateTimeUnit.DAY)
-        is Bound.Included -> upper.value
-        is Bound.Unbounded -> return null
-    }
+    val startDate =
+        when (this.lower) {
+            is Bound.Excluded -> lower.value.plus(1, DateTimeUnit.DAY)
+            is Bound.Included -> lower.value
+            is Bound.Unbounded -> return null
+        }
+    val endDateInclusive =
+        when (this.upper) {
+            is Bound.Excluded -> upper.value.minus(1, DateTimeUnit.DAY)
+            is Bound.Included -> upper.value
+            is Bound.Unbounded -> return null
+        }
     return object : ClosedRange<LocalDate> {
         override val start: LocalDate = startDate
         override val endInclusive: LocalDate = endDateInclusive
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is ClosedRange<*>) return false
+            return this.start == other.start && this.endInclusive == other.endInclusive
+        }
+
+        override fun toString(): String {
+            return "$start..$endInclusive"
+        }
+    }
+}
+
+fun PgRange<java.time.LocalDate>.toJDateRange(): ClosedRange<java.time.LocalDate>? {
+    val startDate =
+        when (this.lower) {
+            is Bound.Excluded -> lower.value.plus(1, ChronoUnit.DAYS)
+            is Bound.Included -> lower.value
+            is Bound.Unbounded -> return null
+        }
+    val endDateInclusive =
+        when (this.upper) {
+            is Bound.Excluded -> upper.value.minus(1, ChronoUnit.DAYS)
+            is Bound.Included -> upper.value
+            is Bound.Unbounded -> return null
+        }
+    return object : ClosedRange<java.time.LocalDate> {
+        override val start: java.time.LocalDate = startDate
+        override val endInclusive: java.time.LocalDate = endDateInclusive
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

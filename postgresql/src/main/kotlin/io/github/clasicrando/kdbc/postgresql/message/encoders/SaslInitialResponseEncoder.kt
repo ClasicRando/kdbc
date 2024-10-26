@@ -19,7 +19,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SASLINITIALRESPONSE)
  */
 internal object SaslInitialResponseEncoder : MessageEncoder<PgMessage.SaslInitialResponse> {
-    override fun encode(value: PgMessage.SaslInitialResponse, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMessage.SaslInitialResponse,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.mechanism)

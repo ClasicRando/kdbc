@@ -8,5 +8,5 @@ import io.github.clasicrando.kdbc.core.exceptions.KdbcException
  */
 class ExitOfProcessingLoop(expectedCase: String) : KdbcException(
     "Unexpected exit of processing loop before expected exit condition is met. Waited for " +
-            expectedCase
+        expectedCase,
 )

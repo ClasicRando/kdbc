@@ -4,8 +4,8 @@ import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
-import io.github.clasicrando.kdbc.postgresql.column.PgType
 import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata.Companion.QUERY
+import io.github.clasicrando.kdbc.postgresql.type.PgType
 
 /**
  * Query class for collecting table metadata before executing a `COPY FROM` operation that targets

@@ -26,10 +26,11 @@ data class LogSettings(
     val slowStatementDuration: Duration,
 ) {
     companion object {
-        val DEFAULT = LogSettings(
-            statementLevel = Level.DEBUG,
-            slowStatementsLevel = Level.WARN,
-            slowStatementDuration = 1.toDuration(DurationUnit.SECONDS),
-        )
+        val DEFAULT =
+            LogSettings(
+                statementLevel = Level.DEBUG,
+                slowStatementsLevel = Level.WARN,
+                slowStatementDuration = 1.toDuration(DurationUnit.SECONDS),
+            )
     }
 }

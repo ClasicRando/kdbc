@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.pool
 import io.github.clasicrando.kdbc.core.pool.ConnectionPool
 import io.github.clasicrando.kdbc.core.pool.ConnectionProvider
 import io.github.clasicrando.kdbc.core.stream.KtorStream
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.ktor.network.sockets.InetSocketAddress
 
@@ -22,17 +22,18 @@ internal class PgConnectionProvider(
         val stream = KtorStream(address, pool.selectorManager)
         var pgStream: PgStream? = null
         try {
-            pgStream = PgStream.connect(
-                scope = pool,
-                stream = stream,
-                connectOptions = connectOptions,
-            )
+            pgStream =
+                PgStream.connect(
+                    scope = pool,
+                    stream = stream,
+                    connectOptions = connectOptions,
+                )
             return PgConnection.connect(
                 connectOptions = connectOptions,
                 stream = pgStream,
                 pool = pool,
             )
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             pgStream?.close()
             throw ex
         }

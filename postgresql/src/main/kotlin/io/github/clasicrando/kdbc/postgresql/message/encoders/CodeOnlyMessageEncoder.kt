@@ -11,7 +11,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html)
  */
 internal object CodeOnlyMessageEncoder : MessageEncoder<PgMessage> {
-    override fun encode(value: PgMessage, buffer: ByteWriteBuffer) {
+    override fun encode(
+        value: PgMessage,
+        buffer: ByteWriteBuffer,
+    ) {
         buffer.writeByte(value.code)
         buffer.writeInt(4)
     }

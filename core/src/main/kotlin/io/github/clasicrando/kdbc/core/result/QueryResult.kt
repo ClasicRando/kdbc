@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.core.result
 import io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.query.RowParser
+import kotlin.reflect.typeOf
 
 /**
  * Container class for the data returned upon completion of a query. Every query must have the
@@ -16,7 +17,7 @@ open class QueryResult(
     val rowsAffected: Long,
     val message: String,
     val rows: ResultSet = ResultSet.EMPTY_RESULT,
-) : AutoCloseable {
+) {
     /**
      * Execute the query and return the first row's first column as the type [T]. Returns null if
      * the return value is null or the query result has no rows.
@@ -28,14 +29,11 @@ open class QueryResult(
      * checked by [kotlin.reflect.KClass.isInstance] on the first value
      */
     inline fun <reified T : Any> extractScalar(): T? {
-        val cls = T::class
-        return rows.firstOrNull()?.use { row ->
-            val value = row[FIRST_INDEX] ?: return null
-            if (!cls.isInstance(value)) {
-                throw IncorrectScalarType(value, cls)
-            }
-            value as T?
+        if (rows.rowCount == 0) {
+            return null
         }
+        val value = rows[0][FIRST_INDEX, typeOf<T>()] ?: return null
+        return value as T?
     }
 
     /**
@@ -46,16 +44,16 @@ open class QueryResult(
      * [RowParseError] are wrapped into a [RowParseError]
      */
     fun <T : Any, R : RowParser<T>> extractFirst(rowParser: R): T? {
-        return rows.firstOrNull()
-            ?.use { row ->
-                try {
-                    rowParser.fromRow(row)
-                } catch (ex: RowParseError) {
-                    throw ex
-                } catch (ex: Throwable) {
-                    throw RowParseError(rowParser, ex)
-                }
-            }
+        if (rows.rowCount == 0) {
+            return null
+        }
+        return try {
+            rowParser.fromRow(rows[0])
+        } catch (ex: RowParseError) {
+            throw ex
+        } catch (ex: Exception) {
+            throw RowParseError(rowParser, ex)
+        }
     }
 
     /**
@@ -69,25 +67,20 @@ open class QueryResult(
      * [RowParseError] are wrapped into a [RowParseError]
      */
     fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): List<T> {
-        return rows.map { row ->
+        val result = mutableListOf<T>()
+        for (i in 0..<rows.rowCount) {
             try {
-                rowParser.fromRow(row)
+                result.add(rowParser.fromRow(rows[i]))
             } catch (ex: RowParseError) {
                 throw ex
-            } catch (ex: Throwable) {
+            } catch (ex: Exception) {
                 throw RowParseError(rowParser, ex)
             }
         }
+        return result
     }
 
-    override fun toString(): String {
-        return "QueryResult(rowsAffected=$rowsAffected,message=$message)"
-    }
-
-    /** Releases all [rows] found within this result */
-    override fun close() {
-        rows.close()
-    }
+    override fun toString(): String = "QueryResult(rowsAffected=$rowsAffected,message=$message)"
 
     companion object {
         @PublishedApi

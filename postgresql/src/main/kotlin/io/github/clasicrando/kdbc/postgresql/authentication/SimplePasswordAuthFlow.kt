@@ -12,15 +12,16 @@ private fun createSimplePasswordMessage(
     salt: ByteArray?,
 ): PgMessage.PasswordMessage {
     val passwordBytes = password.toByteArray()
-    val bytes = if (salt == null) {
-        passwordBytes
-    } else {
-        PasswordHelper.encode(
-            username = username.toByteArray(),
-            password = passwordBytes,
-            salt = salt,
-        )
-    }
+    val bytes =
+        if (salt == null) {
+            passwordBytes
+        } else {
+            PasswordHelper.encode(
+                username = username.toByteArray(),
+                password = passwordBytes,
+                salt = salt,
+            )
+        }
     return PgMessage.PasswordMessage(bytes)
 }
 
@@ -41,11 +42,12 @@ internal suspend fun PgStream.simplePasswordAuthFlow(
     salt: ByteArray? = null,
 ) {
     try {
-        val passwordMessage = createSimplePasswordMessage(
-            username,
-            password,
-            salt,
-        )
+        val passwordMessage =
+            createSimplePasswordMessage(
+                username,
+                password,
+                salt,
+            )
         this.writeToStream(passwordMessage)
 
         val response = this.receiveNextServerMessage()
@@ -65,7 +67,7 @@ internal suspend fun PgStream.simplePasswordAuthFlow(
         }
     } catch (ex: PgAuthenticationError) {
         throw ex
-    } catch (ex: Throwable) {
+    } catch (ex: Exception) {
         val error = PgAuthenticationError("Generic SimplePassword auth error")
         error.addSuppressed(ex)
         throw error

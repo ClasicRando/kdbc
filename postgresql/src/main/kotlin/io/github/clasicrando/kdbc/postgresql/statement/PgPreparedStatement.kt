@@ -9,12 +9,14 @@ internal class PgPreparedStatement(
     override val query: String,
     override val statementId: Int,
 ) : PreparedStatement {
-    override val paramCount = PARAM_COUNT_REGEX.findAll(query)
-        .distinctBy { it.value }
-        .count()
+    override val paramCount =
+        PARAM_COUNT_REGEX.findAll(query)
+            .distinctBy { it.value }
+            .count()
     override var prepared = false
     var parameterTypeOids: List<Int> = emptyList()
     var resultMetadata: List<PgColumnDescription> = emptyList()
+
     /** Name value used to construct the prepared statement on the server side */
     val statementName = statementId.toString()
     override var lastExecuted: Instant? = null

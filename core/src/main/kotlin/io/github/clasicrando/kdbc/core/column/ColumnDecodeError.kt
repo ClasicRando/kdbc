@@ -13,11 +13,11 @@ class ColumnDecodeError(
     reason: String,
     cause: Throwable?,
 ) : KdbcException(
-    "Could not decode bytes into desired type. Actual Type: $typeName($dataType), " +
+        "Could not decode bytes into desired type. Actual Type: $typeName($dataType), " +
             "Column: '$columnName', " +
             "Desired Output: $decodeType" + if (reason.isNotBlank()) ", Reason: $reason" else "",
-    cause,
-)
+        cause,
+    )
 
 /** Throw a [ColumnDecodeError] for the [kType] with the [type] */
 fun columnDecodeError(

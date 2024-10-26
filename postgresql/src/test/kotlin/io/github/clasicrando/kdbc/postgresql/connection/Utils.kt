@@ -13,9 +13,12 @@ fun createTempCsvForCopy(rowCount: Int): Path {
         csvWriter {
             lineTerminator = "\n"
         }.open(IOUtils.sink(path = outputFile).buffered().asOutputStream()) {
-            writeRows(rows = (1..rowCount).asSequence().map { i ->
-                listOf(i.toString(), "$i Value")
-            })
+            writeRows(
+                rows =
+                    (1..rowCount).asSequence().map { i ->
+                        listOf(i.toString(), "$i Value")
+                    },
+            )
         }
         return outputFile
     } catch (ex: Exception) {

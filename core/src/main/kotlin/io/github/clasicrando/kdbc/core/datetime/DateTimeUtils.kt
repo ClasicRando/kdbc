@@ -34,9 +34,10 @@ fun LocalDate.Companion.tryFromString(value: String): LocalDate {
  */
 fun LocalDateTime.Companion.tryFromString(value: String): LocalDateTime {
     return try {
-        val str = value.takeWhile { it != '+' && it != 'Z' }
-            .trim()
-            .replace(' ', 'T')
+        val str =
+            value.takeWhile { it != '+' && it != 'Z' }
+                .trim()
+                .replace(' ', 'T')
         parse(str)
     } catch (_: IllegalArgumentException) {
         throw InvalidDateString(value, LocalDateTime::class)
@@ -50,8 +51,9 @@ fun LocalDateTime.Companion.tryFromString(value: String): LocalDateTime {
  */
 fun LocalTime.Companion.tryFromString(value: String): LocalTime {
     return try {
-        val str = value.takeWhile { it != '+' && it != 'Z' }
-            .trim()
+        val str =
+            value.takeWhile { it != '+' && it != 'Z' }
+                .trim()
         parse(str)
     } catch (_: IllegalArgumentException) {
         throw InvalidDateString(value, LocalTime::class)
@@ -66,9 +68,10 @@ fun LocalTime.Companion.tryFromString(value: String): LocalTime {
  */
 fun Instant.Companion.tryFromString(value: String): Instant {
     return try {
-        val str = value.trim()
-            .replace(oldChar = ' ',newChar = 'T')
-            .padEnd(length = 20, padChar = 'Z')
+        val str =
+            value.trim()
+                .replace(oldChar = ' ', newChar = 'T')
+                .padEnd(length = 20, padChar = 'Z')
         parse(str)
     } catch (_: IllegalArgumentException) {
         throw InvalidDateString(value, Instant::class)
@@ -83,9 +86,10 @@ fun Instant.Companion.tryFromString(value: String): Instant {
  * @throws InvalidDateString if the conversion fails
  */
 fun UtcOffset.Companion.tryFromString(value: String): UtcOffset {
-    val timeZoneStr = value.dropWhile { it != '+' }
-        .takeIf { it.isNotBlank() }
-        ?: return UtcOffset(0)
+    val timeZoneStr =
+        value.dropWhile { it != '+' }
+            .takeIf { it.isNotBlank() }
+            ?: return UtcOffset(0)
     return timeZoneStr.toIntOrNull()
         ?.let { UtcOffset(hours = it) }
         ?: throw InvalidDateString(timeZoneStr, TimeZone::class)

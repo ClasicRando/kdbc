@@ -7,10 +7,10 @@ import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.StatementResult
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
-import io.github.clasicrando.kdbc.postgresql.column.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
+import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -29,13 +29,14 @@ private val logger = KotlinLogging.logger {}
  */
 internal class QueryResultCollector(
     private val resource: UniqueResourceId,
-    private val typeCache: PgTypeCache
+    private val typeCache: PgTypeCache,
 ) {
     /** [MutableList] of any error found while processing the backend messages */
     val errors = mutableListOf<Throwable>()
     private var currentStatement: PgPreparedStatement? = null
     private var resultSet = PgResultSet(typeCache, emptyList())
     private val statementResultBuilder = StatementResult.Builder()
+
     /** [TransactionStatus] that should be found  */
     var transactionStatus: TransactionStatus? = null
         private set
@@ -48,10 +49,11 @@ internal class QueryResultCollector(
      */
     fun processNextStatement(statement: PgPreparedStatement?) {
         currentStatement = statement
-        resultSet = PgResultSet(
-            typeCache = typeCache,
-            columnMapping = statement?.resultMetadata ?: emptyList(),
-        )
+        resultSet =
+            PgResultSet(
+                typeCache = typeCache,
+                columnMapping = statement?.resultMetadata ?: emptyList(),
+            )
     }
 
     /**

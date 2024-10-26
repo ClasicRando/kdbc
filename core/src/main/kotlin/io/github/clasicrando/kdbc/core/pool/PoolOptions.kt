@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.core.pool
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -35,7 +36,7 @@ data class PoolOptions(
      */
     val idleTime: Duration = 1.toDuration(DurationUnit.MINUTES),
     /** Optional parent scope that holds the connection pool's scope */
-    val parentScope: CoroutineScope? = null,
+    val parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
 ) {
     init {
         require(acquireTimeout.isPositive()) {

@@ -8,51 +8,30 @@ package io.github.clasicrando.kdbc.core.result
  * needs.
  */
 class StatementResult(
-    private var queryResults: List<QueryResult>?,
-) : Iterable<QueryResult>, AutoCloseable {
+    private var queryResults: List<QueryResult>,
+) : Iterable<QueryResult> {
     /**
      * Return the number of [QueryResult]s that the database returned from the previously executed
      * statement.
-     *
-     * @throws IllegalStateException if this method is called after [close] is called
      */
-    val size: Int get() = queryResults?.size
-        ?: error("Attempted to get size of a closed/released StatementResult")
+    val size: Int get() = queryResults.size
 
     /**
      * Return the [QueryResult] backed by this [index].
      *
      * @throws IllegalArgumentException if the index does not point to an existing entry
-     * @throws IllegalStateException if this method is called after [close]
      */
     operator fun get(index: Int): QueryResult {
         require(index in 0..<size) {
             "Attempted to access QueryResult of invalid index. Must be 0..<$size but got $index"
         }
-        return queryResults?.get(index)
-            ?: error("Attempted to get QueryResult of a closed/released StatementResult")
+        return queryResults[index]
     }
 
     /**
      * Return an [Iterator] over the [QueryResult]s returned.
-     *
-     * @throws IllegalStateException if this method is called after [close]
      */
-    override fun iterator(): Iterator<QueryResult> = queryResults?.iterator()
-        ?: error("Attempted to iterate over a closed/released StatementResult")
-
-    /**
-     * Remove all [QueryResult]s of the backing [MutableList] of this result. If the list is still
-     * populated, each [QueryResult] will be released as well.
-     */
-    override fun close() {
-        queryResults?.let {
-            for (queryResult in it) {
-                queryResult.close()
-            }
-        }
-        queryResults = null
-    }
+    override fun iterator(): Iterator<QueryResult> = queryResults.iterator()
 
     /**
      * Builder for a [StatementResult]. Stored a [MutableList] of [QueryResult]s, allowing

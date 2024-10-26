@@ -1,0 +1,79 @@
+package io.github.clasicrando.kdbc.postgresql.type
+
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.query
+import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class TestPgLineType {
+    @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `encode should accept PgLine when querying postgresql`(): Unit =
+        runBlocking {
+            val query = "SELECT $1 line_col;"
+
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val line =
+                    query(query)
+                        .bind(value)
+                        .fetchScalar<PgLine>(conn)
+                assertEquals(value, line)
+            }
+        }
+
+    private suspend fun decodeTest(isExtended: Boolean) {
+        val query = "SELECT '${value.postGisLiteral}'::line;"
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val line = query(query).fetchScalar<PgLine>(conn)
+            assertEquals(value, line)
+        }
+    }
+
+    @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `decode should return PgLine when simple querying postgresql line`(): Unit =
+        runBlocking {
+            decodeTest(isExtended = false)
+        }
+
+    @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    fun `decode should return PgLine when extended querying postgresql line`(): Unit =
+        runBlocking {
+            decodeTest(isExtended = true)
+        }
+
+    companion object {
+        private val value = PgLine(54.89, 84.5, 74.526)
+        private const val POST_GIS_QUERY = """
+            SELECT EXISTS(
+                SELECT oid
+                FROM pg_extension
+                WHERE extname = 'postgis'
+            ) post_gis_exists
+        """
+
+        @JvmStatic
+        @BeforeAll
+        fun checkPostGis(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use { conn ->
+                    val hasPostGis =
+                        query(POST_GIS_QUERY)
+                            .fetchScalar<Boolean>(conn)
+                    check(hasPostGis ?: false)
+                }
+            }
+    }
+}

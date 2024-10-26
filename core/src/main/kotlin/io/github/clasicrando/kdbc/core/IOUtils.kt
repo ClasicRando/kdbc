@@ -54,7 +54,10 @@ internal object IOUtils {
      * [mustExist] is true
      * @throws kotlinx.io.IOException
      */
-    fun delete(path: Path, mustExist: Boolean = true) {
+    fun delete(
+        path: Path,
+        mustExist: Boolean = true,
+    ) {
         SystemFileSystem.delete(path = path, mustExist = mustExist)
     }
 
@@ -62,7 +65,10 @@ internal object IOUtils {
      * Executes [delete], catching any [kotlinx.io.IOException] exception and logging as an error.
      * The underlining exception is effectively ignored.
      */
-    fun deleteCatching(path: Path, mustExist: Boolean = true) {
+    fun deleteCatching(
+        path: Path,
+        mustExist: Boolean = true,
+    ) {
         try {
             delete(path = path, mustExist = mustExist)
         } catch (ex: kotlinx.io.IOException) {
@@ -74,7 +80,10 @@ internal object IOUtils {
      * Open the [path] as a writable [RawSink]. If [append] is true, all contents written to the
      * [RawSink] are added to the end of the file.
      */
-    fun sink(path: Path, append: Boolean = false): RawSink {
+    fun sink(
+        path: Path,
+        append: Boolean = false,
+    ): RawSink {
         return SystemFileSystem.sink(path = path, append = append)
     }
 

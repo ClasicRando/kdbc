@@ -88,8 +88,11 @@ sealed class PgInet(val address: ByteArray, val prefix: UByte) {
          * @throws IllegalStateException if the [inetAddress] is not [Inet4Address] or
          * [Inet6Address]
          */
-        fun fromInetAddress(inetAddress: InetAddress, prefix: UByte?): PgInet {
-            return when(inetAddress) {
+        fun fromInetAddress(
+            inetAddress: InetAddress,
+            prefix: UByte?,
+        ): PgInet {
+            return when (inetAddress) {
                 is Inet4Address -> Ipv4(inetAddress.address, prefix ?: 32u)
                 is Inet6Address -> Ipv6(inetAddress.address, prefix ?: 128u)
                 else -> error("Unexpected InetAddress variant")

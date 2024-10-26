@@ -5,24 +5,25 @@ import java.security.MessageDigest
 /** Helper object to encode passwords */
 internal object PasswordHelper {
     /** Binary value to hex lookup array. Indexes from 0-15 correlate to the hex [Byte] */
-    private val Lookup = byteArrayOf(
-        '0'.code.toByte(),
-        '1'.code.toByte(),
-        '2'.code.toByte(),
-        '3'.code.toByte(),
-        '4'.code.toByte(),
-        '5'.code.toByte(),
-        '6'.code.toByte(),
-        '7'.code.toByte(),
-        '8'.code.toByte(),
-        '9'.code.toByte(),
-        'a'.code.toByte(),
-        'b'.code.toByte(),
-        'c'.code.toByte(),
-        'd'.code.toByte(),
-        'e'.code.toByte(),
-        'f'.code.toByte()
-    )
+    private val Lookup =
+        byteArrayOf(
+            '0'.code.toByte(),
+            '1'.code.toByte(),
+            '2'.code.toByte(),
+            '3'.code.toByte(),
+            '4'.code.toByte(),
+            '5'.code.toByte(),
+            '6'.code.toByte(),
+            '7'.code.toByte(),
+            '8'.code.toByte(),
+            '9'.code.toByte(),
+            'a'.code.toByte(),
+            'b'.code.toByte(),
+            'c'.code.toByte(),
+            'd'.code.toByte(),
+            'e'.code.toByte(),
+            'f'.code.toByte(),
+        )
 
     /**
      * Convert each [Byte] in [bytes] to it's hex representation. This means that each [Byte] in
@@ -30,7 +31,11 @@ internal object PasswordHelper {
      * The iteration over [bytes] is capped at index 15 since the MD5 digest will always contain
      * 128 bits (16 bytes).
      */
-    private fun md5BytesToHex(bytes: ByteArray, hex: ByteArray, offset: Int) {
+    private fun md5BytesToHex(
+        bytes: ByteArray,
+        hex: ByteArray,
+        offset: Int,
+    ) {
         var pos = offset
         var i = 0
         while (i < 16) {

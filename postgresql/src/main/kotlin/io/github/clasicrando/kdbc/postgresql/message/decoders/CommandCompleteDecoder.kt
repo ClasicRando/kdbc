@@ -15,11 +15,12 @@ internal object CommandCompleteDecoder : MessageDecoder<PgMessage.CommandComplet
     override fun decode(buffer: ByteReadBuffer): PgMessage.CommandComplete {
         val message = buffer.use { it.readCString() }
         val words = message.split(" ")
-        val rowCount = when {
-            words.size <= 1 -> 0
-            words[0] == "INSERT" -> words.getOrNull(2)?.toLongOrNull() ?: 0
-            else -> words[1].toLongOrNull() ?: 0
-        }
+        val rowCount =
+            when {
+                words.size <= 1 -> 0
+                words[0] == "INSERT" -> words.getOrNull(2)?.toLongOrNull() ?: 0
+                else -> words[1].toLongOrNull() ?: 0
+            }
         return PgMessage.CommandComplete(rowCount, message)
     }
 }

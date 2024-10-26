@@ -29,7 +29,10 @@ class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
         innerBuffer[position++] = byte
     }
 
-    override fun set(position: Int, byte: Byte) {
+    override fun set(
+        position: Int,
+        byte: Byte,
+    ) {
         require(position <= this.position) {
             "Cannot write to a location that has not already been written"
         }
@@ -72,11 +75,15 @@ class ByteArrayWriteBuffer(capacity: Int) : ByteWriteBuffer {
         super.writeDouble(double)
     }
 
-    override fun writeBytes(byteArray: ByteArray, offset: Int, length: Int) {
+    override fun writeBytes(
+        byteArray: ByteArray,
+        offset: Int,
+        length: Int,
+    ) {
         checkOverflow(length)
         require(byteArray.size >= offset + length) {
             "The supplied offset = $offset and length = $length is not valid for a ByteArray of " +
-                    "size = ${byteArray.size}"
+                "size = ${byteArray.size}"
         }
         byteArray.copyInto(innerBuffer, position, offset, offset + length)
         position += length

@@ -16,24 +16,25 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object AuthenticationMessageDecoder : MessageDecoder<PgMessage.Authentication> {
     override fun decode(buffer: ByteReadBuffer): PgMessage.Authentication {
-        val auth: Authentication = buffer.use {
-            when (val method = it.readInt()) {
-                0 -> Authentication.Ok
-                // Kerberos Auth does not appear to still be supported or the docs cannot be found
+        val auth: Authentication =
+            buffer.use {
+                when (val method = it.readInt()) {
+                    0 -> Authentication.Ok
+                    // Kerberos Auth does not appear to still be supported or the docs cannot be found
 //                2 ->
-                3 -> Authentication.CleartextPassword
-                5 -> Authentication.Md5Password(salt = buffer.readBytes(4))
+                    3 -> Authentication.CleartextPassword
+                    5 -> Authentication.Md5Password(salt = buffer.readBytes(4))
 //                7 -> Authentication.Gss
 //                8 -> Authentication.KerberosV5
-                10 -> {
-                    val bytes = buffer.readBytes()
-                    Authentication.Sasl(bytes.splitAsCString())
+                    10 -> {
+                        val bytes = buffer.readBytes()
+                        Authentication.Sasl(bytes.splitAsCString())
+                    }
+                    11 -> Authentication.SaslContinue(buffer.readText())
+                    12 -> Authentication.SaslFinal(saslData = buffer.readText())
+                    else -> error("Unknown authentication method: $method")
                 }
-                11 -> Authentication.SaslContinue(buffer.readText())
-                12 -> Authentication.SaslFinal(saslData = buffer.readText())
-                else -> error("Unknown authentication method: $method")
             }
-        }
         return PgMessage.Authentication(auth)
     }
 }

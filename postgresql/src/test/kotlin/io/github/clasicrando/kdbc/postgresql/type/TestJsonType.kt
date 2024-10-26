@@ -1,0 +1,109 @@
+package io.github.clasicrando.kdbc.postgresql.type
+
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.execute
+import io.github.clasicrando.kdbc.core.query.fetchScalar
+import io.github.clasicrando.kdbc.core.query.query
+import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+
+class TestJsonType {
+    @Serializable
+    data class JsonType(
+        val number: Double,
+        val text: String,
+    )
+
+    @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    @ValueSource(booleans = [true, false])
+    fun `encode should accept PgJson when querying postgresql`(isJsonB: Boolean): Unit =
+        runBlocking {
+            val tableName = if (isJsonB) JSONB_TEST_TABLE else JSON_TEST_TABLE
+            val query = "INSERT INTO public.$tableName(column_1) VALUES($1) RETURNING column_1"
+
+            PgConnectionHelper.defaultConnection().use { conn ->
+                val pgJson =
+                    query(query)
+                        .bind(pgJsonValue)
+                        .fetchScalar<PgJson>(conn)
+                assertNotNull(pgJson)
+                assertEquals(jsonValue, pgJson.decodeUsingSerialization())
+            }
+        }
+
+    private suspend fun decodeTest(
+        isJsonB: Boolean,
+        isExtended: Boolean,
+    ) {
+        val query = "SELECT '$JSON_STRING'::${if (isJsonB) "jsonb" else "json"};"
+        if (isExtended) {
+            PgConnectionHelper.defaultConnection()
+        } else {
+            PgConnectionHelper.defaultConnectionWithForcedSimple()
+        }.use { conn ->
+            val pgJson = query(query).fetchScalar<PgJson>(conn)
+            assertNotNull(pgJson)
+            assertEquals(jsonValue, pgJson.decodeUsingSerialization())
+        }
+    }
+
+    @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    @ValueSource(booleans = [true, false])
+    fun `decode should return PgJson when simple querying postgresql json`(value: Boolean): Unit =
+        runBlocking {
+            decodeTest(isJsonB = value, isExtended = false)
+        }
+
+    @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
+    @ValueSource(booleans = [true, false])
+    fun `decode should return PgJson when extended querying postgresql json`(value: Boolean): Unit =
+        runBlocking {
+            decodeTest(isJsonB = value, isExtended = true)
+        }
+
+    companion object {
+        private val jsonValue = JsonType(584.5269, "PgJson test")
+        private val pgJsonValue = PgJson.fromJsonElement(Json.encodeToJsonElement(jsonValue))
+        private val JSON_STRING = Json.encodeToString(jsonValue)
+        private const val JSON_TEST_TABLE = "json_test"
+        private const val JSONB_TEST_TABLE = "jsonb_test"
+
+        @BeforeAll
+        @JvmStatic
+        fun createObjects(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use {
+                    query("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").execute(it)
+                    query("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").execute(it)
+                    query("CREATE TABLE public.$JSON_TEST_TABLE(column_1 json)").execute(it)
+                    query("CREATE TABLE public.$JSONB_TEST_TABLE(column_1 jsonb)").execute(it)
+                }
+            }
+
+        @AfterAll
+        @JvmStatic
+        fun cleanObjects(): Unit =
+            runBlocking {
+                PgConnectionHelper.defaultConnection().use {
+                    query("DROP TABLE IF EXISTS public.$JSON_TEST_TABLE").execute(it)
+                    query("DROP TABLE IF EXISTS public.$JSONB_TEST_TABLE").execute(it)
+                }
+            }
+    }
+}
