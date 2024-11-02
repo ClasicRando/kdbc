@@ -29,14 +29,9 @@ import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.job
-import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgStream"
@@ -47,11 +42,9 @@ private const val RESOURCE_TYPE = "PgStream"
  * process incoming server messages.
  */
 internal class PgStream(
-    scope: CoroutineScope,
     private val stream: Stream,
     internal val connectOptions: PgConnectOptions,
 ) : DefaultUniqueResourceId(),
-    CoroutineScope,
     AutoCloseable {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
@@ -60,8 +53,6 @@ internal class PgStream(
     private val messageSendBuffer: ByteWriteBuffer = ByteArrayWriteBuffer(SEND_BUFFER_SIZE)
 
     override val resourceType: String = RESOURCE_TYPE
-
-    override val coroutineContext: CoroutineContext = Job(parent = scope.coroutineContext.job)
 
     /** [Channel] used to store all server notifications that have not been processed */
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
@@ -115,7 +106,7 @@ internal class PgStream(
      */
     suspend inline fun processMessageLoop(process: (PgMessage) -> Loop): Result<Unit> {
         try {
-            while (isActive && isConnected) {
+            while (isConnected) {
                 when (val message = receiveNextServerMessage()) {
                     is PgMessage.NoticeResponse -> onNotice(message)
                     is PgMessage.NotificationResponse -> onNotification(message)
@@ -134,13 +125,6 @@ internal class PgStream(
             throw ex
         } catch (ex: Exception) {
             return Result.failure(ex)
-        }
-        if (!isActive) {
-            val exception =
-                KdbcException(
-                    "Exited message processing loop due to the coroutine scope is no longer active",
-                )
-            return Result.failure(exception)
         }
         if (!isConnected) {
             return Result.failure(
@@ -162,7 +146,7 @@ internal class PgStream(
      * [Result] is successful.
      */
     suspend inline fun <reified T : PgMessage> waitForOrError(): T {
-        while (isActive && isConnected) {
+        while (isConnected) {
             when (val message = receiveNextServerMessage()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
                 is PgMessage.NotificationResponse -> onNotification(message)
@@ -382,7 +366,7 @@ internal class PgStream(
                 )
             }
             is Authentication.Sasl -> this.saslAuthFlow(auth)
-            else -> error("Auth request type cannot be handled. $auth")
+            else -> throw KdbcException("Auth request type cannot be handled. $auth")
         }
     }
 
@@ -393,7 +377,9 @@ internal class PgStream(
             'N'.code.toByte() -> false
             else -> {
                 val responseChar = response.toInt().toChar()
-                error("Invalid response byte after SSL request. Byte = '$responseChar'")
+                throw KdbcException(
+                    "Invalid response byte after SSL request. Byte = '$responseChar'",
+                )
             }
         }
     }
@@ -444,14 +430,12 @@ internal class PgStream(
          * authentication exits the processing loop unexpectedly
          */
         internal suspend fun connect(
-            scope: CoroutineScope,
             stream: Stream,
             connectOptions: PgConnectOptions,
         ): PgStream {
             stream.connect(timeout = connectOptions.connectionTimeout)
             val pgStream =
                 PgStream(
-                    scope = scope,
                     stream = stream,
                     connectOptions = connectOptions,
                 )

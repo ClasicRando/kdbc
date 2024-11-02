@@ -24,7 +24,7 @@ import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BIND)
  */
-internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
+internal object BindEncoder : PgMessageEncoder<PgMessage.Bind>() {
     override fun encode(
         value: PgMessage.Bind,
         buffer: ByteWriteBuffer,
@@ -35,9 +35,9 @@ internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
             writeCString(value.statementName)
             writeShort(1)
             writeShort(1)
-            writeShort(value.parameters.size.toShort())
-            for ((parameter, type) in value.parameters) {
-                this.encodeValue(parameter, type, value.typeCache)
+            writeShort(value.arguments.size.toShort())
+            for (argument in value.arguments) {
+                this.encodeValue(argument.parameter.value, argument.pgTypeDescription)
             }
             writeShort(1)
             writeShort(1)

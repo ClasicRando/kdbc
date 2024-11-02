@@ -14,7 +14,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PASSWORDMESSAGE)
  */
-internal object PasswordEncoder : MessageEncoder<PgMessage.PasswordMessage> {
+internal object PasswordEncoder : PgMessageEncoder<PgMessage.PasswordMessage>() {
     override fun encode(
         value: PgMessage.PasswordMessage,
         buffer: ByteWriteBuffer,

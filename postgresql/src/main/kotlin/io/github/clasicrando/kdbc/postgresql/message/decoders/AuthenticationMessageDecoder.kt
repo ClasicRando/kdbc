@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.core.splitAsCString
 import io.github.clasicrando.kdbc.postgresql.authentication.Authentication
@@ -14,7 +15,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * For all authentication messages, search for "Byte1('R')"
  * [here](https://www.postgresql.org/docs/current/protocol-message-formats.html)
  */
-internal object AuthenticationMessageDecoder : MessageDecoder<PgMessage.Authentication> {
+internal object AuthenticationMessageDecoder : PgMessageDecoder<PgMessage.Authentication>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.Authentication {
         val auth: Authentication =
             buffer.use {
@@ -32,7 +33,7 @@ internal object AuthenticationMessageDecoder : MessageDecoder<PgMessage.Authenti
                     }
                     11 -> Authentication.SaslContinue(buffer.readText())
                     12 -> Authentication.SaslFinal(saslData = buffer.readText())
-                    else -> error("Unknown authentication method: $method")
+                    else -> throw KdbcException("Unknown authentication method: $method")
                 }
             }
         return PgMessage.Authentication(auth)

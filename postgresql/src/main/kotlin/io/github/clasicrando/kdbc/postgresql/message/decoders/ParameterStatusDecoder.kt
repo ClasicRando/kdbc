@@ -14,13 +14,12 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PARAMETERSTATUS)
  */
-internal object ParameterStatusDecoder : MessageDecoder<PgMessage.ParameterStatus> {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.ParameterStatus {
-        return buffer.use {
+internal object ParameterStatusDecoder : PgMessageDecoder<PgMessage.ParameterStatus>() {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.ParameterStatus =
+        buffer.use {
             PgMessage.ParameterStatus(
                 it.readCString(),
                 it.readCString(),
             )
         }
-    }
 }

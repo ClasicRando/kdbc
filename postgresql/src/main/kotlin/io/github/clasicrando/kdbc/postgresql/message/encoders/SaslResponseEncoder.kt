@@ -13,7 +13,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SASLRESPONSE)
  */
-internal object SaslResponseEncoder : MessageEncoder<PgMessage.SaslResponse> {
+internal object SaslResponseEncoder : PgMessageEncoder<PgMessage.SaslResponse>() {
     override fun encode(
         value: PgMessage.SaslResponse,
         buffer: ByteWriteBuffer,

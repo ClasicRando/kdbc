@@ -129,7 +129,6 @@ internal class BaseCompositeTypeDescription<T : Any>(
             }
         val dataRow =
             PgDataRow(
-                rowBuffer = value.bytes,
                 pgValues = attributes,
                 columnMapping = attributeMapping,
                 typeCache = typeCache,
@@ -159,7 +158,6 @@ internal class BaseCompositeTypeDescription<T : Any>(
                 .toTypedArray<PgValue?>()
         val dataRow =
             PgDataRow(
-                rowBuffer = null,
                 pgValues = attributes,
                 columnMapping = attributeMapping,
                 typeCache = typeCache,

@@ -17,7 +17,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-NEGOTIATEPROTOCOLVERSION)
  */
 @Suppress("ktlint:standard:max-line-length")
-internal object NegotiateProtocolVersionDecoder : MessageDecoder<PgMessage.NegotiateProtocolVersion> {
+internal object NegotiateProtocolVersionDecoder : PgMessageDecoder<PgMessage.NegotiateProtocolVersion>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.NegotiateProtocolVersion =
         buffer.use { buf ->
             val newestMinorProtocol = buf.readInt()

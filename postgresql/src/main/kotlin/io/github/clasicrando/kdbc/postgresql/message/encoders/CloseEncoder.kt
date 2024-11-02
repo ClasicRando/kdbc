@@ -16,7 +16,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-CLOSE)
  */
-internal object CloseEncoder : MessageEncoder<PgMessage.Close> {
+internal object CloseEncoder : PgMessageEncoder<PgMessage.Close>() {
     override fun encode(
         value: PgMessage.Close,
         buffer: ByteWriteBuffer,

@@ -12,7 +12,7 @@ import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-READYFORQUERY)
  */
-internal object ReadyForQueryDecoder : MessageDecoder<PgMessage.ReadyForQuery> {
+internal object ReadyForQueryDecoder : PgMessageDecoder<PgMessage.ReadyForQuery>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.ReadyForQuery {
         val status =
             buffer.use {

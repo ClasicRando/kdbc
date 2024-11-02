@@ -14,7 +14,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYFAIL)
  */
-internal object CopyFailEncoder : MessageEncoder<PgMessage.CopyFail> {
+internal object CopyFailEncoder : PgMessageEncoder<PgMessage.CopyFail>() {
     override fun encode(
         value: PgMessage.CopyFail,
         buffer: ByteWriteBuffer,

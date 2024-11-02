@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -12,11 +11,9 @@ import kotlin.reflect.KType
 import kotlin.reflect.full.withNullability
 
 /**
- * Postgresql specific implementation for a [DataRow]. Uses the [rowBuffer] to extract data
- * returned from the postgresql server.
+ * Postgresql specific implementation for a [DataRow].
  */
 internal class PgDataRow(
-    private val rowBuffer: ByteReadBuffer?,
     private var pgValues: Array<PgValue?>,
     private val columnMapping: List<PgColumnDescription>,
     private val typeCache: PgTypeCache,
@@ -69,12 +66,16 @@ internal class PgDataRow(
         val typeDescription =
             typeCache.getTypeDescription<Any>(nonNullType)
                 ?: throw KdbcException("Could not find type description for $nonNullType")
-        if (!typeDescription.isCompatible(pgType)) {
-            throw KdbcException(
-                "Actual column type is not compatible with required type. " +
-                    "Actual type: $pgType, Expected type: $nonNullType",
-            )
+        if (typeDescription.dbType.oid == pgType.oid) {
+            return decode(index, typeDescription)
         }
-        return decode(index, typeDescription)
+        if (typeDescription.isCompatible(pgType)) {
+            return decode(index, typeDescription)
+        }
+
+        throw KdbcException(
+            "Actual column type is not compatible with required type. " +
+                "Actual type: $pgType, Expected type: $nonNullType",
+        )
     }
 }

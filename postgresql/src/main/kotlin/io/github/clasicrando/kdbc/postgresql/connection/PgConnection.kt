@@ -36,6 +36,7 @@ import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import io.github.clasicrando.kdbc.postgresql.result.CopyInResultCollector
 import io.github.clasicrando.kdbc.postgresql.result.QueryResultCollector
 import io.github.clasicrando.kdbc.postgresql.result.StatementPrepareRequestCollector
+import io.github.clasicrando.kdbc.postgresql.statement.PgArgument
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.github.clasicrando.kdbc.postgresql.type.CompositeTypeDefinition
@@ -559,12 +560,21 @@ class PgConnection internal constructor(
         parameters: List<QueryParameter>,
         sendSync: Boolean = true,
     ) {
+        val arguments =
+            parameters.map {
+                val type = it.parameterType
+                PgArgument(
+                    parameter = it,
+                    pgTypeDescription =
+                        typeCache.getTypeDescription(type)
+                            ?: throw KdbcException("Could not find type description for $type"),
+                )
+            }
         val bindMessage =
             PgMessage.Bind(
                 portal = null,
                 statementName = statement.statementName,
-                parameters = parameters,
-                typeCache = typeCache,
+                arguments = arguments,
             )
         val executeMessage =
             PgMessage.Execute(

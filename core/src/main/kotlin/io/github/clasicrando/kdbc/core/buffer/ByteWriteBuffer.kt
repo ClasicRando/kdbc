@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.core.buffer
 
+import io.ktor.utils.io.bits.reverseByteOrder
 import java.nio.charset.Charset
 
 /**
@@ -201,3 +202,9 @@ inline fun ByteWriteBuffer.writeLengthPrefixed(
     this[startIndex++] = (length ushr 8 and 0xff).toByte()
     this[startIndex] = (length and 0xff).toByte()
 }
+
+fun ByteWriteBuffer.writeShortLe(short: Short) = writeShort(short.reverseByteOrder())
+
+fun ByteWriteBuffer.writeIntLe(int: Int) = writeInt(int.reverseByteOrder())
+
+fun ByteWriteBuffer.writeLongLe(long: Long) = writeLong(long.reverseByteOrder())

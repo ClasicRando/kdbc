@@ -14,7 +14,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-QUERY)
  */
-internal object QueryEncoder : MessageEncoder<PgMessage.Query> {
+internal object QueryEncoder : PgMessageEncoder<PgMessage.Query>() {
     override fun encode(
         value: PgMessage.Query,
         buffer: ByteWriteBuffer,

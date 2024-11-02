@@ -11,7 +11,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COMMANDCOMPLETE)
  */
-internal object CommandCompleteDecoder : MessageDecoder<PgMessage.CommandComplete> {
+internal object CommandCompleteDecoder : PgMessageDecoder<PgMessage.CommandComplete>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.CommandComplete {
         val message = buffer.use { it.readCString() }
         val words = message.split(" ")

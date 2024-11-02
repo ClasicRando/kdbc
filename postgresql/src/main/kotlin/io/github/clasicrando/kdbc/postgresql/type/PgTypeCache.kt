@@ -85,7 +85,9 @@ internal class PgTypeCache {
     ) {
         val verifiedOid =
             checkCompositeDbTypeByName(connection, name)
-                ?: error("Could not verify the composite type name '$name' in the database")
+                ?: throw KdbcException(
+                    "Could not verify the composite type name '$name' in the database",
+                )
 
         val compositeColumnMapping = getCompositeAttributeData(connection, verifiedOid)
 
@@ -102,7 +104,9 @@ internal class PgTypeCache {
 
         val arrayTypeOid =
             checkArrayDbTypeByOid(connection, verifiedOid)
-                ?: error("Could not verify the array type for element oid = $verifiedOid")
+                ?: throw KdbcException(
+                    "Could not verify the array type for element oid = $verifiedOid",
+                )
         addArrayTypeDescriptions(
             arrayType = PgType.fromOid(arrayTypeOid),
             typeDescription = compositeTypeDescription,
@@ -123,7 +127,9 @@ internal class PgTypeCache {
     ) {
         val verifiedOid =
             checkEnumDbTypeByName(connection, name)
-                ?: error("Could not verify the composite type name '$name' in the database")
+                ?: throw KdbcException(
+                    "Could not verify the composite type name '$name' in the database",
+                )
 
         val enumLabels = getEnumLabels(connection, verifiedOid)
         val enumTypeDescription =
@@ -141,7 +147,9 @@ internal class PgTypeCache {
 
         val arrayTypeOid =
             checkArrayDbTypeByOid(connection, verifiedOid)
-                ?: error("Could not verify the array type for element oid = $verifiedOid")
+                ?: throw KdbcException(
+                    "Could not verify the array type for element oid = $verifiedOid",
+                )
         addArrayTypeDescriptions(
             arrayType = PgType.fromOid(arrayTypeOid),
             typeDescription = enumTypeDescription,
@@ -174,7 +182,7 @@ internal class PgTypeCache {
         val oid = typeDescription.dbType.oid
         val arrayTypeOid =
             checkArrayDbTypeByOid(connection, oid)
-                ?: error("Could not verify the array type for element oid = $oid")
+                ?: throw KdbcException("Could not verify the array type for element oid = $oid")
         addArrayTypeDescriptions(
             arrayType = PgType.fromOid(arrayTypeOid),
             typeDescription = typeDescription,
@@ -195,7 +203,7 @@ internal class PgTypeCache {
         val oid = typeDescription.dbType.oid
         val arrayTypeOid =
             checkArrayDbTypeByOid(connection, oid)
-                ?: error("Could not verify the array type for element oid = $oid")
+                ?: throw KdbcException("Could not verify the array type for element oid = $oid")
         addArrayTypeDescriptions(
             arrayType = PgType.fromOid(arrayTypeOid),
             typeDescription = typeDescription,

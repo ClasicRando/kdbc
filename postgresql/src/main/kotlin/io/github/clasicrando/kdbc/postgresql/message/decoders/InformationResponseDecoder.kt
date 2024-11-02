@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse
 
@@ -12,9 +11,9 @@ import io.github.clasicrando.kdbc.postgresql.message.information.InformationResp
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-error-fields.html)
  */
-internal abstract class InformationResponseDecoder<T : PgMessage> : MessageDecoder<T> {
-    fun decodeToInformationResponse(buffer: ByteReadBuffer): InformationResponse {
-        return buffer.use { buf ->
+internal abstract class InformationResponseDecoder<T : PgMessage> : PgMessageDecoder<T>() {
+    fun decodeToInformationResponse(buffer: ByteReadBuffer): InformationResponse =
+        buffer.use { buf ->
             val map =
                 buildMap {
                     while (buf.remaining() > 0) {
@@ -26,5 +25,4 @@ internal abstract class InformationResponseDecoder<T : PgMessage> : MessageDecod
                 }
             InformationResponse(map)
         }
-    }
 }

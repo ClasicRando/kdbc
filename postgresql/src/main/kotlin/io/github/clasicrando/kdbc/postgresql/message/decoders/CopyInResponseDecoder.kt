@@ -16,9 +16,9 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYINRESPONSE)
  */
-internal object CopyInResponseDecoder : MessageDecoder<PgMessage.CopyInResponse> {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.CopyInResponse {
-        return buffer.use { buf ->
+internal object CopyInResponseDecoder : PgMessageDecoder<PgMessage.CopyInResponse>() {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.CopyInResponse =
+        buffer.use { buf ->
             val copyFormat = CopyFormat.fromByte(buf.readByte())
             val columnCount = buf.readShort().toInt()
             val columnFormats =
@@ -28,5 +28,4 @@ internal object CopyInResponseDecoder : MessageDecoder<PgMessage.CopyInResponse>
 
             PgMessage.CopyInResponse(copyFormat, columnCount, columnFormats)
         }
-    }
 }

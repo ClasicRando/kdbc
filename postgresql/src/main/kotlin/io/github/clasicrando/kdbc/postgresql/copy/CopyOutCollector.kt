@@ -87,12 +87,11 @@ internal class CopyOutCollector(
     private fun getBinaryBuffer(
         rowCount: Long,
         row: ByteArray,
-    ): ByteReadBuffer {
-        return when {
+    ): ByteReadBuffer =
+        when {
             rowCount == 1L -> ByteReadBuffer(row.copyOfRange(fromIndex = 19, toIndex = row.size))
             else -> ByteReadBuffer(row)
         }
-    }
 
     /**
      * Uses the [inputStream], [fields] and text data config details to parse and populate the
@@ -119,7 +118,6 @@ internal class CopyOutCollector(
                 rowCount++
                 val dataRow =
                     PgDataRow(
-                        rowBuffer = null,
                         pgValues =
                             Array(row.size) { i ->
                                 val rowData = row[i]

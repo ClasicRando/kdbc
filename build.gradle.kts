@@ -15,7 +15,7 @@ plugins {
 allprojects {
     apply(plugin = "kotlin")
     group = "io.github.clasicrando"
-    version = "0.0.3"
+    version = "0.0.4"
 
     repositories {
         mavenCentral()
@@ -122,6 +122,7 @@ subprojects {
         when (project.name) {
             "core" -> "kdbc-core"
             "postgresql" -> "kdbc-postgresql"
+            "mysql" -> "kdbc-mysql"
             else -> "kdbc-other"
         }
 

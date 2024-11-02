@@ -41,9 +41,7 @@ class ByteReadBuffer(
 
     /** Number of bytes remaining as readable within the buffer */
     @Suppress("NOTHING_TO_INLINE")
-    inline fun remaining(): Int {
-        return size - position
-    }
+    inline fun remaining(): Int = size - position
 
     /**
      * Check to confirm that the required number of bytes are available within the buffer. If the
@@ -59,6 +57,16 @@ class ByteReadBuffer(
     }
 
     /**
+     * View the next available [Byte] within the buffer without consuming the value.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    fun peekNext(): Byte {
+        checkRemaining(1)
+        return innerBuffer[offset + position]
+    }
+
+    /**
      * Read the next available [Byte] within the buffer.
      *
      * @throws BufferExhausted if the buffer has been exhausted
@@ -67,6 +75,13 @@ class ByteReadBuffer(
         checkRemaining(1)
         return innerBuffer[offset + position++]
     }
+
+    /**
+     * Read the next available [Byte] within the buffer.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    fun readByteAsInt(): Int = readByte().toInt() and 0xff
 
     /**
      * Read the next available [Short] within the buffer (requires 2 bytes).
@@ -83,6 +98,20 @@ class ByteReadBuffer(
     }
 
     /**
+     * Read the next available [Short] within the buffer (requires 2 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    fun readShortLe(): Short {
+        checkRemaining(2)
+        val result = (
+            innerBuffer[offset + position++].toInt() and 0xff
+                or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
+        )
+        return result.toShort()
+    }
+
+    /**
      * Read the next available [Int] within the buffer (requires 4 bytes).
      *
      * @throws BufferExhausted if the buffer has been exhausted
@@ -94,6 +123,22 @@ class ByteReadBuffer(
                 or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
                 or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
                 or (innerBuffer[offset + position++].toInt() and 0xff)
+        )
+        return result
+    }
+
+    /**
+     * Read the next available [Int] within the buffer (requires 4 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    fun readIntLe(): Int {
+        checkRemaining(4)
+        val result = (
+            (innerBuffer[offset + position++].toInt() and 0xff)
+                or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
+                or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
+                or (innerBuffer[offset + position++].toInt() and 0xff shl 24)
         )
         return result
     }
@@ -119,22 +164,38 @@ class ByteReadBuffer(
     }
 
     /**
+     * Read the next available [Long] within the buffer (requires 8 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    fun readLongLe(): Long {
+        checkRemaining(8)
+        val result = (
+            (innerBuffer[offset + position++].toLong() and 0xffL)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 8)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 16)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 24)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 32)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 40)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 48)
+                or (innerBuffer[offset + position++].toLong() and 0xffL shl 56)
+        )
+        return result
+    }
+
+    /**
      * Read the next available [Float] within the buffer (requires 4 bytes).
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readFloat(): Float {
-        return Float.fromBits(this.readInt())
-    }
+    fun readFloat(): Float = Float.fromBits(this.readInt())
 
     /**
      * Read the next available [Double] within the buffer (requires 8 bytes).
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readDouble(): Double {
-        return Double.fromBits(this.readLong())
-    }
+    fun readDouble(): Double = Double.fromBits(this.readLong())
 
     /**
      * Attempt to read an exact number of bytes specified by [length] into a [ByteArray].
@@ -161,9 +222,8 @@ class ByteReadBuffer(
      *
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
-    fun readText(charset: Charset = Charsets.UTF_8): String {
-        return String(this.readBytes(), charset = charset)
-    }
+    fun readText(charset: Charset = Charsets.UTF_8): String =
+        String(this.readBytes(), charset = charset)
 
     /**
      * Read bytes until 0 is found in the current relative [position] indicating the end of a

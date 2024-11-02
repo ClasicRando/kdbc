@@ -3,7 +3,9 @@ package io.github.clasicrando.kdbc.postgresql.type
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
+import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
+import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -165,13 +167,19 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
     }
 
     private fun decodeBound(
+        metadata: ColumnMetadata,
         char: Char,
         value: T,
     ): Bound<T> =
         when (char) {
             '(', ')' -> Bound.Excluded(value)
             '[', ']' -> Bound.Included(value)
-            else -> error("Expected bound character but found '$char'")
+            else ->
+                columnDecodeError(
+                    kType = kType,
+                    type = metadata,
+                    reason = "Expected bound character but found '$char'",
+                )
         }
 
     /**
@@ -206,7 +214,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
                 ?.let {
                     val text = PgValue.Text(it, value.typeData)
                     val lowerBoundValue = typeDescription.decodeText(text)
-                    decodeBound(lower, lowerBoundValue)
+                    decodeBound(value.typeData, lower, lowerBoundValue)
                 }
                 ?: Bound.Unbounded()
         val end =
@@ -215,7 +223,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
                 ?.let {
                     val text = PgValue.Text(it, value.typeData)
                     val upperBoundValue = typeDescription.decodeText(text)
-                    decodeBound(upper, upperBoundValue)
+                    decodeBound(value.typeData, upper, upperBoundValue)
                 }
                 ?: Bound.Unbounded()
         return PgRange(lower = start, upper = end)

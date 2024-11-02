@@ -34,7 +34,6 @@ internal class PgResultSet(
 
         val row =
             PgDataRow(
-                rowBuffer = buffer,
                 pgValues = pgValues,
                 columnMapping = columnMapping,
                 typeCache = typeCache,

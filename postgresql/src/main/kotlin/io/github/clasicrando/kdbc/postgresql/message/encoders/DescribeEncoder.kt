@@ -16,7 +16,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-DESCRIBE)
  */
-internal object DescribeEncoder : MessageEncoder<PgMessage.Describe> {
+internal object DescribeEncoder : PgMessageEncoder<PgMessage.Describe>() {
     override fun encode(
         value: PgMessage.Describe,
         buffer: ByteWriteBuffer,

@@ -15,14 +15,13 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-NOTIFICATIONRESPONSE)
  */
-internal object NotificationResponseDecoder : MessageDecoder<PgMessage.NotificationResponse> {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.NotificationResponse {
-        return buffer.use {
+internal object NotificationResponseDecoder : PgMessageDecoder<PgMessage.NotificationResponse>() {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.NotificationResponse =
+        buffer.use {
             PgMessage.NotificationResponse(
                 it.readInt(),
                 it.readCString(),
                 it.readCString(),
             )
         }
-    }
 }
