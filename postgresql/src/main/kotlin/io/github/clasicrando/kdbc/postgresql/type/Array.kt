@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.withNullability
@@ -24,8 +24,8 @@ private val dummyFieldDescription =
 fun <T : Any> createArrayDescriptions(
     pgType: PgType,
     innerType: PgTypeDescription<T>,
-): Array<PgTypeDescription<*>> {
-    return arrayOf(
+): Array<PgTypeDescription<*>> =
+    arrayOf(
         object : ArrayTypeDescription<T>(
             pgType = pgType,
             innerType = innerType,
@@ -37,7 +37,6 @@ fun <T : Any> createArrayDescriptions(
             innerNullable = false,
         ) {},
     )
-}
 
 /**
  * Implementation of a [PgTypeDescription] for array types. Data supplied is the [PgType] of the
@@ -73,7 +72,7 @@ internal abstract class ArrayTypeDescription<T : Any>(
      */
     override fun encode(
         value: List<T?>,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeInt(1)
         buffer.writeInt(0)
@@ -85,7 +84,7 @@ internal abstract class ArrayTypeDescription<T : Any>(
                 buffer.writeByte(-1)
                 continue
             }
-            buffer.writeLengthPrefixed {
+            buffer.writeLengthPrefixedInt {
                 innerType.encode(item, this)
             }
         }
@@ -171,7 +170,8 @@ internal abstract class ArrayTypeDescription<T : Any>(
             type = value.typeData,
         ) { "An array literal value must start and end with a curly brace" }
 
-        return ArrayLiteralParser.parse(value.text)
+        return ArrayLiteralParser
+            .parse(value.text)
             .map {
                 when {
                     it == null -> null

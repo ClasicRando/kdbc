@@ -4,12 +4,9 @@ import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.SslMode
-import io.github.clasicrando.kdbc.core.buffer.ByteArrayWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
-import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.core.stream.Stream
 import io.github.clasicrando.kdbc.core.stream.StreamConnectError
 import io.github.clasicrando.kdbc.core.stream.StreamReadError
@@ -55,9 +52,6 @@ internal class PgStream(
     AutoCloseable {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
-
-    /** Reusable buffer for writing messages to the database server */
-    private val messageSendBuffer: ByteWriteBuffer = ByteArrayWriteBuffer(SEND_BUFFER_SIZE)
 
     override val resourceType: String = RESOURCE_TYPE
 
@@ -264,16 +258,29 @@ internal class PgStream(
 
     /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeToStream(message: PgMessage) {
-        writeToBuffer { buffer ->
-            PgMessageEncoders.encode(message, buffer)
+        stream.writeTo { sink ->
+            PgMessageEncoders.encode(message, sink)
         }
     }
 
     /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend fun writeManyToStream(vararg messages: PgMessage) {
-        writeToBuffer { buffer ->
+        stream.writeTo { sink ->
             for (message in messages) {
-                PgMessageEncoders.encode(message, buffer)
+                PgMessageEncoders.encode(message, sink)
+            }
+        }
+    }
+
+    /**
+     * Utilize the known size of the [M] messages to optimally write a [flow] of messages to the
+     * server. This involves collecting the [flow] and packing is as many messages as possible into
+     * a single write to the database server.
+     */
+    suspend fun <M : PgMessage> writeManyToStream(flow: Flow<M>) {
+        stream.writeTo { sink ->
+            flow.collect {
+                PgMessageEncoders.encode(it, sink)
             }
         }
     }
@@ -289,51 +296,7 @@ internal class PgStream(
     /** Returns true if the underlining [stream] is still connected */
     val isConnected: Boolean get() = stream.isConnected
 
-    /**
-     * Use the write action, [block], to write zero or more [Byte]s to the [messageSendBuffer]
-     * which in turn is written to the [stream]. The [messageSendBuffer] will always be
-     * released at the end of this method even if an [Exception] is thrown.
-     */
-    private suspend inline fun writeToBuffer(crossinline block: suspend (ByteWriteBuffer) -> Unit) {
-        try {
-            messageSendBuffer.reset()
-            block(messageSendBuffer)
-            stream.writeBuffer(messageSendBuffer)
-        } finally {
-            messageSendBuffer.reset()
-        }
-    }
-
-    /**
-     * Utilize the known size of the [M] messages to optimally write a [flow] of messages to the
-     * server. This involves collecting the [flow] and packing is as many messages as possible into
-     * a single write to the database server.
-     */
-    suspend fun <M> writeManySized(
-        flow: Flow<M>,
-    )
-    where
-          M : SizedMessage,
-          M : PgMessage {
-        try {
-            messageSendBuffer.reset()
-            flow.collect {
-                if (messageSendBuffer.remaining < it.size) {
-                    stream.writeBuffer(messageSendBuffer)
-                    messageSendBuffer.reset()
-                }
-                PgMessageEncoders.encode(it, messageSendBuffer)
-            }
-            if (messageSendBuffer.position > 0) {
-                stream.writeBuffer(messageSendBuffer)
-            }
-        } finally {
-            messageSendBuffer.reset()
-        }
-    }
-
     override fun close() {
-        messageSendBuffer.close()
         closeChannels()
         if (stream.isConnected) {
             stream.close()

@@ -1,9 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import io.ktor.utils.io.core.writeText
+import kotlinx.io.Sink
 import kotlinx.serialization.SerializationException
 import kotlin.reflect.typeOf
 
@@ -12,9 +13,8 @@ internal object JsonTypeDescription : PgTypeDescription<PgJson>(
     dbType = PgType.Jsonb,
     kType = typeOf<PgJson>(),
 ) {
-    override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == this.dbType || dbType == PgType.Json
-    }
+    override fun isCompatible(dbType: PgType): Boolean =
+        dbType == this.dbType || dbType == PgType.Json
 
     /**
      * Writes a single [Byte] of 1, then calls [PgJson.writeToBuffer] which encodes the json data
@@ -25,7 +25,7 @@ internal object JsonTypeDescription : PgTypeDescription<PgJson>(
      */
     override fun encode(
         value: PgJson,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(1)
         value.writeToBuffer(buffer)
@@ -65,8 +65,8 @@ internal object JsonTypeDescription : PgTypeDescription<PgJson>(
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the header value
      */
-    override fun decodeText(value: PgValue.Text): PgJson {
-        return try {
+    override fun decodeText(value: PgValue.Text): PgJson =
+        try {
             PgJson.Text(value.text)
         } catch (ex: SerializationException) {
             columnDecodeError<PgJson>(
@@ -75,7 +75,6 @@ internal object JsonTypeDescription : PgTypeDescription<PgJson>(
                 cause = ex,
             )
         }
-    }
 }
 
 /**
@@ -93,7 +92,7 @@ internal object JsonPathTypeDescription : PgTypeDescription<PgJsonPath>(
      */
     override fun encode(
         value: PgJsonPath,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(1)
         buffer.writeText(value.value)
@@ -123,7 +122,5 @@ internal object JsonPathTypeDescription : PgTypeDescription<PgJsonPath>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L132)
      */
-    override fun decodeText(value: PgValue.Text): PgJsonPath {
-        return PgJsonPath(value.text)
-    }
+    override fun decodeText(value: PgValue.Text): PgJsonPath = PgJsonPath(value.text)
 }

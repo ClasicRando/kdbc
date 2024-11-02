@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
@@ -8,6 +7,7 @@ import io.github.clasicrando.kdbc.core.datetime.tryFromString
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.Instant
 import kotlinx.datetime.UtcOffset
+import kotlinx.io.Sink
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -53,7 +53,7 @@ internal object InstantTypeDescription : PgTypeDescription<Instant>(
      */
     override fun encode(
         value: Instant,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val durationSinceEpoch = value - postgresEpochInstant
         buffer.writeLong(durationSinceEpoch.inWholeMicroseconds)
@@ -102,7 +102,7 @@ internal object DateTimeTypeDescription : PgTypeDescription<DateTime>(
      */
     override fun encode(
         value: DateTime,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val durationSinceEpoch = value.datetime - postgresEpochInstant
         buffer.writeLong(durationSinceEpoch.inWholeMicroseconds)
@@ -180,7 +180,7 @@ internal object LocalDateTimeTypeDescription : PgTypeDescription<LocalDateTime>(
      */
     override fun encode(
         value: LocalDateTime,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val durationSinceEpoch = postgresEpochJLocalDateTime.until(value, ChronoUnit.MICROS)
         buffer.writeLong(durationSinceEpoch)
@@ -229,7 +229,7 @@ internal object OffsetDateTimeTypeDescription : PgTypeDescription<OffsetDateTime
      */
     override fun encode(
         value: OffsetDateTime,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val durationSinceEpoch = postgresEpochJInstant.until(value.toInstant(), ChronoUnit.MICROS)
         buffer.writeLong(durationSinceEpoch)

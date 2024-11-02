@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -16,11 +15,12 @@ import io.ktor.network.sockets.isClosed
 import io.ktor.network.tls.tls
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readAvailable
-import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Buffer
+import kotlinx.io.Sink
 import kotlinx.io.readTo
 import kotlin.time.Duration
 
@@ -75,10 +75,10 @@ class KtorStream(
         readChannel = connection.input
     }
 
-    override suspend fun writeBuffer(buffer: ByteWriteBuffer) {
+    @OptIn(InternalAPI::class)
+    override suspend fun writeTo(block: suspend (Sink) -> Unit) {
         check(isConnected) { "Cannot write to a stream that is not connected" }
-        val bytes = buffer.copyToArray()
-        writeChannel.writeFully(bytes)
+        block(writeChannel.writeBuffer)
         writeChannel.flush()
     }
 

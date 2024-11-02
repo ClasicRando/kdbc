@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 
 /**
@@ -20,7 +20,7 @@ internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
      */
     override fun encode(
         value: PgMoney,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeLong(value.integer)
     }
@@ -30,9 +30,7 @@ internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L524)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgMoney {
-        return PgMoney(value.bytes.readLong())
-    }
+    override fun decodeBytes(value: PgValue.Binary): PgMoney = PgMoney(value.bytes.readLong())
 
     /**
      * Parse the [String] value sent using [PgMoney.fromString].
@@ -42,8 +40,8 @@ internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a money value
      */
-    override fun decodeText(value: PgValue.Text): PgMoney {
-        return try {
+    override fun decodeText(value: PgValue.Text): PgMoney =
+        try {
             PgMoney.fromString(value.text)
         } catch (ex: Exception) {
             columnDecodeError<PgMoney>(
@@ -51,5 +49,4 @@ internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
                 reason = "Could not parse '${value.text}' into a money value. ${ex.message}",
             )
         }
-    }
 }

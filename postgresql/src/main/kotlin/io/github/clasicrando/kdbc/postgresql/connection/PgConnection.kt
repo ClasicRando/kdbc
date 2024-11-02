@@ -56,6 +56,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.io.Sink
 import kotlinx.io.Source
+import kotlinx.io.readByteArray
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -746,7 +747,7 @@ class PgConnection internal constructor(
         var wasFailed = false
         var failureReason: Exception? = null
         try {
-            stream.writeManySized(data.map { PgMessage.CopyData(it) })
+            stream.writeManyToStream(data.map { PgMessage.CopyData(it) })
             stream.writeToStream(PgMessage.CopyDone)
         } catch (ex: Exception) {
             failureReason = ex
@@ -908,7 +909,7 @@ class PgConnection internal constructor(
                                 buffer.innerBuffer.writeShort(row.valueCount)
                                 row.encodeValues(buffer)
                             }
-                            buffer.innerBuffer.copyToArray()
+                            buffer.innerBuffer.readByteArray()
                         }
                     emitAll(mappedFlow)
                     emit(pgBinaryCopyTrailer)

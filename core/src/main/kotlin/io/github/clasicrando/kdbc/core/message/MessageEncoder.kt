@@ -1,6 +1,6 @@
 package io.github.clasicrando.kdbc.core.message
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import kotlinx.io.Sink
 
 /**
  * Server message encoder. Enables writing a message of type [T] to the output channel that passes
@@ -10,6 +10,6 @@ interface MessageEncoder<in T> {
     /** Encode the message [value] of type [T] to the [buffer] supplied */
     fun encode(
         value: T,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     )
 }

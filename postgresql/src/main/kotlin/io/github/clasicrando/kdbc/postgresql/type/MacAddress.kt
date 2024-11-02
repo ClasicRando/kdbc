@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [PgMacAddress] type */
@@ -11,17 +11,15 @@ internal object MacAddressTypeDescription : PgTypeDescription<PgMacAddress>(
     dbType = PgType.Macaddr,
     kType = typeOf<PgMacAddress>(),
 ) {
-    override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == this.dbType || dbType == PgType.Macaddr8
-    }
+    override fun isCompatible(dbType: PgType): Boolean =
+        dbType == this.dbType || dbType == PgType.Macaddr8
 
-    override fun getActualType(value: PgMacAddress): PgType {
-        return if (value.isMacAddress8) {
+    override fun getActualType(value: PgMacAddress): PgType =
+        if (value.isMacAddress8) {
             PgType.Macaddr8
         } else {
             PgType.Macaddr
         }
-    }
 
     /**
      * Write all bytes in the [PgMacAddress] unless the supplied [dbType] is not [PgType.Macaddr8]
@@ -33,7 +31,7 @@ internal object MacAddressTypeDescription : PgTypeDescription<PgMacAddress>(
      */
     override fun encode(
         value: PgMacAddress,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(value.a)
         buffer.writeByte(value.b)
@@ -83,8 +81,8 @@ internal object MacAddressTypeDescription : PgTypeDescription<PgMacAddress>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the string is not
      * formatted as expected
      */
-    override fun decodeText(value: PgValue.Text): PgMacAddress {
-        return try {
+    override fun decodeText(value: PgValue.Text): PgMacAddress =
+        try {
             PgMacAddress.fromString(value.text)
         } catch (ex: Exception) {
             columnDecodeError<PgMacAddress>(
@@ -93,5 +91,4 @@ internal object MacAddressTypeDescription : PgTypeDescription<PgMacAddress>(
                 cause = ex,
             )
         }
-    }
 }

@@ -1,12 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
+import kotlinx.io.Sink
 import java.time.OffsetTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -30,7 +30,7 @@ internal object LocalTimeTypeDescription : PgTypeDescription<LocalTime>(
      */
     override fun encode(
         value: LocalTime,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val microSeconds =
             value
@@ -60,13 +60,12 @@ internal object LocalTimeTypeDescription : PgTypeDescription<LocalTime>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [LocalTime]
      */
-    override fun decodeText(value: PgValue.Text): LocalTime {
-        return try {
+    override fun decodeText(value: PgValue.Text): LocalTime =
+        try {
             LocalTime.tryFromString(value.text)
         } catch (ex: InvalidDateString) {
             columnDecodeError<LocalTime>(type = value.typeData, cause = ex)
         }
-    }
 }
 
 /**
@@ -86,7 +85,7 @@ internal object PgTimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
      */
     override fun encode(
         value: PgTimeTz,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         LocalTimeTypeDescription.encode(value.time, buffer)
         // Offset from postgres treats west of UTC as positive which is the opposite of UtcOffset
@@ -117,13 +116,12 @@ internal object PgTimeTzTypeDescription : PgTypeDescription<PgTimeTz>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [LocalTime]
      */
-    override fun decodeText(value: PgValue.Text): PgTimeTz {
-        return try {
+    override fun decodeText(value: PgValue.Text): PgTimeTz =
+        try {
             PgTimeTz.fromString(value.text)
         } catch (ex: InvalidDateString) {
             columnDecodeError<PgTimeTz>(type = value.typeData, cause = ex)
         }
-    }
 }
 
 /**
@@ -141,7 +139,7 @@ internal object JLocalTimeTypeDescription : PgTypeDescription<java.time.LocalTim
      */
     override fun encode(
         value: java.time.LocalTime,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val microSeconds =
             value
@@ -171,13 +169,12 @@ internal object JLocalTimeTypeDescription : PgTypeDescription<java.time.LocalTim
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [java.time.LocalTime]
      */
-    override fun decodeText(value: PgValue.Text): java.time.LocalTime {
-        return try {
+    override fun decodeText(value: PgValue.Text): java.time.LocalTime =
+        try {
             java.time.LocalTime.parse(value.text)
         } catch (ex: DateTimeParseException) {
             columnDecodeError<java.time.LocalTime>(type = value.typeData, cause = ex)
         }
-    }
 }
 
 private val offsetTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ssX")
@@ -199,7 +196,7 @@ internal object OffsetTimeTypeDescription : PgTypeDescription<OffsetTime>(
      */
     override fun encode(
         value: OffsetTime,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         JLocalTimeTypeDescription.encode(value.toLocalTime(), buffer)
         // Offset from postgres treats west of UTC as positive which is the opposite of UtcOffset
@@ -230,11 +227,10 @@ internal object OffsetTimeTypeDescription : PgTypeDescription<OffsetTime>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [LocalTime]
      */
-    override fun decodeText(value: PgValue.Text): OffsetTime {
-        return try {
+    override fun decodeText(value: PgValue.Text): OffsetTime =
+        try {
             OffsetTime.parse(value.text, offsetTimeFormatter)
         } catch (ex: DateTimeParseException) {
             columnDecodeError<OffsetTime>(type = value.typeData, cause = ex)
         }
-    }
 }

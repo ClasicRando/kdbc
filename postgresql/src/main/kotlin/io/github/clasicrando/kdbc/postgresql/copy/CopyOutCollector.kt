@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.copy
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
-import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -11,7 +10,8 @@ import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import kotlinx.coroutines.flow.Flow
-import java.io.ByteArrayInputStream
+import kotlinx.io.Buffer
+import kotlinx.io.asInputStream
 import java.io.InputStream
 
 /**
@@ -24,13 +24,12 @@ internal class CopyOutCollector(
 ) {
     /**
      * Convert the [Flow] of [ByteArray] into an [InputStream] for text file parsing. This collects
-     * the flow contents into a [ByteListWriteBuffer] and collects a [ByteArray] into a
-     * [ByteArrayInputStream].
+     * the flow contents into a [Buffer] and wraps it using [Buffer.asInputStream]
      */
     private suspend fun Flow<ByteArray>.toDelimitedInputStream(): InputStream {
-        val buffer = ByteListWriteBuffer()
-        this.collect { buffer.writeBytes(it) }
-        return ByteArrayInputStream(buffer.copyToArray())
+        val buffer = Buffer()
+        this.collect { buffer.write(it) }
+        return buffer.asInputStream()
     }
 
     /**
@@ -87,12 +86,11 @@ internal class CopyOutCollector(
     private fun getBinaryBuffer(
         rowCount: Long,
         row: ByteArray,
-    ): ByteReadBuffer {
-        return when {
+    ): ByteReadBuffer =
+        when {
             rowCount == 1L -> ByteReadBuffer(row.copyOfRange(fromIndex = 19, toIndex = row.size))
             else -> ByteReadBuffer(row)
         }
-    }
 
     /**
      * Uses the [inputStream], [fields] and text data config details to parse and populate the

@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 
 /**
@@ -20,7 +20,7 @@ internal object BoolTypeDescription : PgTypeDescription<Boolean>(
      */
     override fun encode(
         value: Boolean,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(if (value) 1 else 0)
     }

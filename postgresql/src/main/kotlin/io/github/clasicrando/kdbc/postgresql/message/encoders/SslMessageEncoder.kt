@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.SslRequest]. This message is sent to request the start of
@@ -16,9 +16,9 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 internal object SslMessageEncoder : MessageEncoder<PgMessage.SslRequest> {
     override fun encode(
         value: PgMessage.SslRequest,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
-        buffer.writeLengthPrefixed(includeLength = true) {
+        buffer.writeLengthPrefixedInt(includeLength = true) {
             writeShort(1234)
             writeShort(5679)
         }

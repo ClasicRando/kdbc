@@ -1,8 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Buffer
+import kotlinx.io.Sink
+import kotlinx.io.readByteArray
 import kotlin.reflect.typeOf
 
 /**
@@ -20,9 +21,9 @@ internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
      */
     override fun encode(
         value: ByteArray,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
-        buffer.writeBytes(value)
+        buffer.write(value)
     }
 
     /**
@@ -30,9 +31,7 @@ internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L490)
      */
-    override fun decodeBytes(value: PgValue.Binary): ByteArray {
-        return value.bytes.readBytes()
-    }
+    override fun decodeBytes(value: PgValue.Binary): ByteArray = value.bytes.readBytes()
 
     /**
      * Decode the [String] as either a prefixed hex format value (using [decodeWithPrefix]) or an
@@ -40,13 +39,12 @@ internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L388)
      */
-    override fun decodeText(value: PgValue.Text): ByteArray {
-        return if (value.text.startsWith(HEX_START)) {
+    override fun decodeText(value: PgValue.Text): ByteArray =
+        if (value.text.startsWith(HEX_START)) {
             decodeWithPrefix(value.text)
         } else {
             decodeWithoutPrefix(value.text)
         }
-    }
 }
 
 /** Prefix for a hex format `bytea` value */
@@ -115,7 +113,7 @@ private fun String.getOrThrow(index: Int): Char {
  * [Byte] value in the format of "x{first}{second}{third}".
  */
 private fun decodeWithoutPrefix(value: String): ByteArray {
-    val buffer = ByteListWriteBuffer()
+    val buffer = Buffer()
     val maxIndex = value.length - 1
     var index = 0
 
@@ -142,5 +140,5 @@ private fun decodeWithoutPrefix(value: String): ByteArray {
         index++
         buffer.writeByte("0$nextChar$secondDigit$thirdDigit".toInt(8).toByte())
     }
-    return buffer.copyToArray()
+    return buffer.readByteArray()
 }

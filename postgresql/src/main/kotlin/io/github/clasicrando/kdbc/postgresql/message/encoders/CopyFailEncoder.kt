@@ -1,9 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
+import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.CopyFail]. This message is sent to notify the backend that the
@@ -17,10 +18,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 internal object CopyFailEncoder : MessageEncoder<PgMessage.CopyFail> {
     override fun encode(
         value: PgMessage.CopyFail,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
+        buffer.writeLengthPrefixedInt(includeLength = true) {
             writeCString(value.message)
         }
     }

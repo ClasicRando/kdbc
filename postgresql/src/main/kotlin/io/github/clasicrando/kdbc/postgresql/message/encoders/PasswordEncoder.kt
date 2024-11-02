@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.PasswordMessage]. This message is sent to the backend when the
@@ -17,11 +17,11 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 internal object PasswordEncoder : MessageEncoder<PgMessage.PasswordMessage> {
     override fun encode(
         value: PgMessage.PasswordMessage,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
-            writeBytes(value.password)
+        buffer.writeLengthPrefixedInt(includeLength = true) {
+            write(value.password)
             writeByte(0)
         }
     }

@@ -1,10 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.type.PgPolygon.Companion.makeBoundBox
+import kotlinx.io.Sink
+import kotlinx.io.writeDouble
 import kotlin.reflect.typeOf
 
 /**
@@ -22,7 +23,7 @@ internal object PointTypeDescription : PgTypeDescription<PgPoint>(
      */
     override fun encode(
         value: PgPoint,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeDouble(value.x)
         buffer.writeDouble(value.y)
@@ -33,9 +34,8 @@ internal object PointTypeDescription : PgTypeDescription<PgPoint>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1868)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgPoint {
-        return PgPoint(x = value.bytes.readDouble(), y = value.bytes.readDouble())
-    }
+    override fun decodeBytes(value: PgValue.Binary): PgPoint =
+        PgPoint(x = value.bytes.readDouble(), y = value.bytes.readDouble())
 
     /**
      * Extracts 2 [Double] values for the [PgPoint.x] and [PgPoint.y] coordinates from the [String]
@@ -87,7 +87,7 @@ internal object LineTypeDescription : PgTypeDescription<PgLine>(
      */
     override fun encode(
         value: PgLine,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeDouble(value.a)
         buffer.writeDouble(value.b)
@@ -99,13 +99,12 @@ internal object LineTypeDescription : PgTypeDescription<PgLine>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1061)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgLine {
-        return PgLine(
+    override fun decodeBytes(value: PgValue.Binary): PgLine =
+        PgLine(
             a = value.bytes.readDouble(),
             b = value.bytes.readDouble(),
             c = value.bytes.readDouble(),
         )
-    }
 
     /**
      * Extracts 3 [Double] values for the [PgLine.a], [PgLine.b] and [PgLine.c] values from the
@@ -163,7 +162,7 @@ internal object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
      */
     override fun encode(
         value: PgLineSegment,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         PointTypeDescription.encode(value.point1, buffer)
         PointTypeDescription.encode(value.point2, buffer)
@@ -174,12 +173,11 @@ internal object LineSegmentTypeDescription : PgTypeDescription<PgLineSegment>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2111)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgLineSegment {
-        return PgLineSegment(
+    override fun decodeBytes(value: PgValue.Binary): PgLineSegment =
+        PgLineSegment(
             point1 = PointTypeDescription.decodeBytes(value),
             point2 = PointTypeDescription.decodeBytes(value),
         )
-    }
 
     /**
      * Extracts 2 [PgPoint] values the 2 points that define the bounds of the line segment. The
@@ -219,7 +217,7 @@ internal object BoxTypeDescription : PgTypeDescription<PgBox>(
      */
     override fun encode(
         value: PgBox,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         PointTypeDescription.encode(value.high, buffer)
         PointTypeDescription.encode(value.low, buffer)
@@ -230,12 +228,11 @@ internal object BoxTypeDescription : PgTypeDescription<PgBox>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L501)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgBox {
-        return PgBox(
+    override fun decodeBytes(value: PgValue.Binary): PgBox =
+        PgBox(
             high = PointTypeDescription.decodeBytes(value),
             low = PointTypeDescription.decodeBytes(value),
         )
-    }
 
     /**
      * Extracts 2 [PgPoint] values that define the bounds of the box. The format of the string
@@ -278,7 +275,7 @@ internal object PathTypeDescription : PgTypeDescription<PgPath>(
      */
     override fun encode(
         value: PgPath,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(if (value.isClosed) 1 else 0)
         buffer.writeInt(value.points.size)
@@ -349,7 +346,7 @@ internal object PolygonTypeDescription : PgTypeDescription<PgPolygon>(
      */
     override fun encode(
         value: PgPolygon,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeInt(value.points.size)
         for (point in value.points) {
@@ -419,7 +416,7 @@ internal object CircleTypeDescription : PgTypeDescription<PgCircle>(
      */
     override fun encode(
         value: PgCircle,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         PointTypeDescription.encode(value.center, buffer)
         buffer.writeDouble(value.radius)
@@ -431,12 +428,11 @@ internal object CircleTypeDescription : PgTypeDescription<PgCircle>(
      *
      * [pg source code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4727)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgCircle {
-        return PgCircle(
+    override fun decodeBytes(value: PgValue.Binary): PgCircle =
+        PgCircle(
             center = PointTypeDescription.decodeBytes(value),
             radius = value.bytes.readDouble(),
         )
-    }
 
     /**
      * The expected format is '<(x,y),r>' so the point component is extracted and passed to
@@ -459,7 +455,8 @@ internal object CircleTypeDescription : PgTypeDescription<PgCircle>(
         return PgCircle(
             center = PointTypeDescription.decodeText(pointValue),
             radius =
-                data.substring(mid + 1)
+                data
+                    .substring(mid + 1)
                     .toDoubleOrNull()
                     ?: columnDecodeError<PgCircle>(
                         type = value.typeData,

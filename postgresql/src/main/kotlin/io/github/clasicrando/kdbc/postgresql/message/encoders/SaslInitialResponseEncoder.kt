@@ -1,9 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
+import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.SaslInitialResponse]. This message is sent to provide the
@@ -21,13 +22,13 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 internal object SaslInitialResponseEncoder : MessageEncoder<PgMessage.SaslInitialResponse> {
     override fun encode(
         value: PgMessage.SaslInitialResponse,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
+        buffer.writeLengthPrefixedInt(includeLength = true) {
             writeCString(value.mechanism)
             writeInt(value.saslData.length)
-            writeBytes(value.saslData.toByteArray(charset = Charsets.UTF_8))
+            write(value.saslData.toByteArray(charset = Charsets.UTF_8))
         }
     }
 }

@@ -1,9 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
+import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.Execute]. This message is sent to execute a previously created
@@ -19,10 +20,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 internal object ExecuteEncoder : MessageEncoder<PgMessage.Execute> {
     override fun encode(
         value: PgMessage.Execute,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
+        buffer.writeLengthPrefixedInt(includeLength = true) {
             writeCString(value.portalName ?: "")
             writeInt(value.maxRowCount)
         }

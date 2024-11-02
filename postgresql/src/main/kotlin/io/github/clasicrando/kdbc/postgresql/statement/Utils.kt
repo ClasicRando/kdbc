@@ -1,12 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.statement
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
+import kotlinx.io.Sink
 import kotlin.reflect.KType
 
-internal fun ByteWriteBuffer.encodeValue(
+internal fun Sink.encodeValue(
     value: Any?,
     type: KType,
     typeCache: PgTypeCache,
@@ -18,7 +18,7 @@ internal fun ByteWriteBuffer.encodeValue(
     val description =
         typeCache.getTypeDescription<Any>(type)
             ?: throw KdbcException("Could not find type description for $type")
-    writeLengthPrefixed {
+    writeLengthPrefixedInt {
         description.encode(value, this)
     }
 }

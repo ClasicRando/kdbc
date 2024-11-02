@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 
 /**
@@ -16,7 +16,7 @@ internal object CharTypeDescription : PgTypeDescription<Byte>(
     /** Simply write the [Byte] value to the buffer */
     override fun encode(
         value: Byte,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(value)
     }
@@ -29,9 +29,8 @@ internal object CharTypeDescription : PgTypeDescription<Byte>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text representation
      * is too long
      */
-    override fun decodeBytes(value: PgValue.Binary): Byte {
-        return if (value.bytes.remaining() > 0) value.bytes.readByte() else 0
-    }
+    override fun decodeBytes(value: PgValue.Binary): Byte =
+        if (value.bytes.remaining() > 0) value.bytes.readByte() else 0
 
     /**
      * Converts the text into a [Byte] depending on the [String.length]:
@@ -46,8 +45,8 @@ internal object CharTypeDescription : PgTypeDescription<Byte>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text representation
      * is too long
      */
-    override fun decodeText(value: PgValue.Text): Byte {
-        return when (value.text.length) {
+    override fun decodeText(value: PgValue.Text): Byte =
+        when (value.text.length) {
             4 -> {
                 val first = value.text[1].code shl 6
                 val second = value.text[2].code shl 3
@@ -62,5 +61,4 @@ internal object CharTypeDescription : PgTypeDescription<Byte>(
                     reason = "Received invalid \"char\" text, '${value.text}'",
                 )
         }
-    }
 }

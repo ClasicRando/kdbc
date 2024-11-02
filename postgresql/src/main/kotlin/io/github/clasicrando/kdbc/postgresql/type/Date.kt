@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
@@ -10,6 +9,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.plus
 import kotlinx.datetime.toJavaLocalDate
+import kotlinx.io.Sink
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 import kotlin.reflect.typeOf
@@ -35,7 +35,7 @@ internal object LocalDateTypeDescription : PgTypeDescription<LocalDate>(
      */
     override fun encode(
         value: LocalDate,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val difference = postgresEpochDate.daysUntil(value)
         buffer.writeInt(difference)
@@ -60,13 +60,12 @@ internal object LocalDateTypeDescription : PgTypeDescription<LocalDate>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [LocalDate]
      */
-    override fun decodeText(value: PgValue.Text): LocalDate {
-        return try {
+    override fun decodeText(value: PgValue.Text): LocalDate =
+        try {
             LocalDate.tryFromString(value.text)
         } catch (ex: InvalidDateString) {
             columnDecodeError<LocalDate>(type = value.typeData, cause = ex)
         }
-    }
 }
 
 /**
@@ -91,7 +90,7 @@ internal object JLocalDateTypeDescription : PgTypeDescription<java.time.LocalDat
      */
     override fun encode(
         value: java.time.LocalDate,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val difference = postgresEpochDateJTime.until(value, ChronoUnit.DAYS)
         buffer.writeInt(difference.toInt())
@@ -116,11 +115,10 @@ internal object JLocalDateTypeDescription : PgTypeDescription<java.time.LocalDat
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      * parsed into a [java.time.LocalDate]
      */
-    override fun decodeText(value: PgValue.Text): java.time.LocalDate {
-        return try {
+    override fun decodeText(value: PgValue.Text): java.time.LocalDate =
+        try {
             java.time.LocalDate.parse(value.text)
         } catch (ex: DateTimeParseException) {
             columnDecodeError<java.time.LocalDate>(type = value.typeData, cause = ex)
         }
-    }
 }

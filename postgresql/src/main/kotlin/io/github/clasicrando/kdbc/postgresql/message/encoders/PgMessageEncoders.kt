@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Sink
 
 /** Common entry point for encoding frontend [PgMessage]s. */
 internal object PgMessageEncoders {
@@ -16,7 +16,7 @@ internal object PgMessageEncoders {
     @Suppress("UNCHECKED_CAST")
     fun <T : PgMessage> encode(
         message: T,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val encoder =
             when (message) {

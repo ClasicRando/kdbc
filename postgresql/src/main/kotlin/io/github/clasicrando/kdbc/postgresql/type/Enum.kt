@@ -1,10 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.annotations.Rename
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import io.ktor.utils.io.core.writeText
+import kotlinx.io.Sink
 import kotlin.reflect.KType
 
 /** Implementation of [PgTypeDescription] for custom enum types in a postgresql database */
@@ -21,7 +22,8 @@ internal class EnumTypeDescription<E : Enum<E>>(
 
     init {
         val renameMap: Map<String, String> =
-            values.firstOrNull()
+            values
+                .firstOrNull()
                 ?.declaringJavaClass
                 ?.fields
                 ?.mapNotNull { field ->
@@ -35,12 +37,12 @@ internal class EnumTypeDescription<E : Enum<E>>(
                             .firstOrNull()
                             ?: return@mapNotNull null
                     field.name to renameAnnotation.value
-                }
-                ?.toMap()
+                }?.toMap()
                 ?: mapOf()
         nameMap = values.associateWith { renameMap[it.name] ?: it.name }
         entryLookup =
-            nameMap.asSequence()
+            nameMap
+                .asSequence()
                 .associate { it.value to it.key }
     }
 
@@ -51,7 +53,7 @@ internal class EnumTypeDescription<E : Enum<E>>(
      */
     override fun encode(
         value: E,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeText(nameMap[value]!!)
     }
@@ -59,14 +61,13 @@ internal class EnumTypeDescription<E : Enum<E>>(
     private fun getLabel(
         text: String,
         type: ColumnMetadata,
-    ): E {
-        return entryLookup[text]
+    ): E =
+        entryLookup[text]
             ?: columnDecodeError(
                 kType = kType,
                 type = type,
                 reason = "Could not find enum value for '$text'",
             )
-    }
 
     /**
      * Reads all the bytes as a UTF-8 encoded [String]. Then find the enum value that matches that
@@ -79,9 +80,8 @@ internal class EnumTypeDescription<E : Enum<E>>(
      * be found by [Enum.name] from the
      * decoded [String] value
      */
-    override fun decodeBytes(value: PgValue.Binary): E {
-        return getLabel(value.bytes.readText(), value.typeData)
-    }
+    override fun decodeBytes(value: PgValue.Binary): E =
+        getLabel(value.bytes.readText(), value.typeData)
 
     /**
      * Use the [String] value to find the enum value that matches that [String] by [Enum.name]. If
@@ -93,9 +93,7 @@ internal class EnumTypeDescription<E : Enum<E>>(
      * be found by [Enum.name] from the
      * decoded [String] value
      */
-    override fun decodeText(value: PgValue.Text): E {
-        return getLabel(value.text, value.typeData)
-    }
+    override fun decodeText(value: PgValue.Text): E = getLabel(value.text, value.typeData)
 }
 
 /** Implementation of an [ArrayTypeDescription] for custom enum types in a postgresql database */

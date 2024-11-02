@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 
 /**
@@ -20,9 +20,10 @@ internal object BigDecimalTypeDescription : PgTypeDescription<BigDecimal>(
      */
     override fun encode(
         value: BigDecimal,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
-        PgNumeric.fromBigDecimal(value)
+        PgNumeric
+            .fromBigDecimal(value)
             .encodeToBuffer(buffer)
     }
 
@@ -30,16 +31,13 @@ internal object BigDecimalTypeDescription : PgTypeDescription<BigDecimal>(
      * First decode the bytes using [PgNumeric.fromBytes] to get a [PgNumeric] which can be
      * converted to a [BigDecimal] using [PgNumeric.toBigDecimal].
      */
-    override fun decodeBytes(value: PgValue.Binary): BigDecimal {
-        return PgNumeric.fromBytes(value.bytes).toBigDecimal()
-    }
+    override fun decodeBytes(value: PgValue.Binary): BigDecimal =
+        PgNumeric.fromBytes(value.bytes).toBigDecimal()
 
     /**
      * When supplied in text format, a [BigDecimal] can be constructed directly from the [String].
      */
-    override fun decodeText(value: PgValue.Text): BigDecimal {
-        return BigDecimal.parseString(value.text)
-    }
+    override fun decodeText(value: PgValue.Text): BigDecimal = BigDecimal.parseString(value.text)
 }
 
 /**
@@ -57,9 +55,10 @@ internal object JBigDecimalTypeDescription : PgTypeDescription<java.math.BigDeci
      */
     override fun encode(
         value: java.math.BigDecimal,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
-        PgNumeric.fromJBigDecimal(value)
+        PgNumeric
+            .fromJBigDecimal(value)
             .encodeToBuffer(buffer)
     }
 
@@ -67,15 +66,13 @@ internal object JBigDecimalTypeDescription : PgTypeDescription<java.math.BigDeci
      * First decode the bytes using [PgNumeric.fromBytes] to get a [PgNumeric] which can be
      * converted to a [java.math.BigDecimal] using [PgNumeric.toBigDecimal].
      */
-    override fun decodeBytes(value: PgValue.Binary): java.math.BigDecimal {
-        return PgNumeric.fromBytes(value.bytes).toJBigDecimal()
-    }
+    override fun decodeBytes(value: PgValue.Binary): java.math.BigDecimal =
+        PgNumeric.fromBytes(value.bytes).toJBigDecimal()
 
     /**
      * When supplied in text format, a [java.math.BigDecimal] can be constructed directly from the
      * [String].
      */
-    override fun decodeText(value: PgValue.Text): java.math.BigDecimal {
-        return java.math.BigDecimal(value.text)
-    }
+    override fun decodeText(value: PgValue.Text): java.math.BigDecimal =
+        java.math.BigDecimal(value.text)
 }

@@ -2,7 +2,7 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import kotlinx.io.Sink
 import kotlin.time.Duration
 
 private const val RESOURCE_TYPE = "Stream"
@@ -12,7 +12,9 @@ private const val RESOURCE_TYPE = "Stream"
  * implementation will depend on the platform and compilation target but each method will suspend
  * during IO operation to yield control of the otherwise blocked thread.
  */
-interface Stream : UniqueResourceId, AutoCloseable {
+interface Stream :
+    UniqueResourceId,
+    AutoCloseable {
     override val resourceType: String get() = RESOURCE_TYPE
 
     /** Returns true if the stream is still connected to the host */
@@ -37,7 +39,7 @@ interface Stream : UniqueResourceId, AutoCloseable {
      *
      * @throws StreamWriteError if the write operation fails
      */
-    suspend fun writeBuffer(buffer: ByteWriteBuffer)
+    suspend fun writeTo(block: suspend (Sink) -> Unit)
 
     /**
      * Read a single [Byte] from the stream.

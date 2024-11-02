@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
@@ -36,7 +36,7 @@ internal class ValueTypeDescription<T : Any, I : Any>(
 
     override fun encode(
         value: T,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         innerTypeDescription.encode(innerTypeProperty.get(value), buffer)
     }

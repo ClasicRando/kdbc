@@ -1,9 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
+import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.Parse]. This message is sent to request the backend parse a
@@ -21,10 +22,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 internal object ParseEncoder : MessageEncoder<PgMessage.Parse> {
     override fun encode(
         value: PgMessage.Parse,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
+        buffer.writeLengthPrefixedInt(includeLength = true) {
             writeCString(value.preparedStatementName)
             writeCString(value.query)
             writeShort(value.parameterTypes.size.toShort())

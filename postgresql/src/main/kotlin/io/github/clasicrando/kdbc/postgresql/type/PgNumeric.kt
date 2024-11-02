@@ -3,10 +3,10 @@ package io.github.clasicrando.kdbc.postgresql.type
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.toBigDecimalWithTraditionalScale
 import io.github.clasicrando.kdbc.core.traditionalScale
 import io.github.clasicrando.kdbc.postgresql.type.PgNumeric.NAN
+import kotlinx.io.Sink
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -57,7 +57,7 @@ internal sealed class PgNumeric {
      *
      * [pg source code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1068)
      */
-    internal fun encodeToBuffer(buffer: ByteWriteBuffer) {
+    internal fun encodeToBuffer(buffer: Sink) {
         when (this) {
             NAN -> {
                 buffer.writeShort(0)
@@ -100,7 +100,8 @@ internal sealed class PgNumeric {
         }
 
         if (number.digits.isEmpty()) {
-            return BigInteger.ZERO.toBigDecimalWithTraditionalScale(scale = number.scale)
+            return BigInteger.ZERO
+                .toBigDecimalWithTraditionalScale(scale = number.scale)
                 .scale(0)
         }
 
@@ -234,7 +235,8 @@ internal sealed class PgNumeric {
             return if (bigDecScale == 0) {
                 BigDecimal.fromBigInteger(unscaledBI)
             } else {
-                unscaledBI.toBigDecimalWithTraditionalScale(scale = number.scale)
+                unscaledBI
+                    .toBigDecimalWithTraditionalScale(scale = number.scale)
                     .scale(0)
             }
         }
@@ -466,10 +468,11 @@ internal sealed class PgNumeric {
             return if (bigDecScale == 0) {
                 java.math.BigDecimal(unscaledBI)
             } else {
-                java.math.BigDecimal(
-                    unscaledBI,
-                    bigDecScale,
-                ).setScale(0)
+                java.math
+                    .BigDecimal(
+                        unscaledBI,
+                        bigDecScale,
+                    ).setScale(0)
             }
         }
 
@@ -550,17 +553,24 @@ internal sealed class PgNumeric {
         private val BI_TEN_POWERS = Array(32) { BigInteger.TEN.pow(it) }
         private val BI_MAX_LONG = BigInteger.fromLong(Long.MAX_VALUE)
         private val BI_TEN_THOUSAND = BigInteger.fromInt(10000)
-        private val J_BI_TEN_POWERS = Array(32) { java.math.BigInteger.TEN.pow(it) }
+        private val J_BI_TEN_POWERS =
+            Array(32) {
+                java.math.BigInteger.TEN
+                    .pow(it)
+            }
         private val J_BI_MAX_LONG = java.math.BigInteger.valueOf(Long.MAX_VALUE)
         private val J_BI_TEN_THOUSAND = java.math.BigInteger.valueOf(10000)
 
-        private fun jTenPower(exponent: Int): java.math.BigInteger {
-            return J_BI_TEN_POWERS.getOrElse(exponent) { java.math.BigInteger.TEN.pow(exponent) }
-        }
+        private fun jTenPower(exponent: Int): java.math.BigInteger =
+            J_BI_TEN_POWERS.getOrElse(exponent) {
+                java.math.BigInteger.TEN
+                    .pow(exponent)
+            }
 
-        private fun tenPower(exponent: Int): BigInteger {
-            return BI_TEN_POWERS.getOrElse(exponent) { BigInteger.TEN.pow(exponent) }
-        }
+        private fun tenPower(exponent: Int): BigInteger =
+            BI_TEN_POWERS.getOrElse(exponent) {
+                BigInteger.TEN.pow(exponent)
+            }
 
         /**
          * Decode a [PgNumeric] from the [buffer] supplied. Reads:
@@ -772,7 +782,9 @@ internal sealed class PgNumeric {
             var decimal = split[1]
             var wholes = split[0]
             weight = -1
-            if (!java.math.BigInteger.ZERO.equals(decimal)) {
+            if (!java.math.BigInteger.ZERO
+                    .equals(decimal)
+            ) {
                 val mod = scale % 4
                 var segments = scale / 4
                 if (mod != 0) {
@@ -787,9 +799,13 @@ internal sealed class PgNumeric {
                         shorts.add(short)
                     }
                     --segments
-                } while (!java.math.BigInteger.ZERO.equals(decimal))
+                } while (!java.math.BigInteger.ZERO
+                        .equals(decimal)
+                )
 
-                if (java.math.BigInteger.ZERO.equals(wholes)) {
+                if (java.math.BigInteger.ZERO
+                        .equals(wholes)
+                ) {
                     weight -= segments
                 } else {
                     for (i in 0..<segments) {

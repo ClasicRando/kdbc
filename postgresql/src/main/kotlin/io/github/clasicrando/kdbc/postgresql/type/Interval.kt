@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.DateTimePeriod
+import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
 
@@ -38,7 +38,7 @@ internal object DateTimePeriodTypeDescription : PgTypeDescription<DateTimePeriod
      */
     override fun encode(
         value: DateTimePeriod,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeLong(value.inWholeMicroSeconds())
         buffer.writeInt(value.days)
@@ -114,7 +114,7 @@ internal object PgIntervalTypeDescription : PgTypeDescription<PgInterval>(
      */
     override fun encode(
         value: PgInterval,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         buffer.writeLong(value.microseconds)
         buffer.writeInt(value.days)

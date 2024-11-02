@@ -1,14 +1,14 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.io.Sink
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 
@@ -53,7 +53,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
      */
     final override fun encode(
         value: PgRange<T>,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         var flags = ZERO_RANGE_FLAGS
 
@@ -75,24 +75,24 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
 
         when (value.lower) {
             is Bound.Excluded ->
-                buffer.writeLengthPrefixed {
-                    typeDescription.encode(value.lower.value, buffer)
+                buffer.writeLengthPrefixedInt {
+                    typeDescription.encode(value.lower.value, this)
                 }
             is Bound.Included ->
-                buffer.writeLengthPrefixed {
-                    typeDescription.encode(value.lower.value, buffer)
+                buffer.writeLengthPrefixedInt {
+                    typeDescription.encode(value.lower.value, this)
                 }
             is Bound.Unbounded -> {}
         }
 
         when (value.upper) {
             is Bound.Excluded ->
-                buffer.writeLengthPrefixed {
-                    typeDescription.encode(value.upper.value, buffer)
+                buffer.writeLengthPrefixedInt {
+                    typeDescription.encode(value.upper.value, this)
                 }
             is Bound.Included ->
-                buffer.writeLengthPrefixed {
-                    typeDescription.encode(value.upper.value, buffer)
+                buffer.writeLengthPrefixedInt {
+                    typeDescription.encode(value.upper.value, this)
                 }
             is Bound.Unbounded -> {}
         }

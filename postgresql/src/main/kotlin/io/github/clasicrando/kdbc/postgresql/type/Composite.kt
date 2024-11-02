@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.annotations.Rename
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.result.DataRow
@@ -9,6 +8,7 @@ import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
+import kotlinx.io.Sink
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.memberProperties
@@ -55,7 +55,7 @@ internal class BaseCompositeTypeDescription<T : Any>(
      */
     override fun encode(
         value: T,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         val values = compositeTypeDefinition.extractValues(value)
         check(values.size == attributeMapping.size) {

@@ -1,17 +1,16 @@
 package io.github.clasicrando.kdbc.postgresql.copy
 
-import io.github.clasicrando.kdbc.core.buffer.ByteListWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
+import kotlinx.io.Buffer
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 class PgCopyEncodeBuffer internal constructor(
     private val typeCache: PgTypeCache,
 ) : AutoCloseable {
-    internal val innerBuffer: ByteWriteBuffer = ByteListWriteBuffer()
+    internal val innerBuffer = Buffer()
     private val innerTypes = mutableListOf<Int>()
     val types: List<Int> get() = innerTypes
 
@@ -22,8 +21,8 @@ class PgCopyEncodeBuffer internal constructor(
         val description =
             typeCache.getTypeDescription<T>(kType)
                 ?: throw KdbcException("Could not find type description for $kType")
-        innerBuffer.writeLengthPrefixed {
-            description.encode(value, innerBuffer)
+        innerBuffer.writeLengthPrefixedInt {
+            description.encode(value, this)
         }
     }
 

@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import java.net.Inet6Address
 import kotlin.reflect.typeOf
 
@@ -32,7 +32,7 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
      */
     override fun encode(
         value: PgInet,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
     ) {
         when (val javaInetAddress = value.toInetAddress()) {
             is Inet6Address -> {
@@ -44,7 +44,7 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
                 check(address.size == 16) {
                     "Inet address must be 16 bytes. Found ${address.size} bytes"
                 }
-                buffer.writeBytes(address)
+                buffer.write(address)
             }
             else -> {
                 buffer.writeByte(PGSQL_AF_INET)
@@ -55,7 +55,7 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
                 check(address.size == 4) {
                     "Inet address must be 4 bytes. Found ${address.size} bytes"
                 }
-                buffer.writeBytes(address)
+                buffer.write(address)
             }
         }
     }
