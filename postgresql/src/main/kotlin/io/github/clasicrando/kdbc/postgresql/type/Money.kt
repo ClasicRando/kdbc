@@ -2,43 +2,41 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import kotlin.reflect.typeOf
+import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [PgMoney] type. This maps to the `money` type in
  * a postgresql database.
  */
-internal object MoneyTypeDescription : PgTypeDescription<PgMoney>(
-    dbType = PgType.Money,
-    kType = typeOf<PgMoney>(),
-) {
+internal object MoneyTypeDescription :
+    PgTypeDescription<PgMoney>(dbType = PgType.Money, kType = typeOf<PgMoney>()) {
     /**
      * Writes the integer value of the money as a [Long].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L513)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L513)
      */
-    override fun encode(
-        value: PgMoney,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMoney, buffer: Sink) {
         buffer.writeLong(value.integer)
     }
 
     /**
      * Read a [Long] value and pass that to the constructor of [PgMoney].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L524)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L524)
      */
     override fun decodeBytes(value: PgValue.Binary): PgMoney = PgMoney(value.bytes.readLong())
 
     /**
      * Parse the [String] value sent using [PgMoney.fromString].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L310)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L310)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
-     * parsed into a money value
+     *   parsed into a money value
      */
     override fun decodeText(value: PgValue.Text): PgMoney =
         try {

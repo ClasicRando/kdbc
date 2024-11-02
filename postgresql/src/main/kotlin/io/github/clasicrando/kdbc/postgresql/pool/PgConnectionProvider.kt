@@ -9,13 +9,12 @@ import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.ktor.network.sockets.InetSocketAddress
 
 /**
- * Postgresql specific implementation for [ConnectionProvider] that provides the means to
- * create new [ConnectionPool] instances holding [PgConnection]s as well as
- * validating that a [PgConnection] is valid for reuse.
+ * Postgresql specific implementation for [ConnectionProvider] that provides the means to create new
+ * [ConnectionPool] instances holding [PgConnection]s as well as validating that a [PgConnection] is
+ * valid for reuse.
  */
-internal class PgConnectionProvider(
-    private val connectOptions: PgConnectOptions,
-) : ConnectionProvider<PgConnection> {
+internal class PgConnectionProvider(private val connectOptions: PgConnectOptions) :
+    ConnectionProvider<PgConnection> {
     override suspend fun create(pool: ConnectionPool<PgConnection>): PgConnection {
         pool as PgConnectionPool
         val address = InetSocketAddress(connectOptions.host, connectOptions.port)
@@ -23,11 +22,7 @@ internal class PgConnectionProvider(
         var pgStream: PgStream? = null
         try {
             pgStream =
-                PgStream.connect(
-                    scope = pool,
-                    stream = stream,
-                    connectOptions = connectOptions,
-                )
+                PgStream.connect(scope = pool, stream = stream, connectOptions = connectOptions)
             return PgConnection.connect(
                 connectOptions = connectOptions,
                 stream = pgStream,

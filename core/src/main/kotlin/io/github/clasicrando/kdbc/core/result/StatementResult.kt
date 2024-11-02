@@ -3,18 +3,16 @@ package io.github.clasicrando.kdbc.core.result
 /**
  * Type representing the zero or more [QueryResult] instances that can be returned from a single
  * database statement. For instance, a single simple query to a postgresql database can return
- * multiple [QueryResult]s that may be required by the querying user. To make these accessible,
- * they are packed into this type and the user can decide how to unwrap this into the results it
- * needs.
+ * multiple [QueryResult]s that may be required by the querying user. To make these accessible, they
+ * are packed into this type and the user can decide how to unwrap this into the results it needs.
  */
-class StatementResult(
-    private var queryResults: List<QueryResult>,
-) : Iterable<QueryResult> {
+class StatementResult(private var queryResults: List<QueryResult>) : Iterable<QueryResult> {
     /**
      * Return the number of [QueryResult]s that the database returned from the previously executed
      * statement.
      */
-    val size: Int get() = queryResults.size
+    val size: Int
+        get() = queryResults.size
 
     /**
      * Return the [QueryResult] backed by this [index].
@@ -28,15 +26,13 @@ class StatementResult(
         return queryResults[index]
     }
 
-    /**
-     * Return an [Iterator] over the [QueryResult]s returned.
-     */
+    /** Return an [Iterator] over the [QueryResult]s returned. */
     override fun iterator(): Iterator<QueryResult> = queryResults.iterator()
 
     /**
-     * Builder for a [StatementResult]. Stored a [MutableList] of [QueryResult]s, allowing
-     * additions to that list using the [addQueryResult] method. After all [QueryResult]s have been
-     * collected, [build] is called to clear this object and return a [StatementResult].
+     * Builder for a [StatementResult]. Stored a [MutableList] of [QueryResult]s, allowing additions
+     * to that list using the [addQueryResult] method. After all [QueryResult]s have been collected,
+     * [build] is called to clear this object and return a [StatementResult].
      */
     class Builder {
         private var list = mutableListOf<QueryResult>()

@@ -7,8 +7,8 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 
 /**
- * Postgresql specific implementation for a [BasePoolManager] that keeps track of
- * [PgConnectionPool] instances per unique [PgConnectOptions].
+ * Postgresql specific implementation for a [BasePoolManager] that keeps track of [PgConnectionPool]
+ * instances per unique [PgConnectOptions].
  */
 internal object PgPoolManager : BasePoolManager<PgConnectOptions, PgConnection>() {
     override fun createPool(options: PgConnectOptions): ConnectionPool<PgConnection> {

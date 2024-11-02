@@ -27,15 +27,14 @@ data class PgColumnDescription(
     /** Format code of the field. Currently, this value will be either 0 (text) or 1 (binary). */
     val formatCode: Short,
 ) : ColumnMetadata {
-    override val dataType: Int get() = pgType.oid
+    override val dataType: Int
+        get() = pgType.oid
+
     override val typeName: String = fieldName
     override val typeSize: Long = dataTypeSize.toLong()
 
     companion object {
-        fun dummyDescription(
-            pgType: PgType,
-            formatCode: Short,
-        ): PgColumnDescription =
+        fun dummyDescription(pgType: PgType, formatCode: Short): PgColumnDescription =
             PgColumnDescription(
                 fieldName = "",
                 tableOid = 0,

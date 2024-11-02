@@ -15,10 +15,7 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PASSWORDMESSAGE)
  */
 internal object PasswordEncoder : MessageEncoder<PgMessage.PasswordMessage> {
-    override fun encode(
-        value: PgMessage.PasswordMessage,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.PasswordMessage, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixedInt(includeLength = true) {
             write(value.password)

@@ -9,21 +9,18 @@ import kotlinx.io.Sink
  * used to write the length value to the buffer is not included in the length value but this can be
  * overridden by supplying true for [includeLength].
  *
- * This operation works by capturing the pre-write buffer position, writing a placeholder [Int] of
- * 0 to the buffer, executing the [block] to perform the desired write operations, calculating the
+ * This operation works by capturing the pre-write buffer position, writing a placeholder [Int] of 0
+ * to the buffer, executing the [block] to perform the desired write operations, calculating the
  * number of bytes written (excluding the length bytes if [includeLength] is false) and finally
  * updating the previously written [Int] length with the calculated value. As a consequence of not
  * knowing how many bytes may be written there is no way to verify the buffer has the remaining
- * capacity to successfully write all required bytes, meaning the operation is not transactional
- * and will perform write operations until the buffer overflows or the [block] completes. This
- * should be kept in mind if you attempt to dump the buffer contents when encountering an error.
+ * capacity to successfully write all required bytes, meaning the operation is not transactional and
+ * will perform write operations until the buffer overflows or the [block] completes. This should be
+ * kept in mind if you attempt to dump the buffer contents when encountering an error.
  *
  * @throws IllegalStateException if the number of bytes written exceeds [Int.MAX_VALUE]
  */
-inline fun Sink.writeLengthPrefixedInt(
-    includeLength: Boolean = false,
-    block: Sink.() -> Unit,
-) {
+inline fun Sink.writeLengthPrefixedInt(includeLength: Boolean = false, block: Sink.() -> Unit) {
     val tempBuffer = Buffer()
     block(tempBuffer)
     val length = tempBuffer.size + if (includeLength) 4 else 0

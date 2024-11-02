@@ -16,13 +16,8 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-QUERY)
  */
 internal object QueryEncoder : MessageEncoder<PgMessage.Query> {
-    override fun encode(
-        value: PgMessage.Query,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.Query, buffer: Sink) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixedInt(includeLength = true) {
-            writeCString(value.query)
-        }
+        buffer.writeLengthPrefixedInt(includeLength = true) { writeCString(value.query) }
     }
 }

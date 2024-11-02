@@ -4,22 +4,20 @@ import java.nio.charset.Charset
 
 /**
  * Buffer containing a fixed size [ByteArray] where reads against the buffer are always read
- * forward. The data contained within this buffer is not always readable if this instance is a
- * slice over the original buffer. This is done using a size and offset property that are
- * originally set to the [ByteArray.size] property of the backing buffer and 0, respectively. If
- * the instance is constructed using the [slice] method, the new slice's size is the length
- * requested and the offset is calculated using the current [position] and the pre-slice buffer's
- * offset. The [position] property keeps track of the relative position within the buffer and reads
- * against the buffer increments the [position] value based the number of bytes requested.
+ * forward. The data contained within this buffer is not always readable if this instance is a slice
+ * over the original buffer. This is done using a size and offset property that are originally set
+ * to the [ByteArray.size] property of the backing buffer and 0, respectively. If the instance is
+ * constructed using the [slice] method, the new slice's size is the length requested and the offset
+ * is calculated using the current [position] and the pre-slice buffer's offset. The [position]
+ * property keeps track of the relative position within the buffer and reads against the buffer
+ * increments the [position] value based the number of bytes requested.
  */
 class ByteReadBuffer(
     private var innerBuffer: ByteArray,
     private val offset: Int = 0,
-    @PublishedApi
-    internal val size: Int = innerBuffer.size,
+    @PublishedApi internal val size: Int = innerBuffer.size,
 ) : AutoCloseable {
-    @PublishedApi
-    internal var position: Int = 0
+    @PublishedApi internal var position: Int = 0
 
     /**
      * Create a sub slice of this [ByteReadBuffer], starting at the current position and having a
@@ -30,7 +28,7 @@ class ByteReadBuffer(
      * [length] as required.
      *
      * @throws IllegalArgumentException if the [length] is greater than the number of bytes
-     * [remaining] in the buffer
+     *   [remaining] in the buffer
      */
     fun slice(length: Int): ByteReadBuffer {
         checkRemaining(length)
@@ -75,10 +73,11 @@ class ByteReadBuffer(
      */
     fun readShort(): Short {
         checkRemaining(2)
-        val result = (
-            innerBuffer[offset + position++].toInt() and 0xff shl 8
-                or (innerBuffer[offset + position++].toInt() and 0xff)
-        )
+        val result =
+            (innerBuffer[offset + position++].toInt() and
+                0xff shl
+                8 or
+                (innerBuffer[offset + position++].toInt() and 0xff))
         return result.toShort()
     }
 
@@ -89,12 +88,11 @@ class ByteReadBuffer(
      */
     fun readInt(): Int {
         checkRemaining(4)
-        val result = (
-            (innerBuffer[offset + position++].toInt() and 0xff shl 24)
-                or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
-                or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
-                or (innerBuffer[offset + position++].toInt() and 0xff)
-        )
+        val result =
+            ((innerBuffer[offset + position++].toInt() and 0xff shl 24) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 16) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 8) or
+                (innerBuffer[offset + position++].toInt() and 0xff))
         return result
     }
 
@@ -105,16 +103,15 @@ class ByteReadBuffer(
      */
     fun readLong(): Long {
         checkRemaining(8)
-        val result = (
-            (innerBuffer[offset + position++].toLong() and 0xffL shl 56)
-                or (innerBuffer[offset + position++].toLong() and 0xffL shl 48)
-                or (innerBuffer[offset + position++].toLong() and 0xffL shl 40)
-                or (innerBuffer[offset + position++].toLong() and 0xffL shl 32)
-                or (innerBuffer[offset + position++].toLong() and 0xffL shl 24)
-                or (innerBuffer[offset + position++].toLong() and 0xffL shl 16)
-                or (innerBuffer[offset + position++].toLong() and 0xffL shl 8)
-                or (innerBuffer[offset + position++].toLong() and 0xffL)
-        )
+        val result =
+            ((innerBuffer[offset + position++].toLong() and 0xffL shl 56) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 48) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 40) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 32) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 24) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 16) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 8) or
+                (innerBuffer[offset + position++].toLong() and 0xffL))
         return result
     }
 

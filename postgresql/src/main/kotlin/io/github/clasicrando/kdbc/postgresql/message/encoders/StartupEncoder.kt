@@ -21,10 +21,7 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-CLOSE)
  */
 internal object StartupEncoder : MessageEncoder<PgMessage.StartupMessage> {
-    override fun encode(
-        value: PgMessage.StartupMessage,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.StartupMessage, buffer: Sink) {
         buffer.writeLengthPrefixedInt(includeLength = true) {
             writeShort(3)
             writeShort(0)

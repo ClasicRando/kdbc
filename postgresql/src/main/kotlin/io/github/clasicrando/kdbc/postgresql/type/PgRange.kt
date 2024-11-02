@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import java.time.temporal.ChronoUnit
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
-import java.time.temporal.ChronoUnit
 
 sealed interface Bound<T> {
     data class Included<T>(val value: T) : Bound<T>
@@ -26,10 +26,7 @@ sealed interface Bound<T> {
     }
 }
 
-data class PgRange<T : Any>(
-    val lower: Bound<T>,
-    val upper: Bound<T>,
-) {
+data class PgRange<T : Any>(val lower: Bound<T>, val upper: Bound<T>) {
     val postgresqlLiteral: String by lazy {
         buildString {
             when (lower) {

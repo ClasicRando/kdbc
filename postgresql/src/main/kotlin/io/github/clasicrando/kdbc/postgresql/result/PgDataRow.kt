@@ -12,8 +12,8 @@ import kotlin.reflect.KType
 import kotlin.reflect.full.withNullability
 
 /**
- * Postgresql specific implementation for a [DataRow]. Uses the [rowBuffer] to extract data
- * returned from the postgresql server.
+ * Postgresql specific implementation for a [DataRow]. Uses the [rowBuffer] to extract data returned
+ * from the postgresql server.
  */
 internal class PgDataRow(
     private val rowBuffer: ByteReadBuffer?,
@@ -38,10 +38,7 @@ internal class PgDataRow(
         return columnMapping[index].pgType
     }
 
-    private fun <T : Any> decode(
-        index: Int,
-        deserializer: PgTypeDescription<T>,
-    ): T? {
+    private fun <T : Any> decode(index: Int, deserializer: PgTypeDescription<T>): T? {
         val pgValue = pgValues[index] ?: return null
         return deserializer.decode(pgValue)
     }
@@ -55,10 +52,7 @@ internal class PgDataRow(
         error("Could not find column in mapping. Column = '$column', columns = $columns")
     }
 
-    override fun get(
-        index: Int,
-        type: KType,
-    ): Any? {
+    override fun get(index: Int, type: KType): Any? {
         val pgType = getPgType(index)
         val nonNullType =
             if (type.isMarkedNullable) {
@@ -72,7 +66,7 @@ internal class PgDataRow(
         if (!typeDescription.isCompatible(pgType)) {
             throw KdbcException(
                 "Actual column type is not compatible with required type. " +
-                    "Actual type: $pgType, Expected type: $nonNullType",
+                    "Actual type: $pgType, Expected type: $nonNullType"
             )
         }
         return decode(index, typeDescription)

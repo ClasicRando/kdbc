@@ -6,18 +6,18 @@ import com.ionspin.kotlin.bignum.integer.Sign
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
+import java.io.InputStream
+import kotlin.time.Duration
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.io.Source
-import java.io.InputStream
-import kotlin.time.Duration
 
 const val ZERO_BYTE: Byte = 0
 
 /**
- * Sealed class representing the loop control flow statements. These can be used when a lambda
- * is passed to a method that invokes the lambda within a loop. This allows the lambda to control
- * the outer loop inside nested function calls
+ * Sealed class representing the loop control flow statements. These can be used when a lambda is
+ * passed to a method that invokes the lambda within a loop. This allows the lambda to control the
+ * outer loop inside nested function calls
  */
 sealed interface Loop {
     data object Noop : Loop
@@ -54,32 +54,27 @@ inline fun UniqueResourceId.logWithResource(
  * its ascii equivalent.
  */
 fun ByteArray.splitAsCString(): List<String> =
-    this
-        .splitBy(ZERO_BYTE)
-        .map { chunk ->
-            chunk
-                .map { it.toInt().toChar() }
-                .joinToString(separator = "")
-        }.toList()
+    this.splitBy(ZERO_BYTE)
+        .map { chunk -> chunk.map { it.toInt().toChar() }.joinToString(separator = "") }
+        .toList()
 
 /**
  * Return a [Sequence] generator that yields 1 or more chunks of the [ByteArray], splitting by the
  * [separator] value specified.
  */
-fun ByteArray.splitBy(separator: Byte): Sequence<Sequence<Byte>> =
-    sequence {
-        var index = 0
-        while (index < this@splitBy.lastIndex) {
-            yield(
-                generateSequence {
-                    if (index == this@splitBy.lastIndex) {
-                        return@generateSequence null
-                    }
-                    this@splitBy[index++].takeIf { it != separator }
-                },
-            )
-        }
+fun ByteArray.splitBy(separator: Byte): Sequence<Sequence<Byte>> = sequence {
+    var index = 0
+    while (index < this@splitBy.lastIndex) {
+        yield(
+            generateSequence {
+                if (index == this@splitBy.lastIndex) {
+                    return@generateSequence null
+                }
+                this@splitBy[index++].takeIf { it != separator }
+            }
+        )
     }
+}
 
 /**
  * Call [reduceOrNull] on a [List] of [Throwable] items, aggregating to a single [Throwable] where
@@ -107,20 +102,19 @@ fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration
  * Every item will be the [size] specified except for the final item which will be at most the
  * [size] specified due to the dynamic size of the original [Flow].
  */
-fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> =
-    flow {
-        val buffer = ArrayList<T>(size)
-        this@chunked.collect {
-            buffer.add(it)
-            if (buffer.size == size) {
-                emit(buffer)
-                buffer.clear()
-            }
-        }
-        if (buffer.isNotEmpty()) {
+fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> = flow {
+    val buffer = ArrayList<T>(size)
+    this@chunked.collect {
+        buffer.add(it)
+        if (buffer.size == size) {
             emit(buffer)
+            buffer.clear()
         }
     }
+    if (buffer.isNotEmpty()) {
+        emit(buffer)
+    }
+}
 
 private const val DEFAULT_BUFFER_SIZE = 2048
 
@@ -128,15 +122,15 @@ private const val DEFAULT_BUFFER_SIZE = 2048
  * Chunk a [Source] into many [ByteArray]s with at most [size] bytes in each array. The final array
  * might have less than [size] if the total number of bytes is not equally divisible by [size].
  */
-fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> =
-    generateSequence {
-        val bytes = ByteArray(size)
-        when (val bytesRead = this.readAtMostTo(bytes)) {
-            -1, 0 -> null
-            bytes.size -> bytes
-            else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
-        }
+fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> = generateSequence {
+    val bytes = ByteArray(size)
+    when (val bytesRead = this.readAtMostTo(bytes)) {
+        -1,
+        0 -> null
+        bytes.size -> bytes
+        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
     }
+}
 
 /**
  * Chunk an [InputStream] into many [ByteArray]s with at most [size] bytes in each array. The final
@@ -147,7 +141,8 @@ fun InputStream.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArra
     generateSequence {
         val bytes = ByteArray(size)
         when (val bytesRead = this.read(bytes)) {
-            -1, 0 -> null
+            -1,
+            0 -> null
             bytes.size -> bytes
             else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
         }
@@ -206,15 +201,13 @@ fun java.math.BigInteger.toBigNum(): BigInteger =
  * the scale to call [toBigDecimalWithTraditionalScale].
  */
 fun java.math.BigDecimal.toBigNum(): BigDecimal =
-    this
-        .unscaledValue()
-        .toBigNum()
-        .toBigDecimalWithTraditionalScale(this.scale().toShort())
+    this.unscaledValue().toBigNum().toBigDecimalWithTraditionalScale(this.scale().toShort())
 
 /**
  * Utility method to replace all whitespace 1 or more times with a single space.
  *
  * Equivalent to
+ *
  * ```
  * string.replace(Regex("\\s+"), "")
  * ```

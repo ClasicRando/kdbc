@@ -5,11 +5,11 @@ import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.isZeroOrInfinite
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.network.tls.TLSConfigBuilder
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /** Connection options for a postgresql database */
 @Serializable
@@ -34,8 +34,8 @@ data class PgConnectOptions(
     /** Statement logging settings. If not specified, [LogSettings.DEFAULT] is used. */
     val logSettings: LogSettings = LogSettings.DEFAULT,
     /**
-     * The duration that is waited before canceling a query execution due to timeout. The default
-     * is an infinite timeout which means it will never cancel a query.
+     * The duration that is waited before canceling a query execution due to timeout. The default is
+     * an infinite timeout which means it will never cancel a query.
      *
      * Note: [Duration.ZERO] is also treated as infinite and negative timeouts are ignored with the
      * default value is used
@@ -58,9 +58,7 @@ data class PgConnectOptions(
      * [docs](https://www.postgresql.org/docs/16/runtime-config-client.html#GUC-EXTRA-FLOAT-DIGITS)
      */
     val extraFloatDigits: Int = 1,
-    /**
-     * SSL Mode of the connection. Uses the default mode of [SslMode.Prefer]
-     */
+    /** SSL Mode of the connection. Uses the default mode of [SslMode.Prefer] */
     val sslMode: SslMode = SslMode.DEFAULT,
     /**
      * The default schema within the database connection. Sets the `search_path` connection
@@ -70,37 +68,34 @@ data class PgConnectOptions(
     val currentSchema: String? = null,
     /**
      * TLS Config builder action to modify the config provided to the ktor socket creator. This is
-     * only used if the server supports TLS and the socket used to create the database connection
-     * is a [io.github.clasicrando.kdbc.core.stream.KtorStream] (i.e. only for async
-     * connections).
+     * only used if the server supports TLS and the socket used to create the database connection is
+     * a [io.github.clasicrando.kdbc.core.stream.KtorStream] (i.e. only for async connections).
      */
-    @Transient
-    val tlsConfig: TLSConfigBuilder.() -> Unit = {},
+    @Transient val tlsConfig: TLSConfigBuilder.() -> Unit = {},
 ) {
     /** Connection properties as they are sent to the database upon connection initialization */
     val properties: List<Pair<String, String>> =
         listOf(
-            "user" to username,
-            "database" to database,
-            "client_encoding" to "UTF-8",
-            "DateStyle" to "ISO",
-            "intervalstyle" to "iso_8601",
-            "TimeZone" to "UTC",
-            "extra_float_digits" to extraFloatDigits.toString(),
-            "search_path" to currentSchema,
-            "bytea_output" to "hex",
-            "application_name" to applicationName,
-            "statement_timeout" to
-                queryTimeout.coerceAtLeast(Duration.ZERO).let {
-                    if (it.isZeroOrInfinite()) {
-                        "0"
-                    } else {
-                        it.inWholeMilliseconds.coerceAtMost(Int.MAX_VALUE.toLong()).toString()
-                    }
-                },
-        ).mapNotNull { (key, value) ->
-            value?.let { key to it }
-        }
+                "user" to username,
+                "database" to database,
+                "client_encoding" to "UTF-8",
+                "DateStyle" to "ISO",
+                "intervalstyle" to "iso_8601",
+                "TimeZone" to "UTC",
+                "extra_float_digits" to extraFloatDigits.toString(),
+                "search_path" to currentSchema,
+                "bytea_output" to "hex",
+                "application_name" to applicationName,
+                "statement_timeout" to
+                    queryTimeout.coerceAtLeast(Duration.ZERO).let {
+                        if (it.isZeroOrInfinite()) {
+                            "0"
+                        } else {
+                            it.inWholeMilliseconds.coerceAtMost(Int.MAX_VALUE.toLong()).toString()
+                        }
+                    },
+            )
+            .mapNotNull { (key, value) -> value?.let { key to it } }
 
     /**
      * Return a shallow copy of the current [PgConnectOptions] with the log statement [level]
@@ -115,21 +110,15 @@ data class PgConnectOptions(
      * Return a shallow copy of the current [PgConnectOptions] with the new log slow statement
      * [level] and [duration] altered
      */
-    fun logSlowStatements(
-        level: Level,
-        duration: Duration,
-    ): PgConnectOptions {
+    fun logSlowStatements(level: Level, duration: Duration): PgConnectOptions {
         val newLogSettings =
-            logSettings.copy(
-                slowStatementsLevel = level,
-                slowStatementDuration = duration,
-            )
+            logSettings.copy(slowStatementsLevel = level, slowStatementDuration = duration)
         return copy(logSettings = newLogSettings)
     }
 
     /**
-     * Return a shallow copy of the current [PgConnectOptions] with both log statement levels set
-     * to [Level.OFF] and the slow statement duration set to [Duration.INFINITE].
+     * Return a shallow copy of the current [PgConnectOptions] with both log statement levels set to
+     * [Level.OFF] and the slow statement duration set to [Duration.INFINITE].
      */
     fun disableStatementLogging(): PgConnectOptions =
         copy(
@@ -138,33 +127,32 @@ data class PgConnectOptions(
                     statementLevel = Level.OFF,
                     slowStatementsLevel = Level.OFF,
                     slowStatementDuration = Duration.INFINITE,
-                ),
+                )
         )
 
-    override fun toString(): String =
-        buildString {
-            append("PgConnectOptions(host=")
-            append(host)
-            append(",port=")
-            append(port)
-            append(",username=")
-            append(username)
-            append(",applicationName=")
-            append(applicationName)
-            append(",connectionTimeout=")
-            append(connectionTimeout)
-            append(",password=***, database=")
-            append(database)
-            append(",logSettings=")
-            append(logSettings)
-            append(",statementCacheCapacity=")
-            append(statementCacheCapacity)
-            append(",extraFloatDigits=")
-            append(extraFloatDigits)
-            append(",sslMode=")
-            append(sslMode)
-            append(",currentSchema=")
-            append(currentSchema)
-            append(")")
-        }
+    override fun toString(): String = buildString {
+        append("PgConnectOptions(host=")
+        append(host)
+        append(",port=")
+        append(port)
+        append(",username=")
+        append(username)
+        append(",applicationName=")
+        append(applicationName)
+        append(",connectionTimeout=")
+        append(connectionTimeout)
+        append(",password=***, database=")
+        append(database)
+        append(",logSettings=")
+        append(logSettings)
+        append(",statementCacheCapacity=")
+        append(statementCacheCapacity)
+        append(",extraFloatDigits=")
+        append(extraFloatDigits)
+        append(",sslMode=")
+        append(sslMode)
+        append(",currentSchema=")
+        append(currentSchema)
+        append(")")
+    }
 }

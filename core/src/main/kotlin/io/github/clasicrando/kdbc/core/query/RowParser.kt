@@ -8,7 +8,7 @@ interface RowParser<T : Any> {
      * Extract data from provided [row] to create a new instance of [T].
      *
      * @throws io.github.clasicrando.kdbc.core.exceptions.RowParseError if parser fails to convert
-     * the row into the desired type [T]
+     *   the row into the desired type [T]
      */
     fun fromRow(row: DataRow): T
 }

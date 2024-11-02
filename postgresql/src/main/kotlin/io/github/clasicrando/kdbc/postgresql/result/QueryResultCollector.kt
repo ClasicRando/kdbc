@@ -19,13 +19,12 @@ private val logger = KotlinLogging.logger {}
  * Collector of [QueryResult]s from 1 or more [PgPreparedStatement]s and a flow of [PgMessage]s.
  *
  * [QueryResultCollector] instances are used by:
- *
- * - calling [processNextStatement] with the current [PgPreparedStatement] (or null if it's a
- * simple query)
+ * - calling [processNextStatement] with the current [PgPreparedStatement] (or null if it's a simple
+ *   query)
  * - continuously calling [processNextMessage] until a [Loop.Break] result is returned
  *     - this is only returned when a receiving a ready for query message
  * - after all statements and messages have been processed, [buildStatementResult] should be called
- * to finalize the [StatementResult] building process and return the statement(s) result
+ *   to finalize the [StatementResult] building process and return the statement(s) result
  */
 internal class QueryResultCollector(
     private val resource: UniqueResourceId,
@@ -37,15 +36,15 @@ internal class QueryResultCollector(
     private var resultSet = PgResultSet(typeCache, emptyList())
     private val statementResultBuilder = StatementResult.Builder()
 
-    /** [TransactionStatus] that should be found  */
+    /** [TransactionStatus] that should be found */
     var transactionStatus: TransactionStatus? = null
         private set
 
     /**
      * Update the current [PgPreparedStatement] that is being processed. This allows for previously
      * prepared statements to provide their metadata (since no [PgMessage.RowDescription] will be
-     * sent from the backend) or the collector can update the statement's metadata with the
-     * received [PgMessage.RowDescription].
+     * sent from the backend) or the collector can update the statement's metadata with the received
+     * [PgMessage.RowDescription].
      */
     fun processNextStatement(statement: PgPreparedStatement?) {
         currentStatement = statement
@@ -57,18 +56,18 @@ internal class QueryResultCollector(
     }
 
     /**
-     * Process the next [message] received from the backend. Returns a [Loop] variant that
-     * instructs the state machine calling this method to continue processing messages from the
-     * backend or exit since the current batch of messages has been received.
+     * Process the next [message] received from the backend. Returns a [Loop] variant that instructs
+     * the state machine calling this method to continue processing messages from the backend or
+     * exit since the current batch of messages has been received.
      *
      * This method treats messages as follows:
      * - [PgMessage.ErrorResponse] -> packing into the [errors] collection
      * - [PgMessage.RowDescription] -> updating the [currentStatement], if any, and creating a new
-     * [PgResultSet]
+     *   [PgResultSet]
      * - [PgMessage.DataRow] -> pack the row into the current [resultSet]
      * - [PgMessage.CommandComplete] -> adding a new [QueryResult] to the [statementResultBuilder]
      * - [PgMessage.ReadyForQuery] -> signifies the end of the current query and tells the outer
-     * state machine to exit the current loop
+     *   state machine to exit the current loop
      */
     fun processNextMessage(message: PgMessage): Loop {
         return when (message) {
@@ -112,9 +111,7 @@ internal class QueryResultCollector(
         return Loop.Continue
     }
 
-    /**
-     * Finalize the [StatementResult.Builder] with all [QueryResult]s processed from the backend
-     */
+    /** Finalize the [StatementResult.Builder] with all [QueryResult]s processed from the backend */
     fun buildStatementResult(): StatementResult {
         return statementResultBuilder.build()
     }

@@ -19,18 +19,17 @@ import kotlinx.coroutines.flow.flow
 suspend fun Query.execute(connection: Connection): StatementResult = connection.executeQuery(this)
 
 /**
- * Execute the query and return the first row's first column as the type [T]. Returns null if
- * the return value is null or the query result has no rows.
+ * Execute the query and return the first row's first column as the type [T]. Returns null if the
+ * return value is null or the query result has no rows.
  *
- * **Note**: This is a terminal operation for the [Query] since it is always closed
- * before returning
+ * **Note**: This is a terminal operation for the [Query] since it is always closed before returning
  *
  * @throws IllegalStateException if the query has already been closed
  * @throws NoResultFound if the execution result yields no
- * [io.github.clasicrando.kdbc.core.result.QueryResult]
- * @throws io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType if the scalar value is
- * not an instance of the type [T], this checked by [kotlin.reflect.KClass.isInstance] on the
- * first value
+ *   [io.github.clasicrando.kdbc.core.result.QueryResult]
+ * @throws io.github.clasicrando.kdbc.core.exceptions.IncorrectScalarType if the scalar value is not
+ *   an instance of the type [T], this checked by [kotlin.reflect.KClass.isInstance] on the first
+ *   value
  */
 suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): T? {
     val statementResult = connection.executeQuery(this)
@@ -41,22 +40,18 @@ suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): 
 }
 
 /**
- * Execute the query and return the first row parsed as the type [T] by the supplied
- * [rowParser]. Returns null if the query results no rows.
+ * Execute the query and return the first row parsed as the type [T] by the supplied [rowParser].
+ * Returns null if the query results no rows.
  *
- * **Note**: This is a terminal operation for the [Query] since it is always closed
- * before returning
+ * **Note**: This is a terminal operation for the [Query] since it is always closed before returning
  *
  * @throws IllegalStateException if the query has already been closed
  * @throws NoResultFound if the execution result yields no
- * [io.github.clasicrando.kdbc.core.result.QueryResult]
+ *   [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
- * [RowParseError] are wrapped into a [RowParseError]
+ *   [RowParseError] are wrapped into a [RowParseError]
  */
-suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(
-    connection: Connection,
-    rowParser: R,
-): T? {
+suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(connection: Connection, rowParser: R): T? {
     val statementResult = connection.executeQuery(this)
     if (statementResult.size == 0) {
         throw NoResultFound(sql)
@@ -65,25 +60,20 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(
 }
 
 /**
- * Execute the query and return the first row parsed as the type [T] by the supplied
- * [rowParser].
+ * Execute the query and return the first row parsed as the type [T] by the supplied [rowParser].
  *
- * **Note**: This is a terminal operation for the [Query] since it is always closed
- * before returning
+ * **Note**: This is a terminal operation for the [Query] since it is always closed before returning
  *
  * @throws IllegalStateException if the query has already been closed
  * @throws NoResultFound if the execution result yields no
- * [io.github.clasicrando.kdbc.core.result.QueryResult]
+ *   [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
- * [RowParseError] are wrapped into a [RowParseError]
+ *   [RowParseError] are wrapped into a [RowParseError]
  * @throws EmptyQueryResult if the query returns no rows
  * @throws TooManyRows if the [io.github.clasicrando.kdbc.core.result.QueryResult.rowsAffected]
- * value > 1
+ *   value > 1
  */
-suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(
-    connection: Connection,
-    rowParser: R,
-): T {
+suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(connection: Connection, rowParser: R): T {
     val statementResult = connection.executeQuery(this)
     if (statementResult.size == 0) {
         throw NoResultFound(sql)
@@ -96,17 +86,16 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(
 }
 
 /**
- * Execute the query and return the all rows in a [List] where each row is parsed as the type
- * [T] by the supplied [rowParser]. Returns an empty [List] when no rows are returned.
+ * Execute the query and return the all rows in a [List] where each row is parsed as the type [T] by
+ * the supplied [rowParser]. Returns an empty [List] when no rows are returned.
  *
- * **Note**: This is a terminal operation for the [Query] since it is always closed
- * before returning
+ * **Note**: This is a terminal operation for the [Query] since it is always closed before returning
  *
  * @throws IllegalStateException if the query has already been closed
  * @throws NoResultFound if the execution result yields no
- * [io.github.clasicrando.kdbc.core.result.QueryResult]
+ *   [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
- * [RowParseError] are wrapped into a [RowParseError]
+ *   [RowParseError] are wrapped into a [RowParseError]
  */
 suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(
     connection: Connection,
@@ -120,36 +109,31 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(
 }
 
 /**
- * Execute the query and return the all rows as a [Flow] where each row is parsed as the type
- * [T] by the supplied [rowParser]. Resulting [Flow] is cold so the connection is still in use
- * until every row is collected or the [Flow] is canceled.
+ * Execute the query and return the all rows as a [Flow] where each row is parsed as the type [T] by
+ * the supplied [rowParser]. Resulting [Flow] is cold so the connection is still in use until every
+ * row is collected or the [Flow] is canceled.
  *
- * **Note**: This is a terminal operation for the [Query] since it is always closed
- * before returning
+ * **Note**: This is a terminal operation for the [Query] since it is always closed before returning
  *
  * @throws IllegalStateException if the query has already been closed
  * @throws NoResultFound if the execution result yields no
- * [io.github.clasicrando.kdbc.core.result.QueryResult]
+ *   [io.github.clasicrando.kdbc.core.result.QueryResult]
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
- * [RowParseError] are wrapped into a [RowParseError]
+ *   [RowParseError] are wrapped into a [RowParseError]
  */
-fun <T : Any, R : RowParser<T>> Query.fetch(
-    connection: Connection,
-    rowParser: R,
-): Flow<T> =
-    flow {
-        val statementResult = connection.executeQuery(this@fetch)
-        if (statementResult.size == 0) {
-            throw NoResultFound(sql)
-        }
-        val queryResult = statementResult[0]
-        for (row in queryResult.rows) {
-            try {
-                emit(rowParser.fromRow(row))
-            } catch (ex: RowParseError) {
-                throw ex
-            } catch (ex: Exception) {
-                throw RowParseError(rowParser, ex)
-            }
+fun <T : Any, R : RowParser<T>> Query.fetch(connection: Connection, rowParser: R): Flow<T> = flow {
+    val statementResult = connection.executeQuery(this@fetch)
+    if (statementResult.size == 0) {
+        throw NoResultFound(sql)
+    }
+    val queryResult = statementResult[0]
+    for (row in queryResult.rows) {
+        try {
+            emit(rowParser.fromRow(row))
+        } catch (ex: RowParseError) {
+            throw ex
+        } catch (ex: Exception) {
+            throw RowParseError(rowParser, ex)
         }
     }
+}

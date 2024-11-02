@@ -2,13 +2,13 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.full.valueParameters
+import kotlinx.io.Sink
 
 @Suppress("UNCHECKED_CAST")
 internal class ValueTypeDescription<T : Any, I : Any>(
@@ -28,16 +28,13 @@ internal class ValueTypeDescription<T : Any, I : Any>(
     init {
         val innerValuePropertyName = valueClassConstructor.valueParameters.first().name!!
         innerTypeProperty =
-            valueClass.declaredMemberProperties
-                .first { it.name == innerValuePropertyName } as KProperty1<T, I>
+            valueClass.declaredMemberProperties.first { it.name == innerValuePropertyName }
+                as KProperty1<T, I>
     }
 
     override fun isCompatible(dbType: PgType): Boolean = innerTypeDescription.isCompatible(dbType)
 
-    override fun encode(
-        value: T,
-        buffer: Sink,
-    ) {
+    override fun encode(value: T, buffer: Sink) {
         innerTypeDescription.encode(innerTypeProperty.get(value), buffer)
     }
 

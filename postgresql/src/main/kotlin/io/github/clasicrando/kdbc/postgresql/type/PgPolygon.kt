@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 /**
  * PostGIS polygon type represented as a list of connected [points]. Polygons are very similar to a
- * closed [PgPath] but polygons are always closed, define a [boundBox] and are considered to
- * contain the area within the closed path.
+ * closed [PgPath] but polygons are always closed, define a [boundBox] and are considered to contain
+ * the area within the closed path.
  *
  * [docs](https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-POLYGON)
  */
@@ -34,10 +34,7 @@ data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) : PgGeometr
                     y2 = points[i].y
                 }
             }
-            return PgBox(
-                high = PgPoint(x2, y2),
-                low = PgPoint(x1, y1),
-            )
+            return PgBox(high = PgPoint(x2, y2), low = PgPoint(x1, y1))
         }
     }
 }

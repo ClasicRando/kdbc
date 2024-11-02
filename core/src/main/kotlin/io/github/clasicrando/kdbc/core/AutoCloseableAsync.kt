@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.core
 
 /**
  * An object that may hold resources (such as file or socket handles) until it is closed. The
- * [close] method of an [AutoCloseableAsync] object should rarely be called itself unless you
- * handle the lifetime of the object in another [AutoCloseableAsync] object scope. Otherwise, an
+ * [close] method of an [AutoCloseableAsync] object should rarely be called itself unless you handle
+ * the lifetime of the object in another [AutoCloseableAsync] object scope. Otherwise, an
  * [AutoCloseableAsync] object should be used within the scope of an [AutoCloseableAsync.use] block
  * where the resource is always cleaned up before exiting (even if exceptions are thrown).
  */
@@ -20,9 +20,9 @@ interface AutoCloseableAsync {
 /**
  * Use an [AutoCloseableAsync] resource within the specified [block], allowing for the
  * [AutoCloseableAsync] to always call [AutoCloseableAsync.close], even if the [block] throws an
- * exception. This is similar to the functionality that [AutoCloseable] provides where the
- * resources are always cleaned up before returning from the function. Note, this does not catch
- * the exception, rather it rethrows after cleaning up resources if an exception was thrown.
+ * exception. This is similar to the functionality that [AutoCloseable] provides where the resources
+ * are always cleaned up before returning from the function. Note, this does not catch the
+ * exception, rather it rethrows after cleaning up resources if an exception was thrown.
  */
 suspend inline fun <R, A : AutoCloseableAsync> A.use(block: (A) -> R): R {
     var cause: Throwable? = null
@@ -43,10 +43,10 @@ suspend inline fun <R, A : AutoCloseableAsync> A.use(block: (A) -> R): R {
 /**
  * Use an [AutoCloseableAsync] resource within the specified [block], allowing for the
  * [AutoCloseableAsync] to always call [AutoCloseableAsync.close], even if the [block] throws an
- * exception. This is similar to the functionality that [AutoCloseable] provides where the
- * resources are always cleaned up before returning from the function. Note, this does catch the
- * exception and wraps that is a [Result.failure]. Otherwise, it returns a [Result.success] with
- * the result of [block].
+ * exception. This is similar to the functionality that [AutoCloseable] provides where the resources
+ * are always cleaned up before returning from the function. Note, this does catch the exception and
+ * wraps that is a [Result.failure]. Otherwise, it returns a [Result.success] with the result of
+ * [block].
  */
 suspend inline fun <R, A : AutoCloseableAsync> A.useCatching(block: (A) -> R): Result<R> {
     var cause: Throwable? = null

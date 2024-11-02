@@ -2,15 +2,12 @@ package io.github.clasicrando.kdbc.core.query
 
 import kotlin.reflect.typeOf
 
-/**
- * API to perform a single query against a database
- */
-class Query(
-    val sql: String,
-) {
+/** API to perform a single query against a database */
+class Query(val sql: String) {
     private val parametersInner: MutableList<QueryParameter> = mutableListOf()
 
-    val parameters: List<QueryParameter> get() = parametersInner
+    val parameters: List<QueryParameter>
+        get() = parametersInner
 
     /**
      * Bind a next [parameter] to the [Query]. This adds the parameter to the internal list of

@@ -4,6 +4,13 @@ import io.github.clasicrando.kdbc.core.connection.Connection
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -13,13 +20,6 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
-import kotlin.uuid.Uuid
 
 const val TEST_TIMEOUT = 60L
 
@@ -27,29 +27,26 @@ class TestAbstractDefaultConnectionPool {
     @ParameterizedTest
     @Timeout(value = TEST_TIMEOUT)
     @ValueSource(ints = [0, 1])
-    fun `acquire should return connection`(minConnections: Int): Unit =
-        runBlocking {
-            val factory = mockk<ConnectionProvider<Connection>>()
-            coEvery { factory.validate(any()) } returns true
-            coEvery { factory.create(any()) } answers {
+    fun `acquire should return connection`(minConnections: Int): Unit = runBlocking {
+        val factory = mockk<ConnectionProvider<Connection>>()
+        coEvery { factory.validate(any()) } returns true
+        coEvery { factory.create(any()) } answers
+            {
                 val connectionId = Uuid.random()
                 val connection = mockk<Connection>(relaxed = true)
                 every { connection.resourceId } returns connectionId
                 connection
             }
-            val options =
-                PoolOptions(
-                    maxConnections = 1,
-                    minConnections = minConnections,
-                    acquireTimeout = 1.toDuration(DurationUnit.SECONDS),
-                )
-            TestConnectionPoolImpl(
-                poolOptions = options,
-                provider = factory,
-            ).use {
-                assertDoesNotThrow { it.acquire() }
-            }
+        val options =
+            PoolOptions(
+                maxConnections = 1,
+                minConnections = minConnections,
+                acquireTimeout = 1.toDuration(DurationUnit.SECONDS),
+            )
+        TestConnectionPoolImpl(poolOptions = options, provider = factory).use {
+            assertDoesNotThrow { it.acquire() }
         }
+    }
 
     @Test
     @Timeout(value = TEST_TIMEOUT)
@@ -57,27 +54,22 @@ class TestAbstractDefaultConnectionPool {
         runBlocking {
             val factory = mockk<ConnectionProvider<Connection>>()
             coEvery { factory.validate(any()) } returns true
-            coEvery { factory.create(any()) } answers {
-                val connectionId = Uuid.random()
-                val connection = mockk<Connection>(relaxed = true)
-                every { connection.resourceId } returns connectionId
-                connection
-            }
+            coEvery { factory.create(any()) } answers
+                {
+                    val connectionId = Uuid.random()
+                    val connection = mockk<Connection>(relaxed = true)
+                    every { connection.resourceId } returns connectionId
+                    connection
+                }
             val options = PoolOptions(maxConnections = 1, minConnections = 0)
-            TestConnectionPoolImpl(
-                poolOptions = options,
-                provider = factory,
-            ).use {
+            TestConnectionPoolImpl(poolOptions = options, provider = factory).use {
                 val heldConnection = it.acquire()
                 val expectedId = heldConnection.resourceId
                 launch {
                     delay(2_000)
                     it.giveBack(heldConnection)
                 }
-                val result =
-                    withTimeout(10_000) {
-                        it.acquire()
-                    }
+                val result = withTimeout(10_000) { it.acquire() }
 
                 assertEquals(expectedId, result.resourceId)
             }
@@ -89,22 +81,20 @@ class TestAbstractDefaultConnectionPool {
         runBlocking {
             val factory = mockk<ConnectionProvider<Connection>>()
             coEvery { factory.validate(any()) } returns true
-            coEvery { factory.create(any()) } answers {
-                val connectionId = Uuid.random()
-                val connection = mockk<Connection>(relaxed = true)
-                every { connection.resourceId } returns connectionId
-                connection
-            }
+            coEvery { factory.create(any()) } answers
+                {
+                    val connectionId = Uuid.random()
+                    val connection = mockk<Connection>(relaxed = true)
+                    every { connection.resourceId } returns connectionId
+                    connection
+                }
             val options =
                 PoolOptions(
                     maxConnections = 0,
                     minConnections = 0,
                     acquireTimeout = 1.toDuration(DurationUnit.NANOSECONDS),
                 )
-            TestConnectionPoolImpl(
-                poolOptions = options,
-                provider = factory,
-            ).use {
+            TestConnectionPoolImpl(poolOptions = options, provider = factory).use {
                 assertThrows<AcquireTimeout> { it.acquire() }
             }
         }
@@ -115,22 +105,20 @@ class TestAbstractDefaultConnectionPool {
         runBlocking {
             val factory = mockk<ConnectionProvider<Connection>>()
             coEvery { factory.validate(any()) } returns true
-            coEvery { factory.create(any()) } answers {
-                val connectionId = Uuid.random()
-                val connection = mockk<Connection>(relaxed = true)
-                every { connection.resourceId } returns connectionId
-                connection
-            }
+            coEvery { factory.create(any()) } answers
+                {
+                    val connectionId = Uuid.random()
+                    val connection = mockk<Connection>(relaxed = true)
+                    every { connection.resourceId } returns connectionId
+                    connection
+                }
             val options =
                 PoolOptions(
                     maxConnections = 1,
                     minConnections = 0,
                     acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
                 )
-            TestConnectionPoolImpl(
-                poolOptions = options,
-                provider = factory,
-            ).use {
+            TestConnectionPoolImpl(poolOptions = options, provider = factory).use {
                 val acquiredConnection = it.acquire()
                 val result = it.giveBack(acquiredConnection)
 
@@ -143,84 +131,74 @@ class TestAbstractDefaultConnectionPool {
 
     @Test
     @Timeout(value = TEST_TIMEOUT)
-    fun `initialize should return false when first connection is invalid`(): Unit =
-        runBlocking {
-            val factory = mockk<ConnectionProvider<Connection>>()
-            coEvery { factory.validate(any()) } returns false
-            coEvery { factory.create(any()) } answers {
+    fun `initialize should return false when first connection is invalid`(): Unit = runBlocking {
+        val factory = mockk<ConnectionProvider<Connection>>()
+        coEvery { factory.validate(any()) } returns false
+        coEvery { factory.create(any()) } answers
+            {
                 val connectionId = Uuid.random()
                 val connection = mockk<Connection>(relaxed = true)
                 every { connection.resourceId } returns connectionId
                 connection
             }
-            val options =
-                PoolOptions(
-                    maxConnections = 1,
-                    minConnections = 0,
-                    acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
-                )
-            TestConnectionPoolImpl(
-                poolOptions = options,
-                provider = factory,
-            ).use {
-                val isValid = it.initialize()
-                assertFalse(isValid)
-            }
+        val options =
+            PoolOptions(
+                maxConnections = 1,
+                minConnections = 0,
+                acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
+            )
+        TestConnectionPoolImpl(poolOptions = options, provider = factory).use {
+            val isValid = it.initialize()
+            assertFalse(isValid)
         }
+    }
 
     @Test
     @Timeout(value = TEST_TIMEOUT)
-    fun `initialize should return true when first connection is valid`(): Unit =
-        runBlocking {
-            val factory = mockk<ConnectionProvider<Connection>>()
-            coEvery { factory.validate(any()) } returns true
-            coEvery { factory.create(any()) } answers {
+    fun `initialize should return true when first connection is valid`(): Unit = runBlocking {
+        val factory = mockk<ConnectionProvider<Connection>>()
+        coEvery { factory.validate(any()) } returns true
+        coEvery { factory.create(any()) } answers
+            {
                 val connectionId = Uuid.random()
                 val connection = mockk<Connection>(relaxed = true)
                 every { connection.resourceId } returns connectionId
                 connection
             }
-            val options =
-                PoolOptions(
-                    maxConnections = 1,
-                    minConnections = 0,
-                    acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
-                )
-            TestConnectionPoolImpl(
-                poolOptions = options,
-                provider = factory,
-            ).use {
-                val isValid = it.initialize()
-                assertTrue(isValid)
-            }
+        val options =
+            PoolOptions(
+                maxConnections = 1,
+                minConnections = 0,
+                acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
+            )
+        TestConnectionPoolImpl(poolOptions = options, provider = factory).use {
+            val isValid = it.initialize()
+            assertTrue(isValid)
         }
+    }
 
     @Test
     @Timeout(value = TEST_TIMEOUT)
-    fun `initialize return false when create throws`(): Unit =
-        runBlocking {
-            val factory = mockk<ConnectionProvider<Connection>>()
-            coEvery { factory.validate(any()) } returns true
-            val exceptionMessage = "Special Throwable"
-            coEvery { factory.create(any()) } throws Exception(exceptionMessage)
-            val options =
-                PoolOptions(
-                    maxConnections = 1,
-                    minConnections = 0,
-                    acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
-                )
-            TestConnectionPoolImpl(
-                poolOptions = options,
-                provider = factory,
-            ).use {
-                val result = assertDoesNotThrow { it.initialize() }
-                assertFalse(result)
-            }
+    fun `initialize return false when create throws`(): Unit = runBlocking {
+        val factory = mockk<ConnectionProvider<Connection>>()
+        coEvery { factory.validate(any()) } returns true
+        val exceptionMessage = "Special Throwable"
+        coEvery { factory.create(any()) } throws Exception(exceptionMessage)
+        val options =
+            PoolOptions(
+                maxConnections = 1,
+                minConnections = 0,
+                acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
+            )
+        TestConnectionPoolImpl(poolOptions = options, provider = factory).use {
+            val result = assertDoesNotThrow { it.initialize() }
+            assertFalse(result)
         }
+    }
 }
 
 private suspend inline fun <R, C : Connection> ConnectionPool<C>.use(
-    crossinline block: suspend (ConnectionPool<C>) -> R,
+    crossinline block: suspend (ConnectionPool<C>) -> R
 ): R {
     var cause: Throwable? = null
     return try {

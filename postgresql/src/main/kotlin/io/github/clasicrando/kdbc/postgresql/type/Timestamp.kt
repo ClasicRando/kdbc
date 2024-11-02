@@ -5,14 +5,14 @@ import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.datetime.Instant
-import kotlinx.datetime.UtcOffset
-import kotlinx.io.Sink
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import kotlin.reflect.typeOf
+import kotlinx.datetime.Instant
+import kotlinx.datetime.UtcOffset
+import kotlinx.io.Sink
 
 private const val SECONDS_TO_MICROSECONDS = 1_000_000
 private const val MICROSECONDS_TO_NANOSECONDS = 1_000
@@ -38,23 +38,19 @@ private fun convertMicroSecondsOffsetToInstant(microSeconds: Long): Instant {
 private val postgresEpochInstant = Instant.fromEpochMilliseconds(POSTGRES_EPOCH_MILLISECONDS)
 
 /**
- * Implementation of a [PgTypeDescription] for the [Instant] type. This maps to the `timestamp`
- * type in a postgresql database.
+ * Implementation of a [PgTypeDescription] for the [Instant] type. This maps to the `timestamp` type
+ * in a postgresql database.
  */
-internal object InstantTypeDescription : PgTypeDescription<Instant>(
-    dbType = PgType.Timestamp,
-    kType = typeOf<Instant>(),
-) {
+internal object InstantTypeDescription :
+    PgTypeDescription<Instant>(dbType = PgType.Timestamp, kType = typeOf<Instant>()) {
     /**
-     * Writes the number of microseconds since the [postgresEpochInstant] (offset shifted to UTC)
-     * as a [Long] to the argument buffer.
+     * Writes the number of microseconds since the [postgresEpochInstant] (offset shifted to UTC) as
+     * a [Long] to the argument buffer.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L259)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L259)
      */
-    override fun encode(
-        value: Instant,
-        buffer: Sink,
-    ) {
+    override fun encode(value: Instant, buffer: Sink) {
         val durationSinceEpoch = value - postgresEpochInstant
         buffer.writeLong(durationSinceEpoch.inWholeMicroseconds)
     }
@@ -63,7 +59,8 @@ internal object InstantTypeDescription : PgTypeDescription<Instant>(
      * Reads a [Long] from the value and use that as the number of microseconds since the
      * [postgresEpochInstant].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L292)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L292)
      */
     override fun decodeBytes(value: PgValue.Binary): Instant {
         val microSeconds = value.bytes.readLong()
@@ -73,10 +70,11 @@ internal object InstantTypeDescription : PgTypeDescription<Instant>(
     /**
      * Attempt to parse the [String] into an [Instant].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L233)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L233)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
-     * parsed into an [Instant]
+     *   parsed into an [Instant]
      */
     override fun decodeText(value: PgValue.Text): Instant =
         try {
@@ -90,20 +88,16 @@ internal object InstantTypeDescription : PgTypeDescription<Instant>(
  * Implementation of a [PgTypeDescription] for the [DateTime] type. This maps to the `timestamptz`
  * type in a postgresql database.
  */
-internal object DateTimeTypeDescription : PgTypeDescription<DateTime>(
-    dbType = PgType.Timestamptz,
-    kType = typeOf<DateTime>(),
-) {
+internal object DateTimeTypeDescription :
+    PgTypeDescription<DateTime>(dbType = PgType.Timestamptz, kType = typeOf<DateTime>()) {
     /**
-     * Writes the number of microseconds since the [postgresEpochInstant] (offset shifted to UTC)
-     * as a [Long] to the argument buffer.
+     * Writes the number of microseconds since the [postgresEpochInstant] (offset shifted to UTC) as
+     * a [Long] to the argument buffer.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L814)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L814)
      */
-    override fun encode(
-        value: DateTime,
-        buffer: Sink,
-    ) {
+    override fun encode(value: DateTime, buffer: Sink) {
         val durationSinceEpoch = value.datetime - postgresEpochInstant
         buffer.writeLong(durationSinceEpoch.inWholeMicroseconds)
     }
@@ -113,7 +107,8 @@ internal object DateTimeTypeDescription : PgTypeDescription<DateTime>(
      * [postgresEpochInstant]. This value will always be at timezone UTC so the resulting decoded
      * value will also have an offset of [UtcOffset.ZERO].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L848)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L848)
      */
     override fun decodeBytes(value: PgValue.Binary): DateTime {
         val microSeconds = value.bytes.readLong()
@@ -124,10 +119,11 @@ internal object DateTimeTypeDescription : PgTypeDescription<DateTime>(
     /**
      * Attempt to parse the [String] into a [DateTime] using the [DateTime.fromString] method.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L786)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L786)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
-     * parsed into a [Instant]
+     *   parsed into a [Instant]
      */
     override fun decodeText(value: PgValue.Text): DateTime =
         try {
@@ -159,29 +155,22 @@ private fun convertMicroSecondsOffsetToLocalDateTime(microSeconds: Long): LocalD
  */
 private val postgresEpochJInstant = java.time.Instant.ofEpochMilli(POSTGRES_EPOCH_MILLISECONDS)
 private val postgresEpochJLocalDateTime =
-    LocalDateTime.ofInstant(
-        postgresEpochJInstant,
-        ZoneOffset.UTC,
-    )
+    LocalDateTime.ofInstant(postgresEpochJInstant, ZoneOffset.UTC)
 
 /**
- * Implementation of a [PgTypeDescription] for the [Instant] type. This maps to the `timestamp`
- * type in a postgresql database.
+ * Implementation of a [PgTypeDescription] for the [Instant] type. This maps to the `timestamp` type
+ * in a postgresql database.
  */
-internal object LocalDateTimeTypeDescription : PgTypeDescription<LocalDateTime>(
-    dbType = PgType.Timestamp,
-    kType = typeOf<LocalDateTime>(),
-) {
+internal object LocalDateTimeTypeDescription :
+    PgTypeDescription<LocalDateTime>(dbType = PgType.Timestamp, kType = typeOf<LocalDateTime>()) {
     /**
-     * Writes the number of microseconds since the [postgresEpochInstant] (offset shifted to UTC)
-     * as a [Long] to the argument buffer.
+     * Writes the number of microseconds since the [postgresEpochInstant] (offset shifted to UTC) as
+     * a [Long] to the argument buffer.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L259)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L259)
      */
-    override fun encode(
-        value: LocalDateTime,
-        buffer: Sink,
-    ) {
+    override fun encode(value: LocalDateTime, buffer: Sink) {
         val durationSinceEpoch = postgresEpochJLocalDateTime.until(value, ChronoUnit.MICROS)
         buffer.writeLong(durationSinceEpoch)
     }
@@ -190,7 +179,8 @@ internal object LocalDateTimeTypeDescription : PgTypeDescription<LocalDateTime>(
      * Reads a [Long] from the value and use that as the number of microseconds since the
      * [postgresEpochInstant].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L292)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L292)
      */
     override fun decodeBytes(value: PgValue.Binary): LocalDateTime {
         val microSeconds = value.bytes.readLong()
@@ -200,10 +190,11 @@ internal object LocalDateTimeTypeDescription : PgTypeDescription<LocalDateTime>(
     /**
      * Attempt to parse the [String] into an [Instant].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L233)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L233)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
-     * parsed into an [Instant]
+     *   parsed into an [Instant]
      */
     override fun decodeText(value: PgValue.Text): LocalDateTime =
         try {
@@ -217,20 +208,19 @@ internal object LocalDateTimeTypeDescription : PgTypeDescription<LocalDateTime>(
  * Implementation of a [PgTypeDescription] for the [OffsetDateTime] type. This maps to the
  * `timestamptz` type in a postgresql database.
  */
-internal object OffsetDateTimeTypeDescription : PgTypeDescription<OffsetDateTime>(
-    dbType = PgType.Timestamptz,
-    kType = typeOf<OffsetDateTime>(),
-) {
-    /**
-     * Writes the number of microseconds since the [postgresEpochInstant] (offset shifted to UTC)
-     * as a [Long] to the argument buffer.
-     *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L814)
-     */
-    override fun encode(
-        value: OffsetDateTime,
-        buffer: Sink,
+internal object OffsetDateTimeTypeDescription :
+    PgTypeDescription<OffsetDateTime>(
+        dbType = PgType.Timestamptz,
+        kType = typeOf<OffsetDateTime>(),
     ) {
+    /**
+     * Writes the number of microseconds since the [postgresEpochInstant] (offset shifted to UTC) as
+     * a [Long] to the argument buffer.
+     *
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L814)
+     */
+    override fun encode(value: OffsetDateTime, buffer: Sink) {
         val durationSinceEpoch = postgresEpochJInstant.until(value.toInstant(), ChronoUnit.MICROS)
         buffer.writeLong(durationSinceEpoch)
     }
@@ -240,7 +230,8 @@ internal object OffsetDateTimeTypeDescription : PgTypeDescription<OffsetDateTime
      * [postgresEpochInstant]. This value will always be at timezone UTC so the resulting decoded
      * value will also have an offset of [UtcOffset.ZERO].
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L848)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L848)
      */
     override fun decodeBytes(value: PgValue.Binary): OffsetDateTime {
         val microSeconds = value.bytes.readLong()
@@ -251,10 +242,11 @@ internal object OffsetDateTimeTypeDescription : PgTypeDescription<OffsetDateTime
     /**
      * Attempt to parse the [String] into a [DateTime] using the [DateTime.fromString] method.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L786)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L786)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
-     * parsed into a [Instant]
+     *   parsed into a [Instant]
      */
     override fun decodeText(value: PgValue.Text): OffsetDateTime =
         try {

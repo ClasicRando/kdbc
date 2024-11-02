@@ -7,7 +7,6 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 /**
  * [MessageDecoder] for [PgMessage.ParameterDescription]. This message is sent as a response when
  * the frontend requests a description of a statement. The contents are:
- *
  * - the number of parameters as a [Short]
  * - for each parameter
  *     - the OID of the parameter data type

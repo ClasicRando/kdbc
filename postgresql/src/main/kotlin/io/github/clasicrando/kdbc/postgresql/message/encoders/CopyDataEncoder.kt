@@ -15,13 +15,8 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYDATA)
  */
 internal object CopyDataEncoder : MessageEncoder<PgMessage.CopyData> {
-    override fun encode(
-        value: PgMessage.CopyData,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.CopyData, buffer: Sink) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixedInt(includeLength = true) {
-            write(value.data)
-        }
+        buffer.writeLengthPrefixedInt(includeLength = true) { write(value.data) }
     }
 }

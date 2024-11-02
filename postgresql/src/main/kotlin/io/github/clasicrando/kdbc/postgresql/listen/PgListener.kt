@@ -15,9 +15,7 @@ suspend fun PgConnectionPool.listener(): PgListener {
  * Dedicated asynchronous listener class for receiving asynchronous [PgNotification]s sent from
  * other connections.
  */
-class PgListener internal constructor(
-    internal val connection: PgConnection,
-) : AutoCloseableAsync {
+class PgListener internal constructor(internal val connection: PgConnection) : AutoCloseableAsync {
     /**
      * Execute a `LISTEN` command for the specified [channelName]s. Allows the underlining
      * connection to receive notifications sent to this connection's current database. Notifications
@@ -25,11 +23,9 @@ class PgListener internal constructor(
      */
     suspend fun listen(vararg channelName: String) {
         val query =
-            channelName.joinToString(
-                separator = "; LISTEN",
-                prefix = "LISTEN ",
-                postfix = ";",
-            ) { it.quoteIdentifier() }
+            channelName.joinToString(separator = "; LISTEN", prefix = "LISTEN ", postfix = ";") {
+                it.quoteIdentifier()
+            }
         connection.sendSimpleQuery(query)
     }
 
@@ -47,9 +43,7 @@ class PgListener internal constructor(
         connection.sendSimpleQuery("UNLISTEN *;")
     }
 
-    /**
-     * Suspends until the next [PgNotification] is available from the connection.
-     */
+    /** Suspends until the next [PgNotification] is available from the connection. */
     suspend fun receiveNotification(): PgNotification {
         val result = connection.stream.notifications.tryReceive()
         check(!result.isClosed) { "Cannot receive from a close channel" }

@@ -9,7 +9,7 @@ pluginManagement {
     val kotlinxSerializationPluginVersion: String by settings
     val dokkaVersion: String by settings
     val mavenPublishVersion: String by settings
-    val ktlintPluginVersion: String by settings
+    val ktfmtVersion: String by settings
 
     plugins {
         kotlin("jvm") version kotlinVersion
@@ -17,7 +17,7 @@ pluginManagement {
         id("org.jetbrains.dokka") version dokkaVersion
         id("com.vanniktech.maven.publish") version mavenPublishVersion
         id("org.jetbrains.kotlinx.atomicfu") version kotlinxAtomicFuVersion
-        id("org.jlleitschuh.gradle.ktlint") version ktlintPluginVersion
+        id("com.ncorti.ktfmt.gradle") version ktfmtVersion
     }
 }
 

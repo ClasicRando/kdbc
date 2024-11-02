@@ -7,8 +7,8 @@ import kotlin.reflect.typeOf
 
 /**
  * Container class for the data returned upon completion of a query. Every query must have the
- * number of rows affected, the message sent to the client and the rows returned (empty result if
- * no rows returned).
+ * number of rows affected, the message sent to the client and the rows returned (empty result if no
+ * rows returned).
  *
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
@@ -24,9 +24,9 @@ open class QueryResult(
      *
      * @throws IllegalStateException if the query has already been closed
      * @throws io.github.clasicrando.kdbc.core.exceptions.NoResultFound if the execution result
-     * yields no [QueryResult]
+     *   yields no [QueryResult]
      * @throws IncorrectScalarType if the scalar value is not an instance of the type [T], this
-     * checked by [kotlin.reflect.KClass.isInstance] on the first value
+     *   checked by [kotlin.reflect.KClass.isInstance] on the first value
      */
     inline fun <reified T : Any> extractScalar(): T? {
         if (rows.rowCount == 0) {
@@ -41,7 +41,7 @@ open class QueryResult(
      * query results no rows.
      *
      * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
-     * [RowParseError] are wrapped into a [RowParseError]
+     *   [RowParseError] are wrapped into a [RowParseError]
      */
     fun <T : Any, R : RowParser<T>> extractFirst(rowParser: R): T? {
         if (rows.rowCount == 0) {
@@ -62,9 +62,9 @@ open class QueryResult(
      *
      * @throws IllegalStateException if the query has already been closed
      * @throws io.github.clasicrando.kdbc.core.exceptions.NoResultFound if the execution result
-     * yields no [QueryResult]
+     *   yields no [QueryResult]
      * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
-     * [RowParseError] are wrapped into a [RowParseError]
+     *   [RowParseError] are wrapped into a [RowParseError]
      */
     fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): List<T> {
         val result = mutableListOf<T>()
@@ -83,7 +83,6 @@ open class QueryResult(
     override fun toString(): String = "QueryResult(rowsAffected=$rowsAffected,message=$message)"
 
     companion object {
-        @PublishedApi
-        internal const val FIRST_INDEX = 0
+        @PublishedApi internal const val FIRST_INDEX = 0
     }
 }

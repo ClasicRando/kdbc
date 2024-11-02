@@ -2,29 +2,22 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import kotlin.reflect.typeOf
+import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [BigDecimal] type. This maps to the `numeric`
  * type in a postgresql database.
  */
-internal object BigDecimalTypeDescription : PgTypeDescription<BigDecimal>(
-    dbType = PgType.Numeric,
-    kType = typeOf<BigDecimal>(),
-) {
+internal object BigDecimalTypeDescription :
+    PgTypeDescription<BigDecimal>(dbType = PgType.Numeric, kType = typeOf<BigDecimal>()) {
     /**
      * Numeric types are constructed using the internal type [PgNumeric] and encoded to the buffer
      * using [PgNumeric.encodeToBuffer]. To get a [PgNumeric], [PgNumeric.fromBigDecimal] is called
      * to convert the [BigDecimal] value to [PgNumeric].
      */
-    override fun encode(
-        value: BigDecimal,
-        buffer: Sink,
-    ) {
-        PgNumeric
-            .fromBigDecimal(value)
-            .encodeToBuffer(buffer)
+    override fun encode(value: BigDecimal, buffer: Sink) {
+        PgNumeric.fromBigDecimal(value).encodeToBuffer(buffer)
     }
 
     /**
@@ -41,25 +34,21 @@ internal object BigDecimalTypeDescription : PgTypeDescription<BigDecimal>(
 }
 
 /**
- * Implementation of a [PgTypeDescription] for the [java.math.BigDecimal] type. This maps to the `numeric`
- * type in a postgresql database.
+ * Implementation of a [PgTypeDescription] for the [java.math.BigDecimal] type. This maps to the
+ * `numeric` type in a postgresql database.
  */
-internal object JBigDecimalTypeDescription : PgTypeDescription<java.math.BigDecimal>(
-    dbType = PgType.Numeric,
-    kType = typeOf<java.math.BigDecimal>(),
-) {
+internal object JBigDecimalTypeDescription :
+    PgTypeDescription<java.math.BigDecimal>(
+        dbType = PgType.Numeric,
+        kType = typeOf<java.math.BigDecimal>(),
+    ) {
     /**
      * Numeric types are constructed using the internal type [PgNumeric] and encoded to the buffer
      * using [PgNumeric.encodeToBuffer]. To get a [PgNumeric], [PgNumeric.fromBigDecimal] is called
      * to convert the [java.math.BigDecimal] value to [PgNumeric].
      */
-    override fun encode(
-        value: java.math.BigDecimal,
-        buffer: Sink,
-    ) {
-        PgNumeric
-            .fromJBigDecimal(value)
-            .encodeToBuffer(buffer)
+    override fun encode(value: java.math.BigDecimal, buffer: Sink) {
+        PgNumeric.fromJBigDecimal(value).encodeToBuffer(buffer)
     }
 
     /**

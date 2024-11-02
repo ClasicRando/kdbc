@@ -11,13 +11,10 @@ internal object PgMessageEncoders {
      * [MessageEncoder] and calling [MessageEncoder.encode].
      *
      * @throws IllegalStateException if the [message] provided does not have a corresponding
-     * [MessageEncoder]
+     *   [MessageEncoder]
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : PgMessage> encode(
-        message: T,
-        buffer: Sink,
-    ) {
+    fun <T : PgMessage> encode(message: T, buffer: Sink) {
         val encoder =
             when (message) {
                 is PgMessage.StartupMessage -> StartupEncoder
@@ -38,7 +35,8 @@ internal object PgMessageEncoders {
                 is PgMessage.CopyFail -> CopyFailEncoder
                 is PgMessage.CancelRequest -> CancelRequestEncoder
                 else -> error("Message $message cannot be encoded")
-            } as MessageEncoder<T>
+            }
+                as MessageEncoder<T>
         encoder.encode(message, buffer)
     }
 }

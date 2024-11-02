@@ -2,17 +2,15 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.ktor.utils.io.core.writeText
-import kotlinx.io.Sink
 import kotlin.reflect.typeOf
+import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [String] type. This maps to the
  * `text`/`name`/`bpchar`/`varchar`/`xml` types in a postgresql database.
  */
-internal object VarcharTypeDescription : PgTypeDescription<String>(
-    dbType = PgType.Varchar,
-    kType = typeOf<String>(),
-) {
+internal object VarcharTypeDescription :
+    PgTypeDescription<String>(dbType = PgType.Varchar, kType = typeOf<String>()) {
     override fun isCompatible(dbType: PgType): Boolean =
         dbType == PgType.Text ||
             dbType == PgType.Varchar ||
@@ -21,10 +19,7 @@ internal object VarcharTypeDescription : PgTypeDescription<String>(
             dbType == PgType.Bpchar
 
     /** Simply writes the [String] value to the buffer in UTF8 encoding */
-    override fun encode(
-        value: String,
-        buffer: Sink,
-    ) {
+    override fun encode(value: String, buffer: Sink) {
         buffer.writeText(value)
     }
 

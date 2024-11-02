@@ -13,15 +13,12 @@ import kotlinx.io.Sink
  * - the length of the following data (including the size of the [Int] length)
  * - CString as the name of the portal (can be empty to close the unnamed portal)
  * - [Int] as the maximum number of rows to return if the portal returns rows (ignored otherwise).
- * Zero signifies that all rows are returned
+ *   Zero signifies that all rows are returned
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-EXECUTE)
  */
 internal object ExecuteEncoder : MessageEncoder<PgMessage.Execute> {
-    override fun encode(
-        value: PgMessage.Execute,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.Execute, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixedInt(includeLength = true) {
             writeCString(value.portalName ?: "")

@@ -13,15 +13,12 @@ import kotlinx.io.Sink
  * - the length of the following data (including the size of the [Int] length)
  * - 'S' or 'P' to target a statement or portal respectively
  * - CString as the name of the statement or portal (can be empty to close the unnamed statement or
- * portal)
+ *   portal)
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-CLOSE)
  */
 internal object CloseEncoder : MessageEncoder<PgMessage.Close> {
-    override fun encode(
-        value: PgMessage.Close,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.Close, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixedInt(includeLength = true) {
             writeByte(value.target.code)

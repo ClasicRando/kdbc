@@ -1,7 +1,6 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.SonatypeHost
-import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
     kotlin("jvm")
@@ -9,7 +8,7 @@ plugins {
     signing
     id("org.jetbrains.dokka")
     id("org.jetbrains.kotlinx.atomicfu")
-    id("org.jlleitschuh.gradle.ktlint")
+    id("com.ncorti.ktfmt.gradle")
 }
 
 allprojects {
@@ -33,7 +32,7 @@ subprojects {
     apply(plugin = "signing")
     apply(plugin = "org.jetbrains.dokka")
     apply(plugin = "com.vanniktech.maven.publish")
-    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+    apply(plugin = "com.ncorti.ktfmt.gradle")
 
     repositories {
         mavenCentral()
@@ -72,12 +71,8 @@ subprojects {
         testImplementation("io.mockk:mockk:$mockkVersion")
     }
 
-    configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
-        version.set("1.0.1")
-        reporters {
-            reporter(ReporterType.JSON)
-            reporter(ReporterType.HTML)
-        }
+    ktfmt {
+        kotlinLangStyle()
     }
 
     tasks.test {

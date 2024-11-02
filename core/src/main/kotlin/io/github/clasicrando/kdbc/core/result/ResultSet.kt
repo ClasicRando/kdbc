@@ -25,21 +25,22 @@ interface ResultSet : Iterable<DataRow> {
 }
 
 /** Empty [ResultSet] containing no columns and yields no rows upon iteration */
-val ResultSet.Companion.EMPTY_RESULT get() =
-    object : ResultSet {
-        val rows = emptyList<DataRow>()
+val ResultSet.Companion.EMPTY_RESULT
+    get() =
+        object : ResultSet {
+            val rows = emptyList<DataRow>()
 
-        override val rowCount: Int = 0
+            override val rowCount: Int = 0
 
-        override val columnCount: Int = 0
+            override val columnCount: Int = 0
 
-        override fun get(index: Int): DataRow {
-            error("Empty ResultSet never contains rows")
+            override fun get(index: Int): DataRow {
+                error("Empty ResultSet never contains rows")
+            }
+
+            override fun columnType(index: Int): ColumnMetadata {
+                error("Empty ResultSet should never have the columnType checked")
+            }
+
+            override fun iterator(): Iterator<DataRow> = rows.iterator()
         }
-
-        override fun columnType(index: Int): ColumnMetadata {
-            error("Empty ResultSet should never have the columnType checked")
-        }
-
-        override fun iterator(): Iterator<DataRow> = rows.iterator()
-    }

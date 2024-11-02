@@ -6,39 +6,36 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toJavaLocalDate
 import org.junit.jupiter.api.Timeout
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestDateType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept LocalDate when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 date_col;"
+    fun `encode should accept LocalDate when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 date_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(localDate)
-                        .fetchScalar<LocalDate>(conn)
-                assertEquals(localDate, value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = query(query).bind(localDate).fetchScalar<LocalDate>(conn)
+            assertEquals(localDate, value)
         }
+    }
 
     private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT '2024-02-25'::date;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<LocalDate>(conn)
-            assertEquals(localDate, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<LocalDate>(conn)
+                assertEquals(localDate, value)
+            }
     }
 
     @Test
@@ -57,29 +54,26 @@ class TestDateType {
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept Java LocalDate when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 date_col;"
+    fun `encode should accept Java LocalDate when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 date_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(javaLocalDate)
-                        .fetchScalar<java.time.LocalDate>(conn)
-                assertEquals(javaLocalDate, value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = query(query).bind(javaLocalDate).fetchScalar<java.time.LocalDate>(conn)
+            assertEquals(javaLocalDate, value)
         }
+    }
 
     private suspend fun decodeJavaTest(isExtended: Boolean) {
         val query = "SELECT '2024-02-25'::date;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<java.time.LocalDate>(conn)
-            assertEquals(javaLocalDate, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<java.time.LocalDate>(conn)
+                assertEquals(javaLocalDate, value)
+            }
     }
 
     @Test

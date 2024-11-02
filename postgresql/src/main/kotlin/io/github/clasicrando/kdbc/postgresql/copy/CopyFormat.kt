@@ -11,8 +11,7 @@ private const val ZERO = 0.toByte()
 enum class CopyFormat(val formatCode: Byte) {
     Text(ZERO),
     CSV(ZERO),
-    Binary(ONE),
-    ;
+    Binary(ONE);
 
     override fun toString(): String {
         return when (this) {

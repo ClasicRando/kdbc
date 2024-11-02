@@ -2,38 +2,34 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import java.net.Inet6Address
 import kotlin.reflect.typeOf
+import kotlinx.io.Sink
 
 private const val PGSQL_AF_INET: Byte = 2
 private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()
 
 /** Implementation of a [PgTypeDescription] for the [PgInet] type */
-internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
-    dbType = PgType.Inet,
-    kType = typeOf<PgInet>(),
-) {
+internal object NetworkAddressTypeDescription :
+    PgTypeDescription<PgInet>(dbType = PgType.Inet, kType = typeOf<PgInet>()) {
     override fun isCompatible(dbType: PgType): Boolean =
         dbType == this.dbType || dbType == PgType.Cidr
 
     /**
      * Writes 5 values to the buffer:
-     *
-     * 1. [Byte] - Header to designate value's inet type(IPV4 = [PGSQL_AF_INET] and IPV6 = [PGSQL_AF_INET6])
+     * 1. [Byte] - Header to designate value's inet type(IPV4 = [PGSQL_AF_INET] and IPV6 =
+     *    [PGSQL_AF_INET6])
      * 2. [Byte] - The prefix of the address
      * 3. [Byte] - Is CIDR flag, always 0
      * 4. [Byte] - The number of following bytes (IPV4 = 4, IPV6 = 16)
      * 5. [ByteArray] - bytes that represent the address
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L250)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L250)
      *
      * @throws IllegalStateException if the address does not contain the right number of bytes
      */
-    override fun encode(
-        value: PgInet,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgInet, buffer: Sink) {
         when (val javaInetAddress = value.toInetAddress()) {
             is Inet6Address -> {
                 buffer.writeByte(PGSQL_AF_INET6)
@@ -62,27 +58,26 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
 
     /**
      * Reads the buffer for the following components:
-     *
-     * 1. [Byte] - Header to designate value's inet type(IPV4 = [PGSQL_AF_INET] and IPV6 = [PGSQL_AF_INET6])
+     * 1. [Byte] - Header to designate value's inet type(IPV4 = [PGSQL_AF_INET] and IPV6 =
+     *    [PGSQL_AF_INET6])
      * 2. [Byte] - The prefix of the address
      * 3. [Byte] - Is CIDR flag, always 0
      * 4. [Byte] - The number of following bytes (IPV4 = 4, IPV6 = 16)
      * 5. [ByteArray] - bytes that represent the address
      *
-     * For IPV4 addresses the number of bytes in the address array and the length must be 4. For IPV6
-     * addresses the number of bytes in the address array and length must be 16. With the address array
-     * and prefix, the appropriate [PgInet] instance is created.
+     * For IPV4 addresses the number of bytes in the address array and the length must be 4. For
+     * IPV6 addresses the number of bytes in the address array and length must be 16. With the
+     * address array and prefix, the appropriate [PgInet] instance is created.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L292)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L292)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the binary value cannot
-     * be used to construct a [PgInet]
+     *   be used to construct a [PgInet]
      */
     override fun decodeBytes(value: PgValue.Binary): PgInet {
         val remainingBytes = value.bytes.remaining()
-        check(remainingBytes >= 8) {
-            "Inet value must be at least 8 bytes. Found $remainingBytes"
-        }
+        check(remainingBytes >= 8) { "Inet value must be at least 8 bytes. Found $remainingBytes" }
         val family = value.bytes.readByte()
         val prefix = value.bytes.readByte().toUByte()
         value.bytes.readByte()
@@ -103,10 +98,11 @@ internal object NetworkAddressTypeDescription : PgTypeDescription<PgInet>(
     /**
      * Attempt to parse the [String] into a [PgInet] using the [PgInet.parse] method.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L165)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L165)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
-     * parsed into a [PgInet]
+     *   parsed into a [PgInet]
      */
     override fun decodeText(value: PgValue.Text): PgInet =
         try {

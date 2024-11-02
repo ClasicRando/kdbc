@@ -19,9 +19,7 @@ sealed class PgInet(val address: ByteArray, val prefix: UByte) {
     class Ipv6(address: ByteArray, prefix: UByte) : PgInet(address, prefix) {
         init {
             require(address.size == 16) { "An Ipv4 address must be exactly 16 bytes" }
-            require(prefix in 0u..128u) {
-                "An Ipv4 address must have a prefix between 0 and 128"
-            }
+            require(prefix in 0u..128u) { "An Ipv4 address must have a prefix between 0 and 128" }
         }
     }
 
@@ -32,9 +30,7 @@ sealed class PgInet(val address: ByteArray, val prefix: UByte) {
     class Ipv4(address: ByteArray, prefix: UByte) : PgInet(address, prefix) {
         init {
             require(address.size == 4) { "An Ipv4 address must be exactly 4 bytes" }
-            require(prefix in 0u..32u) {
-                "An Ipv4 address must have a prefix between 0 and 32"
-            }
+            require(prefix in 0u..32u) { "An Ipv4 address must have a prefix between 0 and 32" }
         }
     }
 
@@ -81,17 +77,14 @@ sealed class PgInet(val address: ByteArray, val prefix: UByte) {
         }
 
         /**
-         * Checks the actual type of [inetAddress] to construct the correct [Ipv4] or [Ipv6]
-         * variant of [PgInet]. If the [prefix] value is null, the result will default to 32 for
-         * [Ipv4] and 128 for [Ipv6].
+         * Checks the actual type of [inetAddress] to construct the correct [Ipv4] or [Ipv6] variant
+         * of [PgInet]. If the [prefix] value is null, the result will default to 32 for [Ipv4] and
+         * 128 for [Ipv6].
          *
          * @throws IllegalStateException if the [inetAddress] is not [Inet4Address] or
-         * [Inet6Address]
+         *   [Inet6Address]
          */
-        fun fromInetAddress(
-            inetAddress: InetAddress,
-            prefix: UByte?,
-        ): PgInet {
+        fun fromInetAddress(inetAddress: InetAddress, prefix: UByte?): PgInet {
             return when (inetAddress) {
                 is Inet4Address -> Ipv4(inetAddress.address, prefix ?: 32u)
                 is Inet6Address -> Ipv6(inetAddress.address, prefix ?: 128u)

@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.traditionalScale
+import kotlin.math.absoluteValue
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -9,7 +10,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlin.math.absoluteValue
 
 /**
  * Postgresql `money` type to describe monetary values. Internally the data is stored as an [Long]
@@ -18,9 +18,7 @@ import kotlin.math.absoluteValue
  * [docs](https://www.postgresql.org/docs/16/datatype-money.html)
  */
 @Serializable(with = PgMoney.Companion::class)
-class PgMoney internal constructor(
-    internal val integer: Long,
-) {
+class PgMoney internal constructor(internal val integer: Long) {
     /**
      * Create a new [PgMoney] by passing the [double] to [BigDecimal.fromDouble] and constructing
      * the [Long] value needed from that [BigDecimal].
@@ -34,7 +32,9 @@ class PgMoney internal constructor(
      *
      * @throws IllegalArgumentException if the [decimal] value has a [BigDecimal.scale] > 2
      */
-    constructor(decimal: BigDecimal) : this(
+    constructor(
+        decimal: BigDecimal
+    ) : this(
         when (decimal.traditionalScale) {
             0L -> (decimal.significand * 100).longValue()
             1L -> (decimal.significand * 10).longValue()
@@ -42,9 +42,9 @@ class PgMoney internal constructor(
             else ->
                 error(
                     "Money values cannot be constructed from decimal values with more than 2 " +
-                        "values after the decimal place. Otherwise, precision would be lost",
+                        "values after the decimal place. Otherwise, precision would be lost"
                 )
-        },
+        }
     )
 
     private val strRep: String by lazy {
@@ -98,17 +98,11 @@ class PgMoney internal constructor(
         private val MONEY_REGEX = Regex("^-?\\$?\\d+(.\\d{1,2})?$")
 
         override val descriptor: SerialDescriptor =
-            PrimitiveSerialDescriptor(
-                "PgMoney",
-                PrimitiveKind.STRING,
-            )
+            PrimitiveSerialDescriptor("PgMoney", PrimitiveKind.STRING)
 
         override fun deserialize(decoder: Decoder): PgMoney = fromString(decoder.decodeString())
 
-        override fun serialize(
-            encoder: Encoder,
-            value: PgMoney,
-        ) {
+        override fun serialize(encoder: Encoder, value: PgMoney) {
             encoder.encodeString(value.strRep)
         }
 
@@ -118,7 +112,7 @@ class PgMoney internal constructor(
          * decimal correctly.
          *
          * @throws IllegalArgumentException if the [String] value provided does not match the money
-         * regex defined as '^-?\$?\d+(.\d{1,2})?$'
+         *   regex defined as '^-?\$?\d+(.\d{1,2})?$'
          */
         fun fromString(strMoney: String): PgMoney {
             require(strMoney.matches(MONEY_REGEX)) {
@@ -126,7 +120,8 @@ class PgMoney internal constructor(
                 String supplied to PgMoney does not match the required pattern
                 Pattern: '${MONEY_REGEX.pattern}'
                 Actual Value: $strMoney
-                """.trimIndent()
+                """
+                    .trimIndent()
             }
             val long = BigDecimal.parseString(strMoney.replace("$", ""))
             return PgMoney(long)

@@ -1,23 +1,18 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 import kotlin.uuid.Uuid
+import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [Uuid] type. This maps to the `uuid` type in a
  * postgresql database.
  */
-internal object UuidTypeDescription : PgTypeDescription<Uuid>(
-    dbType = PgType.Uuid,
-    kType = typeOf<Uuid>(),
-) {
+internal object UuidTypeDescription :
+    PgTypeDescription<Uuid>(dbType = PgType.Uuid, kType = typeOf<Uuid>()) {
     /** Simply writes the bytes of the [Uuid] into the argument buffer */
-    override fun encode(
-        value: Uuid,
-        buffer: Sink,
-    ) {
+    override fun encode(value: Uuid, buffer: Sink) {
         buffer.write(value.toByteArray())
     }
 
@@ -33,15 +28,10 @@ internal object UuidTypeDescription : PgTypeDescription<Uuid>(
  * Implementation of a [PgTypeDescription] for the [java.util.UUID] type. This maps to the `uuid`
  * type in a postgresql database.
  */
-internal object JUuidTypeDescription : PgTypeDescription<java.util.UUID>(
-    dbType = PgType.Uuid,
-    kType = typeOf<java.util.UUID>(),
-) {
+internal object JUuidTypeDescription :
+    PgTypeDescription<java.util.UUID>(dbType = PgType.Uuid, kType = typeOf<java.util.UUID>()) {
     /** Simply writes the bytes of the [Uuid] into the argument buffer */
-    override fun encode(
-        value: java.util.UUID,
-        buffer: Sink,
-    ) {
+    override fun encode(value: java.util.UUID, buffer: Sink) {
         buffer.writeLong(value.mostSignificantBits)
         buffer.writeLong(value.leastSignificantBits)
     }

@@ -1,22 +1,16 @@
 package io.github.clasicrando.kdbc.postgresql.message.information
 
-sealed class SqlState(
-    val errorCode: String,
-    val conditionName: String,
-) {
-    data object SuccessfulCompletion : SqlState(SUCCESSFUL_COMPLETION_CODE, "successful_completion")
+sealed class SqlState(val errorCode: String, val conditionName: String) {
+    data object SuccessfulCompletion :
+        SqlState(SUCCESSFUL_COMPLETION_CODE, "successful_completion")
 
     data object Warning : SqlState(WARNING_CODE, "warning")
 
-    data object DynamicResultSetsReturned : SqlState(
-        DYNAMIC_RESULT_SETS_RETURNED_CODE,
-        "dynamic_result_sets_returned",
-    )
+    data object DynamicResultSetsReturned :
+        SqlState(DYNAMIC_RESULT_SETS_RETURNED_CODE, "dynamic_result_sets_returned")
 
-    data object ImplicitZeroBitPadding : SqlState(
-        IMPLICIT_ZERO_BIT_PADDING_CODE,
-        "implicit_zero_bit_padding",
-    )
+    data object ImplicitZeroBitPadding :
+        SqlState(IMPLICIT_ZERO_BIT_PADDING_CODE, "implicit_zero_bit_padding")
 
     data object NullValueEliminatedInSetFunction :
         SqlState(
@@ -28,10 +22,8 @@ sealed class SqlState(
 
     data object PrivilegeNotRevoked : SqlState(PRIVILEGE_NOT_REVOKED, "privilege_not_revoked")
 
-    data object StringDataRightTruncation : SqlState(
-        STRING_DATA_RIGHT_TRUNCATION,
-        "string_data_right_truncation",
-    )
+    data object StringDataRightTruncation :
+        SqlState(STRING_DATA_RIGHT_TRUNCATION, "string_data_right_truncation")
 
     data object DeprecatedFeature : SqlState(DEPRECATED_FEATURE, "deprecated_feature")
 
@@ -43,17 +35,13 @@ sealed class SqlState(
             "no_additional_dynamic_result_sets_returned",
         )
 
-    data object SqlStatementNotYetComplete : SqlState(
-        SQL_STATEMENT_NOT_YET_COMPLETE,
-        "sql_statement_not_yet_complete",
-    )
+    data object SqlStatementNotYetComplete :
+        SqlState(SQL_STATEMENT_NOT_YET_COMPLETE, "sql_statement_not_yet_complete")
 
     data object ConnectionException : SqlState(CONNECTION_EXCEPTION, "connection_exception")
 
-    data object ConnectionDoesNotExist : SqlState(
-        CONNECTION_DOES_NOT_EXIST,
-        "connection_does_not_exist",
-    )
+    data object ConnectionDoesNotExist :
+        SqlState(CONNECTION_DOES_NOT_EXIST, "connection_does_not_exist")
 
     data object ConnectionFailure : SqlState(CONNECTION_FAILURE, "connection_failure")
 
@@ -69,40 +57,31 @@ sealed class SqlState(
             "sqlserver_rejected_establishment_of_sqlconnection",
         )
 
-    data object TransactionResolutionUnknown : SqlState(
-        TRANSACTION_RESOLUTION_UNKNOWN,
-        "transaction_resolution_unknown",
-    )
+    data object TransactionResolutionUnknown :
+        SqlState(TRANSACTION_RESOLUTION_UNKNOWN, "transaction_resolution_unknown")
 
     data object ProtocolViolation : SqlState(PROTOCOL_VIOLATION, "protocol_violation")
 
-    data object TriggeredActionException : SqlState(
-        TRIGGERED_ACTION_EXCEPTION,
-        "triggered_action_exception",
-    )
+    data object TriggeredActionException :
+        SqlState(TRIGGERED_ACTION_EXCEPTION, "triggered_action_exception")
 
     data object FeatureNotSupported : SqlState(FEATURE_NOT_SUPPORTED, "feature_not_supported")
 
-    data object InvalidTransactionInitiation : SqlState(
-        INVALID_TRANSACTION_INITIATION,
-        "invalid_transaction_initiation",
-    )
+    data object InvalidTransactionInitiation :
+        SqlState(INVALID_TRANSACTION_INITIATION, "invalid_transaction_initiation")
 
     data object LocatorException : SqlState(LOCATOR_EXCEPTION, "locator_exception")
 
-    data object InvalidLocatorSpecification : SqlState(
-        INVALID_LOCATOR_SPECIFICATION,
-        "invalid_locator_specification",
-    )
+    data object InvalidLocatorSpecification :
+        SqlState(INVALID_LOCATOR_SPECIFICATION, "invalid_locator_specification")
 
     data object InvalidGrantor : SqlState(INVALID_GRANTOR, "invalid_grantor")
 
-    data object InvalidGrantOperation : SqlState(INVALID_GRANT_OPERATION, "invalid_grant_operation")
+    data object InvalidGrantOperation :
+        SqlState(INVALID_GRANT_OPERATION, "invalid_grant_operation")
 
-    data object InvalidRoleSpecification : SqlState(
-        INVALID_ROLE_SPECIFICATION,
-        "invalid_role_specification",
-    )
+    data object InvalidRoleSpecification :
+        SqlState(INVALID_ROLE_SPECIFICATION, "invalid_role_specification")
 
     data object DiagnosticsException : SqlState(DIAGNOSTICS_EXCEPTION, "diagnostics_exception")
 
@@ -120,36 +99,35 @@ sealed class SqlState(
 
     data object ArraySubscriptError : SqlState(ARRAY_SUBSCRIPT_ERROR, "array_subscript_error")
 
-    data object CharacterNotInRepertoire : SqlState(
-        CHARACTER_NOT_IN_REPERTOIRE,
-        "character_not_in_repertoire",
-    )
+    data object CharacterNotInRepertoire :
+        SqlState(CHARACTER_NOT_IN_REPERTOIRE, "character_not_in_repertoire")
 
-    data object DatetimeFieldOverflow : SqlState(DATETIME_FIELD_OVERFLOW, "datetime_field_overflow")
+    data object DatetimeFieldOverflow :
+        SqlState(DATETIME_FIELD_OVERFLOW, "datetime_field_overflow")
 
     data object DivisionByZero : SqlState(DIVISION_BY_ZERO, "division_by_zero")
 
     data object ErrorInAssignment : SqlState(ERROR_IN_ASSIGNMENT, "error_in_assignment")
 
-    data object EscapeCharacterConflict : SqlState(
-        ESCAPE_CHARACTER_CONFLICT,
-        "escape_character_conflict",
-    )
+    data object EscapeCharacterConflict :
+        SqlState(ESCAPE_CHARACTER_CONFLICT, "escape_character_conflict")
 
     data object IndicatorOverflow : SqlState(INDICATOR_OVERFLOW, "indicator_overflow")
 
-    data object IntervalFieldOverflow : SqlState(INTERVAL_FIELD_OVERFLOW, "interval_field_overflow")
+    data object IntervalFieldOverflow :
+        SqlState(INTERVAL_FIELD_OVERFLOW, "interval_field_overflow")
 
-    data object InvalidArgumentForLogarithm : SqlState(
-        INVALID_ARGUMENT_FOR_LOGARITHM,
-        "invalid_argument_for_logarithm",
-    )
+    data object InvalidArgumentForLogarithm :
+        SqlState(INVALID_ARGUMENT_FOR_LOGARITHM, "invalid_argument_for_logarithm")
 
     data object InvalidArgumentForNtileFunction :
         SqlState(INVALID_ARGUMENT_FOR_NTILE_FUNCTION, "invalid_argument_for_ntile_function")
 
     data object InvalidArgumentForNthValueFunction :
-        SqlState(INVALID_ARGUMENT_FOR_NTH_VALUE_FUNCTION, "invalid_argument_for_nth_value_function")
+        SqlState(
+            INVALID_ARGUMENT_FOR_NTH_VALUE_FUNCTION,
+            "invalid_argument_for_nth_value_function",
+        )
 
     data object InvalidArgumentForPowerFunction :
         SqlState(INVALID_ARGUMENT_FOR_POWER_FUNCTION, "invalid_argument_for_power_function")
@@ -160,21 +138,19 @@ sealed class SqlState(
             "invalid_argument_for_width_bucket_function",
         )
 
-    data object InvalidCharacterValueForCast : SqlState(
-        INVALID_CHARACTER_VALUE_FOR_CAST,
-        "invalid_character_value_for_cast",
-    )
+    data object InvalidCharacterValueForCast :
+        SqlState(INVALID_CHARACTER_VALUE_FOR_CAST, "invalid_character_value_for_cast")
 
-    data object InvalidDatetimeFormat : SqlState(INVALID_DATETIME_FORMAT, "invalid_datetime_format")
+    data object InvalidDatetimeFormat :
+        SqlState(INVALID_DATETIME_FORMAT, "invalid_datetime_format")
 
-    data object InvalidEscapeCharacter : SqlState(
-        INVALID_ESCAPE_CHARACTER,
-        "invalid_escape_character",
-    )
+    data object InvalidEscapeCharacter :
+        SqlState(INVALID_ESCAPE_CHARACTER, "invalid_escape_character")
 
     data object InvalidEscapeOctet : SqlState(INVALID_ESCAPE_OCTET, "invalid_escape_octet")
 
-    data object InvalidEscapeSequence : SqlState(INVALID_ESCAPE_SEQUENCE, "invalid_escape_sequence")
+    data object InvalidEscapeSequence :
+        SqlState(INVALID_ESCAPE_SEQUENCE, "invalid_escape_sequence")
 
     data object NonstandardUseOfEscapeCharacter :
         SqlState(NONSTANDARD_USE_OF_ESCAPE_CHARACTER, "nonstandard_use_of_escape_character")
@@ -182,15 +158,14 @@ sealed class SqlState(
     data object InvalidIndicatorParameterValue :
         SqlState(INVALID_INDICATOR_PARAMETER_VALUE, "invalid_indicator_parameter_value")
 
-    data object InvalidParameterValue : SqlState(INVALID_PARAMETER_VALUE, "invalid_parameter_value")
+    data object InvalidParameterValue :
+        SqlState(INVALID_PARAMETER_VALUE, "invalid_parameter_value")
 
     data object InvalidPrecedingOrFollowingSize :
         SqlState(INVALID_PRECEDING_OR_FOLLOWING_SIZE, "invalid_preceding_or_following_size")
 
-    data object InvalidRegularExpression : SqlState(
-        INVALID_REGULAR_EXPRESSION,
-        "invalid_regular_expression",
-    )
+    data object InvalidRegularExpression :
+        SqlState(INVALID_REGULAR_EXPRESSION, "invalid_regular_expression")
 
     data object InvalidRowCountInLimitClause :
         SqlState(INVALID_ROW_COUNT_IN_LIMIT_CLAUSE, "invalid_row_count_in_limit_clause")
@@ -201,51 +176,37 @@ sealed class SqlState(
             "invalid_row_count_in_result_offset_clause",
         )
 
-    data object InvalidTableSampleArgument : SqlState(
-        INVALID_TABLE_SAMPLE_ARGUMENT,
-        "invalid_tablesample_argument",
-    )
+    data object InvalidTableSampleArgument :
+        SqlState(INVALID_TABLE_SAMPLE_ARGUMENT, "invalid_tablesample_argument")
 
-    data object InvalidTableSampleRepeat : SqlState(
-        INVALID_TABLE_SAMPLE_REPEAT,
-        "invalid_tablesample_repeat",
-    )
+    data object InvalidTableSampleRepeat :
+        SqlState(INVALID_TABLE_SAMPLE_REPEAT, "invalid_tablesample_repeat")
 
     data object InvalidTimeZoneDisplacementValue :
         SqlState(INVALID_TIME_ZONE_DISPLACEMENT_VALUE, "invalid_time_zone_displacement_value")
 
-    data object InvalidUseOfEscapeCharacter : SqlState(
-        INVALID_USE_OF_ESCAPE_CHARACTER,
-        "invalid_use_of_escape_character",
-    )
+    data object InvalidUseOfEscapeCharacter :
+        SqlState(INVALID_USE_OF_ESCAPE_CHARACTER, "invalid_use_of_escape_character")
 
-    data object MostSpecificTypeMismatch : SqlState(
-        MOST_SPECIFIC_TYPE_MISMATCH,
-        "most_specific_type_mismatch",
-    )
+    data object MostSpecificTypeMismatch :
+        SqlState(MOST_SPECIFIC_TYPE_MISMATCH, "most_specific_type_mismatch")
 
     data object NullValueNotAllowed : SqlState(NULL_VALUE_NOT_ALLOWED, "null_value_not_allowed")
 
     data object NullValueNoIndicatorParameter :
         SqlState(NULL_VALUE_NO_INDICATOR_PARAMETER, "null_value_no_indicator_parameter")
 
-    data object NumericValueOutOfRange : SqlState(
-        NUMERIC_VALUE_OUT_OF_RANGE,
-        "numeric_value_out_of_range",
-    )
+    data object NumericValueOutOfRange :
+        SqlState(NUMERIC_VALUE_OUT_OF_RANGE, "numeric_value_out_of_range")
 
     data object SequenceGeneratorLimitExceeded :
         SqlState(SEQUENCE_GENERATOR_LIMIT_EXCEEDED, "sequence_generator_limit_exceeded")
 
-    data object StringDataLengthMismatch : SqlState(
-        STRING_DATA_LENGTH_MISMATCH,
-        "string_data_length_mismatch",
-    )
+    data object StringDataLengthMismatch :
+        SqlState(STRING_DATA_LENGTH_MISMATCH, "string_data_length_mismatch")
 
-    data object StringDataRightTruncation2 : SqlState(
-        STRING_DATA_RIGHT_TRUNCATION2,
-        "string_data_right_truncation",
-    )
+    data object StringDataRightTruncation2 :
+        SqlState(STRING_DATA_RIGHT_TRUNCATION2, "string_data_right_truncation")
 
     data object SubstringError : SqlState(SUBSTRING_ERROR, "substring_error")
 
@@ -253,32 +214,22 @@ sealed class SqlState(
 
     data object UnterminatedCString : SqlState(UNTERMINATED_C_STRING, "unterminated_c_string")
 
-    data object ZeroLengthCharacterString : SqlState(
-        ZERO_LENGTH_CHARACTER_STRING,
-        "zero_length_character_string",
-    )
+    data object ZeroLengthCharacterString :
+        SqlState(ZERO_LENGTH_CHARACTER_STRING, "zero_length_character_string")
 
-    data object FloatingPointException : SqlState(
-        FLOATING_POINT_EXCEPTION,
-        "floating_point_exception",
-    )
+    data object FloatingPointException :
+        SqlState(FLOATING_POINT_EXCEPTION, "floating_point_exception")
 
-    data object InvalidTextRepresentation : SqlState(
-        INVALID_TEXT_REPRESENTATION,
-        "invalid_text_representation",
-    )
+    data object InvalidTextRepresentation :
+        SqlState(INVALID_TEXT_REPRESENTATION, "invalid_text_representation")
 
-    data object InvalidBinaryRepresentation : SqlState(
-        INVALID_BINARY_REPRESENTATION,
-        "invalid_binary_representation",
-    )
+    data object InvalidBinaryRepresentation :
+        SqlState(INVALID_BINARY_REPRESENTATION, "invalid_binary_representation")
 
     data object BadCopyFileFormat : SqlState(BAD_COPY_FILE_FORMAT, "bad_copy_file_format")
 
-    data object UntranslatableCharacter : SqlState(
-        UNTRANSLATABLE_CHARACTER,
-        "untranslatable_character",
-    )
+    data object UntranslatableCharacter :
+        SqlState(UNTRANSLATABLE_CHARACTER, "untranslatable_character")
 
     data object NotAnXmlDocument : SqlState(NOT_AN_XML_DOCUMENT, "not_an_xml_document")
 
@@ -291,10 +242,8 @@ sealed class SqlState(
     data object InvalidXmlProcessingInstruction :
         SqlState(INVALID_XML_PROCESSING_INSTRUCTION, "invalid_xml_processing_instruction")
 
-    data object DuplicateJsonObjectKeyValue : SqlState(
-        DUPLICATE_JSON_OBJECT_KEY_VALUE,
-        "duplicate_json_object_key_value",
-    )
+    data object DuplicateJsonObjectKeyValue :
+        SqlState(DUPLICATE_JSON_OBJECT_KEY_VALUE, "duplicate_json_object_key_value")
 
     data object InvalidArgumentForSqlJsonDatetimeFunction :
         SqlState(
@@ -304,67 +253,43 @@ sealed class SqlState(
 
     data object InvalidJsonText : SqlState(INVALID_JSON_TEXT, "invalid_json_text")
 
-    data object InvalidSqlJsonSubscript : SqlState(
-        INVALID_SQL_JSON_SUBSCRIPT,
-        "invalid_sql_json_subscript",
-    )
+    data object InvalidSqlJsonSubscript :
+        SqlState(INVALID_SQL_JSON_SUBSCRIPT, "invalid_sql_json_subscript")
 
-    data object MoreThanOneSqlJsonItem : SqlState(
-        MORE_THAN_ONE_SQL_JSON_ITEM,
-        "more_than_one_sql_json_item",
-    )
+    data object MoreThanOneSqlJsonItem :
+        SqlState(MORE_THAN_ONE_SQL_JSON_ITEM, "more_than_one_sql_json_item")
 
     data object NoSqlJsonItem : SqlState(NO_SQL_JSON_ITEM, "no_sql_json_item")
 
-    data object NonNumericSqlJsonItem : SqlState(
-        NON_NUMERIC_SQL_JSON_ITEM,
-        "non_numeric_sql_json_item",
-    )
+    data object NonNumericSqlJsonItem :
+        SqlState(NON_NUMERIC_SQL_JSON_ITEM, "non_numeric_sql_json_item")
 
-    data object NonUniqueKeysInAJsonObject : SqlState(
-        NON_UNIQUE_KEYS_IN_A_JSON_OBJECT,
-        "non_unique_keys_in_a_json_object",
-    )
+    data object NonUniqueKeysInAJsonObject :
+        SqlState(NON_UNIQUE_KEYS_IN_A_JSON_OBJECT, "non_unique_keys_in_a_json_object")
 
-    data object SingletonSqlJsonItemRequired : SqlState(
-        SINGLETON_SQL_JSON_ITEM_REQUIRED,
-        "singleton_sql_json_item_required",
-    )
+    data object SingletonSqlJsonItemRequired :
+        SqlState(SINGLETON_SQL_JSON_ITEM_REQUIRED, "singleton_sql_json_item_required")
 
-    data object SqlJsonArrayNotFound : SqlState(
-        SQL_JSON_ARRAY_NOT_FOUND,
-        "sql_json_array_not_found",
-    )
+    data object SqlJsonArrayNotFound :
+        SqlState(SQL_JSON_ARRAY_NOT_FOUND, "sql_json_array_not_found")
 
-    data object SqlJsonMemberNotFound : SqlState(
-        SQL_JSON_MEMBER_NOT_FOUND,
-        "sql_json_member_not_found",
-    )
+    data object SqlJsonMemberNotFound :
+        SqlState(SQL_JSON_MEMBER_NOT_FOUND, "sql_json_member_not_found")
 
-    data object SqlJsonNumberNotFound : SqlState(
-        SQL_JSON_NUMBER_NOT_FOUND,
-        "sql_json_number_not_found",
-    )
+    data object SqlJsonNumberNotFound :
+        SqlState(SQL_JSON_NUMBER_NOT_FOUND, "sql_json_number_not_found")
 
-    data object SqlJsonObjectNotFound : SqlState(
-        SQL_JSON_OBJECT_NOT_FOUND,
-        "sql_json_object_not_found",
-    )
+    data object SqlJsonObjectNotFound :
+        SqlState(SQL_JSON_OBJECT_NOT_FOUND, "sql_json_object_not_found")
 
-    data object TooManyJsonArrayElements : SqlState(
-        TOO_MANY_JSON_ARRAY_ELEMENTS,
-        "too_many_json_array_elements",
-    )
+    data object TooManyJsonArrayElements :
+        SqlState(TOO_MANY_JSON_ARRAY_ELEMENTS, "too_many_json_array_elements")
 
-    data object TooManyJsonObjectMembers : SqlState(
-        TOO_MANY_JSON_OBJECT_MEMBERS,
-        "too_many_json_object_members",
-    )
+    data object TooManyJsonObjectMembers :
+        SqlState(TOO_MANY_JSON_OBJECT_MEMBERS, "too_many_json_object_members")
 
-    data object SqlJsonScalarRequired : SqlState(
-        SQL_JSON_SCALAR_REQUIRED,
-        "sql_json_scalar_required",
-    )
+    data object SqlJsonScalarRequired :
+        SqlState(SQL_JSON_SCALAR_REQUIRED, "sql_json_scalar_required")
 
     data object SqlJsonItemCannotBeCastToTargetType :
         SqlState(
@@ -372,10 +297,8 @@ sealed class SqlState(
             "sql_json_item_cannot_be_cast_to_target_type",
         )
 
-    data object IntegrityConstraintViolation : SqlState(
-        INTEGRITY_CONSTRAINT_VIOLATION,
-        "integrity_constraint_violation",
-    )
+    data object IntegrityConstraintViolation :
+        SqlState(INTEGRITY_CONSTRAINT_VIOLATION, "integrity_constraint_violation")
 
     data object RestrictViolation : SqlState(RESTRICT_VIOLATION, "restrict_violation")
 
@@ -391,10 +314,8 @@ sealed class SqlState(
 
     data object InvalidCursorState : SqlState(INVALID_CURSOR_STATE, "invalid_cursor_state")
 
-    data object InvalidTransactionState : SqlState(
-        INVALID_TRANSACTION_STATE,
-        "invalid_transaction_state",
-    )
+    data object InvalidTransactionState :
+        SqlState(INVALID_TRANSACTION_STATE, "invalid_transaction_state")
 
     data object ActiveSqlTransaction : SqlState(ACTIVE_SQL_TRANSACTION, "active_sql_transaction")
 
@@ -425,10 +346,8 @@ sealed class SqlState(
             "no_active_sql_transaction_for_branch_transaction",
         )
 
-    data object ReadOnlySqlTransaction : SqlState(
-        READ_ONLY_SQL_TRANSACTION,
-        "read_only_sql_transaction",
-    )
+    data object ReadOnlySqlTransaction :
+        SqlState(READ_ONLY_SQL_TRANSACTION, "read_only_sql_transaction")
 
     data object SchemaAndDataStatementMixingNotSupported :
         SqlState(
@@ -436,28 +355,20 @@ sealed class SqlState(
             "schema_and_data_statement_mixing_not_supported",
         )
 
-    data object NoActiveSqlTransaction : SqlState(
-        NO_ACTIVE_SQL_TRANSACTION,
-        "no_active_sql_transaction",
-    )
+    data object NoActiveSqlTransaction :
+        SqlState(NO_ACTIVE_SQL_TRANSACTION, "no_active_sql_transaction")
 
-    data object InFailedSqlTransaction : SqlState(
-        IN_FAILED_SQL_TRANSACTION,
-        "in_failed_sql_transaction",
-    )
+    data object InFailedSqlTransaction :
+        SqlState(IN_FAILED_SQL_TRANSACTION, "in_failed_sql_transaction")
 
     data object IdleInTransactionSessionTimeout :
         SqlState(IDLE_IN_TRANSACTION_SESSION_TIMEOUT, "idle_in_transaction_session_timeout")
 
-    data object InvalidSqlStatementName : SqlState(
-        INVALID_SQL_STATEMENT_NAME,
-        "invalid_sql_statement_name",
-    )
+    data object InvalidSqlStatementName :
+        SqlState(INVALID_SQL_STATEMENT_NAME, "invalid_sql_statement_name")
 
-    data object TriggeredDataChangeViolation : SqlState(
-        TRIGGERED_DATA_CHANGE_VIOLATION,
-        "triggered_data_change_violation",
-    )
+    data object TriggeredDataChangeViolation :
+        SqlState(TRIGGERED_DATA_CHANGE_VIOLATION, "triggered_data_change_violation")
 
     data object InvalidAuthorizationSpecification :
         SqlState(INVALID_AUTHORIZATION_SPECIFICATION, "invalid_authorization_specification")
@@ -470,45 +381,33 @@ sealed class SqlState(
             "dependent_privilege_descriptors_still_exist",
         )
 
-    data object DependentObjectsStillExist : SqlState(
-        DEPENDENT_OBJECTS_STILL_EXIST,
-        "dependent_objects_still_exist",
-    )
+    data object DependentObjectsStillExist :
+        SqlState(DEPENDENT_OBJECTS_STILL_EXIST, "dependent_objects_still_exist")
 
-    data object InvalidTransactionTermination : SqlState(
-        INVALID_TRANSACTION_TERMINATION,
-        "invalid_transaction_termination",
-    )
+    data object InvalidTransactionTermination :
+        SqlState(INVALID_TRANSACTION_TERMINATION, "invalid_transaction_termination")
 
     data object SqlRoutineException : SqlState(SQL_ROUTINE_EXCEPTION, "sql_routine_exception")
 
     data object FunctionExecutedNoReturnStatement :
         SqlState(FUNCTION_EXECUTED_NO_RETURN_STATEMENT, "function_executed_no_return_statement")
 
-    data object ModifyingSqlDataNotPermitted : SqlState(
-        MODIFYING_SQL_DATA_NOT_PERMITTED,
-        "modifying_sql_data_not_permitted",
-    )
+    data object ModifyingSqlDataNotPermitted :
+        SqlState(MODIFYING_SQL_DATA_NOT_PERMITTED, "modifying_sql_data_not_permitted")
 
     data object ProhibitedSqlStatementAttempted :
         SqlState(PROHIBITED_SQL_STATEMENT_ATTEMPTED, "prohibited_sql_statement_attempted")
 
-    data object ReadingSqlDataNotPermitted : SqlState(
-        READING_SQL_DATA_NOT_PERMITTED,
-        "reading_sql_data_not_permitted",
-    )
+    data object ReadingSqlDataNotPermitted :
+        SqlState(READING_SQL_DATA_NOT_PERMITTED, "reading_sql_data_not_permitted")
 
     data object InvalidCursorName : SqlState(INVALID_CURSOR_NAME, "invalid_cursor_name")
 
-    data object ExternalRoutineException : SqlState(
-        EXTERNAL_ROUTINE_EXCEPTION,
-        "external_routine_exception",
-    )
+    data object ExternalRoutineException :
+        SqlState(EXTERNAL_ROUTINE_EXCEPTION, "external_routine_exception")
 
-    data object ContainingSqlNotPermitted : SqlState(
-        CONTAINING_SQL_NOT_PERMITTED,
-        "containing_sql_not_permitted",
-    )
+    data object ContainingSqlNotPermitted :
+        SqlState(CONTAINING_SQL_NOT_PERMITTED, "containing_sql_not_permitted")
 
     data object ModifyingSqlDataNotPermitted2 :
         SqlState(MODIFYING_SQL_DATA_NOT_PERMITTED2, "modifying_sql_data_not_permitted")
@@ -516,39 +415,29 @@ sealed class SqlState(
     data object ProhibitedSqlStatementAttempted2 :
         SqlState(PROHIBITED_SQL_STATEMENT_ATTEMPTED2, "prohibited_sql_statement_attempted")
 
-    data object ReadingSqlDataNotPermitted2 : SqlState(
-        READING_SQL_DATA_NOT_PERMITTED2,
-        "reading_sql_data_not_permitted",
-    )
+    data object ReadingSqlDataNotPermitted2 :
+        SqlState(READING_SQL_DATA_NOT_PERMITTED2, "reading_sql_data_not_permitted")
 
     data object ExternalRoutineInvocationException :
         SqlState(EXTERNAL_ROUTINE_INVOCATION_EXCEPTION, "external_routine_invocation_exception")
 
-    data object InvalidSqlstateReturned : SqlState(
-        INVALID_SQLSTATE_RETURNED,
-        "invalid_sqlstate_returned",
-    )
+    data object InvalidSqlstateReturned :
+        SqlState(INVALID_SQLSTATE_RETURNED, "invalid_sqlstate_returned")
 
     data object NullValueNotAllowed2 : SqlState(NULL_VALUE_NOT_ALLOWED2, "null_value_not_allowed")
 
-    data object TriggerProtocolViolated : SqlState(
-        TRIGGER_PROTOCOL_VIOLATED,
-        "trigger_protocol_violated",
-    )
+    data object TriggerProtocolViolated :
+        SqlState(TRIGGER_PROTOCOL_VIOLATED, "trigger_protocol_violated")
 
     data object SrfProtocolViolated : SqlState(SRF_PROTOCOL_VIOLATED, "srf_protocol_violated")
 
-    data object EventTriggerProtocolViolated : SqlState(
-        EVENT_TRIGGER_PROTOCOL_VIOLATED,
-        "event_trigger_protocol_violated",
-    )
+    data object EventTriggerProtocolViolated :
+        SqlState(EVENT_TRIGGER_PROTOCOL_VIOLATED, "event_trigger_protocol_violated")
 
     data object SavepointException : SqlState(SAVEPOINT_EXCEPTION, "savepoint_exception")
 
-    data object InvalidSavepointSpecification : SqlState(
-        INVALID_SAVEPOINT_SPECIFICATION,
-        "invalid_savepoint_specification",
-    )
+    data object InvalidSavepointSpecification :
+        SqlState(INVALID_SAVEPOINT_SPECIFICATION, "invalid_savepoint_specification")
 
     data object InvalidCatalogName : SqlState(INVALID_CATALOG_NAME, "invalid_catalog_name")
 
@@ -564,10 +453,8 @@ sealed class SqlState(
 
     data object SerializationFailure : SqlState(SERIALIZATION_FAILURE, "serialization_failure")
 
-    data object StatementCompletionUnknown : SqlState(
-        STATEMENT_COMPLETION_UNKNOWN,
-        "statement_completion_unknown",
-    )
+    data object StatementCompletionUnknown :
+        SqlState(STATEMENT_COMPLETION_UNKNOWN, "statement_completion_unknown")
 
     data object DeadlockDetected : SqlState(DEADLOCK_DETECTED, "deadlock_detected")
 
@@ -600,10 +487,8 @@ sealed class SqlState(
 
     data object CollationMismatch : SqlState(COLLATION_MISMATCH, "collation_mismatch")
 
-    data object IndeterminateCollation : SqlState(
-        INDETERMINATE_COLLATION,
-        "indeterminate_collation",
-    )
+    data object IndeterminateCollation :
+        SqlState(INDETERMINATE_COLLATION, "indeterminate_collation")
 
     data object WrongObjectType : SqlState(WRONG_OBJECT_TYPE, "wrong_object_type")
 
@@ -627,10 +512,8 @@ sealed class SqlState(
 
     data object DuplicateFunction : SqlState(DUPLICATE_FUNCTION, "duplicate_function")
 
-    data object DuplicatePreparedStatement : SqlState(
-        DUPLICATE_PREPARED_STATEMENT,
-        "duplicate_prepared_statement",
-    )
+    data object DuplicatePreparedStatement :
+        SqlState(DUPLICATE_PREPARED_STATEMENT, "duplicate_prepared_statement")
 
     data object DuplicateSchema : SqlState(DUPLICATE_SCHEMA, "duplicate_schema")
 
@@ -648,53 +531,35 @@ sealed class SqlState(
 
     data object AmbiguousAlias : SqlState(AMBIGUOUS_ALIAS, "ambiguous_alias")
 
-    data object InvalidColumnReference : SqlState(
-        INVALID_COLUMN_REFERENCE,
-        "invalid_column_reference",
-    )
+    data object InvalidColumnReference :
+        SqlState(INVALID_COLUMN_REFERENCE, "invalid_column_reference")
 
-    data object InvalidColumnDefinition : SqlState(
-        INVALID_COLUMN_DEFINITION,
-        "invalid_column_definition",
-    )
+    data object InvalidColumnDefinition :
+        SqlState(INVALID_COLUMN_DEFINITION, "invalid_column_definition")
 
-    data object InvalidCursorDefinition : SqlState(
-        INVALID_CURSOR_DEFINITION,
-        "invalid_cursor_definition",
-    )
+    data object InvalidCursorDefinition :
+        SqlState(INVALID_CURSOR_DEFINITION, "invalid_cursor_definition")
 
-    data object InvalidDatabaseDefinition : SqlState(
-        INVALID_DATABASE_DEFINITION,
-        "invalid_database_definition",
-    )
+    data object InvalidDatabaseDefinition :
+        SqlState(INVALID_DATABASE_DEFINITION, "invalid_database_definition")
 
-    data object InvalidFunctionDefinition : SqlState(
-        INVALID_FUNCTION_DEFINITION,
-        "invalid_function_definition",
-    )
+    data object InvalidFunctionDefinition :
+        SqlState(INVALID_FUNCTION_DEFINITION, "invalid_function_definition")
 
     data object InvalidPreparedStatementDefinition :
         SqlState(INVALID_PREPARED_STATEMENT_DEFINITION, "invalid_prepared_statement_definition")
 
-    data object InvalidSchemaDefinition : SqlState(
-        INVALID_SCHEMA_DEFINITION,
-        "invalid_schema_definition",
-    )
+    data object InvalidSchemaDefinition :
+        SqlState(INVALID_SCHEMA_DEFINITION, "invalid_schema_definition")
 
-    data object InvalidTableDefinition : SqlState(
-        INVALID_TABLE_DEFINITION,
-        "invalid_table_definition",
-    )
+    data object InvalidTableDefinition :
+        SqlState(INVALID_TABLE_DEFINITION, "invalid_table_definition")
 
-    data object InvalidObjectDefinition : SqlState(
-        INVALID_OBJECT_DEFINITION,
-        "invalid_object_definition",
-    )
+    data object InvalidObjectDefinition :
+        SqlState(INVALID_OBJECT_DEFINITION, "invalid_object_definition")
 
-    data object WithCheckOptionViolation : SqlState(
-        WITH_CHECK_OPTION_VIOLATION,
-        "with_check_option_violation",
-    )
+    data object WithCheckOptionViolation :
+        SqlState(WITH_CHECK_OPTION_VIOLATION, "with_check_option_violation")
 
     data object InsufficientResources : SqlState(INSUFFICIENT_RESOURCES, "insufficient_resources")
 
@@ -704,10 +569,8 @@ sealed class SqlState(
 
     data object TooManyConnections : SqlState(TOO_MANY_CONNECTIONS, "too_many_connections")
 
-    data object ConfigurationLimitExceeded : SqlState(
-        CONFIGURATION_LIMIT_EXCEEDED,
-        "configuration_limit_exceeded",
-    )
+    data object ConfigurationLimitExceeded :
+        SqlState(CONFIGURATION_LIMIT_EXCEEDED, "configuration_limit_exceeded")
 
     data object ProgramLimitExceeded : SqlState(PROGRAM_LIMIT_EXCEEDED, "program_limit_exceeded")
 
@@ -717,24 +580,18 @@ sealed class SqlState(
 
     data object TooManyArguments : SqlState(TOO_MANY_ARGUMENTS, "too_many_arguments")
 
-    data object ObjectNotInPrerequisiteState : SqlState(
-        OBJECT_NOT_IN_PREREQUISITE_STATE,
-        "object_not_in_prerequisite_state",
-    )
+    data object ObjectNotInPrerequisiteState :
+        SqlState(OBJECT_NOT_IN_PREREQUISITE_STATE, "object_not_in_prerequisite_state")
 
     data object ObjectInUse : SqlState(OBJECT_IN_USE, "object_in_use")
 
-    data object CantChangeRuntimeParam : SqlState(
-        CANT_CHANGE_RUNTIME_PARAM,
-        "cant_change_runtime_param",
-    )
+    data object CantChangeRuntimeParam :
+        SqlState(CANT_CHANGE_RUNTIME_PARAM, "cant_change_runtime_param")
 
     data object LockNotAvailable : SqlState(LOCK_NOT_AVAILABLE, "lock_not_available")
 
-    data object UnsafeNewEnumValueUsage : SqlState(
-        UNSAFE_NEW_ENUM_VALUE_USAGE,
-        "unsafe_new_enum_value_usage",
-    )
+    data object UnsafeNewEnumValueUsage :
+        SqlState(UNSAFE_NEW_ENUM_VALUE_USAGE, "unsafe_new_enum_value_usage")
 
     data object OperatorIntervention : SqlState(OPERATOR_INTERVENTION, "operator_intervention")
 
@@ -760,9 +617,7 @@ sealed class SqlState(
 
     data object SnapshotTooOld : SqlState(SNAPSHOT_TOO_OLD, "snapshot_too_old")
 
-    class Unknown(
-        code: String,
-    ) : SqlState(code, "Unknown code") {
+    class Unknown(code: String) : SqlState(code, "Unknown code") {
         override fun toString(): String = "Unknown(code=$errorCode)"
     }
 

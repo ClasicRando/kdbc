@@ -10,16 +10,12 @@ fun createTempCsvForCopy(rowCount: Int): Path {
     val outputFile = Path(".", "temp", "blocking-copy-in.csv")
     try {
         IOUtils.createFileIfNotExists(path = outputFile)
-        csvWriter {
-            lineTerminator = "\n"
-        }.open(IOUtils.sink(path = outputFile).buffered().asOutputStream()) {
-            writeRows(
-                rows =
-                    (1..rowCount).asSequence().map { i ->
-                        listOf(i.toString(), "$i Value")
-                    },
-            )
-        }
+        csvWriter { lineTerminator = "\n" }
+            .open(IOUtils.sink(path = outputFile).buffered().asOutputStream()) {
+                writeRows(
+                    rows = (1..rowCount).asSequence().map { i -> listOf(i.toString(), "$i Value") }
+                )
+            }
         return outputFile
     } catch (ex: Exception) {
         IOUtils.deleteCatching(path = outputFile, mustExist = false)

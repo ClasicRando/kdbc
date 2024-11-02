@@ -9,6 +9,9 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.oshai.kotlinlogging.Level
+import java.sql.DriverManager
+import java.sql.ResultSet
+import kotlin.uuid.Uuid
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -20,9 +23,6 @@ import org.apache.commons.dbcp2.PoolableConnection
 import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
-import java.sql.DriverManager
-import java.sql.ResultSet
-import kotlin.uuid.Uuid
 import org.postgresql.jdbc.PgConnection as JdbcPgConnection
 
 val jdbcQuerySingle =
@@ -32,7 +32,8 @@ val jdbcQuerySingle =
         counter5, counter6, counter7, counter8, counter9
     FROM public.posts
     WHERE id = ?
-    """.trimIndent()
+    """
+        .trimIndent()
 
 val kdbcQuerySingle =
     """
@@ -41,7 +42,8 @@ val kdbcQuerySingle =
         counter5, counter6, counter7, counter8, counter9
     FROM public.posts
     WHERE id = $1
-    """.trimIndent()
+    """
+        .trimIndent()
 
 val jdbcQuery =
     """
@@ -50,7 +52,8 @@ val jdbcQuery =
         counter5, counter6, counter7, counter8, counter9
     FROM public.posts
     WHERE id BETWEEN ? AND ?
-    """.trimIndent()
+    """
+        .trimIndent()
 
 val kdbcQuery =
     """
@@ -59,7 +62,8 @@ val kdbcQuery =
         counter5, counter6, counter7, counter8, counter9
     FROM public.posts
     WHERE id BETWEEN $1 AND $2
-    """.trimIndent()
+    """
+        .trimIndent()
 
 val setupQuery =
     """
@@ -83,7 +87,8 @@ val setupQuery =
     INSERT INTO public.posts("text", creation_date, last_change_date)
     SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
     FROM generate_series(1, 5000) t;
-    """.trimIndent()
+    """
+        .trimIndent()
 
 val copyOutSetupQuery =
     """
@@ -107,7 +112,8 @@ val copyOutSetupQuery =
     INSERT INTO public.copy_out_posts("text", creation_date, last_change_date)
     SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
     FROM generate_series(1, 5000) t;
-    """.trimIndent()
+    """
+        .trimIndent()
 
 val copyInSetupQuery =
     """
@@ -128,7 +134,8 @@ val copyInSetupQuery =
         counter8 int,
         counter9 int
     );
-    """.trimIndent()
+    """
+        .trimIndent()
 
 fun createBenchmarkCsv(outputPath: Path) {
     IOUtils.createFileIfNotExists(outputPath)
@@ -167,17 +174,14 @@ val kdbcCopyIn = CopyStatement.TableFromCsv(schemaName = "public", tableName = "
 const val JDBC_COPY_IN = "COPY public.copy_in_posts FROM STDIN WITH (FORMAT csv)"
 
 private const val MISSING_ENVIRONMENT_VARIABLE_MESSAGE =
-    "To run benchmarks the environment " +
-        "variable JDBC_PG_CONNECTION_STRING must be available"
+    "To run benchmarks the environment " + "variable JDBC_PG_CONNECTION_STRING must be available"
 
 private val connectionString =
     System.getenv("JDBC_PG_CONNECTION_STRING")
         ?: throw IllegalStateException(MISSING_ENVIRONMENT_VARIABLE_MESSAGE)
 
 fun getJdbcConnection(): JdbcPgConnection =
-    DriverManager
-        .getConnection(connectionString)
-        .unwrap(JdbcPgConnection::class.java)
+    DriverManager.getConnection(connectionString).unwrap(JdbcPgConnection::class.java)
 
 fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     val connectionFactory = DriverManagerConnectionFactory(connectionString, null)
@@ -203,11 +207,7 @@ val kdbcConnectOptions =
         logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
     )
 
-val poolOptions =
-    PoolOptions(
-        maxConnections = 10,
-        minConnections = 8,
-    )
+val poolOptions = PoolOptions(maxConnections = 10, minConnections = 8)
 
 suspend fun getKdbcAsyncConnection(): PgConnection =
     Postgres.connection(connectOptions = kdbcConnectOptions)

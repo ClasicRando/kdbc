@@ -1,35 +1,32 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlin.reflect.typeOf
 import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.readByteArray
-import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [PgTypeDescription] for [ByteArray]. This maps to the `bytea` type in a
  * postgresql database
  */
-internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
-    dbType = PgType.Bytea,
-    kType = typeOf<ByteArray>(),
-) {
+internal object ByteaTypeDescription :
+    PgTypeDescription<ByteArray>(dbType = PgType.Bytea, kType = typeOf<ByteArray>()) {
     /**
      * Simply writes all bytes in the [ByteArray] to the buffer.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L471)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L471)
      */
-    override fun encode(
-        value: ByteArray,
-        buffer: Sink,
-    ) {
+    override fun encode(value: ByteArray, buffer: Sink) {
         buffer.write(value)
     }
 
     /**
      * Reads all available bytes in the value's buffer.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L490)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L490)
      */
     override fun decodeBytes(value: PgValue.Binary): ByteArray = value.bytes.readBytes()
 
@@ -37,7 +34,8 @@ internal object ByteaTypeDescription : PgTypeDescription<ByteArray>(
      * Decode the [String] as either a prefixed hex format value (using [decodeWithPrefix]) or an
      * escape format value (using [decodeWithoutPrefix]).
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L388)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L388)
      */
     override fun decodeText(value: PgValue.Text): ByteArray =
         if (value.text.startsWith(HEX_START)) {
@@ -55,14 +53,9 @@ private const val HEX_START = "\\x"
  *
  * @throws IllegalArgumentException if the hex character yields a negative digit
  */
-private fun charToDigit(
-    char: Char,
-    index: Int,
-): Int {
+private fun charToDigit(char: Char, index: Int): Int {
     val digit = char.digitToInt(16)
-    require(digit >= 0) {
-        "Illegal hexadecimal character $char at index $index"
-    }
+    require(digit >= 0) { "Illegal hexadecimal character $char at index $index" }
     return digit
 }
 
@@ -71,18 +64,16 @@ private fun charToDigit(
  *
  * This reads the string 2 characters at a time, combining each pair of characters into a single
  * [Byte]. The first character of each pair is converted to an [Int] and put into the 4 left most
- * bits. The second character is converted to an [Int] and put into the 4 right most bits. Each
- * pair is then packed into a [ByteArray].
+ * bits. The second character is converted to an [Int] and put into the 4 right most bits. Each pair
+ * is then packed into a [ByteArray].
  *
  * @throws IllegalArgumentException if the number of hex characters is odd meaning we have an
- * incomplete pair
+ *   incomplete pair
  */
 private fun decodeWithPrefix(value: String): ByteArray {
     val size = value.length - HEX_START.length
 
-    require(size.and(0x01) == 0) {
-        "Hex encoded byte array must have an even number of elements"
-    }
+    require(size.and(0x01) == 0) { "Hex encoded byte array must have an even number of elements" }
 
     var index = HEX_START.length
     // Size of result array is size / 2 or right shift of 1
@@ -107,10 +98,10 @@ private fun String.getOrThrow(index: Int): Char {
 /**
  * Decode the [value] into a [ByteArray], interpreting [value] as an escape formatted `bytea`.
  *
- * This reads the [value] character by character, interpreting each character as a [Byte] unless
- * the character is a forward slash. In that case, it is checked if the slash is escaping a literal
- * slash, or it means that the next 3 digits need to be interpreted as a combined hexadecimal
- * [Byte] value in the format of "x{first}{second}{third}".
+ * This reads the [value] character by character, interpreting each character as a [Byte] unless the
+ * character is a forward slash. In that case, it is checked if the slash is escaping a literal
+ * slash, or it means that the next 3 digits need to be interpreted as a combined hexadecimal [Byte]
+ * value in the format of "x{first}{second}{third}".
  */
 private fun decodeWithoutPrefix(value: String): ByteArray {
     val buffer = Buffer()

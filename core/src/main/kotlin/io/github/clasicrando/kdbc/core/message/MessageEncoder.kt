@@ -8,8 +8,5 @@ import kotlinx.io.Sink
  */
 interface MessageEncoder<in T> {
     /** Encode the message [value] of type [T] to the [buffer] supplied */
-    fun encode(
-        value: T,
-        buffer: Sink,
-    )
+    fun encode(value: T, buffer: Sink)
 }

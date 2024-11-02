@@ -20,16 +20,13 @@ import kotlinx.io.Sink
  *     - [Int], the length of the parameter values as bytes
  *     - [ByteArray], the value of the parameter encoded into bytes
  * - a [Short] as the number of result column format codes (always 1 since we only use binary
- * encoding)
+ *   encoding)
  * - a [Short] as the format code of the result columns (1 = binary)
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BIND)
  */
 internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
-    override fun encode(
-        value: PgMessage.Bind,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.Bind, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixedInt(includeLength = true) {
             writeCString(value.portal ?: "")

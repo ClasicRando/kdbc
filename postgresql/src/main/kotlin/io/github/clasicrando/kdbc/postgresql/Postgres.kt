@@ -9,15 +9,13 @@ import io.github.clasicrando.kdbc.postgresql.pool.PgPoolManager
 /** [Database] implementation for Postgresql */
 object Postgres : Database<PgConnection, PgConnectOptions> {
     /**
-     * Create a new [PgConnection] (or reuse an existing connection if any are available) using
-     * the supplied [PgConnectOptions].
+     * Create a new [PgConnection] (or reuse an existing connection if any are available) using the
+     * supplied [PgConnectOptions].
      */
     override suspend fun connection(connectOptions: PgConnectOptions): PgConnection =
         PgPoolManager.acquireConnection(connectOptions)
 
-    /**
-     * Create a new [PgListener] with a connection acquired from [connection]
-     */
+    /** Create a new [PgListener] with a connection acquired from [connection] */
     suspend fun listener(connectOptions: PgConnectOptions): PgListener =
         PgListener(connection(connectOptions))
 }

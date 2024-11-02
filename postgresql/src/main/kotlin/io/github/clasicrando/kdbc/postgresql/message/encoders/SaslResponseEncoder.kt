@@ -14,10 +14,7 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SASLRESPONSE)
  */
 internal object SaslResponseEncoder : MessageEncoder<PgMessage.SaslResponse> {
-    override fun encode(
-        value: PgMessage.SaslResponse,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.SaslResponse, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixedInt(includeLength = true) {
             write(value.saslData.toByteArray(charset = Charsets.UTF_8))

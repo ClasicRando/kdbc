@@ -14,10 +14,7 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SSLREQUEST)
  */
 internal object SslMessageEncoder : MessageEncoder<PgMessage.SslRequest> {
-    override fun encode(
-        value: PgMessage.SslRequest,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.SslRequest, buffer: Sink) {
         buffer.writeLengthPrefixedInt(includeLength = true) {
             writeShort(1234)
             writeShort(5679)

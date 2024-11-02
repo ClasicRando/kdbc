@@ -10,15 +10,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Postgresql specific implementation of a
- * [io.github.clasicrando.kdbc.core.pool.ConnectionPool], keeping reference to the pool's
- * [typeCache] and providing the custom [disposeConnection] method that simple calls
- * [PgConnection.dispose].
+ * Postgresql specific implementation of a [io.github.clasicrando.kdbc.core.pool.ConnectionPool],
+ * keeping reference to the pool's [typeCache] and providing the custom [disposeConnection] method
+ * that simple calls [PgConnection.dispose].
  */
-class PgConnectionPool(
-    connectOptions: PgConnectOptions,
-    poolOptions: PoolOptions,
-) : AbstractDefaultConnectionPool<PgConnection>(
+class PgConnectionPool(connectOptions: PgConnectOptions, poolOptions: PoolOptions) :
+    AbstractDefaultConnectionPool<PgConnection>(
         poolOptions = poolOptions,
         provider = PgConnectionProvider(connectOptions),
     ) {

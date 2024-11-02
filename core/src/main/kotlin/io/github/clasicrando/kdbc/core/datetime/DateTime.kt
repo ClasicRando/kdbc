@@ -14,10 +14,16 @@ import kotlinx.datetime.toInstant
  * that stored a [datetime] and the [offset].
  */
 data class DateTime(val datetime: Instant, val offset: UtcOffset) {
-    constructor(date: LocalDate, time: LocalTime, offset: UtcOffset) :
-        this(LocalDateTime(date, time).toInstant(offset), offset)
-    constructor(localDateTime: LocalDateTime, offset: UtcOffset) :
-        this(localDateTime.toInstant(offset), offset)
+    constructor(
+        date: LocalDate,
+        time: LocalTime,
+        offset: UtcOffset,
+    ) : this(LocalDateTime(date, time).toInstant(offset), offset)
+
+    constructor(
+        localDateTime: LocalDateTime,
+        offset: UtcOffset,
+    ) : this(localDateTime.toInstant(offset), offset)
 
     /**
      * Return a new [DateTime] instance with the same scalar timestamp value, but with the new
@@ -37,8 +43,8 @@ data class DateTime(val datetime: Instant, val offset: UtcOffset) {
 
     companion object {
         /**
-         * Convert the supplied string [value] to a [DateTime] instance. The only supported
-         * datetime format is ISO-8601.
+         * Convert the supplied string [value] to a [DateTime] instance. The only supported datetime
+         * format is ISO-8601.
          */
         fun fromString(value: String): DateTime {
             return DateTime(

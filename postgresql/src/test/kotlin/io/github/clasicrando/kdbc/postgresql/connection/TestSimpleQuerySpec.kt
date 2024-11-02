@@ -7,30 +7,29 @@ import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.message.information.Severity
 import io.github.clasicrando.kdbc.postgresql.message.information.SqlState
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestSimpleQuerySpec {
     @Test
-    fun `sendSimpleQuery should return 1 result when regular query`(): Unit =
-        runBlocking {
-            PgConnectionHelper.defaultConnectionWithForcedSimple().use {
-                val result = it.sendSimpleQuery(QUERY_SERIES).toList()
-                assertEquals(1, result.size)
-                val queryResult = result[0]
-                assertEquals(10, queryResult.rowsAffected)
-                var rowCount = 0
-                for ((i, row) in queryResult.rows.withIndex()) {
-                    rowCount++
-                    assertEquals(i + 1, row.getAsNonNull(0))
-                    assertEquals("Regular Query", row.getAsNonNull(1))
-                }
-                assertEquals(10, rowCount)
+    fun `sendSimpleQuery should return 1 result when regular query`(): Unit = runBlocking {
+        PgConnectionHelper.defaultConnectionWithForcedSimple().use {
+            val result = it.sendSimpleQuery(QUERY_SERIES).toList()
+            assertEquals(1, result.size)
+            val queryResult = result[0]
+            assertEquals(10, queryResult.rowsAffected)
+            var rowCount = 0
+            for ((i, row) in queryResult.rows.withIndex()) {
+                rowCount++
+                assertEquals(i + 1, row.getAsNonNull(0))
+                assertEquals("Regular Query", row.getAsNonNull(1))
             }
+            assertEquals(10, rowCount)
         }
+    }
 
     @Test
     fun `sendSimpleQuery should return 1 result when stored procedure with out parameter`(): Unit =
@@ -55,7 +54,8 @@ class TestSimpleQuerySpec {
                     """
                     CALL public.$TEST_PROC_NAME(null, null);
                     SELECT 1 test_i;
-                    """.trimIndent()
+                    """
+                        .trimIndent()
                 val results = connection.sendSimpleQuery(queries).toList()
                 assertEquals(2, results.size)
                 assertEquals(0, results[0].rowsAffected)
@@ -80,7 +80,8 @@ class TestSimpleQuerySpec {
     companion object {
         const val TEST_PROC_NAME = "test_proc"
         const val LONG_RUNNING_TEST_PROC_NAME = "long_running_test_proc"
-        private const val STARTUP_SCRIPT = """
+        private const val STARTUP_SCRIPT =
+            """
             DROP PROCEDURE IF EXISTS public.$TEST_PROC_NAME;
             CREATE PROCEDURE public.$TEST_PROC_NAME(out int, out text)
             LANGUAGE plpgsql
@@ -98,18 +99,16 @@ class TestSimpleQuerySpec {
             $$;
         """
 
-        const val QUERY_SERIES = """
+        const val QUERY_SERIES =
+            """
             SELECT s.s, 'Regular Query' t
             FROM generate_series(1, 10) s
         """
 
         @JvmStatic
         @BeforeAll
-        fun setup(): Unit =
-            runBlocking {
-                PgConnectionHelper.defaultConnection().use {
-                    it.sendSimpleQuery(STARTUP_SCRIPT)
-                }
-            }
+        fun setup(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use { it.sendSimpleQuery(STARTUP_SCRIPT) }
+        }
     }
 }

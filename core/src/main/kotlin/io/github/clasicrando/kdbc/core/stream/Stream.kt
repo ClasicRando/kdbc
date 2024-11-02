@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import kotlinx.io.Sink
 import kotlin.time.Duration
+import kotlinx.io.Sink
 
 private const val RESOURCE_TYPE = "Stream"
 
@@ -12,10 +12,9 @@ private const val RESOURCE_TYPE = "Stream"
  * implementation will depend on the platform and compilation target but each method will suspend
  * during IO operation to yield control of the otherwise blocked thread.
  */
-interface Stream :
-    UniqueResourceId,
-    AutoCloseable {
-    override val resourceType: String get() = RESOURCE_TYPE
+interface Stream : UniqueResourceId, AutoCloseable {
+    override val resourceType: String
+        get() = RESOURCE_TYPE
 
     /** Returns true if the stream is still connected to the host */
     val isConnected: Boolean
@@ -44,9 +43,9 @@ interface Stream :
     /**
      * Read a single [Byte] from the stream.
      *
-     * This returns immediately if the stream has a single [Byte] available for read. Otherwise,
-     * it suspends to read available bytes into the internal buffer, reading and returning the
-     * first available [Byte].
+     * This returns immediately if the stream has a single [Byte] available for read. Otherwise, it
+     * suspends to read available bytes into the internal buffer, reading and returning the first
+     * available [Byte].
      *
      * @throws StreamReadError if the read operation fails
      */
@@ -66,8 +65,8 @@ interface Stream :
     /**
      * Read the required number of bytes as [count] into a [ByteReadBuffer] and return that buffer.
      *
-     * This returns immediately if the stream has [count] bytes available. Otherwise, it suspends
-     * to read available bytes into the internal buffer until the required number of bytes is
+     * This returns immediately if the stream has [count] bytes available. Otherwise, it suspends to
+     * read available bytes into the internal buffer until the required number of bytes is
      * available. The bytes are then read into the buffer and returned.
      *
      * @throws StreamReadError if the read operation fails

@@ -9,10 +9,10 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.result.PgResultSet
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
+import java.io.InputStream
 import kotlinx.coroutines.flow.Flow
 import kotlinx.io.Buffer
 import kotlinx.io.asInputStream
-import java.io.InputStream
 
 /**
  * Collector object that converts text and binary `COPY TO` data streams into a single
@@ -33,19 +33,16 @@ internal class CopyOutCollector(
     }
 
     /**
-     * Collect the [Flow] of [ByteArray] into a single [QueryResult]. If the [copyOutStatement]
-     * is a text based copy statement, data is decoded using the text format. Otherwise, the data
-     * is decoded as if it were the binary protocol.
+     * Collect the [Flow] of [ByteArray] into a single [QueryResult]. If the [copyOutStatement] is a
+     * text based copy statement, data is decoded using the text format. Otherwise, the data is
+     * decoded as if it were the binary protocol.
      *
      * For text formatted data, [readTextData] is called, whereas for binary data, each [ByteArray]
-     * is passed into [getBinaryBuffer] to get a [ByteReadBuffer] as the next row's buffer. There
-     * is a special case for binary data where if the first short value extracted from the buffer
-     * is -1, that is an indication the copy data is done and that row should be discarded.
+     * is passed into [getBinaryBuffer] to get a [ByteReadBuffer] as the next row's buffer. There is
+     * a special case for binary data where if the first short value extracted from the buffer is
+     * -1, that is an indication the copy data is done and that row should be discarded.
      */
-    suspend fun collectResult(
-        connection: PgConnection,
-        flow: Flow<ByteArray>,
-    ): QueryResult {
+    suspend fun collectResult(connection: PgConnection, flow: Flow<ByteArray>): QueryResult {
         var rowCount = 0L
         val resultSet = PgResultSet(connection.typeCache, fields)
 
@@ -83,10 +80,7 @@ internal class CopyOutCollector(
      * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row, the
      * first 19 bytes should be ignored since they are the binary copy's file header.
      */
-    private fun getBinaryBuffer(
-        rowCount: Long,
-        row: ByteArray,
-    ): ByteReadBuffer =
+    private fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer =
         when {
             rowCount == 1L -> ByteReadBuffer(row.copyOfRange(fromIndex = 19, toIndex = row.size))
             else -> ByteReadBuffer(row)
@@ -108,28 +102,29 @@ internal class CopyOutCollector(
     ): Long {
         var rowCount = 0L
         csvReader {
-            this.delimiter = delimiter
-            this.quoteChar = quote ?: '\u0000'
-            this.escapeChar = escape ?: '\u0000'
-        }.open(inputStream) {
-            val skip = if (header != null && header != CopyHeader.False) 1 else 0
-            this.readAllAsSequence().drop(skip).forEach { row ->
-                rowCount++
-                val dataRow =
-                    PgDataRow(
-                        rowBuffer = null,
-                        pgValues =
-                            Array(row.size) { i ->
-                                val rowData = row[i]
-                                val fieldData = fields[i]
-                                PgValue.Text(rowData, fieldData)
-                            },
-                        columnMapping = fields,
-                        typeCache = typeCache,
-                    )
-                resultSet.addRow(dataRow)
+                this.delimiter = delimiter
+                this.quoteChar = quote ?: '\u0000'
+                this.escapeChar = escape ?: '\u0000'
             }
-        }
+            .open(inputStream) {
+                val skip = if (header != null && header != CopyHeader.False) 1 else 0
+                this.readAllAsSequence().drop(skip).forEach { row ->
+                    rowCount++
+                    val dataRow =
+                        PgDataRow(
+                            rowBuffer = null,
+                            pgValues =
+                                Array(row.size) { i ->
+                                    val rowData = row[i]
+                                    val fieldData = fields[i]
+                                    PgValue.Text(rowData, fieldData)
+                                },
+                            columnMapping = fields,
+                            typeCache = typeCache,
+                        )
+                    resultSet.addRow(dataRow)
+                }
+            }
         return rowCount
     }
 }

@@ -6,8 +6,8 @@ package io.github.clasicrando.kdbc.postgresql.type
  */
 interface PgGeometryType {
     /**
-     * Literal representation of the geometry type. All geometry types literal representation can
-     * be found [here](https://www.postgresql.org/docs/16/datatype-geometric.html).
+     * Literal representation of the geometry type. All geometry types literal representation can be
+     * found [here](https://www.postgresql.org/docs/16/datatype-geometric.html).
      */
     val postGisLiteral: String
 }

@@ -29,9 +29,7 @@ private val logger = KotlinLogging.logger {}
 @PublishedApi
 internal class PgTypeCache {
     private val typeDescriptions: MutableMap<KType, PgTypeDescription<*>> =
-        AtomicMutableMap(
-            baseTypes,
-        )
+        AtomicMutableMap(baseTypes)
 
     /**
      * Return the custom type description for the provided [kType]
@@ -41,8 +39,7 @@ internal class PgTypeCache {
     @Suppress("UNCHECKED_CAST")
     fun <T : Any> getTypeDescription(kType: KType): PgTypeDescription<T>? {
         val typeDescription =
-            typeDescriptions[kType]
-                ?: throw KdbcException("No type description for $kType")
+            typeDescriptions[kType] ?: throw KdbcException("No type description for $kType")
         return typeDescription as? PgTypeDescription<T>
     }
 
@@ -69,10 +66,9 @@ internal class PgTypeCache {
      * query the database for metadata of the composite type (searching by [name]) for encoding and
      * decoding purposes. The generated [PgTypeDescription] is reflection based and has 2 checked
      * requirements:
-     *
      * 1. [T] must be a data class
      * 2. The number of parameters supplied to [T] must match the number of attributes defined for
-     * the composite type.
+     *    the composite type.
      *
      * The other requirements (such as the composite attribute types matching the data class) are
      * not checked at runtime so the class definer responsible for verifying them.
@@ -154,17 +150,9 @@ internal class PgTypeCache {
      * only check that is required since the decoding and encoding is just reading and writing the
      * enum variants [Enum.name] value.
      */
-    suspend fun <T : Any> addValueType(
-        connection: PgConnection,
-        kClass: KClass<T>,
-        kType: KType,
-    ) {
+    suspend fun <T : Any> addValueType(connection: PgConnection, kClass: KClass<T>, kType: KType) {
         require(kClass.isValue) { "Type must be a value type to create wrapper type description" }
-        val innerType =
-            kClass.primaryConstructor!!
-                .parameters
-                .first()
-                .type
+        val innerType = kClass.primaryConstructor!!.parameters.first().type
         val innerTypeDescription =
             getTypeDescription<Any>(innerType)
                 ?: throw KdbcException("Could not find type description for inner type $innerType")
@@ -203,10 +191,10 @@ internal class PgTypeCache {
     }
 
     /**
-     * Get the [PgType] hint for the current [parameter]. This first checks the type of the value
-     * to find easy matches to standard types, falling back to specialized methods for complex
-     * types such as [PgRange] and [List], and as a last resort, checking the custom type lookup
-     * by [KType] to find a type hint.
+     * Get the [PgType] hint for the current [parameter]. This first checks the type of the value to
+     * find easy matches to standard types, falling back to specialized methods for complex types
+     * such as [PgRange] and [List], and as a last resort, checking the custom type lookup by
+     * [KType] to find a type hint.
      */
     @Suppress("UNCHECKED_CAST")
     fun getTypeHint(parameter: QueryParameter): PgType {
@@ -220,124 +208,130 @@ internal class PgTypeCache {
     companion object {
         val baseTypes: Map<KType, PgTypeDescription<*>> =
             listOf(
-                BigDecimalTypeDescription,
-                *createArrayDescriptions(PgType.NumericArray, BigDecimalTypeDescription),
-                JBigDecimalTypeDescription,
-                *createArrayDescriptions(PgType.NumericArray, JBigDecimalTypeDescription),
-                BoolTypeDescription,
-                *createArrayDescriptions(PgType.BoolArray, BoolTypeDescription),
-                ByteaTypeDescription,
-                *createArrayDescriptions(PgType.ByteaArray, ByteaTypeDescription),
-                CharTypeDescription,
-                *createArrayDescriptions(PgType.CharArray, CharTypeDescription),
-                LocalDateTypeDescription,
-                *createArrayDescriptions(PgType.DateArray, LocalDateTypeDescription),
-                JLocalDateTypeDescription,
-                *createArrayDescriptions(PgType.DateArray, JLocalDateTypeDescription),
-                InstantTypeDescription,
-                *createArrayDescriptions(PgType.TimestampArray, InstantTypeDescription),
-                LocalDateTimeTypeDescription,
-                *createArrayDescriptions(PgType.TimestampArray, LocalDateTimeTypeDescription),
-                DateTimeTypeDescription,
-                *createArrayDescriptions(PgType.TimestamptzArray, DateTimeTypeDescription),
-                OffsetDateTimeTypeDescription,
-                *createArrayDescriptions(PgType.TimestamptzArray, OffsetDateTimeTypeDescription),
-                DateTimePeriodTypeDescription,
-                *createArrayDescriptions(PgType.IntervalArray, DateTimePeriodTypeDescription),
-                PgIntervalTypeDescription,
-                *createArrayDescriptions(PgType.IntervalArray, PgIntervalTypeDescription),
-                PointTypeDescription,
-                *createArrayDescriptions(PgType.PointArray, PointTypeDescription),
-                LineTypeDescription,
-                *createArrayDescriptions(PgType.LineArray, LineTypeDescription),
-                LineSegmentTypeDescription,
-                *createArrayDescriptions(PgType.LineSegmentArray, LineSegmentTypeDescription),
-                BoxTypeDescription,
-                *createArrayDescriptions(PgType.BoxArray, BoxTypeDescription),
-                PathTypeDescription,
-                *createArrayDescriptions(PgType.PathArray, PathTypeDescription),
-                PolygonTypeDescription,
-                *createArrayDescriptions(PgType.PolygonArray, PolygonTypeDescription),
-                CircleTypeDescription,
-                *createArrayDescriptions(PgType.CircleArray, CircleTypeDescription),
-                JsonTypeDescription,
-                *createArrayDescriptions(PgType.JsonArray, JsonTypeDescription),
-                JsonPathTypeDescription,
-                *createArrayDescriptions(PgType.JsonpathArray, JsonPathTypeDescription),
-                MacAddressTypeDescription,
-                *createArrayDescriptions(PgType.MacaddrArray, MacAddressTypeDescription),
-                MoneyTypeDescription,
-                *createArrayDescriptions(PgType.MoneyArray, MoneyTypeDescription),
-                NetworkAddressTypeDescription,
-                *createArrayDescriptions(PgType.InetArray, NetworkAddressTypeDescription),
-                SmallIntTypeDescription,
-                *createArrayDescriptions(PgType.Int2Array, SmallIntTypeDescription),
-                IntTypeDescription,
-                *createArrayDescriptions(PgType.Int4Array, IntTypeDescription),
-                BigIntTypeDescription,
-                *createArrayDescriptions(PgType.Int8Array, BigIntTypeDescription),
-                RealTypeDescription,
-                *createArrayDescriptions(PgType.Float4Array, RealTypeDescription),
-                DoublePrecisionTypeDescription,
-                *createArrayDescriptions(PgType.Float8Array, DoublePrecisionTypeDescription),
-                Int8RangeTypeDescription,
-                *createArrayDescriptions(PgType.Int8RangeArray, Int8RangeTypeDescription),
-                Int4RangeTypeDescription,
-                *createArrayDescriptions(PgType.Int4RangeArray, Int4RangeTypeDescription),
-                TsRangeTypeDescription,
-                *createArrayDescriptions(PgType.TsRangeArray, TsRangeTypeDescription),
-                JTsRangeTypeDescription,
-                *createArrayDescriptions(PgType.TsRangeArray, JTsRangeTypeDescription),
-                TsTzRangeTypeDescription,
-                *createArrayDescriptions(PgType.TstzRangeArray, TsTzRangeTypeDescription),
-                JTsTzRangeTypeDescription,
-                *createArrayDescriptions(PgType.TstzRangeArray, JTsTzRangeTypeDescription),
-                DateRangeTypeDescription,
-                *createArrayDescriptions(PgType.DateRangeArray, DateRangeTypeDescription),
-                JDateRangeTypeDescription,
-                *createArrayDescriptions(PgType.DateRangeArray, JDateRangeTypeDescription),
-                NumRangeTypeDescription,
-                *createArrayDescriptions(PgType.NumRangeArray, NumRangeTypeDescription),
-                JNumRangeTypeDescription,
-                *createArrayDescriptions(PgType.NumRangeArray, JNumRangeTypeDescription),
-                VarcharTypeDescription,
-                object : ArrayTypeDescription<String>(
-                    pgType = PgType.Varchar,
-                    innerType = VarcharTypeDescription,
-                    innerNullable = true,
-                ) {
-                    override fun isCompatible(dbType: PgType): Boolean =
-                        dbType == PgType.TextArray ||
-                            dbType == PgType.VarcharArray ||
-                            dbType == PgType.XmlArray ||
-                            dbType == PgType.NameArray ||
-                            dbType == PgType.BpcharArray
-                },
-                object : ArrayTypeDescription<String>(
-                    pgType = PgType.Varchar,
-                    innerType = VarcharTypeDescription,
-                    innerNullable = false,
-                ) {
-                    override fun isCompatible(dbType: PgType): Boolean =
-                        dbType == PgType.TextArray ||
-                            dbType == PgType.VarcharArray ||
-                            dbType == PgType.XmlArray ||
-                            dbType == PgType.NameArray ||
-                            dbType == PgType.BpcharArray
-                },
-                LocalTimeTypeDescription,
-                *createArrayDescriptions(PgType.TimeArray, LocalTimeTypeDescription),
-                JLocalTimeTypeDescription,
-                *createArrayDescriptions(PgType.TimeArray, JLocalTimeTypeDescription),
-                PgTimeTzTypeDescription,
-                *createArrayDescriptions(PgType.TimetzArray, PgTimeTzTypeDescription),
-                OffsetTimeTypeDescription,
-                *createArrayDescriptions(PgType.TimetzArray, OffsetTimeTypeDescription),
-                UuidTypeDescription,
-                *createArrayDescriptions(PgType.UuidArray, UuidTypeDescription),
-                JUuidTypeDescription,
-                *createArrayDescriptions(PgType.UuidArray, JUuidTypeDescription),
-            ).associateBy { it.kType }
+                    BigDecimalTypeDescription,
+                    *createArrayDescriptions(PgType.NumericArray, BigDecimalTypeDescription),
+                    JBigDecimalTypeDescription,
+                    *createArrayDescriptions(PgType.NumericArray, JBigDecimalTypeDescription),
+                    BoolTypeDescription,
+                    *createArrayDescriptions(PgType.BoolArray, BoolTypeDescription),
+                    ByteaTypeDescription,
+                    *createArrayDescriptions(PgType.ByteaArray, ByteaTypeDescription),
+                    CharTypeDescription,
+                    *createArrayDescriptions(PgType.CharArray, CharTypeDescription),
+                    LocalDateTypeDescription,
+                    *createArrayDescriptions(PgType.DateArray, LocalDateTypeDescription),
+                    JLocalDateTypeDescription,
+                    *createArrayDescriptions(PgType.DateArray, JLocalDateTypeDescription),
+                    InstantTypeDescription,
+                    *createArrayDescriptions(PgType.TimestampArray, InstantTypeDescription),
+                    LocalDateTimeTypeDescription,
+                    *createArrayDescriptions(PgType.TimestampArray, LocalDateTimeTypeDescription),
+                    DateTimeTypeDescription,
+                    *createArrayDescriptions(PgType.TimestamptzArray, DateTimeTypeDescription),
+                    OffsetDateTimeTypeDescription,
+                    *createArrayDescriptions(
+                        PgType.TimestamptzArray,
+                        OffsetDateTimeTypeDescription,
+                    ),
+                    DateTimePeriodTypeDescription,
+                    *createArrayDescriptions(PgType.IntervalArray, DateTimePeriodTypeDescription),
+                    PgIntervalTypeDescription,
+                    *createArrayDescriptions(PgType.IntervalArray, PgIntervalTypeDescription),
+                    PointTypeDescription,
+                    *createArrayDescriptions(PgType.PointArray, PointTypeDescription),
+                    LineTypeDescription,
+                    *createArrayDescriptions(PgType.LineArray, LineTypeDescription),
+                    LineSegmentTypeDescription,
+                    *createArrayDescriptions(PgType.LineSegmentArray, LineSegmentTypeDescription),
+                    BoxTypeDescription,
+                    *createArrayDescriptions(PgType.BoxArray, BoxTypeDescription),
+                    PathTypeDescription,
+                    *createArrayDescriptions(PgType.PathArray, PathTypeDescription),
+                    PolygonTypeDescription,
+                    *createArrayDescriptions(PgType.PolygonArray, PolygonTypeDescription),
+                    CircleTypeDescription,
+                    *createArrayDescriptions(PgType.CircleArray, CircleTypeDescription),
+                    JsonTypeDescription,
+                    *createArrayDescriptions(PgType.JsonArray, JsonTypeDescription),
+                    JsonPathTypeDescription,
+                    *createArrayDescriptions(PgType.JsonpathArray, JsonPathTypeDescription),
+                    MacAddressTypeDescription,
+                    *createArrayDescriptions(PgType.MacaddrArray, MacAddressTypeDescription),
+                    MoneyTypeDescription,
+                    *createArrayDescriptions(PgType.MoneyArray, MoneyTypeDescription),
+                    NetworkAddressTypeDescription,
+                    *createArrayDescriptions(PgType.InetArray, NetworkAddressTypeDescription),
+                    SmallIntTypeDescription,
+                    *createArrayDescriptions(PgType.Int2Array, SmallIntTypeDescription),
+                    IntTypeDescription,
+                    *createArrayDescriptions(PgType.Int4Array, IntTypeDescription),
+                    BigIntTypeDescription,
+                    *createArrayDescriptions(PgType.Int8Array, BigIntTypeDescription),
+                    RealTypeDescription,
+                    *createArrayDescriptions(PgType.Float4Array, RealTypeDescription),
+                    DoublePrecisionTypeDescription,
+                    *createArrayDescriptions(PgType.Float8Array, DoublePrecisionTypeDescription),
+                    Int8RangeTypeDescription,
+                    *createArrayDescriptions(PgType.Int8RangeArray, Int8RangeTypeDescription),
+                    Int4RangeTypeDescription,
+                    *createArrayDescriptions(PgType.Int4RangeArray, Int4RangeTypeDescription),
+                    TsRangeTypeDescription,
+                    *createArrayDescriptions(PgType.TsRangeArray, TsRangeTypeDescription),
+                    JTsRangeTypeDescription,
+                    *createArrayDescriptions(PgType.TsRangeArray, JTsRangeTypeDescription),
+                    TsTzRangeTypeDescription,
+                    *createArrayDescriptions(PgType.TstzRangeArray, TsTzRangeTypeDescription),
+                    JTsTzRangeTypeDescription,
+                    *createArrayDescriptions(PgType.TstzRangeArray, JTsTzRangeTypeDescription),
+                    DateRangeTypeDescription,
+                    *createArrayDescriptions(PgType.DateRangeArray, DateRangeTypeDescription),
+                    JDateRangeTypeDescription,
+                    *createArrayDescriptions(PgType.DateRangeArray, JDateRangeTypeDescription),
+                    NumRangeTypeDescription,
+                    *createArrayDescriptions(PgType.NumRangeArray, NumRangeTypeDescription),
+                    JNumRangeTypeDescription,
+                    *createArrayDescriptions(PgType.NumRangeArray, JNumRangeTypeDescription),
+                    VarcharTypeDescription,
+                    object :
+                        ArrayTypeDescription<String>(
+                            pgType = PgType.Varchar,
+                            innerType = VarcharTypeDescription,
+                            innerNullable = true,
+                        ) {
+                        override fun isCompatible(dbType: PgType): Boolean =
+                            dbType == PgType.TextArray ||
+                                dbType == PgType.VarcharArray ||
+                                dbType == PgType.XmlArray ||
+                                dbType == PgType.NameArray ||
+                                dbType == PgType.BpcharArray
+                    },
+                    object :
+                        ArrayTypeDescription<String>(
+                            pgType = PgType.Varchar,
+                            innerType = VarcharTypeDescription,
+                            innerNullable = false,
+                        ) {
+                        override fun isCompatible(dbType: PgType): Boolean =
+                            dbType == PgType.TextArray ||
+                                dbType == PgType.VarcharArray ||
+                                dbType == PgType.XmlArray ||
+                                dbType == PgType.NameArray ||
+                                dbType == PgType.BpcharArray
+                    },
+                    LocalTimeTypeDescription,
+                    *createArrayDescriptions(PgType.TimeArray, LocalTimeTypeDescription),
+                    JLocalTimeTypeDescription,
+                    *createArrayDescriptions(PgType.TimeArray, JLocalTimeTypeDescription),
+                    PgTimeTzTypeDescription,
+                    *createArrayDescriptions(PgType.TimetzArray, PgTimeTzTypeDescription),
+                    OffsetTimeTypeDescription,
+                    *createArrayDescriptions(PgType.TimetzArray, OffsetTimeTypeDescription),
+                    UuidTypeDescription,
+                    *createArrayDescriptions(PgType.UuidArray, UuidTypeDescription),
+                    JUuidTypeDescription,
+                    *createArrayDescriptions(PgType.UuidArray, JUuidTypeDescription),
+                )
+                .associateBy { it.kType }
 
         /**
          * Query to fetch the OID of an enum using the name and the optional schema. Default schema
@@ -352,7 +346,8 @@ internal class PgTypeCache {
                 t.typname = $1
                 and n.nspname = coalesce(nullif($2,''), 'public')
                 and t.typcategory = 'E'
-            """.trimIndent()
+            """
+                .trimIndent()
 
         /** Query to fetch the labels of an enum type given the OID of the type */
         private val pgEnumLabelsByOid =
@@ -363,7 +358,8 @@ internal class PgTypeCache {
             where
                 e.enumtypid = $1
                 and t.typcategory = 'E'
-            """.trimIndent()
+            """
+                .trimIndent()
 
         /**
          * Query to fetch the OID of a composite using the name and the optional schema. Default
@@ -378,7 +374,8 @@ internal class PgTypeCache {
                 t.typname = $1
                 and n.nspname = coalesce(nullif($2,''), 'public')
                 and t.typcategory = 'C'
-            """.trimIndent()
+            """
+                .trimIndent()
 
         /**
          * Query to fetch the attribute related data of a composite given the OID of the composite
@@ -393,7 +390,8 @@ internal class PgTypeCache {
                 t.oid = $1
                 and t.typcategory = 'C'
                 and a.attnum > 0
-            """.trimIndent()
+            """
+                .trimIndent()
 
         /** Query to fetch the OID of the array type with an inner type matching the OID supplied */
         private val pgArrayTypeByInnerOid =
@@ -401,15 +399,16 @@ internal class PgTypeCache {
             select typarray
             from pg_type
             where oid = $1
-            """.trimIndent()
+            """
+                .trimIndent()
 
         /**
-         * Fetch and return the type OID for a composite with the [name]. Queries the database
-         * using the [connection] provided to retrieve the database instance specific OID. Returns
-         * null if the OID could not be found.
+         * Fetch and return the type OID for a composite with the [name]. Queries the database using
+         * the [connection] provided to retrieve the database instance specific OID. Returns null if
+         * the OID could not be found.
          *
-         * @param name Name of the composite type. Can be schema qualified but defaults to public
-         * if no schema is included
+         * @param name Name of the composite type. Can be schema qualified but defaults to public if
+         *   no schema is included
          */
         private suspend fun checkCompositeDbTypeByName(
             connection: PgConnection,
@@ -429,9 +428,7 @@ internal class PgTypeCache {
                     .bind(schema)
                     .fetchScalar<Int>(connection)
             if (oid == null) {
-                logger.atWarn {
-                    message = "Could not find composite type by name = '$name'"
-                }
+                logger.atWarn { message = "Could not find composite type by name = '$name'" }
                 return null
             }
             return oid
@@ -451,17 +448,14 @@ internal class PgTypeCache {
                 .fetchAll(connection, CompositeAttributeDataRowParser)
 
         /**
-         * Fetch and return the type OID for an enum with the [name]. Queries the database using
-         * the [connection] provided to retrieve the database instance specific OID. Returns null
-         * if the OID could not be found.
+         * Fetch and return the type OID for an enum with the [name]. Queries the database using the
+         * [connection] provided to retrieve the database instance specific OID. Returns null if the
+         * OID could not be found.
          *
          * @param name Name of the enum type. Can be schema qualified but defaults to public if no
-         * schema is included
+         *   schema is included
          */
-        private suspend fun checkEnumDbTypeByName(
-            connection: PgConnection,
-            name: String,
-        ): Int? {
+        private suspend fun checkEnumDbTypeByName(connection: PgConnection, name: String): Int? {
             var schema: String? = null
             var typeName = name
             val schemaQualifierIndex = name.indexOf('.')
@@ -471,14 +465,9 @@ internal class PgTypeCache {
             }
 
             val oid =
-                query(pgEnumTypeByName)
-                    .bind(typeName)
-                    .bind(schema)
-                    .fetchScalar<Int>(connection)
+                query(pgEnumTypeByName).bind(typeName).bind(schema).fetchScalar<Int>(connection)
             if (oid == null) {
-                logger.atWarn {
-                    message = "Could not find enum type for name = '$name'"
-                }
+                logger.atWarn { message = "Could not find enum type for name = '$name'" }
                 return null
             }
             return oid
@@ -488,32 +477,19 @@ internal class PgTypeCache {
          * Fetch and return the labels of an enum type specified by the [oid]. Queries the database
          * using the [connection] provided to retrieve the labels.
          */
-        private suspend fun getEnumLabels(
-            connection: PgConnection,
-            oid: Int,
-        ): List<String> =
-            query(pgEnumLabelsByOid)
-                .bind(oid)
-                .fetchAll(connection, EnumLabelRowParser)
+        private suspend fun getEnumLabels(connection: PgConnection, oid: Int): List<String> =
+            query(pgEnumLabelsByOid).bind(oid).fetchAll(connection, EnumLabelRowParser)
 
         /**
          * Fetch and return the array OID for a type whose inner [oid] is specified. Queries the
          * database using the [connection] provided to retrieve the database instance specific OID.
          * Returns null if the OID could not be found.
          */
-        private suspend fun checkArrayDbTypeByOid(
-            connection: PgConnection,
-            oid: Int,
-        ): Int? {
-            val arrayOid =
-                query(pgArrayTypeByInnerOid)
-                    .bind(oid)
-                    .fetchScalar<Int>(connection)
+        private suspend fun checkArrayDbTypeByOid(connection: PgConnection, oid: Int): Int? {
+            val arrayOid = query(pgArrayTypeByInnerOid).bind(oid).fetchScalar<Int>(connection)
 
             if (arrayOid == null) {
-                logger.atWarn {
-                    message = "Could not find array type by oid = $oid"
-                }
+                logger.atWarn { message = "Could not find array type by oid = $oid" }
                 return null
             }
             return arrayOid

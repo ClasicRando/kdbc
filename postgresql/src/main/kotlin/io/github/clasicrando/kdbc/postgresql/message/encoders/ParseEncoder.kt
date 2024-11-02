@@ -14,16 +14,13 @@ import kotlinx.io.Sink
  * - the name of the resulting prepared statement (an empty string creates an unnamed statement)
  * - the query to be parsed as a CString
  * - the number of parameter data types specified. For our purposes this always matches the number
- * of parameters supplied to the query executor
+ *   of parameters supplied to the query executor
  * - each data type OID of all parameters provided
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PARSE)
  */
 internal object ParseEncoder : MessageEncoder<PgMessage.Parse> {
-    override fun encode(
-        value: PgMessage.Parse,
-        buffer: Sink,
-    ) {
+    override fun encode(value: PgMessage.Parse, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixedInt(includeLength = true) {
             writeCString(value.preparedStatementName)

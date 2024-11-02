@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.core
 
 import io.github.oshai.kotlinlogging.Level
-import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.serialization.Serializable
 
 /**
  * Settings for logging statements internally. Allow for users to bring up internal logging
@@ -15,8 +15,8 @@ data class LogSettings(
     /** Log level for logging requests to execute statements */
     val statementLevel: Level,
     /**
-     * Log level to report when a single statement took too long to run. Currently, has no effect
-     * on internal logging.
+     * Log level to report when a single statement took too long to run. Currently, has no effect on
+     * internal logging.
      */
     val slowStatementsLevel: Level,
     /**

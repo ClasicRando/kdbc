@@ -4,10 +4,10 @@ package io.github.clasicrando.kdbc.postgresql.type
 sealed class PgType(
     /**
      * OID value representing the unique identifier of a type within a given postgresql database.
-     * For all types implemented as a data object of [PgType], the type is static for any
-     * postgresql database. User defined types will not be static, so they are defined as [ByOid].
+     * For all types implemented as a data object of [PgType], the type is static for any postgresql
+     * database. User defined types will not be static, so they are defined as [ByOid].
      */
-    val oid: Int,
+    val oid: Int
 ) {
     /** [PgType] representing the `boolean` type */
     data object Bool : PgType(BOOL)

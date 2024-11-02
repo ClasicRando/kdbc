@@ -16,19 +16,17 @@ data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
     /**
      * If the other value is [PgTimeTz] then the total nanoseconds from the start of day (time zone
      * adjusted) is compared for the [equals] method. This means 2 times that are functionally
-     * equivalent but in different time zones with return true. For example,
-     * PgTimeTz('19:14:45+05') == PgTimeTz('14:14:45+00').
+     * equivalent but in different time zones with return true. For example, PgTimeTz('19:14:45+05')
+     * == PgTimeTz('14:14:45+00').
      */
     override fun equals(other: Any?): Boolean {
         if (other !is PgTimeTz) {
             return false
         }
         val otherNanoSeconds =
-            other.time.toNanosecondOfDay() +
-                other.offset.totalSeconds * NANOSECONDS_TO_SECONDS
+            other.time.toNanosecondOfDay() + other.offset.totalSeconds * NANOSECONDS_TO_SECONDS
         val thisNanoSeconds =
-            this.time.toNanosecondOfDay() +
-                this.offset.totalSeconds * NANOSECONDS_TO_SECONDS
+            this.time.toNanosecondOfDay() + this.offset.totalSeconds * NANOSECONDS_TO_SECONDS
         return otherNanoSeconds == thisNanoSeconds
     }
 

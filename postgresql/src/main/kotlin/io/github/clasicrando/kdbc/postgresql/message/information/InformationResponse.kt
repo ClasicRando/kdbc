@@ -1,13 +1,14 @@
 package io.github.clasicrando.kdbc.postgresql.message.information
 
 /**
- * Data contained within [io.github.clasicrando.kdbc.postgresql.message.PgMessage.ErrorResponse]
- * and [io.github.clasicrando.kdbc.postgresql.message.PgMessage.NoticeResponse] messages. Data is
+ * Data contained within [io.github.clasicrando.kdbc.postgresql.message.PgMessage.ErrorResponse] and
+ * [io.github.clasicrando.kdbc.postgresql.message.PgMessage.NoticeResponse] messages. Data is
  * derived from a [Map] of [Byte] field identifiers linked values that match the expected values as
  * described [here](https://www.postgresql.org/docs/current/protocol-error-fields.html).
  */
 @Suppress("MemberVisibilityCanBePrivate")
-class InformationResponse internal constructor(
+class InformationResponse
+internal constructor(
     /** Severity of the message */
     val severity: Severity,
     /** SQLSTATE code of the message */
@@ -21,14 +22,12 @@ class InformationResponse internal constructor(
     /** Error cursor position within the original query string. Index is character not bytes */
     val position: Int?,
     /**
-     * [Pair] where the first value is the error cursor position within the internal command and
-     * the second value is the internal command's query (e.g. the SQL query within a PL/pgsql
-     * function).
+     * [Pair] where the first value is the error cursor position within the internal command and the
+     * second value is the internal command's query (e.g. the SQL query within a PL/pgsql function).
      */
     val internalQueryData: Pair<Int, String>?,
     /**
-     * Call stack traceback of the active procedural language function or internal-generated
-     * query
+     * Call stack traceback of the active procedural language function or internal-generated query
      */
     val where: String?,
     /**
@@ -40,13 +39,9 @@ class InformationResponse internal constructor(
      * If the message is associated with a specific database table, this is the name of the table
      */
     val tableName: String?,
-    /**
-     * If the message is associated with a specific table column, this is the name of the column
-     */
+    /** If the message is associated with a specific table column, this is the name of the column */
     val columnName: String?,
-    /**
-     * If the message is associated with a specific data type, this is the name of the data type
-     */
+    /** If the message is associated with a specific data type, this is the name of the data type */
     val dataTypeName: String?,
     /**
      * If the message is associated with a specific constraint, this is the name of the constraint
@@ -64,44 +59,39 @@ class InformationResponse internal constructor(
      *
      * @throws InvalidInformationResponse
      */
-    internal constructor(fields: Map<Byte, String>) :
-        this(
-            severity =
-                fields[SEVERITY]?.let { Severity.valueOf(it) }
-                    ?: fields[SEVERITY2]?.let { Severity.valueOf(it) }
-                    ?: throw InvalidInformationResponse(SEVERITY),
-            code =
-                fields[CODE]?.let { SqlState.fromCode(it) }
-                    ?: throw InvalidInformationResponse(CODE),
-            message = fields[MESSAGE] ?: throw InvalidInformationResponse(MESSAGE),
-            detail = fields[DETAIL],
-            hint = fields[HINT],
-            position = fields[POSITION]?.toIntOrNull(),
-            internalQueryData =
-                fields[INTERNAL_POSITION]
-                    ?.toIntOrNull()
-                    ?.let {
-                        val internalQuery =
-                            fields[INTERNAL_QUERY]
-                                ?: throw InvalidInformationResponse(INTERNAL_QUERY)
-                        it to internalQuery
-                    },
-            where = fields[WHERE],
-            schemaName = fields[SCHEMA],
-            tableName = fields[TABLE],
-            columnName = fields[COLUMN],
-            dataTypeName = fields[DATE_TYPE],
-            constraintName = fields[CONSTRAINT_NAME],
-            file = fields[FILE],
-            line = fields[LINE]?.toIntOrNull(),
-            routine = fields[ROUTINE],
-        )
+    internal constructor(
+        fields: Map<Byte, String>
+    ) : this(
+        severity =
+            fields[SEVERITY]?.let { Severity.valueOf(it) }
+                ?: fields[SEVERITY2]?.let { Severity.valueOf(it) }
+                ?: throw InvalidInformationResponse(SEVERITY),
+        code =
+            fields[CODE]?.let { SqlState.fromCode(it) } ?: throw InvalidInformationResponse(CODE),
+        message = fields[MESSAGE] ?: throw InvalidInformationResponse(MESSAGE),
+        detail = fields[DETAIL],
+        hint = fields[HINT],
+        position = fields[POSITION]?.toIntOrNull(),
+        internalQueryData =
+            fields[INTERNAL_POSITION]?.toIntOrNull()?.let {
+                val internalQuery =
+                    fields[INTERNAL_QUERY] ?: throw InvalidInformationResponse(INTERNAL_QUERY)
+                it to internalQuery
+            },
+        where = fields[WHERE],
+        schemaName = fields[SCHEMA],
+        tableName = fields[TABLE],
+        columnName = fields[COLUMN],
+        dataTypeName = fields[DATE_TYPE],
+        constraintName = fields[CONSTRAINT_NAME],
+        file = fields[FILE],
+        line = fields[LINE]?.toIntOrNull(),
+        routine = fields[ROUTINE],
+    )
 
     override fun toString(): String {
         val internalQueryString =
-            internalQueryData?.let {
-                "Position=${it.first}, Query=${it.second}"
-            } ?: ""
+            internalQueryData?.let { "Position=${it.first}, Query=${it.second}" } ?: ""
         return """
             Severity: $severity
             SQL State: ${code.errorCode} -> ${code.conditionName}
@@ -119,7 +109,8 @@ class InformationResponse internal constructor(
             File: $file
             Line: $line
             Routine: $routine
-            """.trimIndent()
+            """
+            .trimIndent()
     }
 
     companion object {
