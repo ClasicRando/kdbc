@@ -16,13 +16,11 @@ import io.ktor.network.tls.tls
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
-import io.ktor.utils.io.readAvailable
-import kotlin.time.Duration
-import kotlinx.coroutines.TimeoutCancellationException
+import io.ktor.utils.io.readByte
+import io.ktor.utils.io.readFully
 import kotlinx.coroutines.withTimeout
-import kotlinx.io.Buffer
 import kotlinx.io.Sink
-import kotlinx.io.readTo
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -32,8 +30,6 @@ class KtorStream(private val address: SocketAddress, private val selectorManager
     private lateinit var socket: Socket
     private lateinit var writeChannel: ByteWriteChannel
     private lateinit var readChannel: ByteReadChannel
-    private val buffer = Buffer()
-    private val tempBuffer = ByteArray(DEFAULT_BUFFER_SIZE)
 
     override val isConnected: Boolean
         get() = this::connection.isInitialized && !socket.isClosed
@@ -77,64 +73,27 @@ class KtorStream(private val address: SocketAddress, private val selectorManager
         writeChannel.flush()
     }
 
-    private suspend fun readIntoBuffer(required: Long) {
-        var bytesRequired = required
-        while (true) {
-            val bytesRead =
-                try {
-                    readChannel.readAvailable(tempBuffer)
-                } catch (ex: TimeoutCancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    logWithResource(logger, Kdbc.detailedLogging) {
-                        message = "Failed to read from socket"
-                        cause = ex
-                    }
-                    throw StreamReadError(ex)
-                }
-
-            if (bytesRead == -1) {
-                logWithResource(logger, Kdbc.detailedLogging) {
-                    message = "Unexpectedly reached end of stream"
-                }
-                throw EndOfStream()
-            }
-            logWithResource(logger, Kdbc.detailedLogging) {
-                message = "Received $bytesRead bytes from $address"
-            }
-
-            buffer.write(tempBuffer, 0, bytesRead)
-            bytesRequired -= bytesRead
-            if (bytesRequired <= 0) {
-                return
-            }
-        }
-    }
-
     override suspend fun readByte(): Byte {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        if (buffer.size < 1L) {
-            readIntoBuffer(1)
-        }
-        return buffer.readByte()
+        return readChannel.readByte()
     }
 
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        if (buffer.size < 4) {
-            readIntoBuffer(4 - buffer.size)
-        }
-        return buffer.readInt()
+        // As of version 3.0.1, KTOR has a bug where readInt could infinitely loop so read bytes
+        // and create an Int
+        val result =
+            ((readChannel.readByte().toInt() and 0xff shl 24) or
+                (readChannel.readByte().toInt() and 0xff shl 16) or
+                (readChannel.readByte().toInt() and 0xff shl 8) or
+                (readChannel.readByte().toInt() and 0xff))
+        return result
     }
 
     override suspend fun readBuffer(count: Int): ByteReadBuffer {
         check(isConnected) { "Cannot read from a stream that is not connected" }
         val destination = ByteArray(count)
-
-        if (buffer.size < count) {
-            readIntoBuffer(count - buffer.size)
-        }
-        buffer.readTo(destination)
+        readChannel.readFully(destination)
         return ByteReadBuffer(destination)
     }
 
