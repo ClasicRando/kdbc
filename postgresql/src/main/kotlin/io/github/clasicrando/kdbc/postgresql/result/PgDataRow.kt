@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -16,7 +15,6 @@ import kotlin.reflect.full.withNullability
  * from the postgresql server.
  */
 internal class PgDataRow(
-    private val rowBuffer: ByteReadBuffer?,
     private var pgValues: Array<PgValue?>,
     private val columnMapping: List<PgColumnDescription>,
     private val typeCache: PgTypeCache,

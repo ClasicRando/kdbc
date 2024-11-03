@@ -112,7 +112,6 @@ internal class CopyOutCollector(
                     rowCount++
                     val dataRow =
                         PgDataRow(
-                            rowBuffer = null,
                             pgValues =
                                 Array(row.size) { i ->
                                     val rowData = row[i]

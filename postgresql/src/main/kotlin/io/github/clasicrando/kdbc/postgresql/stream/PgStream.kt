@@ -7,6 +7,7 @@ import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
+import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.core.stream.Stream
 import io.github.clasicrando.kdbc.core.stream.StreamConnectError
 import io.github.clasicrando.kdbc.core.stream.StreamReadError
@@ -34,6 +35,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
+import kotlin.math.floor
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgStream"
@@ -265,8 +267,24 @@ internal class PgStream(
      * server. This involves collecting the [flow] and packing is as many messages as possible into
      * a single write to the database server.
      */
-    suspend fun <M : PgMessage> writeManyToStream(flow: Flow<M>) {
-        stream.writeTo { sink -> flow.collect { PgMessageEncoders.encode(it, sink) } }
+    suspend fun <M> writeManyToStream(flow: Flow<M>)
+        where
+        M : PgMessage,
+        M : SizedMessage
+    {
+        var maxBatchSize = 1
+        val batch = ArrayList<M>()
+        flow.collect { message ->
+            batch.add(message)
+            if (maxBatchSize == batch.size) {
+                maxBatchSize = floor(SEND_BUFFER_SIZE / message.size).toInt()
+                stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
+                batch.clear()
+            }
+        }
+        if (batch.isNotEmpty()) {
+            stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
+        }
     }
 
     /**
@@ -365,7 +383,7 @@ internal class PgStream(
     }
 
     companion object {
-        private const val SEND_BUFFER_SIZE = 4096
+        private const val SEND_BUFFER_SIZE = 4096.0
         private const val TLS_REJECT_WARNING =
             "Preferred SSL mode was rejected by server. " + "Continuing with non TLS connection"
 
