@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import kotlinx.io.Sink
 
@@ -17,6 +17,6 @@ import kotlinx.io.Sink
 internal object CopyDataEncoder : MessageEncoder<PgMessage.CopyData> {
     override fun encode(value: PgMessage.CopyData, buffer: Sink) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixedInt(includeLength = true) { write(value.data) }
+        buffer.writeLengthPrefixed(includeLength = true) { write(value.data) }
     }
 }

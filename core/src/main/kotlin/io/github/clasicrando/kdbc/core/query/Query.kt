@@ -3,10 +3,10 @@ package io.github.clasicrando.kdbc.core.query
 import kotlin.reflect.typeOf
 
 /** API to perform a single query against a database */
-class Query(val sql: String) {
+public class Query(public val sql: String) {
     private val parametersInner: MutableList<QueryParameter> = mutableListOf()
 
-    val parameters: List<QueryParameter>
+    public val parameters: List<QueryParameter>
         get() = parametersInner
 
     /**
@@ -16,41 +16,44 @@ class Query(val sql: String) {
      *
      * Returns a reference to the same object to allow for method chaining.
      */
-    fun bind(parameter: QueryParameter): Query {
+    public fun bind(parameter: QueryParameter): Query {
         parametersInner.add(parameter)
         return this
     }
 
     /** Clears all parameters previously bound */
-    fun clearParameters() = parametersInner.clear()
+    public fun clearParameters() {
+        parametersInner.clear()
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Query) return false
 
         if (sql != other.sql) return false
-        if (parametersInner != other.parametersInner) return false
+        if (parameters != other.parameters) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = sql.hashCode()
-        result = 31 * result + parametersInner.hashCode()
+        result = 31 * result + parameters.hashCode()
         return result
     }
 
-    override fun toString(): String = "Query.Prepared(sql='$sql', parameters=$parametersInner)"
+    override fun toString(): String = "Query.Prepared(sql='$sql', parameters=$parameters)"
 }
 
-fun query(sql: String): Query = Query(sql)
+public fun query(sql: String): Query = Query(sql)
 
 /**
  * Extension method to call [Query.bind] and construct the [QueryParameter] using the utility
  * methods that construct the required type data implicitly.
  */
-inline fun <reified T : Any> Query.bind(parameter: T?): Query =
-    bind(QueryParameter(value = parameter, parameterType = typeOf<T>()))
+public inline fun <reified T : Any> Query.bind(parameter: T?): Query {
+    return bind(QueryParameter(value = parameter, parameterType = typeOf<T>()))
+}
 
 /**
  * Extension method to call [Query.bind] and construct the [QueryParameter] using the utility
@@ -58,13 +61,15 @@ inline fun <reified T : Any> Query.bind(parameter: T?): Query =
  * elements.
  */
 @JvmName("QueryParameterNonNullItem")
-inline fun <reified T : Any> Query.bind(parameter: List<T?>): Query =
-    bind(QueryParameter(value = parameter, parameterType = typeOf<List<T?>>()))
+public inline fun <reified T : Any> Query.bind(parameter: List<T?>): Query {
+    return bind(QueryParameter(value = parameter, parameterType = typeOf<List<T?>>()))
+}
 
 /**
  * Extension method to call [Query.bind] and construct the [QueryParameter] using the utility
  * methods that construct the required type data implicitly. Special case for a [List] of non-null
  * elements.
  */
-inline fun <reified T : Any> Query.bind(parameter: List<T>): Query =
-    bind(QueryParameter(value = parameter, parameterType = typeOf<List<T>>()))
+public inline fun <reified T : Any> Query.bind(parameter: List<T>): Query {
+    return bind(QueryParameter(value = parameter, parameterType = typeOf<List<T>>()))
+}

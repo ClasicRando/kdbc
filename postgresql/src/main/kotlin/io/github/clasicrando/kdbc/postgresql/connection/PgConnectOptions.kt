@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
-import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.isZeroOrInfinite
 import io.github.oshai.kotlinlogging.Level
@@ -13,7 +12,7 @@ import kotlinx.serialization.Transient
 
 /** Connection options for a postgresql database */
 @Serializable
-data class PgConnectOptions(
+public data class PgConnectOptions(
     /** Host name or IP address of the postgresql server */
     val host: String,
     /** Port on the host machine of the postgresql server */
@@ -31,8 +30,8 @@ data class PgConnectOptions(
      * database with the same name as the [username]
      */
     val database: String? = null,
-    /** Statement logging settings. If not specified, [LogSettings.DEFAULT] is used. */
-    val logSettings: LogSettings = LogSettings.DEFAULT,
+    /** Statement logging level. If not specified, [Level.DEBUG] is used. */
+    val statementLogLevel: Level = Level.DEBUG,
     /**
      * The duration that is waited before canceling a query execution due to timeout. The default is
      * an infinite timeout which means it will never cancel a query.
@@ -98,37 +97,12 @@ data class PgConnectOptions(
             .mapNotNull { (key, value) -> value?.let { key to it } }
 
     /**
-     * Return a shallow copy of the current [PgConnectOptions] with the log statement [level]
-     * altered
-     */
-    fun logStatements(level: Level): PgConnectOptions {
-        val newLogSettings = logSettings.copy(statementLevel = level)
-        return copy(logSettings = newLogSettings)
-    }
-
-    /**
-     * Return a shallow copy of the current [PgConnectOptions] with the new log slow statement
-     * [level] and [duration] altered
-     */
-    fun logSlowStatements(level: Level, duration: Duration): PgConnectOptions {
-        val newLogSettings =
-            logSettings.copy(slowStatementsLevel = level, slowStatementDuration = duration)
-        return copy(logSettings = newLogSettings)
-    }
-
-    /**
      * Return a shallow copy of the current [PgConnectOptions] with both log statement levels set to
      * [Level.OFF] and the slow statement duration set to [Duration.INFINITE].
      */
-    fun disableStatementLogging(): PgConnectOptions =
-        copy(
-            logSettings =
-                LogSettings(
-                    statementLevel = Level.OFF,
-                    slowStatementsLevel = Level.OFF,
-                    slowStatementDuration = Duration.INFINITE,
-                )
-        )
+    public fun disableStatementLogging(): PgConnectOptions {
+        return copy(statementLogLevel = Level.OFF)
+    }
 
     override fun toString(): String = buildString {
         append("PgConnectOptions(host=")
@@ -144,7 +118,7 @@ data class PgConnectOptions(
         append(",password=***, database=")
         append(database)
         append(",logSettings=")
-        append(logSettings)
+        append(statementLogLevel)
         append(",statementCacheCapacity=")
         append(statementCacheCapacity)
         append(",extraFloatDigits=")

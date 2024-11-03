@@ -16,7 +16,9 @@ import kotlinx.coroutines.flow.flow
  *
  * @param connection [Connection] to execute the query against
  */
-suspend fun Query.execute(connection: Connection): StatementResult = connection.executeQuery(this)
+public suspend fun Query.execute(connection: Connection): StatementResult {
+    return connection.executeQuery(this)
+}
 
 /**
  * Execute the query and return the first row's first column as the type [T]. Returns null if the
@@ -31,7 +33,7 @@ suspend fun Query.execute(connection: Connection): StatementResult = connection.
  *   an instance of the type [T], this checked by [kotlin.reflect.KClass.isInstance] on the first
  *   value
  */
-suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): T? {
+public suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): T? {
     val statementResult = connection.executeQuery(this)
     if (statementResult.size == 0) {
         throw NoResultFound(sql)
@@ -51,7 +53,10 @@ suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connection): 
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  *   [RowParseError] are wrapped into a [RowParseError]
  */
-suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(connection: Connection, rowParser: R): T? {
+public suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(
+    connection: Connection,
+    rowParser: R,
+): T? {
     val statementResult = connection.executeQuery(this)
     if (statementResult.size == 0) {
         throw NoResultFound(sql)
@@ -73,7 +78,10 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchFirst(connection: Connection,
  * @throws TooManyRows if the [io.github.clasicrando.kdbc.core.result.QueryResult.rowsAffected]
  *   value > 1
  */
-suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(connection: Connection, rowParser: R): T {
+public suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(
+    connection: Connection,
+    rowParser: R,
+): T {
     val statementResult = connection.executeQuery(this)
     if (statementResult.size == 0) {
         throw NoResultFound(sql)
@@ -97,7 +105,7 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchSingle(connection: Connection
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  *   [RowParseError] are wrapped into a [RowParseError]
  */
-suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(
+public suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(
     connection: Connection,
     rowParser: R,
 ): List<T> {
@@ -121,19 +129,21 @@ suspend fun <T : Any, R : RowParser<T>> Query.fetchAll(
  * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
  *   [RowParseError] are wrapped into a [RowParseError]
  */
-fun <T : Any, R : RowParser<T>> Query.fetch(connection: Connection, rowParser: R): Flow<T> = flow {
-    val statementResult = connection.executeQuery(this@fetch)
-    if (statementResult.size == 0) {
-        throw NoResultFound(sql)
-    }
-    val queryResult = statementResult[0]
-    for (row in queryResult.rows) {
-        try {
-            emit(rowParser.fromRow(row))
-        } catch (ex: RowParseError) {
-            throw ex
-        } catch (ex: Exception) {
-            throw RowParseError(rowParser, ex)
+public fun <T : Any, R : RowParser<T>> Query.fetch(connection: Connection, rowParser: R): Flow<T> {
+    return flow {
+        val statementResult = connection.executeQuery(this@fetch)
+        if (statementResult.size == 0) {
+            throw NoResultFound(sql)
+        }
+        val queryResult = statementResult[0]
+        for (row in queryResult.rows) {
+            try {
+                emit(rowParser.fromRow(row))
+            } catch (ex: RowParseError) {
+                throw ex
+            } catch (ex: Exception) {
+                throw RowParseError(rowParser, ex)
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
+import io.github.clasicrando.kdbc.core.ZERO_BYTE
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
@@ -18,7 +19,7 @@ internal abstract class InformationResponseDecoder<T : PgMessage> : MessageDecod
             val map = buildMap {
                 while (buf.remaining() > 0) {
                     val kind = buf.readByte()
-                    if (kind != ByteReadBuffer.ZERO_BYTE) {
+                    if (kind != ZERO_BYTE) {
                         put(kind, buf.readCString())
                     }
                 }

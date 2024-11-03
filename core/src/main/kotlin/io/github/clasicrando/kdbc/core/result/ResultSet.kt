@@ -10,22 +10,22 @@ import io.github.clasicrando.kdbc.core.column.ColumnMetadata
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-interface ResultSet : Iterable<DataRow> {
-    val rowCount: Int
+public interface ResultSet : Iterable<DataRow> {
+    public val rowCount: Int
 
     /** Number of columns found within each [DataRow] entry */
-    val columnCount: Int
+    public val columnCount: Int
 
-    operator fun get(index: Int): DataRow
+    public operator fun get(index: Int): DataRow
 
     /** Returns the [ColumnMetadata] for the specified column [index] */
-    fun columnType(index: Int): ColumnMetadata
+    public fun columnType(index: Int): ColumnMetadata
 
-    companion object
+    public companion object
 }
 
 /** Empty [ResultSet] containing no columns and yields no rows upon iteration */
-val ResultSet.Companion.EMPTY_RESULT
+public val ResultSet.Companion.EMPTY_RESULT: ResultSet
     get() =
         object : ResultSet {
             val rows = emptyList<DataRow>()

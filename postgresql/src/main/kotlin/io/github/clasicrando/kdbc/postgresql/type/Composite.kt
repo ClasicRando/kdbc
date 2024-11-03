@@ -19,12 +19,12 @@ import kotlinx.io.Sink
  * to parse a [DataRow] into the type and also how to extract values that make up the composite
  * type.
  */
-interface CompositeTypeDefinition<T : Any> : RowParser<T> {
+public interface CompositeTypeDefinition<T : Any> : RowParser<T> {
     /**
      * Custom behaviour to return the composite instance's attribute values paired with the values
      * type.
      */
-    fun extractValues(value: T): List<Pair<Any?, KType>>
+    public fun extractValues(value: T): List<Pair<Any?, KType>>
 }
 
 /**

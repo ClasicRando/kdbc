@@ -2,7 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.message.encoders
 
 import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import kotlinx.io.Sink
 
@@ -21,7 +21,7 @@ import kotlinx.io.Sink
 internal object SaslInitialResponseEncoder : MessageEncoder<PgMessage.SaslInitialResponse> {
     override fun encode(value: PgMessage.SaslInitialResponse, buffer: Sink) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixedInt(includeLength = true) {
+        buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.mechanism)
             writeInt(value.saslData.length)
             write(value.saslData.toByteArray(charset = Charsets.UTF_8))

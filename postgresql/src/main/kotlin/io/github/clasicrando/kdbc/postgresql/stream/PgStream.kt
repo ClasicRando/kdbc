@@ -1,17 +1,15 @@
 package io.github.clasicrando.kdbc.postgresql.stream
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
-import io.github.clasicrando.kdbc.core.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.SizedMessage
+import io.github.clasicrando.kdbc.core.stream.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.stream.Stream
 import io.github.clasicrando.kdbc.core.stream.StreamConnectError
-import io.github.clasicrando.kdbc.core.stream.StreamReadError
-import io.github.clasicrando.kdbc.core.stream.StreamWriteError
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.authentication.Authentication
 import io.github.clasicrando.kdbc.postgresql.authentication.PgAuthenticationError
@@ -27,15 +25,14 @@ import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlin.coroutines.CoroutineContext
+import kotlin.math.floor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
-import kotlin.math.floor
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgStream"
@@ -105,7 +102,7 @@ internal class PgStream(
      */
     suspend inline fun processMessageLoop(process: (PgMessage) -> Loop): Result<Unit> {
         try {
-            while (isActive && isConnected) {
+            while (isConnected) {
                 when (val message = receiveNextServerMessage()) {
                     is PgMessage.NoticeResponse -> onNotice(message)
                     is PgMessage.NotificationResponse -> onNotification(message)
@@ -125,13 +122,6 @@ internal class PgStream(
             throw ex
         } catch (ex: Exception) {
             return Result.failure(ex)
-        }
-        if (!isActive) {
-            val exception =
-                KdbcException(
-                    "Exited message processing loop due to the coroutine scope is no longer active"
-                )
-            return Result.failure(exception)
         }
         if (!isConnected) {
             return Result.failure(
@@ -153,7 +143,7 @@ internal class PgStream(
      * [Result] is successful.
      */
     suspend inline fun <reified T : PgMessage> waitForOrError(): T {
-        while (isActive && isConnected) {
+        while (isConnected) {
             when (val message = receiveNextServerMessage()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
                 is PgMessage.NotificationResponse -> onNotification(message)
@@ -267,11 +257,7 @@ internal class PgStream(
      * server. This involves collecting the [flow] and packing is as many messages as possible into
      * a single write to the database server.
      */
-    suspend fun <M> writeManyToStream(flow: Flow<M>)
-        where
-        M : PgMessage,
-        M : SizedMessage
-    {
+    suspend fun <M> writeManyToStream(flow: Flow<M>) where M : PgMessage, M : SizedMessage {
         var maxBatchSize = 1
         val batch = ArrayList<M>()
         flow.collect { message ->
@@ -399,10 +385,6 @@ internal class PgStream(
          *
          * @throws PgAuthenticationError if the authentication fails
          * @throws StreamConnectError if the underling [Stream] fails to connect
-         * @throws StreamReadError if any authentication message or the final ready for query
-         *   message fails
-         * @throws StreamWriteError if the startup message or any authentication message written to
-         *   the stream fails
          * @throws ExitOfProcessingLoop if waiting for [PgMessage.ReadyForQuery] or error after
          *   authentication exits the processing loop unexpectedly
          */

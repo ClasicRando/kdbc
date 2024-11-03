@@ -13,10 +13,10 @@ import kotlin.reflect.typeOf
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-open class QueryResult(
-    val rowsAffected: Long,
-    val message: String,
-    val rows: ResultSet = ResultSet.EMPTY_RESULT,
+public open class QueryResult(
+    public val rowsAffected: Long,
+    public val message: String,
+    public val rows: ResultSet = ResultSet.EMPTY_RESULT,
 ) {
     /**
      * Execute the query and return the first row's first column as the type [T]. Returns null if
@@ -28,7 +28,7 @@ open class QueryResult(
      * @throws IncorrectScalarType if the scalar value is not an instance of the type [T], this
      *   checked by [kotlin.reflect.KClass.isInstance] on the first value
      */
-    inline fun <reified T : Any> extractScalar(): T? {
+    public inline fun <reified T : Any> extractScalar(): T? {
         if (rows.rowCount == 0) {
             return null
         }
@@ -43,7 +43,7 @@ open class QueryResult(
      * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
      *   [RowParseError] are wrapped into a [RowParseError]
      */
-    fun <T : Any, R : RowParser<T>> extractFirst(rowParser: R): T? {
+    public fun <T : Any, R : RowParser<T>> extractFirst(rowParser: R): T? {
         if (rows.rowCount == 0) {
             return null
         }
@@ -66,7 +66,7 @@ open class QueryResult(
      * @throws RowParseError if the [rowParser] throws any [Throwable], thrown errors other than
      *   [RowParseError] are wrapped into a [RowParseError]
      */
-    fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): List<T> {
+    public fun <T : Any, R : RowParser<T>> extractAll(rowParser: R): List<T> {
         val result = mutableListOf<T>()
         for (i in 0..<rows.rowCount) {
             try {
@@ -82,7 +82,7 @@ open class QueryResult(
 
     override fun toString(): String = "QueryResult(rowsAffected=$rowsAffected,message=$message)"
 
-    companion object {
-        @PublishedApi internal const val FIRST_INDEX = 0
+    public companion object {
+        @PublishedApi internal const val FIRST_INDEX: Int = 0
     }
 }

@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.benchmarks.IOUtils
-import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
@@ -204,7 +203,7 @@ val kdbcConnectOptions =
                 ?: error(KDBC_MISSING_ENVIRONMENT_VARIABLE_MESSAGE),
         database = "postgres",
         applicationName = "KdbcTests${Uuid.random()}",
-        logSettings = LogSettings.DEFAULT.copy(statementLevel = Level.TRACE),
+        statementLogLevel = Level.TRACE,
     )
 
 val poolOptions = PoolOptions(maxConnections = 10, minConnections = 8)

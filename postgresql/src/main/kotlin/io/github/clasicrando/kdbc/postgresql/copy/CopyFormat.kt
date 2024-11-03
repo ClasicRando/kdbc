@@ -8,7 +8,7 @@ private const val ZERO = 0.toByte()
  * formatting is quite a bit harder and more volatile to change. The text based formats are still
  * very fast so needing the binary format is not likely.
  */
-enum class CopyFormat(val formatCode: Byte) {
+public enum class CopyFormat(public val formatCode: Byte) {
     Text(ZERO),
     CSV(ZERO),
     Binary(ONE);
@@ -21,7 +21,7 @@ enum class CopyFormat(val formatCode: Byte) {
         }
     }
 
-    companion object {
+    internal companion object {
         private const val TEXT_NAME = "text"
         private const val CSV_NAME = "csv"
         private const val BINARY_NAME = "binary"

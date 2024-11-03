@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 
 /** Options when setting up a connection pool for any database vendor */
 @Serializable
-data class PoolOptions(
+public data class PoolOptions(
     /**
      * Maximum number of connection instances held within the pool. Once this limit is reached, the
      * acquire method will suspend/block until connections are returned.

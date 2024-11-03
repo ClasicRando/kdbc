@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.core.buffer
 
+import io.github.clasicrando.kdbc.core.ZERO_BYTE
 import java.nio.charset.Charset
 
 /**
@@ -12,7 +13,7 @@ import java.nio.charset.Charset
  * property keeps track of the relative position within the buffer and reads against the buffer
  * increments the [position] value based the number of bytes requested.
  */
-class ByteReadBuffer(
+public class ByteReadBuffer(
     private var innerBuffer: ByteArray,
     private val offset: Int = 0,
     @PublishedApi internal val size: Int = innerBuffer.size,
@@ -30,7 +31,7 @@ class ByteReadBuffer(
      * @throws IllegalArgumentException if the [length] is greater than the number of bytes
      *   [remaining] in the buffer
      */
-    fun slice(length: Int): ByteReadBuffer {
+    public fun slice(length: Int): ByteReadBuffer {
         checkRemaining(length)
         val slice = ByteReadBuffer(innerBuffer, position + offset, length)
         position += length
@@ -39,7 +40,7 @@ class ByteReadBuffer(
 
     /** Number of bytes remaining as readable within the buffer */
     @Suppress("NOTHING_TO_INLINE")
-    inline fun remaining(): Int {
+    public inline fun remaining(): Int {
         return size - position
     }
 
@@ -61,7 +62,7 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readByte(): Byte {
+    public fun readByte(): Byte {
         checkRemaining(1)
         return innerBuffer[offset + position++]
     }
@@ -71,7 +72,7 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readShort(): Short {
+    public fun readShort(): Short {
         checkRemaining(2)
         val result =
             (innerBuffer[offset + position++].toInt() and
@@ -86,7 +87,7 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readInt(): Int {
+    public fun readInt(): Int {
         checkRemaining(4)
         val result =
             ((innerBuffer[offset + position++].toInt() and 0xff shl 24) or
@@ -101,7 +102,7 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readLong(): Long {
+    public fun readLong(): Long {
         checkRemaining(8)
         val result =
             ((innerBuffer[offset + position++].toLong() and 0xffL shl 56) or
@@ -120,7 +121,7 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readFloat(): Float {
+    public fun readFloat(): Float {
         return Float.fromBits(this.readInt())
     }
 
@@ -129,7 +130,7 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readDouble(): Double {
+    public fun readDouble(): Double {
         return Double.fromBits(this.readLong())
     }
 
@@ -138,7 +139,7 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
-    fun readBytes(length: Int): ByteArray {
+    public fun readBytes(length: Int): ByteArray {
         checkRemaining(length)
         val start = offset + position
         position += length
@@ -146,7 +147,7 @@ class ByteReadBuffer(
     }
 
     /** Read all remaining bytes into a [ByteArray]. This can result in an empty array. */
-    fun readBytes(): ByteArray {
+    public fun readBytes(): ByteArray {
         val currentPosition = position
         position = size
         return this.innerBuffer.copyOfRange(offset + currentPosition, offset + size)
@@ -158,7 +159,7 @@ class ByteReadBuffer(
      *
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
-    fun readText(charset: Charset = Charsets.UTF_8): String {
+    public fun readText(charset: Charset = Charsets.UTF_8): String {
         return String(this.readBytes(), charset = charset)
     }
 
@@ -170,7 +171,7 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted before finding a zero byte
      * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
      */
-    fun readCString(charset: Charset = Charsets.UTF_8): String {
+    public fun readCString(charset: Charset = Charsets.UTF_8): String {
         val buffer = ArrayList<Byte>()
 
         while (remaining() > 0) {
@@ -185,7 +186,7 @@ class ByteReadBuffer(
     }
 
     /** Reset this buffer to it's initial reading position so the value can be read again */
-    fun reset() {
+    public fun reset() {
         position = 0
     }
 
@@ -196,9 +197,5 @@ class ByteReadBuffer(
     override fun close() {
         reset()
         innerBuffer = ByteArray(0)
-    }
-
-    companion object {
-        const val ZERO_BYTE: Byte = 0
     }
 }

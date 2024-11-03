@@ -1,301 +1,301 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 /** Sealed class representing all covered postgresql types and their OID */
-sealed class PgType(
+public sealed class PgType(
     /**
      * OID value representing the unique identifier of a type within a given postgresql database.
-     * For all types implemented as a data object of [PgType], the type is static for any postgresql
-     * database. User defined types will not be static, so they are defined as [ByOid].
+     * For all types implemented as a public data object of [PgType], the type is static for any
+     * postgresql database. User defined types will not be static, so they are defined as [ByOid].
      */
-    val oid: Int
+    public val oid: Int
 ) {
     /** [PgType] representing the `boolean` type */
-    data object Bool : PgType(BOOL)
+    public data object Bool : PgType(BOOL)
 
     /** [PgType] representing the `boolean[]` type */
-    data object BoolArray : PgType(BOOL_ARRAY)
+    public data object BoolArray : PgType(BOOL_ARRAY)
 
     /** [PgType] representing the `bytea` type */
-    data object Bytea : PgType(BYTEA)
+    public data object Bytea : PgType(BYTEA)
 
     /** [PgType] representing the `bytea[]` type */
-    data object ByteaArray : PgType(BYTEA_ARRAY)
+    public data object ByteaArray : PgType(BYTEA_ARRAY)
 
     /** [PgType] representing the `"char"` type */
-    data object Char : PgType(CHAR)
+    public data object Char : PgType(CHAR)
 
     /** [PgType] representing the `"char"[]` type */
-    data object CharArray : PgType(CHAR_ARRAY)
+    public data object CharArray : PgType(CHAR_ARRAY)
 
     /** [PgType] representing the `name` type */
-    data object Name : PgType(NAME)
+    public data object Name : PgType(NAME)
 
     /** [PgType] representing the `name[]` type */
-    data object NameArray : PgType(NAME_ARRAY)
+    public data object NameArray : PgType(NAME_ARRAY)
 
     /** [PgType] representing the `bigint` type */
-    data object Int8 : PgType(INT8)
+    public data object Int8 : PgType(INT8)
 
     /** [PgType] representing the `bigint[]` type */
-    data object Int8Array : PgType(INT8_ARRAY)
+    public data object Int8Array : PgType(INT8_ARRAY)
 
     /** [PgType] representing the `smallint` type */
-    data object Int2 : PgType(INT2)
+    public data object Int2 : PgType(INT2)
 
     /** [PgType] representing the `smallint[]` type */
-    data object Int2Array : PgType(INT2_ARRAY)
+    public data object Int2Array : PgType(INT2_ARRAY)
 
     /** [PgType] representing the `int` type */
-    data object Int4 : PgType(INT4)
+    public data object Int4 : PgType(INT4)
 
     /** [PgType] representing the `int[]` type */
-    data object Int4Array : PgType(INT4_ARRAY)
+    public data object Int4Array : PgType(INT4_ARRAY)
 
     /** [PgType] representing the `text` type */
-    data object Text : PgType(TEXT)
+    public data object Text : PgType(TEXT)
 
     /** [PgType] representing the `text[]` type */
-    data object TextArray : PgType(TEXT_ARRAY)
+    public data object TextArray : PgType(TEXT_ARRAY)
 
     /** [PgType] representing the `oid` type */
-    data object Oid : PgType(OID)
+    public data object Oid : PgType(OID)
 
     /** [PgType] representing the `oid[]` type */
-    data object OidArray : PgType(OID_ARRAY)
+    public data object OidArray : PgType(OID_ARRAY)
 
     /** [PgType] representing the `json` type */
-    data object Json : PgType(JSON)
+    public data object Json : PgType(JSON)
 
     /** [PgType] representing the `json[]` type */
-    data object JsonArray : PgType(JSON_ARRAY)
+    public data object JsonArray : PgType(JSON_ARRAY)
 
     /** [PgType] representing the `point` type */
-    data object Point : PgType(POINT)
+    public data object Point : PgType(POINT)
 
     /** [PgType] representing the `point[]` type */
-    data object PointArray : PgType(POINT_ARRAY)
+    public data object PointArray : PgType(POINT_ARRAY)
 
     /** [PgType] representing the `lseg` type */
-    data object LineSegment : PgType(LSEG)
+    public data object LineSegment : PgType(LSEG)
 
     /** [PgType] representing the `lseg[]` type */
-    data object LineSegmentArray : PgType(LSEG_ARRAY)
+    public data object LineSegmentArray : PgType(LSEG_ARRAY)
 
     /** [PgType] representing the `path` type */
-    data object Path : PgType(PATH)
+    public data object Path : PgType(PATH)
 
     /** [PgType] representing the `path[]` type */
-    data object PathArray : PgType(PATH_ARRAY)
+    public data object PathArray : PgType(PATH_ARRAY)
 
     /** [PgType] representing the `box` type */
-    data object Box : PgType(BOX)
+    public data object Box : PgType(BOX)
 
     /** [PgType] representing the `box[]` type */
-    data object BoxArray : PgType(BOX_ARRAY)
+    public data object BoxArray : PgType(BOX_ARRAY)
 
     /** [PgType] representing the `polygon` type */
-    data object Polygon : PgType(POLYGON)
+    public data object Polygon : PgType(POLYGON)
 
     /** [PgType] representing the `polygon[]` type */
-    data object PolygonArray : PgType(POLYGON_ARRAY)
+    public data object PolygonArray : PgType(POLYGON_ARRAY)
 
     /** [PgType] representing the `line` type */
-    data object Line : PgType(LINE)
+    public data object Line : PgType(LINE)
 
     /** [PgType] representing the `line[]` type */
-    data object LineArray : PgType(LINE_ARRAY)
+    public data object LineArray : PgType(LINE_ARRAY)
 
     /** [PgType] representing the `cidr` type */
-    data object Cidr : PgType(CIDR)
+    public data object Cidr : PgType(CIDR)
 
     /** [PgType] representing the `cidr[]` type */
-    data object CidrArray : PgType(CIDR_ARRAY)
+    public data object CidrArray : PgType(CIDR_ARRAY)
 
     /** [PgType] representing the `real` type */
-    data object Float4 : PgType(FLOAT4)
+    public data object Float4 : PgType(FLOAT4)
 
     /** [PgType] representing the `real[]` type */
-    data object Float4Array : PgType(FLOAT4_ARRAY)
+    public data object Float4Array : PgType(FLOAT4_ARRAY)
 
     /** [PgType] representing the `double precision` type */
-    data object Float8 : PgType(FLOAT8)
+    public data object Float8 : PgType(FLOAT8)
 
     /** [PgType] representing the `double precision[]` type */
-    data object Float8Array : PgType(FLOAT8_ARRAY)
+    public data object Float8Array : PgType(FLOAT8_ARRAY)
 
     /** [PgType] representing the `unknown` type */
-    data object Unknown : PgType(UNKNOWN)
+    public data object Unknown : PgType(UNKNOWN)
 
     /** [PgType] representing the `circle` type */
-    data object Circle : PgType(CIRCLE)
+    public data object Circle : PgType(CIRCLE)
 
     /** [PgType] representing the `circle[]` type */
-    data object CircleArray : PgType(CIRCLE_ARRAY)
+    public data object CircleArray : PgType(CIRCLE_ARRAY)
 
     /** [PgType] representing the `macaddr8` type */
-    data object Macaddr8 : PgType(MACADDR8)
+    public data object Macaddr8 : PgType(MACADDR8)
 
     /** [PgType] representing the `macaddr8[]` type */
-    data object Macaddr8Array : PgType(MACADDR8_ARRAY)
+    public data object Macaddr8Array : PgType(MACADDR8_ARRAY)
 
     /** [PgType] representing the `macaddr[]` type */
-    data object Macaddr : PgType(MACADDR)
+    public data object Macaddr : PgType(MACADDR)
 
     /** [PgType] representing the `macaddr[]` type */
-    data object MacaddrArray : PgType(MACADDR_ARRAY)
+    public data object MacaddrArray : PgType(MACADDR_ARRAY)
 
     /** [PgType] representing the `inet` type */
-    data object Inet : PgType(INET)
+    public data object Inet : PgType(INET)
 
     /** [PgType] representing the `inet[]` type */
-    data object InetArray : PgType(INET_ARRAY)
+    public data object InetArray : PgType(INET_ARRAY)
 
     /** [PgType] representing the `bpchar` type */
-    data object Bpchar : PgType(BPCHAR)
+    public data object Bpchar : PgType(BPCHAR)
 
     /** [PgType] representing the `bpchar[]` type */
-    data object BpcharArray : PgType(BPCHAR_ARRAY)
+    public data object BpcharArray : PgType(BPCHAR_ARRAY)
 
     /** [PgType] representing the `varchar` type */
-    data object Varchar : PgType(VARCHAR)
+    public data object Varchar : PgType(VARCHAR)
 
     /** [PgType] representing the `varchar[]` type */
-    data object VarcharArray : PgType(VARCHAR_ARRAY)
+    public data object VarcharArray : PgType(VARCHAR_ARRAY)
 
     /** [PgType] representing the `date` type */
-    data object Date : PgType(DATE)
+    public data object Date : PgType(DATE)
 
     /** [PgType] representing the `date[]` type */
-    data object DateArray : PgType(DATE_ARRAY)
+    public data object DateArray : PgType(DATE_ARRAY)
 
     /** [PgType] representing the `time` type */
-    data object Time : PgType(TIME)
+    public data object Time : PgType(TIME)
 
     /** [PgType] representing the `time[]` type */
-    data object TimeArray : PgType(TIME_ARRAY)
+    public data object TimeArray : PgType(TIME_ARRAY)
 
     /** [PgType] representing the `timestamp without time zone` type */
-    data object Timestamp : PgType(TIMESTAMP)
+    public data object Timestamp : PgType(TIMESTAMP)
 
     /** [PgType] representing the `timestamp without time zone[]` type */
-    data object TimestampArray : PgType(TIMESTAMP_ARRAY)
+    public data object TimestampArray : PgType(TIMESTAMP_ARRAY)
 
     /** [PgType] representing the `timestamp with time zone` type */
-    data object Timestamptz : PgType(TIMESTAMPTZ)
+    public data object Timestamptz : PgType(TIMESTAMPTZ)
 
     /** [PgType] representing the `timestamp with time zone[]` type */
-    data object TimestamptzArray : PgType(TIMESTAMPTZ_ARRAY)
+    public data object TimestamptzArray : PgType(TIMESTAMPTZ_ARRAY)
 
     /** [PgType] representing the `interval` type */
-    data object Interval : PgType(INTERVAL)
+    public data object Interval : PgType(INTERVAL)
 
     /** [PgType] representing the `interval[]` type */
-    data object IntervalArray : PgType(INTERVAL_ARRAY)
+    public data object IntervalArray : PgType(INTERVAL_ARRAY)
 
     /** [PgType] representing the `time with time zone` type */
-    data object Timetz : PgType(TIMETZ)
+    public data object Timetz : PgType(TIMETZ)
 
     /** [PgType] representing the `time with time zone[]` type */
-    data object TimetzArray : PgType(TIMETZ_ARRAY)
+    public data object TimetzArray : PgType(TIMETZ_ARRAY)
 
     /** [PgType] representing the `bit(n)` type */
-    data object Bit : PgType(BIT)
+    public data object Bit : PgType(BIT)
 
     /** [PgType] representing the `bit(n)[]` type */
-    data object BitArray : PgType(BIT_ARRAY)
+    public data object BitArray : PgType(BIT_ARRAY)
 
     /** [PgType] representing the `bit varying(n)` type */
-    data object Varbit : PgType(VARBIT)
+    public data object Varbit : PgType(VARBIT)
 
     /** [PgType] representing the `bit varying(n)[]` type */
-    data object VarbitArray : PgType(VARBIT_ARRAY)
+    public data object VarbitArray : PgType(VARBIT_ARRAY)
 
     /** [PgType] representing the `numeric` type */
-    data object Numeric : PgType(NUMERIC)
+    public data object Numeric : PgType(NUMERIC)
 
     /** [PgType] representing the `numeric[]` type */
-    data object NumericArray : PgType(NUMERIC_ARRAY)
+    public data object NumericArray : PgType(NUMERIC_ARRAY)
 
     /** [PgType] representing the `record` type */
-    data object Record : PgType(RECORD)
+    public data object Record : PgType(RECORD)
 
     /** [PgType] representing the `record[]` type */
-    data object RecordArray : PgType(RECORD_ARRAY)
+    public data object RecordArray : PgType(RECORD_ARRAY)
 
     /** [PgType] representing the `uuid` type */
-    data object Uuid : PgType(UUID)
+    public data object Uuid : PgType(UUID)
 
     /** [PgType] representing the `uuid[]` type */
-    data object UuidArray : PgType(UUID_ARRAY)
+    public data object UuidArray : PgType(UUID_ARRAY)
 
     /** [PgType] representing the `jsonb` type */
-    data object Jsonb : PgType(JSONB)
+    public data object Jsonb : PgType(JSONB)
 
     /** [PgType] representing the `jsonb[]` type */
-    data object JsonbArray : PgType(JSONB_ARRAY)
+    public data object JsonbArray : PgType(JSONB_ARRAY)
 
     /** [PgType] representing the `int4range` type */
-    data object Int4Range : PgType(INT4RANGE)
+    public data object Int4Range : PgType(INT4RANGE)
 
     /** [PgType] representing the `int4range[]` type */
-    data object Int4RangeArray : PgType(INT4RANGE_ARRAY)
+    public data object Int4RangeArray : PgType(INT4RANGE_ARRAY)
 
     /** [PgType] representing the `numrange` type */
-    data object NumRange : PgType(NUMRANGE)
+    public data object NumRange : PgType(NUMRANGE)
 
     /** [PgType] representing the `numrange[]` type */
-    data object NumRangeArray : PgType(NUMRANGE_ARRAY)
+    public data object NumRangeArray : PgType(NUMRANGE_ARRAY)
 
     /** [PgType] representing the `tsrange` type */
-    data object TsRange : PgType(TSRANGE)
+    public data object TsRange : PgType(TSRANGE)
 
     /** [PgType] representing the `tsrange[]` type */
-    data object TsRangeArray : PgType(TSRANGE_ARRAY)
+    public data object TsRangeArray : PgType(TSRANGE_ARRAY)
 
     /** [PgType] representing the `tstzrange` type */
-    data object TstzRange : PgType(TSTZRANGE)
+    public data object TstzRange : PgType(TSTZRANGE)
 
     /** [PgType] representing the `tstzrange[]` type */
-    data object TstzRangeArray : PgType(TSTZRANGE_ARRAY)
+    public data object TstzRangeArray : PgType(TSTZRANGE_ARRAY)
 
     /** [PgType] representing the `daterange` type */
-    data object DateRange : PgType(DATERANGE)
+    public data object DateRange : PgType(DATERANGE)
 
     /** [PgType] representing the `daterange[]` type */
-    data object DateRangeArray : PgType(DATERANGE_ARRAY)
+    public data object DateRangeArray : PgType(DATERANGE_ARRAY)
 
     /** [PgType] representing the `int8range` type */
-    data object Int8Range : PgType(INT8RANGE)
+    public data object Int8Range : PgType(INT8RANGE)
 
     /** [PgType] representing the `int8range[]` type */
-    data object Int8RangeArray : PgType(INT8RANGE_ARRAY)
+    public data object Int8RangeArray : PgType(INT8RANGE_ARRAY)
 
     /** [PgType] representing the `jsonpath` type */
-    data object Jsonpath : PgType(JSONPATH)
+    public data object Jsonpath : PgType(JSONPATH)
 
     /** [PgType] representing the `jsonpath[]` type */
-    data object JsonpathArray : PgType(JSONPATH_ARRAY)
+    public data object JsonpathArray : PgType(JSONPATH_ARRAY)
 
     /** [PgType] representing the `money` type */
-    data object Money : PgType(MONEY)
+    public data object Money : PgType(MONEY)
 
     /** [PgType] representing the `money[]` type */
-    data object MoneyArray : PgType(MONEY_ARRAY)
+    public data object MoneyArray : PgType(MONEY_ARRAY)
 
     /** [PgType] representing the `xml` type */
-    data object Xml : PgType(XML)
+    public data object Xml : PgType(XML)
 
     /** [PgType] representing the `xml[]` type */
-    data object XmlArray : PgType(XML_ARRAY)
+    public data object XmlArray : PgType(XML_ARRAY)
 
     /** [PgType] representing the `void` type */
-    data object Void : PgType(VOID)
+    public data object Void : PgType(VOID)
 
     /** Unspecified type. Used in executing prepared queries where the type is not known */
-    data object Unspecified : PgType(0)
+    public data object Unspecified : PgType(0)
 
     /** Define a [PgType] by a known [oid] */
-    class ByOid(oid: Int) : PgType(oid) {
+    public class ByOid(oid: Int) : PgType(oid) {
         override fun toString(): String {
             return "PgType.ByOid(oid=$oid)"
         }
@@ -311,7 +311,7 @@ sealed class PgType(
         return oid
     }
 
-    companion object {
+    internal companion object {
         const val BOOL = 16
         const val BOOL_ARRAY = 1000
         const val BYTEA = 17

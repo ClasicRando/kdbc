@@ -14,7 +14,7 @@ import kotlinx.coroutines.withContext
  * keeping reference to the pool's [typeCache] and providing the custom [disposeConnection] method
  * that simple calls [PgConnection.dispose].
  */
-class PgConnectionPool(connectOptions: PgConnectOptions, poolOptions: PoolOptions) :
+public class PgConnectionPool(connectOptions: PgConnectOptions, poolOptions: PoolOptions) :
     AbstractDefaultConnectionPool<PgConnection>(
         poolOptions = poolOptions,
         provider = PgConnectionProvider(connectOptions),

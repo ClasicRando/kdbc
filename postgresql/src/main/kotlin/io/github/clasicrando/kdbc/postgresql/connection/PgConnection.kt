@@ -27,8 +27,6 @@ import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata
 import io.github.clasicrando.kdbc.postgresql.copy.PgBinaryCopyRow
 import io.github.clasicrando.kdbc.postgresql.copy.PgCopyEncodeBuffer
 import io.github.clasicrando.kdbc.postgresql.copy.PgCsvCopyRow
-import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyHeader
-import io.github.clasicrando.kdbc.postgresql.copy.pgBinaryCopyTrailer
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
@@ -71,7 +69,7 @@ private val logger = KotlinLogging.logger {}
  * scenes as to reduce unnecessary tcp connection creation to the server when an application creates
  * and closes connections frequently.
  */
-class PgConnection
+public class PgConnection
 internal constructor(
     /** Connection options supplied when requesting a new Postgresql connection */
     internal val connectOptions: PgConnectOptions,
@@ -228,7 +226,7 @@ internal constructor(
      * database, you should opt to either send multiple statements in separate calls to
      * [sendExtendedQuery] or package your queries into a stored procedure.
      */
-    suspend fun executeQueryBatch(syncAll: Boolean, batch: List<Query>): StatementResult {
+    public suspend fun executeQueryBatch(syncAll: Boolean, batch: List<Query>): StatementResult {
         val pipelineQueries = Array(batch.size) { i -> batch[i].sql to batch[i].parameters }
         return pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
     }
@@ -270,7 +268,7 @@ internal constructor(
      * database, you should opt to either send multiple statements in separate calls to
      * [sendExtendedQuery] or package your queries into a stored procedure.
      */
-    suspend fun executeQueryBatch(syncAll: Boolean, vararg batch: Query): StatementResult {
+    public suspend fun executeQueryBatch(syncAll: Boolean, vararg batch: Query): StatementResult {
         val pipelineQueries = Array(batch.size) { i -> batch[i].sql to batch[i].parameters }
         return pipelineQueries(syncAll = syncAll, queries = pipelineQueries)
     }
@@ -397,7 +395,7 @@ internal constructor(
         }
 
         return mutex.withLock {
-            log(connectOptions.logSettings.statementLevel) {
+            log(connectOptions.statementLogLevel) {
                 message = "Sending query: ${query.normalizeWhitespace()}"
             }
             stream.writeToStream(PgMessage.Query(query))
@@ -567,7 +565,7 @@ internal constructor(
             stream.writeManyToStream(bindMessage, executeMessage, closePortalMessage)
         }
         statement.lastExecuted = Clock.System.now()
-        log(connectOptions.logSettings.statementLevel) {
+        log(connectOptions.statementLogLevel) {
             message = "Sending query: ${statement.query.normalizeWhitespace()}"
         }
     }
@@ -716,7 +714,7 @@ internal constructor(
      * a result message and not an error.
      */
     private suspend fun copyInInternal(copyQuery: String, data: Flow<ByteArray>): QueryResult {
-        log(connectOptions.logSettings.statementLevel) {
+        log(connectOptions.statementLogLevel) {
             message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
@@ -736,7 +734,7 @@ internal constructor(
         }
 
         val copyInResultCollector = CopyInResultCollector(this, wasFailed)
-        failureReason?.let { copyInResultCollector.errors.add(it) }
+        failureReason?.let(copyInResultCollector.errors::add)
         stream
             .processMessageLoop(copyInResultCollector::processMessage)
             .onFailure(copyInResultCollector.errors::add)
@@ -765,7 +763,10 @@ internal constructor(
      * the message will be captured and thrown after completing the COPY process and the connection
      * with the server reverts to regular queries.
      */
-    suspend fun copyIn(copyInStatement: CopyStatement.From, data: Flow<ByteArray>): QueryResult {
+    public suspend fun copyIn(
+        copyInStatement: CopyStatement.From,
+        data: Flow<ByteArray>,
+    ): QueryResult {
         checkConnected()
 
         val copyQuery = copyInStatement.toQuery()
@@ -783,7 +784,7 @@ internal constructor(
      *
      * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
      */
-    suspend fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
+    public suspend fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
         return copyIn(copyInStatement = copyInStatement, data = source.chunkedBytes().asFlow())
     }
@@ -799,7 +800,10 @@ internal constructor(
      *
      * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.CopyText]
      */
-    suspend fun copyIn(copyInStatement: CopyStatement.From, inputStream: InputStream): QueryResult {
+    public suspend fun copyIn(
+        copyInStatement: CopyStatement.From,
+        inputStream: InputStream,
+    ): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
         return copyIn(copyInStatement = copyInStatement, data = inputStream.chunkedBytes().asFlow())
     }
@@ -817,7 +821,7 @@ internal constructor(
      * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.TableFromCsv]
      * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
      */
-    suspend fun copyIn(
+    public suspend fun copyIn(
         copyInStatement: CopyStatement.TableFromCsv,
         data: Flow<PgCsvCopyRow>,
     ): QueryResult {
@@ -852,7 +856,7 @@ internal constructor(
      * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.TableFromCsv]
      * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
      */
-    suspend fun copyIn(
+    public suspend fun copyIn(
         copyInStatement: CopyStatement.TableFromBinary,
         data: Flow<PgBinaryCopyRow>,
     ): QueryResult {
@@ -884,7 +888,7 @@ internal constructor(
      *    [PgMessage.CopyData] messages. Exit the loop when [PgMessage.ReadyForQuery] is received.
      */
     private suspend fun copyOutInternal(copyQuery: String): Flow<ByteArray> {
-        log(connectOptions.logSettings.statementLevel) {
+        log(connectOptions.statementLogLevel) {
             message = "Sending query: ${copyQuery.normalizeWhitespace()}"
         }
         stream.writeToStream(PgMessage.Query(copyQuery))
@@ -921,7 +925,7 @@ internal constructor(
      * should always try to process each item as soon as possible or collect the elements into a
      * [List].
      */
-    suspend fun copyOut(copyOutStatement: CopyStatement.To): QueryResult {
+    public suspend fun copyOut(copyOutStatement: CopyStatement.To): QueryResult {
         checkConnected()
 
         val copyQuery = copyOutStatement.toQuery()
@@ -957,7 +961,7 @@ internal constructor(
      * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
      * each row returned from the query to the [sink] supplied
      */
-    suspend fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
+    public suspend fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
         checkConnected()
 
         val copyQuery = copyOutStatement.toQuery()
@@ -968,7 +972,7 @@ internal constructor(
      * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
      * each row returned from the query to the [outputStream] supplied
      */
-    suspend fun copyOut(copyOutStatement: CopyStatement.To, outputStream: OutputStream) {
+    public suspend fun copyOut(copyOutStatement: CopyStatement.To, outputStream: OutputStream) {
         checkConnected()
 
         val copyQuery = copyOutStatement.toQuery()
@@ -979,7 +983,7 @@ internal constructor(
      * Execute a `NOTIFY` command for the specified [channelName] with the supplied [payload]. This
      * sends a notification to any connection connected to this connection's current database.
      */
-    suspend fun notify(channelName: String, payload: String) {
+    public suspend fun notify(channelName: String, payload: String) {
         val escapedPayload = payload.replace("'", "''")
         sendSimpleQuery("NOTIFY ${channelName.quoteIdentifier()}, '$escapedPayload';")
     }
@@ -990,7 +994,7 @@ internal constructor(
      * @param type name of the type in the database (optionally schema qualified if not in public
      *   schema)
      */
-    suspend inline fun <reified E : Enum<E>> registerEnumType(type: String) {
+    public suspend inline fun <reified E : Enum<E>> registerEnumType(type: String) {
         typeCache.addEnumType(
             connection = this,
             name = type,
@@ -1005,7 +1009,7 @@ internal constructor(
      * @param type name of the type in the database (optionally schema qualified if not in public
      *   schema)
      */
-    suspend inline fun <reified T : Any> registerCompositeType(
+    public suspend inline fun <reified T : Any> registerCompositeType(
         type: String,
         compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
     ) {
@@ -1022,7 +1026,7 @@ internal constructor(
      * the same pool and adds simple array type descriptions as well. If the value class is already
      * present within the cache, that description will be removed for the new description.
      */
-    suspend inline fun <reified T : Any> registerValueType() {
+    public suspend inline fun <reified T : Any> registerValueType() {
         typeCache.addValueType(connection = this, kClass = T::class, kType = typeOf<T>())
     }
 
@@ -1031,11 +1035,46 @@ internal constructor(
      * adds simple array type descriptions as well. If the [PgTypeDescription.kType] is already
      * present within the cache, that description will be removed for the new description.
      */
-    suspend fun <T : Any> registerCustomType(typeDescription: PgTypeDescription<T>) {
+    public suspend fun <T : Any> registerCustomType(typeDescription: PgTypeDescription<T>) {
         typeCache.addCustomType(connection = this, typeDescription = typeDescription)
     }
 
-    companion object {
+    internal companion object {
+        /**
+         * Magic header value required at the start a binary COPY operation
+         *
+         * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
+         */
+        private val pgBinaryCopyHeader =
+            byteArrayOf(
+                'P'.code.toByte(),
+                'G'.code.toByte(),
+                'C'.code.toByte(),
+                'O'.code.toByte(),
+                'P'.code.toByte(),
+                'Y'.code.toByte(),
+                0x0A,
+                -1,
+                0x0D,
+                0x0A,
+                0x00,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            )
+
+        /**
+         * Magic trailer value required before the end of a binary COPY operation
+         *
+         * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
+         */
+        private val pgBinaryCopyTrailer = byteArrayOf(-1, -1)
+
         /**
          * Create a new [PgConnection] instance using the supplied [connectOptions], [stream] and
          * [pool] (the pool that owns this connection).

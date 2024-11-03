@@ -6,7 +6,7 @@ import io.github.clasicrando.kdbc.core.type.DbType
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.KType
 
-abstract class PgTypeDescription<T : Any>(
+public abstract class PgTypeDescription<T : Any>(
     /**
      * [PgType] that is referenced for this type description as the serialization input and
      * deserialization output
@@ -16,10 +16,10 @@ abstract class PgTypeDescription<T : Any>(
     final override val kType: KType,
 ) : DbType<T, PgValue, PgType> {
     /** Decode the bytes provided into the type [T] */
-    abstract fun decodeBytes(value: PgValue.Binary): T
+    public abstract fun decodeBytes(value: PgValue.Binary): T
 
     /** Decode the [String] provided into the type [T] */
-    abstract fun decodeText(value: PgValue.Text): T
+    public abstract fun decodeText(value: PgValue.Text): T
 
     override fun isCompatible(dbType: PgType): Boolean {
         return dbType == this.dbType

@@ -8,7 +8,7 @@ import kotlinx.io.Sink
  * encoders only once and reuse the instance since the object should hold no state and [encode] is a
  * pure function.
  */
-interface Encode<in T : Any> {
+public interface Encode<in T : Any> {
     /** Encode the [value] into the [buffer] as a collection of [Byte]s */
-    fun encode(value: T, buffer: Sink)
+    public fun encode(value: T, buffer: Sink)
 }

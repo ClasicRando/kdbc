@@ -8,7 +8,7 @@ import kotlinx.io.files.Path
 import kotlinx.io.readString
 import kotlinx.serialization.json.Json
 
-object Kdbc {
+public object Kdbc {
     private const val ENV_VARIABLE_NAME = "KDBC_CONFIG"
     private const val FILE_NAME = "kdbc_config.json"
     private val options: KdbcOptions by lazy {
@@ -33,6 +33,6 @@ object Kdbc {
         Json.decodeFromString(jsonData)
     }
 
-    val detailedLogging: Level
+    public val detailedLogging: Level
         get() = options.detailedLogging
 }

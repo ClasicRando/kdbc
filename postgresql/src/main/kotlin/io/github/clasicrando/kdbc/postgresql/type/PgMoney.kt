@@ -18,12 +18,12 @@ import kotlinx.serialization.encoding.Encoder
  * [docs](https://www.postgresql.org/docs/16/datatype-money.html)
  */
 @Serializable(with = PgMoney.Companion::class)
-class PgMoney internal constructor(internal val integer: Long) {
+public class PgMoney internal constructor(internal val integer: Long) {
     /**
      * Create a new [PgMoney] by passing the [double] to [BigDecimal.fromDouble] and constructing
      * the [Long] value needed from that [BigDecimal].
      */
-    constructor(double: Double) : this(BigDecimal.fromDouble(double))
+    public constructor(double: Double) : this(BigDecimal.fromDouble(double))
 
     /**
      * Create a new [PgMoney] by converting the [decimal] value to a 2 scale [BigDecimal],
@@ -32,7 +32,7 @@ class PgMoney internal constructor(internal val integer: Long) {
      *
      * @throws IllegalArgumentException if the [decimal] value has a [BigDecimal.scale] > 2
      */
-    constructor(
+    public constructor(
         decimal: BigDecimal
     ) : this(
         when (decimal.traditionalScale) {
@@ -79,9 +79,9 @@ class PgMoney internal constructor(internal val integer: Long) {
         }
     }
 
-    operator fun plus(other: PgMoney): PgMoney = PgMoney(this.integer + other.integer)
+    public operator fun plus(other: PgMoney): PgMoney = PgMoney(this.integer + other.integer)
 
-    operator fun minus(other: PgMoney): PgMoney = PgMoney(this.integer - other.integer)
+    public operator fun minus(other: PgMoney): PgMoney = PgMoney(this.integer - other.integer)
 
     override fun equals(other: Any?): Boolean {
         if (other !is PgMoney) {
@@ -94,7 +94,7 @@ class PgMoney internal constructor(internal val integer: Long) {
 
     override fun toString(): String = strRep
 
-    companion object : KSerializer<PgMoney> {
+    public companion object : KSerializer<PgMoney> {
         private val MONEY_REGEX = Regex("^-?\\$?\\d+(.\\d{1,2})?$")
 
         override val descriptor: SerialDescriptor =
@@ -114,7 +114,7 @@ class PgMoney internal constructor(internal val integer: Long) {
          * @throws IllegalArgumentException if the [String] value provided does not match the money
          *   regex defined as '^-?\$?\d+(.\d{1,2})?$'
          */
-        fun fromString(strMoney: String): PgMoney {
+        public fun fromString(strMoney: String): PgMoney {
             require(strMoney.matches(MONEY_REGEX)) {
                 """
                 String supplied to PgMoney does not match the required pattern

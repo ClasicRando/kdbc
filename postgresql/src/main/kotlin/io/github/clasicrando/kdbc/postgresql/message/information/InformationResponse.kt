@@ -7,52 +7,52 @@ package io.github.clasicrando.kdbc.postgresql.message.information
  * described [here](https://www.postgresql.org/docs/current/protocol-error-fields.html).
  */
 @Suppress("MemberVisibilityCanBePrivate")
-class InformationResponse
+public class InformationResponse
 internal constructor(
     /** Severity of the message */
-    val severity: Severity,
+    public val severity: Severity,
     /** SQLSTATE code of the message */
-    val code: SqlState,
+    public val code: SqlState,
     /** Human-readable version of the message */
-    val message: String,
+    public val message: String,
     /** Optional extra details along with the message */
-    val detail: String?,
+    public val detail: String?,
     /** Optional suggestion about the problem */
-    val hint: String?,
+    public val hint: String?,
     /** Error cursor position within the original query string. Index is character not bytes */
-    val position: Int?,
+    public val position: Int?,
     /**
      * [Pair] where the first value is the error cursor position within the internal command and the
      * second value is the internal command's query (e.g. the SQL query within a PL/pgsql function).
      */
-    val internalQueryData: Pair<Int, String>?,
+    public val internalQueryData: Pair<Int, String>?,
     /**
      * Call stack traceback of the active procedural language function or internal-generated query
      */
-    val where: String?,
+    public val where: String?,
     /**
      * If the message is associated with a specific database object, this is the name of the schema
      * containing the object
      */
-    val schemaName: String?,
+    public val schemaName: String?,
     /**
      * If the message is associated with a specific database table, this is the name of the table
      */
-    val tableName: String?,
+    public val tableName: String?,
     /** If the message is associated with a specific table column, this is the name of the column */
-    val columnName: String?,
+    public val columnName: String?,
     /** If the message is associated with a specific data type, this is the name of the data type */
-    val dataTypeName: String?,
+    public val dataTypeName: String?,
     /**
      * If the message is associated with a specific constraint, this is the name of the constraint
      */
-    val constraintName: String?,
+    public val constraintName: String?,
     /** The file name of the source code where the error was reported */
-    val file: String?,
+    public val file: String?,
     /** The line number of the source code where the error was reported */
-    val line: Int?,
+    public val line: Int?,
     /** THe name of the source code routine reporting the error */
-    val routine: String?,
+    public val routine: String?,
 ) {
     /**
      * Construct a new [InformationResponse] using the [fields] [Map] to populate each field.
@@ -113,7 +113,7 @@ internal constructor(
             .trimIndent()
     }
 
-    companion object {
+    private companion object {
         private const val SEVERITY = 'S'.code.toByte()
         private const val SEVERITY2 = 'V'.code.toByte()
         private const val CODE = 'C'.code.toByte()

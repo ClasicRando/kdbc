@@ -20,7 +20,10 @@ import kotlinx.io.Sink
  *
  * @throws IllegalStateException if the number of bytes written exceeds [Int.MAX_VALUE]
  */
-inline fun Sink.writeLengthPrefixedInt(includeLength: Boolean = false, block: Sink.() -> Unit) {
+internal inline fun Sink.writeLengthPrefixed(
+    includeLength: Boolean = false,
+    block: Sink.() -> Unit,
+) {
     val tempBuffer = Buffer()
     block(tempBuffer)
     val length = tempBuffer.size + if (includeLength) 4 else 0

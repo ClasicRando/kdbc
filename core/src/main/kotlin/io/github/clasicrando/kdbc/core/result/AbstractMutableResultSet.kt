@@ -10,8 +10,8 @@ import io.github.clasicrando.kdbc.core.column.ColumnMetadata
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
-    val columnMapping: List<C>
+public abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
+    public val columnMapping: List<C>
 ) : ResultSet {
     final override val rowCount: Int
         get() = backingList.size
@@ -26,7 +26,7 @@ abstract class AbstractMutableResultSet<R : DataRow, C : ColumnMetadata>(
     }
 
     /** Add a new [row] to the end of this [ResultSet] */
-    fun addRow(row: R) {
+    public fun addRow(row: R) {
         backingList.add(row)
     }
 

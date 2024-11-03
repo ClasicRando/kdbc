@@ -5,7 +5,7 @@ package io.github.clasicrando.kdbc.core.message
  * packing into a single buffer when attempting to send multiple sequential messages without waiting
  * for each message to be pushed to the server.
  */
-interface SizedMessage {
+public interface SizedMessage {
     /** Total size of the message in bytes */
-    val size: Int
+    public val size: Int
 }

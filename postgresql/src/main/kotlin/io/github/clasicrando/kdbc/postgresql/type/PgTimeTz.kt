@@ -8,7 +8,7 @@ import kotlinx.datetime.UtcOffset
  * Postgresql specific `time with time zone` type. Stores the [time] and timezone [offset] of the
  * value.
  */
-data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
+public data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
     override fun toString(): String {
         return "$time$offset"
     }
@@ -36,7 +36,7 @@ data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
         return result
     }
 
-    companion object {
+    public companion object {
         private const val NANOSECONDS_TO_SECONDS = 10_000_000_000L
 
         /**
@@ -45,7 +45,7 @@ data class PgTimeTz(val time: LocalTime, val offset: UtcOffset) {
          *
          * @throws io.github.clasicrando.kdbc.core.datetime.InvalidDateString
          */
-        fun fromString(value: String): PgTimeTz {
+        public fun fromString(value: String): PgTimeTz {
             return PgTimeTz(
                 time = LocalTime.tryFromString(value),
                 offset = UtcOffset.tryFromString(value),

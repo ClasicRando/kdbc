@@ -7,14 +7,14 @@ package io.github.clasicrando.kdbc.postgresql.type
  *
  * [docs](https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-POLYGON)
  */
-data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) : PgGeometryType {
-    constructor(points: List<PgPoint>) : this(makeBoundBox(points), points)
+public data class PgPolygon(val boundBox: PgBox, val points: List<PgPoint>) : PgGeometryType {
+    public constructor(points: List<PgPoint>) : this(makeBoundBox(points), points)
 
     override val postGisLiteral: String
         get() = "(${points.joinToString(separator = ",") { it.postGisLiteral }})"
 
-    companion object {
-        fun makeBoundBox(points: List<PgPoint>): PgBox {
+    public companion object {
+        public fun makeBoundBox(points: List<PgPoint>): PgBox {
             require(points.isNotEmpty()) { "Cannot make bounding box for polygon with no points" }
             var x1 = points[0].x
             var x2 = points[0].x

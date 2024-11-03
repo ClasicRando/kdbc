@@ -29,7 +29,7 @@ private val logger = KotlinLogging.logger {}
  * - look into an algorithm to close connections after a certain duration stored within the
  *   [connections] channel, down to the [PoolOptions.minConnections] threshold
  */
-abstract class AbstractDefaultConnectionPool<C : Connection>(
+public abstract class AbstractDefaultConnectionPool<C : Connection>(
     private val poolOptions: PoolOptions,
     private val provider: ConnectionProvider<C>,
 ) : ConnectionPool<C> {
@@ -60,7 +60,7 @@ abstract class AbstractDefaultConnectionPool<C : Connection>(
      * Database specific method to dispose of a [connection] when the connection is no longer valid
      * or the pool no longer needs to [connection].
      */
-    abstract suspend fun disposeConnection(connection: C)
+    public abstract suspend fun disposeConnection(connection: C)
 
     /**
      * Invalidate a [connection] from the pool by moving the [Connection] out of the pool's

@@ -18,14 +18,16 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
+import kotlin.time.Duration
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Sink
-import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
-class KtorStream(private val address: SocketAddress, private val selectorManager: SelectorManager) :
-    DefaultUniqueResourceId(), Stream {
+public class KtorStream(
+    private val address: SocketAddress,
+    private val selectorManager: SelectorManager,
+) : DefaultUniqueResourceId(), Stream {
     private lateinit var connection: Connection
     private lateinit var socket: Socket
     private lateinit var writeChannel: ByteWriteChannel

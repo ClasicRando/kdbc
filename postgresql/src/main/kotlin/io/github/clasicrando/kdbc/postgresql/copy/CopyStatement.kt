@@ -8,18 +8,18 @@ import io.github.clasicrando.kdbc.core.quoteIdentifier
  * Most of the parameter descriptions were taken from the Postgresql docs if they represent the
  * exact option or query component.
  */
-sealed interface CopyStatement {
+public sealed interface CopyStatement {
     /** Specifies the data format to be read or written. Default is [CopyFormat.Text] */
-    val format: CopyFormat
+    public val format: CopyFormat
 
-    fun toQuery(): String
+    public fun toQuery(): String
 
-    interface CopyText {
+    public interface CopyText {
         /**
          * Specifies the character that separates columns within each row of the file. The default
          * character is tab when in [CopyFormat.Text] and comma when [CopyFormat.CSV].
          */
-        val delimiter: Char
+        public val delimiter: Char
 
         /**
          * Specifies the string that represents a null value. The default is "\N" (backslash-N) in
@@ -27,14 +27,14 @@ sealed interface CopyStatement {
          * prefer an empty string even in text format for cases where you don't want to distinguish
          * nulls from empty strings
          */
-        val nullString: String
+        public val nullString: String
 
         /**
          * Specifies the string that represents a default value. Each time the string is found in
          * the input file, the default value of the corresponding column will be used. This option
          * is ignored unless the type is [From].
          */
-        val default: String?
+        public val default: String?
 
         /**
          * Specifies that the file contains a header line with the names of each column in the file.
@@ -44,52 +44,52 @@ sealed interface CopyStatement {
          * actual column names of the table, in order; otherwise an error is raised. This option is
          * ignored when [CopyFormat.Binary]. The [CopyHeader.MATCH] option is only valid for [From].
          */
-        val header: CopyHeader?
+        public val header: CopyHeader?
     }
 
-    interface CopyCsv : CopyText {
+    public interface CopyCsv : CopyText {
         /**
          * Specifies the quoting character to be used when a data value is quoted. The default is
          * double-quote. This must be a single one-byte character.
          */
-        val quote: Char
+        public val quote: Char
 
         /**
          * Specifies the character that should appear before a data character that matches the
          * [quote] value. The default is the same as the [quote] value (so that the quoting
          * character is doubled if it appears in the data).
          */
-        val escape: Char
+        public val escape: Char
     }
 
-    interface CopyQuery {
+    public interface CopyQuery {
         /** SQL query to be executed as the supplier of the records in the COPY TO operation */
-        val query: String
+        public val query: String
     }
 
-    interface CopyTable {
+    public interface CopyTable {
         /** Schema of the target table */
-        val schemaName: String
+        public val schemaName: String
 
         /** Target table of the COPY operation. Must already exist */
-        val tableName: String
+        public val tableName: String
 
         /**
          * Optional [List] of column names that will be copied. If no column list is specified then
          * all columns of the table except for the generated columns will be copied.
          */
-        val columnNames: List<String>
+        public val columnNames: List<String>
     }
 
-    sealed interface To : CopyStatement
+    public sealed interface To : CopyStatement
 
-    sealed interface From : CopyStatement
+    public sealed interface From : CopyStatement
 
     /**
      * [CopyStatement] implementation for copying to STDOUT as CSV data extracted from the query
      * specified.
      */
-    data class QueryToCsv(
+    public data class QueryToCsv(
         override val query: String,
         override val delimiter: Char = ',',
         override val nullString: String = "",
@@ -119,7 +119,7 @@ sealed interface CopyStatement {
      * [CopyStatement] implementation for copying to STDOUT as CSV data extracted from the table
      * specified.
      */
-    data class TableToCsv(
+    public data class TableToCsv(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -152,7 +152,7 @@ sealed interface CopyStatement {
      * [CopyStatement] implementation for copying to STDOUT as text delimited data extracted from
      * the query specified.
      */
-    data class QueryToText(
+    public data class QueryToText(
         override val query: String,
         override val delimiter: Char = '\t',
         override val nullString: String = "\\N",
@@ -171,7 +171,7 @@ sealed interface CopyStatement {
      * [CopyStatement] implementation for copying to STDOUT as text delimited data extracted from
      * the table specified.
      */
-    data class TableToText(
+    public data class TableToText(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -199,7 +199,7 @@ sealed interface CopyStatement {
      * [CopyStatement] implementation for copying to STDOUT as binary data extracted from the query
      * specified.
      */
-    data class QueryToBinary(override val query: String) : To, CopyQuery {
+    public data class QueryToBinary(override val query: String) : To, CopyQuery {
         override val format: CopyFormat = CopyFormat.Binary
 
         override fun toQuery(): String = buildString {
@@ -211,7 +211,7 @@ sealed interface CopyStatement {
      * [CopyStatement] implementation for copying to STDOUT as binary data extracted from the table
      * specified.
      */
-    data class TableToBinary(
+    public data class TableToBinary(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -233,7 +233,7 @@ sealed interface CopyStatement {
     /**
      * [CopyStatement] implementation for copying from STDIN as CSV data into the table specified
      */
-    data class TableFromCsv(
+    public data class TableFromCsv(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -282,7 +282,7 @@ sealed interface CopyStatement {
      * [CopyStatement] implementation for copying from STDIN as text delimited into the table
      * specified
      */
-    data class TableFromText(
+    public data class TableFromText(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -309,7 +309,7 @@ sealed interface CopyStatement {
     /**
      * [CopyStatement] implementation for copying from STDIN as binary data into the table specified
      */
-    data class TableFromBinary(
+    public data class TableFromBinary(
         override val schemaName: String,
         override val tableName: String,
         override val columnNames: List<String> = emptyList(),
@@ -329,7 +329,7 @@ sealed interface CopyStatement {
     }
 }
 
-private fun CopyStatement.CopyCsv.appendCsvOptions(builder: StringBuilder) =
+private fun CopyStatement.CopyCsv.appendCsvOptions(builder: StringBuilder) {
     builder.apply {
         append(" WITH (FORMAT csv")
         if (delimiter == '\'') {
@@ -351,8 +351,9 @@ private fun CopyStatement.CopyCsv.appendCsvOptions(builder: StringBuilder) =
             append(", ESCAPE '").append(escape).append('\'')
         }
     }
+}
 
-private fun CopyStatement.CopyText.appendTextOptions(builder: StringBuilder) =
+private fun CopyStatement.CopyText.appendTextOptions(builder: StringBuilder) {
     builder.apply {
         append(" WITH (FORMAT text")
         if (delimiter == '\'') {
@@ -365,38 +366,4 @@ private fun CopyStatement.CopyText.appendTextOptions(builder: StringBuilder) =
         header?.let { append(", HEADER ").append(it) }
         append(')')
     }
-
-/**
- * Magic header value required at the start a binary COPY operation
- *
- * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
- */
-val pgBinaryCopyHeader =
-    byteArrayOf(
-        'P'.code.toByte(),
-        'G'.code.toByte(),
-        'C'.code.toByte(),
-        'O'.code.toByte(),
-        'P'.code.toByte(),
-        'Y'.code.toByte(),
-        0x0A,
-        -1,
-        0x0D,
-        0x0A,
-        0x00,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-    )
-
-/**
- * Magic trailer value required before the end of a binary COPY operation
- *
- * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
- */
-val pgBinaryCopyTrailer = byteArrayOf(-1, -1)
+}

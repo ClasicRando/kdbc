@@ -21,7 +21,7 @@ private const val RESOURCE_TYPE = "Connection"
  * for a long period of time (e.g. outside the scope of a single method) you should find a way to
  * always close the [Connection].
  */
-interface Connection : UniqueResourceId, AutoCloseableAsync {
+public interface Connection : UniqueResourceId, AutoCloseableAsync {
     override val resourceType: String
         get() = RESOURCE_TYPE
 
@@ -29,28 +29,28 @@ interface Connection : UniqueResourceId, AutoCloseableAsync {
      * Returns true if the underlining connection is still active and false if the connection has
      * been closed or a fatal error has occurred causing the connection to be aborted
      */
-    val isConnected: Boolean
+    public val isConnected: Boolean
 
     /** Returns true if the connection is currently within a transaction */
-    val inTransaction: Boolean
+    public val inTransaction: Boolean
 
     /**
      * Request that the database start a new transaction. This will fail if the [Connection] is
      * already within a transaction.
      */
-    suspend fun begin()
+    public suspend fun begin()
 
     /**
      * Commit the current transaction. This will fail if the [Connection] was not within a
      * transaction
      */
-    suspend fun commit()
+    public suspend fun commit()
 
     /**
      * Rollback the current transaction. This will fail if the [Connection] was not within a
      * transaction
      */
-    suspend fun rollback()
+    public suspend fun rollback()
 
     /**
      * Execute a single [Query] against this connection and returns the zero or more result sets as
@@ -63,7 +63,7 @@ interface Connection : UniqueResourceId, AutoCloseableAsync {
      * server response and will only resume processing results once the server replies so waiting
      * for all the data should not hold back your application given enough concurrency bandwidth.
      */
-    suspend fun executeQuery(query: Query): StatementResult
+    public suspend fun executeQuery(query: Query): StatementResult
 
     /**
      * Execute a zero or more [Query]s against this connection and returns the zero or more result
@@ -84,7 +84,7 @@ interface Connection : UniqueResourceId, AutoCloseableAsync {
      * server response and will only resume processing results once the server replies so waiting
      * for all the data should not hold back your application given enough concurrency bandwidth.
      */
-    suspend fun executeQueryBatch(batch: List<Query>): StatementResult
+    public suspend fun executeQueryBatch(batch: List<Query>): StatementResult
 
     /**
      * Execute a zero or more [Query]s against this connection and returns the zero or more result
@@ -105,7 +105,7 @@ interface Connection : UniqueResourceId, AutoCloseableAsync {
      * server response and will only resume processing results once the server replies so waiting
      * for all the data should not hold back your application given enough concurrency bandwidth.
      */
-    suspend fun executeQueryBatch(vararg batch: Query): StatementResult
+    public suspend fun executeQueryBatch(vararg batch: Query): StatementResult
 }
 
 /**
@@ -115,8 +115,8 @@ interface Connection : UniqueResourceId, AutoCloseableAsync {
  * happens within a [AutoCloseableAsync.use] block so the resources are always cleaned up before
  * returning.
  */
-suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R =
-    try {
+public suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R {
+    return try {
         this.begin()
         val result = block(this)
         commit()
@@ -125,16 +125,15 @@ suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R =
         rollback()
         throw ex
     }
+}
 
 /**
  * Use a [Connection] within the scope of a transaction. This means an implicit [Connection.begin]
  * happens before [block] is called. If no exception is thrown then [Connection.commit] is called,
  * returning the outcome of [block] as a [Result]. Otherwise, [Connection.rollback] is called and
  * the original exception is wrapped into a [Result] and returned. This all happens within a
- * [AutoCloseableAsync.useCatching] block so the resources are always cleaned up before returning
- * and all other exceptions are caught and returned as a [Result].
+ * [runCatching] block so all exceptions are caught and returned as a [Result].
  */
-suspend inline fun <R, C : Connection> C.transactionCatching(block: (C) -> R): Result<R> =
-    runCatching {
-        transaction(block)
-    }
+public suspend inline fun <R, C : Connection> C.transactionCatching(block: (C) -> R): Result<R> {
+    return runCatching { transaction(block) }
+}

@@ -71,7 +71,7 @@ internal object DateTimePeriodTypeDescription :
  * Custom postgres `interval` type for use instead of [DateTimePeriod]. Can be created from a
  * [Duration] but some precision loss and overflow can occur.
  */
-data class PgInterval(val months: Int, val days: Int, val microseconds: Long)
+public data class PgInterval(val months: Int, val days: Int, val microseconds: Long)
 
 /**
  * Convert the duration to a postgres `interval`. Some precision is loss during the conversion if
@@ -79,7 +79,7 @@ data class PgInterval(val months: Int, val days: Int, val microseconds: Long)
  *
  * @throws IllegalStateException if the number of days exceeds [Int.MAX_VALUE]
  */
-fun Duration.toPgInterval(): PgInterval =
+public fun Duration.toPgInterval(): PgInterval =
     this.toComponents { days, hours, minutes, seconds, nanoseconds ->
         check(days <= Int.MAX_VALUE) { "Number of days cannot exceed ${Int.MAX_VALUE}" }
         PgInterval(

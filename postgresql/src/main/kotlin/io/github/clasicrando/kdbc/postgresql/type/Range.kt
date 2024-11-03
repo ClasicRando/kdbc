@@ -3,7 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.type
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.KTypeProjection
@@ -75,17 +75,17 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
 
         when (value.lower) {
             is Bound.Excluded ->
-                buffer.writeLengthPrefixedInt { typeDescription.encode(value.lower.value, this) }
+                buffer.writeLengthPrefixed { typeDescription.encode(value.lower.value, this) }
             is Bound.Included ->
-                buffer.writeLengthPrefixedInt { typeDescription.encode(value.lower.value, this) }
+                buffer.writeLengthPrefixed { typeDescription.encode(value.lower.value, this) }
             is Bound.Unbounded -> {}
         }
 
         when (value.upper) {
             is Bound.Excluded ->
-                buffer.writeLengthPrefixedInt { typeDescription.encode(value.upper.value, this) }
+                buffer.writeLengthPrefixed { typeDescription.encode(value.upper.value, this) }
             is Bound.Included ->
-                buffer.writeLengthPrefixedInt { typeDescription.encode(value.upper.value, this) }
+                buffer.writeLengthPrefixed { typeDescription.encode(value.upper.value, this) }
             is Bound.Unbounded -> {}
         }
     }
@@ -207,7 +207,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
     }
 }
 
-typealias Int8Range = PgRange<Long>
+public typealias Int8Range = PgRange<Long>
 
 /**
  * Implementation of a [PgTypeDescription] for the [Int8Range] type. This maps to the `int8range`
@@ -219,7 +219,7 @@ internal object Int8RangeTypeDescription :
         typeDescription = BigIntTypeDescription,
     )
 
-typealias Int4Range = PgRange<Int>
+public typealias Int4Range = PgRange<Int>
 
 /**
  * Implementation of a [PgTypeDescription] for the [Int4Range] type. This maps to the `int4range`
@@ -228,7 +228,7 @@ typealias Int4Range = PgRange<Int>
 internal object Int4RangeTypeDescription :
     BaseRangeTypeDescription<Int>(pgType = PgType.Int4Range, typeDescription = IntTypeDescription)
 
-typealias TsRange = PgRange<Instant>
+public typealias TsRange = PgRange<Instant>
 
 /**
  * Implementation of a [PgTypeDescription] for the [TsRange] type. This maps to the `tsrange` type
@@ -240,7 +240,7 @@ internal object TsRangeTypeDescription :
         typeDescription = InstantTypeDescription,
     )
 
-typealias JTsRange = PgRange<java.time.LocalDateTime>
+public typealias JTsRange = PgRange<java.time.LocalDateTime>
 
 /**
  * Implementation of a [PgTypeDescription] for the [JTsRange] type. This maps to the `tsrange` type
@@ -252,7 +252,7 @@ internal object JTsRangeTypeDescription :
         typeDescription = LocalDateTimeTypeDescription,
     )
 
-typealias TsTzRange = PgRange<DateTime>
+public typealias TsTzRange = PgRange<DateTime>
 
 /**
  * Implementation of a [PgTypeDescription] for the [TsTzRange] type. This maps to the `tstzrange`
@@ -264,7 +264,7 @@ internal object TsTzRangeTypeDescription :
         typeDescription = DateTimeTypeDescription,
     )
 
-typealias JTsTzRange = PgRange<java.time.OffsetDateTime>
+public typealias JTsTzRange = PgRange<java.time.OffsetDateTime>
 
 /**
  * Implementation of a [PgTypeDescription] for the [JTsTzRange] type. This maps to the `tstzrange`
@@ -276,7 +276,7 @@ internal object JTsTzRangeTypeDescription :
         typeDescription = OffsetDateTimeTypeDescription,
     )
 
-typealias DateRange = PgRange<LocalDate>
+public typealias DateRange = PgRange<LocalDate>
 
 /**
  * Implementation of a [PgTypeDescription] for the [DateRange] type. This maps to the `daterange`
@@ -288,7 +288,7 @@ internal object DateRangeTypeDescription :
         typeDescription = LocalDateTypeDescription,
     )
 
-typealias JDateRange = PgRange<java.time.LocalDate>
+public typealias JDateRange = PgRange<java.time.LocalDate>
 
 /**
  * Implementation of a [PgTypeDescription] for the [JDateRange] type. This maps to the `daterange`
@@ -300,7 +300,7 @@ internal object JDateRangeTypeDescription :
         typeDescription = JLocalDateTypeDescription,
     )
 
-typealias NumRange = PgRange<BigDecimal>
+public typealias NumRange = PgRange<BigDecimal>
 
 /**
  * Implementation of a [PgTypeDescription] for the [NumRange] type. This maps to the `numrange` type
@@ -312,7 +312,7 @@ internal object NumRangeTypeDescription :
         typeDescription = BigDecimalTypeDescription,
     )
 
-typealias JNumRange = PgRange<java.math.BigDecimal>
+public typealias JNumRange = PgRange<java.math.BigDecimal>
 
 /**
  * Implementation of a [PgTypeDescription] for the [JNumRange] type. This maps to the `numrange`

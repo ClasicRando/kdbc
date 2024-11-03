@@ -6,12 +6,12 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 
-sealed interface Bound<T> {
-    data class Included<T>(val value: T) : Bound<T>
+public sealed interface Bound<T> {
+    public data class Included<T>(val value: T) : Bound<T>
 
-    data class Excluded<T>(val value: T) : Bound<T>
+    public data class Excluded<T>(val value: T) : Bound<T>
 
-    class Unbounded<T> : Bound<T> {
+    public class Unbounded<T> : Bound<T> {
         override fun equals(other: Any?): Boolean {
             return other is Unbounded<*>
         }
@@ -26,7 +26,7 @@ sealed interface Bound<T> {
     }
 }
 
-data class PgRange<T : Any>(val lower: Bound<T>, val upper: Bound<T>) {
+public data class PgRange<T : Any>(val lower: Bound<T>, val upper: Bound<T>) {
     val postgresqlLiteral: String by lazy {
         buildString {
             when (lower) {
@@ -56,7 +56,7 @@ data class PgRange<T : Any>(val lower: Bound<T>, val upper: Bound<T>) {
     }
 }
 
-fun PgRange<Int>.toIntRange(): IntRange? {
+public fun PgRange<Int>.toIntRange(): IntRange? {
     val start =
         when (this.lower) {
             is Bound.Excluded -> lower.value + 1
@@ -72,7 +72,7 @@ fun PgRange<Int>.toIntRange(): IntRange? {
     return IntRange(start, endInclusive)
 }
 
-fun PgRange<Long>.toLongRange(): LongRange? {
+public fun PgRange<Long>.toLongRange(): LongRange? {
     val start =
         when (this.lower) {
             is Bound.Excluded -> lower.value + 1
@@ -88,7 +88,7 @@ fun PgRange<Long>.toLongRange(): LongRange? {
     return LongRange(start, endInclusive)
 }
 
-fun PgRange<LocalDate>.toDateRange(): ClosedRange<LocalDate>? {
+public fun PgRange<LocalDate>.toDateRange(): ClosedRange<LocalDate>? {
     val startDate =
         when (this.lower) {
             is Bound.Excluded -> lower.value.plus(1, DateTimeUnit.DAY)
@@ -117,7 +117,7 @@ fun PgRange<LocalDate>.toDateRange(): ClosedRange<LocalDate>? {
     }
 }
 
-fun PgRange<java.time.LocalDate>.toJDateRange(): ClosedRange<java.time.LocalDate>? {
+public fun PgRange<java.time.LocalDate>.toJDateRange(): ClosedRange<java.time.LocalDate>? {
     val startDate =
         when (this.lower) {
             is Bound.Excluded -> lower.value.plus(1, ChronoUnit.DAYS)

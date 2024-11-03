@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixedInt
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.KTypeProjection
@@ -21,7 +21,7 @@ private val dummyFieldDescription =
         formatCode = 1,
     )
 
-fun <T : Any> createArrayDescriptions(
+internal fun <T : Any> createArrayDescriptions(
     pgType: PgType,
     innerType: PgTypeDescription<T>,
 ): Array<PgTypeDescription<*>> =
@@ -84,7 +84,7 @@ internal abstract class ArrayTypeDescription<T : Any>(
                 buffer.writeByte(-1)
                 continue
             }
-            buffer.writeLengthPrefixedInt { innerType.encode(item, this) }
+            buffer.writeLengthPrefixed { innerType.encode(item, this) }
         }
     }
 

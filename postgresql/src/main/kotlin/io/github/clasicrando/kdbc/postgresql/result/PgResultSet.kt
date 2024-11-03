@@ -33,11 +33,7 @@ internal class PgResultSet(
             }
 
         val row =
-            PgDataRow(
-                pgValues = pgValues,
-                columnMapping = columnMapping,
-                typeCache = typeCache,
-            )
+            PgDataRow(pgValues = pgValues, columnMapping = columnMapping, typeCache = typeCache)
         super.addRow(row)
     }
 }

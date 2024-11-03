@@ -16,11 +16,11 @@ private val logger = KotlinLogging.logger {}
  * [ConnectionPool] for the supplied connect options, a new pool will be created, stored, and the
  * first [Connection] will be acquired.
  */
-abstract class BasePoolManager<O : Any, C : Connection> {
+public abstract class BasePoolManager<O : Any, C : Connection> {
     private val connectionPools: MutableMap<O, ConnectionPool<C>> = AtomicMutableMap()
 
     /** Vendor specific method to create a [ConnectionPool] using the [options] provided */
-    abstract fun createPool(options: O): ConnectionPool<C>
+    public abstract fun createPool(options: O): ConnectionPool<C>
 
     /**
      * Acquire the next available connection for the specified [connectOptions]. This will call
@@ -28,7 +28,7 @@ abstract class BasePoolManager<O : Any, C : Connection> {
      * provided. If a [ConnectionPool] has not already been created, a new pool is added to the
      * [ConnectionPool] collection before calling [ConnectionPool.acquire].
      */
-    suspend fun acquireConnection(connectOptions: O): C {
+    public suspend fun acquireConnection(connectOptions: O): C {
         return connectionPools
             .getOrPut(connectOptions) {
                 val pool = createPool(connectOptions)
@@ -45,7 +45,7 @@ abstract class BasePoolManager<O : Any, C : Connection> {
     }
 
     /** Close all pools associated with this pool manager */
-    suspend fun closeAllPools() {
+    public suspend fun closeAllPools() {
         for ((_, pool) in connectionPools) {
             pool.close()
         }

@@ -2,12 +2,12 @@ package io.github.clasicrando.kdbc.core.type
 
 import kotlin.reflect.KType
 
-interface DbType<T : Any, in V : Any, D : Any> : Encode<T>, Decode<T, V> {
-    val dbType: D
+public interface DbType<T : Any, in V : Any, D : Any> : Encode<T>, Decode<T, V> {
+    public val dbType: D
 
-    val kType: KType
+    public val kType: KType
 
-    fun isCompatible(dbType: D): Boolean
+    public fun isCompatible(dbType: D): Boolean
 
-    fun getActualType(value: T): D
+    public fun getActualType(value: T): D
 }

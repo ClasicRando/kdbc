@@ -80,11 +80,12 @@ internal class CopyOutCollector(
      * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row, the
      * first 19 bytes should be ignored since they are the binary copy's file header.
      */
-    private fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer =
-        when {
+    private fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer {
+        return when {
             rowCount == 1L -> ByteReadBuffer(row.copyOfRange(fromIndex = 19, toIndex = row.size))
             else -> ByteReadBuffer(row)
         }
+    }
 
     /**
      * Uses the [inputStream], [fields] and text data config details to parse and populate the

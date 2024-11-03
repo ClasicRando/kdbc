@@ -12,19 +12,19 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.io.Source
 
-const val ZERO_BYTE: Byte = 0
+public const val ZERO_BYTE: Byte = 0
 
 /**
  * Sealed class representing the loop control flow statements. These can be used when a lambda is
  * passed to a method that invokes the lambda within a loop. This allows the lambda to control the
  * outer loop inside nested function calls
  */
-sealed interface Loop {
-    data object Noop : Loop
+public sealed interface Loop {
+    public data object Noop : Loop
 
-    data object Continue : Loop
+    public data object Continue : Loop
 
-    data object Break : Loop
+    public data object Break : Loop
 }
 
 /**
@@ -32,7 +32,7 @@ sealed interface Loop {
  * using the event builder set up using the [block]. This makes each event include the
  * [resourceId][UniqueResourceId.resourceId] in each event as a key value pair.
  */
-inline fun UniqueResourceId.logWithResource(
+public inline fun UniqueResourceId.logWithResource(
     logger: KLogger,
     level: Level,
     crossinline block: KLoggingEventBuilder.() -> Unit,
@@ -53,16 +53,17 @@ inline fun UniqueResourceId.logWithResource(
  * string). This splits by a [ZERO_BYTE] and maps each chunk into string containing each [Byte] as
  * its ascii equivalent.
  */
-fun ByteArray.splitAsCString(): List<String> =
-    this.splitBy(ZERO_BYTE)
+public fun ByteArray.splitAsCString(): List<String> {
+    return this.splitBy(ZERO_BYTE)
         .map { chunk -> chunk.map { it.toInt().toChar() }.joinToString(separator = "") }
         .toList()
+}
 
 /**
  * Return a [Sequence] generator that yields 1 or more chunks of the [ByteArray], splitting by the
  * [separator] value specified.
  */
-fun ByteArray.splitBy(separator: Byte): Sequence<Sequence<Byte>> = sequence {
+public fun ByteArray.splitBy(separator: Byte): Sequence<Sequence<Byte>> = sequence {
     var index = 0
     while (index < this@splitBy.lastIndex) {
         yield(
@@ -80,7 +81,7 @@ fun ByteArray.splitBy(separator: Byte): Sequence<Sequence<Byte>> = sequence {
  * Call [reduceOrNull] on a [List] of [Throwable] items, aggregating to a single [Throwable] where
  * every [Throwable] after the first is added the first as a suppressed exception.
  */
-fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
+public fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
     if (this.isEmpty()) {
         return null
     }
@@ -92,9 +93,9 @@ fun List<Throwable>.reduceToSingleOrNull(): Throwable? {
 }
 
 /** Wrap the [String] as if the value was a SQL identifier */
-fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""
+public fun String.quoteIdentifier(): String = "\"${this.replace("\"", "\"\"")}\""
 
-fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration.ZERO
+public fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration.ZERO
 
 /**
  * Chunk a [Flow] of [T] into a [Flow] of [List] of [T]. This collects the original [Flow] and
@@ -102,7 +103,7 @@ fun Duration.isZeroOrInfinite(): Boolean = this.isInfinite() || this == Duration
  * Every item will be the [size] specified except for the final item which will be at most the
  * [size] specified due to the dynamic size of the original [Flow].
  */
-fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> = flow {
+public fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> = flow {
     val buffer = ArrayList<T>(size)
     this@chunked.collect {
         buffer.add(it)
@@ -122,13 +123,15 @@ private const val DEFAULT_BUFFER_SIZE = 2048
  * Chunk a [Source] into many [ByteArray]s with at most [size] bytes in each array. The final array
  * might have less than [size] if the total number of bytes is not equally divisible by [size].
  */
-fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> = generateSequence {
-    val bytes = ByteArray(size)
-    when (val bytesRead = this.readAtMostTo(bytes)) {
-        -1,
-        0 -> null
-        bytes.size -> bytes
-        else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+public fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> {
+    return generateSequence {
+        val bytes = ByteArray(size)
+        when (val bytesRead = this.readAtMostTo(bytes)) {
+            -1,
+            0 -> null
+            bytes.size -> bytes
+            else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
+        }
     }
 }
 
@@ -137,8 +140,8 @@ fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> = 
  * array might have less than [size] if the total number of bytes is not equally divisible by
  * [size].
  */
-fun InputStream.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> =
-    generateSequence {
+public fun InputStream.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> {
+    return generateSequence {
         val bytes = ByteArray(size)
         when (val bytesRead = this.read(bytes)) {
             -1,
@@ -147,6 +150,7 @@ fun InputStream.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArra
             else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
         }
     }
+}
 
 /**
  * Get the traditional scale of the [BigDecimal] by taking the number of digits after the decimal
@@ -158,7 +162,7 @@ fun InputStream.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArra
  * which calculates the traditional scale as 4 (i.e. the number of digits after the true decimal
  * place).
  */
-inline val BigDecimal.traditionalScale: Long
+public inline val BigDecimal.traditionalScale: Long
     get() = significand.numberOfDecimalDigits() - 1 - exponent
 
 /**
@@ -171,11 +175,12 @@ inline val BigDecimal.traditionalScale: Long
  * is calculated because the number of digits after the eventual simplified representation is 8 and
  * the [scale] is 4 so the effective exponent in the simplified representation is 4.
  */
-fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal =
-    BigDecimal.fromBigIntegerWithExponent(
+public fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal {
+    return BigDecimal.fromBigIntegerWithExponent(
         bigInteger = this,
         exponent = this.numberOfDecimalDigits() - 1 - scale,
     )
+}
 
 /**
  * Utility method to convert a [java.math.BigInteger] to a BigNum [BigInteger].
@@ -183,8 +188,8 @@ fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal =
  * Uses the [java.math.BigInteger.toByteArray] method to get the raw data of the integer value and
  * use that along with the [java.math.BigInteger.signum] value to construct a [BigInteger].
  */
-fun java.math.BigInteger.toBigNum(): BigInteger =
-    BigInteger.fromByteArray(
+public fun java.math.BigInteger.toBigNum(): BigInteger {
+    return BigInteger.fromByteArray(
         this.toByteArray(),
         when (val sigNum = this.signum()) {
             -1 -> Sign.NEGATIVE
@@ -193,6 +198,7 @@ fun java.math.BigInteger.toBigNum(): BigInteger =
             else -> error("Unexpected BigInteger.signum(). Expected -1..1, found $sigNum")
         },
     )
+}
 
 /**
  * Utility method to convert a [java.math.BigDecimal] to a BigNum [BigDecimal].
@@ -200,8 +206,9 @@ fun java.math.BigInteger.toBigNum(): BigInteger =
  * Uses [toBigNum] to convert the unscaled version of this decimal value to a [BigInteger], the uses
  * the scale to call [toBigDecimalWithTraditionalScale].
  */
-fun java.math.BigDecimal.toBigNum(): BigDecimal =
-    this.unscaledValue().toBigNum().toBigDecimalWithTraditionalScale(this.scale().toShort())
+public fun java.math.BigDecimal.toBigNum(): BigDecimal {
+    return this.unscaledValue().toBigNum().toBigDecimalWithTraditionalScale(this.scale().toShort())
+}
 
 /**
  * Utility method to replace all whitespace 1 or more times with a single space.
@@ -212,6 +219,6 @@ fun java.math.BigDecimal.toBigNum(): BigDecimal =
  * string.replace(Regex("\\s+"), "")
  * ```
  */
-fun String.normalizeWhitespace(): String = this.replace(Regex("\\s+"), "")
+public fun String.normalizeWhitespace(): String = this.replace(Regex("\\s+"), "")
 
-const val DEFAULT_KDBC_TEST_TIMEOUT = 60L
+public const val DEFAULT_KDBC_TEST_TIMEOUT: Long = 60L

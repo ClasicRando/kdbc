@@ -5,7 +5,7 @@ import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 /** Exception thrown when a value cannot be decoded properly by the specified decoder */
-class ColumnDecodeError(
+public class ColumnDecodeError(
     dataType: Int,
     typeName: String,
     columnName: String,
@@ -22,7 +22,7 @@ class ColumnDecodeError(
     )
 
 /** Throw a [ColumnDecodeError] for the [kType] with the [type] */
-fun columnDecodeError(
+public fun columnDecodeError(
     kType: KType,
     type: ColumnMetadata,
     reason: String = "",
@@ -39,7 +39,7 @@ fun columnDecodeError(
 }
 
 /** Throw a [ColumnDecodeError] for the type [T] with the [type] */
-inline fun <reified T> columnDecodeError(
+public inline fun <reified T> columnDecodeError(
     type: ColumnMetadata,
     reason: String = "",
     cause: Throwable? = null,
@@ -55,10 +55,10 @@ inline fun <reified T> columnDecodeError(
 }
 
 /** Evaluate the [check] parameter and if it's false throw a [ColumnDecodeError] */
-inline fun <reified T> checkOrColumnDecodeError(
+public inline fun <reified T> checkOrColumnDecodeError(
     check: Boolean,
     type: ColumnMetadata,
-    reason: () -> String = { "" },
+    crossinline reason: () -> String = { "" },
 ) {
     if (!check) {
         columnDecodeError<T>(type = type, reason = reason())
@@ -66,11 +66,11 @@ inline fun <reified T> checkOrColumnDecodeError(
 }
 
 /** Evaluate the [check] parameter and if it's false throw a [ColumnDecodeError] */
-inline fun checkOrColumnDecodeError(
+public inline fun checkOrColumnDecodeError(
     check: Boolean,
     kType: KType,
     type: ColumnMetadata,
-    reason: () -> String,
+    crossinline reason: () -> String,
 ) {
     if (!check) {
         val text = reason()

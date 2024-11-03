@@ -15,7 +15,7 @@ import kotlinx.atomicfu.update
  *   the time of iteration. If you need that consistency, you should use a suspending mutex backed
  *   [Map].
  */
-class AtomicMutableMap<K, V>(initial: Map<K, V> = emptyMap()) : MutableMap<K, V> {
+public class AtomicMutableMap<K, V>(initial: Map<K, V> = emptyMap()) : MutableMap<K, V> {
     private val inner: AtomicRef<Map<K, V>> = atomic(initial)
 
     /**

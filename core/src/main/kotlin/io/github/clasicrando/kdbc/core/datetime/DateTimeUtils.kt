@@ -9,7 +9,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
 
 /** Exception thrown when a string cannot be converted to the required date type */
-class InvalidDateString(value: String, cls: KClass<*>) :
+public class InvalidDateString(value: String, cls: KClass<*>) :
     Throwable("Cannot parse date string, '$value', into $cls")
 
 /**
@@ -17,7 +17,7 @@ class InvalidDateString(value: String, cls: KClass<*>) :
  *
  * @throws InvalidDateString if the conversion fails
  */
-fun LocalDate.Companion.tryFromString(value: String): LocalDate {
+public fun LocalDate.Companion.tryFromString(value: String): LocalDate {
     return try {
         parse(value)
     } catch (_: IllegalArgumentException) {
@@ -30,7 +30,7 @@ fun LocalDate.Companion.tryFromString(value: String): LocalDate {
  *
  * @throws InvalidDateString if the conversion fails
  */
-fun LocalDateTime.Companion.tryFromString(value: String): LocalDateTime {
+public fun LocalDateTime.Companion.tryFromString(value: String): LocalDateTime {
     return try {
         val str = value.takeWhile { it != '+' && it != 'Z' }.trim().replace(' ', 'T')
         parse(str)
@@ -44,7 +44,7 @@ fun LocalDateTime.Companion.tryFromString(value: String): LocalDateTime {
  *
  * @throws InvalidDateString if the conversion fails
  */
-fun LocalTime.Companion.tryFromString(value: String): LocalTime {
+public fun LocalTime.Companion.tryFromString(value: String): LocalTime {
     return try {
         val str = value.takeWhile { it != '+' && it != 'Z' }.trim()
         parse(str)
@@ -59,7 +59,7 @@ fun LocalTime.Companion.tryFromString(value: String): LocalTime {
  *
  * @throws InvalidDateString if the conversion fails
  */
-fun Instant.Companion.tryFromString(value: String): Instant {
+public fun Instant.Companion.tryFromString(value: String): Instant {
     return try {
         val str =
             value.trim().replace(oldChar = ' ', newChar = 'T').padEnd(length = 20, padChar = 'Z')
@@ -76,7 +76,7 @@ fun Instant.Companion.tryFromString(value: String): Instant {
  *
  * @throws InvalidDateString if the conversion fails
  */
-fun UtcOffset.Companion.tryFromString(value: String): UtcOffset {
+public fun UtcOffset.Companion.tryFromString(value: String): UtcOffset {
     val timeZoneStr =
         value.dropWhile { it != '+' }.takeIf { it.isNotBlank() } ?: return UtcOffset(0)
     return timeZoneStr.toIntOrNull()?.let { UtcOffset(hours = it) }

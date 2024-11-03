@@ -5,9 +5,11 @@ import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 
 /** Take the next available connection from this pool and use it for a [PgListener] */
-suspend fun PgConnectionPool.listener(): PgListener {
+public suspend fun PgConnectionPool.listener(): PgListener {
     return PgListener(acquire())
 }
 
@@ -15,13 +17,14 @@ suspend fun PgConnectionPool.listener(): PgListener {
  * Dedicated asynchronous listener class for receiving asynchronous [PgNotification]s sent from
  * other connections.
  */
-class PgListener internal constructor(internal val connection: PgConnection) : AutoCloseableAsync {
+public class PgListener internal constructor(internal val connection: PgConnection) :
+    AutoCloseableAsync {
     /**
      * Execute a `LISTEN` command for the specified [channelName]s. Allows the underlining
      * connection to receive notifications sent to this connection's current database. Notifications
      * can be received using the [receiveNotification] method.
      */
-    suspend fun listen(vararg channelName: String) {
+    public suspend fun listen(vararg channelName: String) {
         val query =
             channelName.joinToString(separator = "; LISTEN", prefix = "LISTEN ", postfix = ";") {
                 it.quoteIdentifier()
@@ -33,24 +36,41 @@ class PgListener internal constructor(internal val connection: PgConnection) : A
      * Execute an `UNLISTEN` command for the specified [channelName]. Removes the channel name from
      * channels that the underlining connection will receive notifications from.
      */
-    suspend fun unlisten(channelName: String) {
+    public suspend fun unlisten(channelName: String) {
         val query = "UNLISTEN ${channelName.quoteIdentifier()};"
         connection.sendSimpleQuery(query)
     }
 
-    /** Execute an `UNLISTEN *` command. Disables all notification channels for the underlining */
-    suspend fun unlistenAll() {
+    /**
+     * Execute an `UNLISTEN *` command. Disables all notification channels for the underlining
+     * connection
+     */
+    public suspend fun unlistenAll() {
         connection.sendSimpleQuery("UNLISTEN *;")
     }
 
-    /** Suspends until the next [PgNotification] is available from the connection. */
-    suspend fun receiveNotification(): PgNotification {
+    /**
+     * Receives the next [PgNotification] available from the connection. This function suspends to
+     * wait for a notification unless the connection has a queued notification that it previously
+     * received from the server.
+     */
+    public suspend fun receiveNotification(): PgNotification {
         val result = connection.stream.notifications.tryReceive()
-        check(!result.isClosed) { "Cannot receive from a close channel" }
+        check(!result.isClosed) { "Cannot receive from a closed channel" }
         if (result.isSuccess) {
             return result.getOrNull()!!
         }
         return connection.stream.waitForNotificationOrError()
+    }
+
+    /**
+     * Create a flow wrapper over [receiveNotification] that buffers notifications in a
+     * [channelFlow] for consumption by a downstream collector. The flow is infinite and will only
+     * be stopped when the connection is closed (by the client or server) or the coroutine scope is
+     * cancelled.
+     */
+    public fun getNotifications(): Flow<PgNotification> {
+        return channelFlow { send(this@PgListener.receiveNotification()) }
     }
 
     override suspend fun close() {
