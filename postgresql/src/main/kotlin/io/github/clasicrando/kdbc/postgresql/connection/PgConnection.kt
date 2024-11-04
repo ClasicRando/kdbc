@@ -190,9 +190,9 @@ internal constructor(
     }
 
     /**
-     * Execute the [batch] of prepared queries using the Postgresql query pipelining method. This
-     * allows for sending multiple prepared queries at once to the server, so you do not need to
-     * wait for previous queries to complete to request another result.
+     * Execute the query [batch] provided using the Postgresql query pipelining method. This allows
+     * for sending multiple prepared queries at once to the server, so you do not need to wait for
+     * previous queries to complete to request another result.
      *
      * ```
      * Regular Pipelined
@@ -210,17 +210,18 @@ internal constructor(
      * ```
      *
      * This can reduce server round trips, however there is one limitation to this client's
-     * implementation of query pipelining. Currently, the client takes an isolation approach where
-     * sync messages are sent after each query (instructing an autocommit by the server unless
-     * already in an open transaction) by default. To override this behaviour, allowing all
-     * statements after the failed one to be skipped and all previous statement changes to be rolled
-     * back, change the [syncAll] parameter to false.
-     *
-     * If you are sure each one of your statements do not impact each other and can be handled in
-     * separate transactions, keep the [syncAll] as true and catch exception thrown during query
-     * execution. Alternatively, you can also manually begin a transaction using [begin] and handle
-     * the transaction state of your connection yourself. In that case, any sync message sent to the
-     * server does not cause implicit transactional behaviour.
+     * implementation of query pipelining. The client only has the ability to send a sync message
+     * (instructs the server to autocommit unless the connection is already in an open transaction)
+     * after every query execution or 1 sync message after all queries. The default behaviour is to
+     * send a sync after each message but that can be overridden by settings [syncAll] to false. If
+     * you are sure each one of your statements do not impact each other and can be handled in
+     * separate transactions, keep the [syncAll] as default and catch exception thrown during query
+     * execution. If the queries you are executing are dependent on each other (e.g. inserting to
+     * parent table then child table with a foreign key) then you should override [syncAll] to be
+     * false so after 1 query fails, all subsequent queries are ignored. Alternatively, you can also
+     * manually begin a transaction using [begin] and handle the transaction state of your
+     * connection yourself. In that case, any sync message sent to the server does not cause
+     * implicit transactional behaviour.
      *
      * If you are unsure of how this works or what the implications of pipelining has on your
      * database, you should opt to either send multiple statements in separate calls to
@@ -232,9 +233,9 @@ internal constructor(
     }
 
     /**
-     * Execute the [batch] of prepared queries using the Postgresql query pipelining method. This
-     * allows for sending multiple prepared queries at once to the server, so you do not need to
-     * wait for previous queries to complete to request another result.
+     * Execute the query [batch] provided using the Postgresql query pipelining method. This allows
+     * for sending multiple prepared queries at once to the server, so you do not need to wait for
+     * previous queries to complete to request another result.
      *
      * ```
      * Regular Pipelined
@@ -252,17 +253,18 @@ internal constructor(
      * ```
      *
      * This can reduce server round trips, however there is one limitation to this client's
-     * implementation of query pipelining. Currently, the client takes an isolation approach where
-     * sync messages are sent after each query (instructing an autocommit by the server unless
-     * already in an open transaction) by default. To override this behaviour, allowing all
-     * statements after the failed one to be skipped and all previous statement changes to be rolled
-     * back, change the [syncAll] parameter to false.
-     *
-     * If you are sure each one of your statements do not impact each other and can be handled in
-     * separate transactions, keep the [syncAll] as true and catch exception thrown during query
-     * execution. Alternatively, you can also manually begin a transaction using [begin] and handle
-     * the transaction state of your connection yourself. In that case, any sync message sent to the
-     * server does not cause implicit transactional behaviour.
+     * implementation of query pipelining. The client only has the ability to send a sync message
+     * (instructs the server to autocommit unless the connection is already in an open transaction)
+     * after every query execution or 1 sync message after all queries. The default behaviour is to
+     * send a sync after each message but that can be overridden by settings [syncAll] to false. If
+     * you are sure each one of your statements do not impact each other and can be handled in
+     * separate transactions, keep the [syncAll] as default and catch exception thrown during query
+     * execution. If the queries you are executing are dependent on each other (e.g. inserting to
+     * parent table then child table with a foreign key) then you should override [syncAll] to be
+     * false so after 1 query fails, all subsequent queries are ignored. Alternatively, you can also
+     * manually begin a transaction using [begin] and handle the transaction state of your
+     * connection yourself. In that case, any sync message sent to the server does not cause
+     * implicit transactional behaviour.
      *
      * If you are unsure of how this works or what the implications of pipelining has on your
      * database, you should opt to either send multiple statements in separate calls to
@@ -660,17 +662,18 @@ internal constructor(
      * ```
      *
      * This can reduce server round trips, however there is one limitation to this client's
-     * implementation of query pipelining. Currently, the client takes an all or nothing approach
-     * where sync messages are sent after each query (instructing an autocommit by the server unless
-     * already in an open transaction) by default. To override this behaviour, allowing all
-     * statements after the failed one to be skipped and all previous statement changes to be rolled
-     * back, change the [syncAll] parameter to false.
-     *
-     * If you are sure each one of your statements do not impact each other and can be handled in
+     * implementation of query pipelining. The client only has the ability to send a sync message
+     * (instructs the server to autocommit unless the connection is already in an open transaction)
+     * after every query execution or 1 sync message after all queries. The default behaviour is to
+     * send a sync after each message but that can be overridden by settings [syncAll] to false. If
+     * you are sure each one of your statements do not impact each other and can be handled in
      * separate transactions, keep the [syncAll] as default and catch exception thrown during query
-     * execution. Alternatively, you can also manually begin a transaction using [begin] and handle
-     * the transaction state of your connection yourself. In that case, any sync message sent to the
-     * server does not cause implicit transactional behaviour.
+     * execution. If the queries you are executing are dependent on each other (e.g. inserting to
+     * parent table then child table with a foreign key) then you should override [syncAll] to be
+     * false so after 1 query fails, all subsequent queries are ignored. Alternatively, you can also
+     * manually begin a transaction using [begin] and handle the transaction state of your
+     * connection yourself. In that case, any sync message sent to the server does not cause
+     * implicit transactional behaviour.
      *
      * If you are unsure of how this works or what the implications of pipelining has on your
      * database, you should opt to either send multiple statements in separate calls to
