@@ -1,6 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.listen
 
 import io.github.clasicrando.kdbc.core.AutoCloseableAsync
+import io.github.clasicrando.kdbc.core.query.execute
+import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.quoteIdentifier
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
@@ -25,11 +27,11 @@ public class PgListener internal constructor(internal val connection: PgConnecti
      * can be received using the [receiveNotification] method.
      */
     public suspend fun listen(vararg channelName: String) {
-        val query =
+        val listenQuery =
             channelName.joinToString(separator = "; LISTEN", prefix = "LISTEN ", postfix = ";") {
                 it.quoteIdentifier()
             }
-        connection.sendSimpleQuery(query)
+        query(listenQuery).execute(connection)
     }
 
     /**
@@ -37,8 +39,8 @@ public class PgListener internal constructor(internal val connection: PgConnecti
      * channels that the underlining connection will receive notifications from.
      */
     public suspend fun unlisten(channelName: String) {
-        val query = "UNLISTEN ${channelName.quoteIdentifier()};"
-        connection.sendSimpleQuery(query)
+        val unlistenQuery = "UNLISTEN ${channelName.quoteIdentifier()}"
+        query(unlistenQuery).execute(connection)
     }
 
     /**
@@ -46,7 +48,7 @@ public class PgListener internal constructor(internal val connection: PgConnecti
      * connection
      */
     public suspend fun unlistenAll() {
-        connection.sendSimpleQuery("UNLISTEN *;")
+        query("UNLISTEN *").execute(connection)
     }
 
     /**

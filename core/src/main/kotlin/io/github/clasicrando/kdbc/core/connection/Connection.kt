@@ -2,9 +2,13 @@ package io.github.clasicrando.kdbc.core.connection
 
 import io.github.clasicrando.kdbc.core.AutoCloseableAsync
 import io.github.clasicrando.kdbc.core.UniqueResourceId
+import io.github.clasicrando.kdbc.core.annotations.InternalApi
 import io.github.clasicrando.kdbc.core.query.Query
-import io.github.clasicrando.kdbc.core.result.StatementResult
+import io.github.clasicrando.kdbc.core.result.DataRow
+import io.github.clasicrando.kdbc.core.result.Either
+import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.use
+import kotlinx.coroutines.flow.Flow
 
 private const val RESOURCE_TYPE = "Connection"
 
@@ -54,7 +58,8 @@ public interface Connection : UniqueResourceId, AutoCloseableAsync {
 
     /**
      * Execute a single [Query] against this connection and returns the zero or more result sets as
-     * a single [StatementResult].
+     * a [Flow] of zero or more [DataRow]s followed by a [QueryResult] to indicate the end of the
+     * current result.
      *
      * This sends the query to the database for execution and waits for all results to be sent to
      * the client before returning. Although this may require buffering more resources on the
@@ -63,11 +68,19 @@ public interface Connection : UniqueResourceId, AutoCloseableAsync {
      * server response and will only resume processing results once the server replies so waiting
      * for all the data should not hold back your application given enough concurrency bandwidth.
      */
-    public suspend fun executeQuery(query: Query): StatementResult
+    @InternalApi
+    public suspend fun executeQuery(query: Query): Flow<Either<QueryResult, DataRow>>
 
     /**
-     * Execute a zero or more [Query]s against this connection and returns the zero or more result
-     * sets as a single [StatementResult].
+     * Execute one or more [Query]s against this connection and returns a [Flow] of zero or more
+     * [DataRow]s followed by a [QueryResult] to indicate the end of the current result.
+     *
+     * This sends the queries to the database for execution and waits for all results to be sent to
+     * the client before returning. Although this may require buffering more resources on the
+     * client, it allows the connection state to be more consistent and not require the use of
+     * database cursors to buffer results. The operation is also non-blocking while waiting for the
+     * server response and will only resume processing results once the server replies so waiting
+     * for all the data should not hold back your application given enough concurrency bandwidth.
      *
      * The actual implementation of the batching will vary from driver to driver and will fall back
      * to simple sequential query execution if the database does not support query batching
@@ -76,36 +89,12 @@ public interface Connection : UniqueResourceId, AutoCloseableAsync {
      * around this by manually starting a transaction before executing the batch or consulting the
      * specific driver to see if it permits a custom method that batches queries and handles the
      * entire operation in a single transaction.
-     *
-     * This sends the queries to the database for execution and waits for all results to be sent to
-     * the client before returning. Although this may require buffering more resources on the
-     * client, it allows the connection state to be more consistent and not require the use of
-     * database cursors to buffer results. The operation is also non-blocking while waiting for the
-     * server response and will only resume processing results once the server replies so waiting
-     * for all the data should not hold back your application given enough concurrency bandwidth.
      */
-    public suspend fun executeQueryBatch(batch: List<Query>): StatementResult
-
-    /**
-     * Execute a zero or more [Query]s against this connection and returns the zero or more result
-     * sets as a single [StatementResult].
-     *
-     * The actual implementation of the batching will vary from driver to driver and will fall back
-     * to simple sequential query execution if the database does not support query batching
-     * natively. Also, by default query batches are executed in isolation so if the second query
-     * fails the first query's action will be commited (if it modified the database). You can get
-     * around this by manually starting a transaction before executing the batch or consulting the
-     * specific driver to see if it permits a custom method that batches queries and handles the
-     * entire operation in a single transaction.
-     *
-     * This sends the queries to the database for execution and waits for all results to be sent to
-     * the client before returning. Although this may require buffering more resources on the
-     * client, it allows the connection state to be more consistent and not require the use of
-     * database cursors to buffer results. The operation is also non-blocking while waiting for the
-     * server response and will only resume processing results once the server replies so waiting
-     * for all the data should not hold back your application given enough concurrency bandwidth.
-     */
-    public suspend fun executeQueryBatch(vararg batch: Query): StatementResult
+    @InternalApi
+    public suspend fun executeQueryBatch(
+        batch: List<Query>,
+        withinTransaction: Boolean = false,
+    ): Flow<Either<QueryResult, DataRow>>
 }
 
 /**

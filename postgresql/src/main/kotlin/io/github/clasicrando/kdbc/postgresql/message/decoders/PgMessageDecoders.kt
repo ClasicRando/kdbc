@@ -25,6 +25,7 @@ internal object PgMessageDecoders {
             PgMessage.READY_FOR_QUERY_CODE -> ReadyForQueryDecoder.decode(contents)
             PgMessage.NOTICE_RESPONSE_CODE -> NoticeResponseDecoder.decode(contents)
             PgMessage.DATA_ROW_CODE -> DataRowDecoder.decode(contents)
+            PgMessage.NO_DATA_CODE -> PgMessage.NoData
             PgMessage.COMMAND_COMPLETE_CODE -> CommandCompleteDecoder.decode(contents)
             PgMessage.ROW_DESCRIPTION_CODE -> RowDescriptionDecoder.decode(contents)
             PgMessage.PARSE_COMPLETE_CODE -> PgMessage.ParseComplete

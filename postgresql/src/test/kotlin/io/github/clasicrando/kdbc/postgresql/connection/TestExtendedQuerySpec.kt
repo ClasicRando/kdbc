@@ -6,11 +6,11 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlinx.coroutines.runBlocking
 import kotlin.reflect.typeOf
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlinx.coroutines.runBlocking
 
 class TestExtendedQuerySpec {
     @BeforeTest
@@ -21,17 +21,19 @@ class TestExtendedQuerySpec {
     @Test
     fun `sendExtendedQuery should return 1 result when regular query`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
-            val result =
+            val (results, rowSets) =
                 it.sendExtendedQuery(
                         QUERY_SERIES,
                         listOf(QueryParameter(1, typeOf<Int>()), QueryParameter(10, typeOf<Int>())),
                     )
-                    .toList()
-            assertEquals(1, result.size)
-            val queryResult = result[0]
+                    .collectResults()
+            assertEquals(1, results.size)
+            assertEquals(1, rowSets.size)
+            val queryResult = results[0]
             assertEquals(10, queryResult.rowsAffected)
+            val rows = rowSets[0]
             var rowCount = 0
-            for ((i, row) in queryResult.rows.withIndex()) {
+            for ((i, row) in rows.withIndex()) {
                 rowCount++
                 assertEquals(i + 1, row.getAsNonNull(0))
                 assertEquals("Regular Query", row.getAsNonNull(1))
@@ -51,13 +53,14 @@ class TestExtendedQuerySpec {
                     QueryParameter(param1, typeOf<Int>()),
                     QueryParameter(param2, typeOf<String>()),
                 )
-            val result =
+            val (results, rowSets) =
                 it.sendExtendedQuery("CALL public.test_proc_ext($1::int, $2::text)", params)
-                    .toList()
-            assertEquals(1, result.size)
-            val queryResult = result[0]
+                    .collectResults()
+            assertEquals(1, results.size)
+            assertEquals(1, rowSets.size)
+            val queryResult = results[0]
             assertEquals(0, queryResult.rowsAffected)
-            val rows = queryResult.rows.toList()
+            val rows = rowSets[0]
             assertEquals(1, rows.size)
             assertEquals(param1 + 1, rows[0].getAsNonNull(0))
             assertEquals("$param2,${param1 + 1}", rows[0].getAsNonNull(1))

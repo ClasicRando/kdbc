@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
+import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
+import io.github.clasicrando.kdbc.core.column.ColumnExtractError
 import io.github.clasicrando.kdbc.core.exceptions.EmptyQueryResult
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
@@ -10,12 +12,13 @@ import io.github.clasicrando.kdbc.core.query.fetch
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchFirst
 import io.github.clasicrando.kdbc.core.query.fetchScalar
-import io.github.clasicrando.kdbc.core.query.fetchSingle
+import io.github.clasicrando.kdbc.core.query.fetchOne
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlinx.coroutines.flow.collect
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -53,7 +56,7 @@ class TestQuerySimple {
     fun `execute should succeed when valid query`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
             val query = query("SELECT 1")
-            connection.executeQuery(query)
+            connection.executeQuery(query).collect()
         }
     }
 
@@ -78,10 +81,7 @@ class TestQuerySimple {
     @Test
     fun `fetchScalar should fail when query returns a different type`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
-            val ex =
-                assertThrows<KdbcException> { query("SELECT 1").fetchScalar<List<Int>>(connection) }
-            assertNotNull(ex.message)
-            assertContains(ex.message!!, "Actual column type is not compatible with required type")
+            assertThrows<ColumnDecodeError> { query("SELECT 1").fetchScalar<List<Int>>(connection) }
         }
     }
 
@@ -106,11 +106,11 @@ class TestQuerySimple {
     }
 
     @Test
-    fun `fetchSingle should succeed when valid query with rowparser`(): Unit = runBlocking {
+    fun `fetchOne should succeed when valid query with rowparser`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
             val row =
                 query("SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value")
-                    .fetchSingle(connection, GoodRowParserTest)
+                    .fetchOne(connection, GoodRowParserTest)
             assertNotNull(row)
             assertEquals(INT_VALUE, row.intValue)
             assertEquals(STRING_VALUE, row.stringValue)
@@ -118,7 +118,7 @@ class TestQuerySimple {
     }
 
     @Test
-    fun `fetchSingle should fail when no rows are returned`(): Unit = runBlocking {
+    fun `fetchOne should fail when no rows are returned`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
             val query =
                 query(
@@ -129,23 +129,7 @@ class TestQuerySimple {
                         """
                         .trimIndent()
                 )
-            assertThrows<EmptyQueryResult> { query.fetchSingle(connection, BadRowParserTest) }
-        }
-    }
-
-    @Test
-    fun `fetchSingle should fail when multiple rows are returned`(): Unit = runBlocking {
-        PgConnectionHelper.defaultConnection().use { connection ->
-            val query =
-                query(
-                    """
-                        SELECT *
-                        FROM (SELECT $INT_VALUE int_value, '$STRING_VALUE' string_value) t
-                        CROSS JOIN generate_series(1,2) s
-                        """
-                        .trimIndent()
-                )
-            assertThrows<TooManyRows> { query.fetchSingle(connection, BadRowParserTest) }
+            assertThrows<EmptyQueryResult> { query.fetchOne(connection, BadRowParserTest) }
         }
     }
 
@@ -184,6 +168,7 @@ class TestQuerySimple {
                 )
             val exception =
                 assertThrows<RowParseError> { query.fetchAll(connection, BadRowParserTest2) }
+            exception.printStackTrace()
             val suppressedExceptions = exception.suppressedExceptions
             assertEquals(1, suppressedExceptions.size)
             val suppressedException = suppressedExceptions.first()
@@ -192,10 +177,7 @@ class TestQuerySimple {
                 "Actual exception: $suppressedException",
             )
             assertNotNull(suppressedException.message)
-            assertContains(
-                suppressedException.message!!,
-                "Actual column type is not compatible with required type",
-            )
+            assertContains(suppressedException.message!!, "null")
         }
     }
 
@@ -247,14 +229,14 @@ class TestQuerySimple {
     }
 
     @Test
-    fun `fetchSingle should succeed when valid query with rowparser and parameters`(): Unit =
+    fun `fetchOne should succeed when valid query with rowparser and parameters`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnection().use { connection ->
                 val row =
                     query("SELECT $1 int_value, $2 string_value")
                         .bind(INT_VALUE)
                         .bind(STRING_VALUE)
-                        .fetchSingle(connection, GoodRowParserTest)
+                        .fetchOne(connection, GoodRowParserTest)
                 assertNotNull(row)
                 assertEquals(INT_VALUE, row.intValue)
                 assertEquals(STRING_VALUE, row.stringValue)
@@ -262,7 +244,7 @@ class TestQuerySimple {
         }
 
     @Test
-    fun `fetchSingle should fail when no rows are returned and parameters`(): Unit = runBlocking {
+    fun `fetchOne should fail when no rows are returned and parameters`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use { connection ->
             val query =
                 query(
@@ -275,28 +257,9 @@ class TestQuerySimple {
                     )
                     .bind(INT_VALUE)
                     .bind(STRING_VALUE)
-            assertThrows<EmptyQueryResult> { query.fetchSingle(connection, BadRowParserTest) }
+            assertThrows<EmptyQueryResult> { query.fetchOne(connection, BadRowParserTest) }
         }
     }
-
-    @Test
-    fun `fetchSingle should fail when multiple rows are returned and parameters`(): Unit =
-        runBlocking {
-            PgConnectionHelper.defaultConnection().use { connection ->
-                val query =
-                    query(
-                            """
-                        SELECT *
-                        FROM (SELECT $1 int_value, $2 string_value) t
-                        CROSS JOIN generate_series(1,2) s
-                        """
-                                .trimIndent()
-                        )
-                        .bind(INT_VALUE)
-                        .bind(STRING_VALUE)
-                assertThrows<TooManyRows> { query.fetchSingle(connection, BadRowParserTest) }
-            }
-        }
 
     @Test
     fun `fetchAll should succeed when valid query and row parser and parameters`(): Unit =
@@ -338,6 +301,7 @@ class TestQuerySimple {
                         .bind(STRING_VALUE)
                 val exception =
                     assertThrows<RowParseError> { rows.fetchAll(connection, BadRowParserTest2) }
+                exception.printStackTrace()
                 val suppressedExceptions = exception.suppressedExceptions
                 assertEquals(1, suppressedExceptions.size)
                 val suppressedException = suppressedExceptions.first()
@@ -346,10 +310,7 @@ class TestQuerySimple {
                     "Actual exception: $suppressedException",
                 )
                 assertNotNull(suppressedException.message)
-                assertContains(
-                    suppressedException.message!!,
-                    "Actual column type is not compatible with required type",
-                )
+                assertContains(suppressedException.message!!, "null")
             }
         }
 

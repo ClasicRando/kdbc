@@ -219,6 +219,6 @@ public fun java.math.BigDecimal.toBigNum(): BigDecimal {
  * string.replace(Regex("\\s+"), "")
  * ```
  */
-public fun String.normalizeWhitespace(): String = this.replace(Regex("\\s+"), "")
+public fun String.normalizeWhitespace(): String = this.replace(Regex("\\s+"), " ")
 
 public const val DEFAULT_KDBC_TEST_TIMEOUT: Long = 60L

@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -61,12 +63,40 @@ internal class PgDataRow(
         val typeDescription =
             typeCache.getTypeDescription<Any>(nonNullType)
                 ?: throw KdbcException("Could not find type description for $nonNullType")
-        if (!typeDescription.isCompatible(pgType)) {
-            throw KdbcException(
-                "Actual column type is not compatible with required type. " +
-                    "Actual type: $pgType, Expected type: $nonNullType"
-            )
+        val pgValue = pgValues[index] ?: return null
+        checkOrColumnDecodeError(
+            check = typeDescription.isCompatible(pgType),
+            kType = nonNullType,
+            type = pgValue.typeData
+        ) {
+            "Actual column type is not compatible with required type"
         }
         return decode(index, typeDescription)
+    }
+
+    internal companion object {
+        fun fromBuffer(
+            buffer: ByteReadBuffer,
+            columnMapping: List<PgColumnDescription>,
+            typeCache: PgTypeCache,
+        ): PgDataRow {
+            val count = buffer.readShort()
+            val pgValues =
+                Array(count.toInt()) {
+                    val length = buffer.readInt()
+                    if (length < 0) {
+                        return@Array null
+                    }
+                    val slice = buffer.slice(length)
+                    val columnType = columnMapping[it]
+                    when (val formatCode = columnType.formatCode) {
+                        0.toShort() -> PgValue.Text(slice, columnType)
+                        1.toShort() -> PgValue.Binary(slice, columnType)
+                        else -> error("Invalid format code from row description. Got $formatCode")
+                    }
+                }
+
+            return PgDataRow(pgValues = pgValues, columnMapping = columnMapping, typeCache = typeCache)
+        }
     }
 }

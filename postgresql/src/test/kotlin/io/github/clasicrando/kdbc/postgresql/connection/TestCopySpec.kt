@@ -11,9 +11,6 @@ import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.IOUtils
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
@@ -22,6 +19,9 @@ import kotlinx.io.files.Path
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @EnabledIfEnvironmentVariable(named = "PG_COPY_TEST", matches = "true")
 class TestCopySpec {
@@ -131,7 +131,7 @@ class TestCopySpec {
             var rowIndex = 0
             val copyOutStatement =
                 CopyStatement.TableToCsv(schemaName = "public", tableName = "copy_out_test")
-            it.copyOut(copyOutStatement).rows.forEach { row ->
+            it.copyOut(copyOutStatement).collect { row ->
                 rowIndex++
                 assertEquals(rowIndex, row.getAsNonNull("id"))
                 assertEquals("$rowIndex Value", row.getAsNonNull("text_field"))
@@ -146,7 +146,7 @@ class TestCopySpec {
             var rowIndex = 0
             val copyOutStatement =
                 CopyStatement.QueryToCsv(query = "SELECT * FROM public.copy_out_test")
-            it.copyOut(copyOutStatement).rows.forEach { row ->
+            it.copyOut(copyOutStatement).collect { row ->
                 rowIndex++
                 assertEquals(rowIndex, row.getAsNonNull("id"))
                 assertEquals("$rowIndex Value", row.getAsNonNull("text_field"))
@@ -184,7 +184,7 @@ class TestCopySpec {
             var rowIndex = 0
             val copyOutStatement =
                 CopyStatement.TableToBinary(schemaName = "public", tableName = "copy_out_test")
-            it.copyOut(copyOutStatement).rows.forEach { row ->
+            it.copyOut(copyOutStatement).collect { row ->
                 rowIndex++
                 assertEquals(rowIndex, row.getAsNonNull("id"))
                 assertEquals("$rowIndex Value", row.getAsNonNull("text_field"))
@@ -215,8 +215,8 @@ class TestCopySpec {
         @BeforeAll
         fun setup(): Unit = runBlocking {
             pool.useConnection {
-                it.sendSimpleQuery(CREATE_COPY_TARGET_TABLE)
-                it.sendSimpleQuery(CREATE_COPY_FROM_TABLE)
+                query(CREATE_COPY_TARGET_TABLE).execute(it)
+                query(CREATE_COPY_FROM_TABLE).execute(it)
             }
         }
 

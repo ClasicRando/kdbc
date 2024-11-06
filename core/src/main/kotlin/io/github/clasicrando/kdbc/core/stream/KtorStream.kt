@@ -71,8 +71,11 @@ public class KtorStream(
     @OptIn(InternalAPI::class)
     override suspend fun writeTo(block: suspend (Sink) -> Unit) {
         check(isConnected) { "Cannot write to a stream that is not connected" }
-        block(writeChannel.writeBuffer)
-        writeChannel.flush()
+        try {
+            block(writeChannel.writeBuffer)
+        } finally{
+            writeChannel.flush()
+        }
     }
 
     override suspend fun readByte(): Byte {

@@ -66,7 +66,7 @@ class TestTransaction {
 
         @JvmStatic
         @BeforeAll
-        fun setup(): Unit = runBlocking { pool.useConnection { it.sendSimpleQuery(CREATE_TABLE) } }
+        fun setup(): Unit = runBlocking { pool.useConnection { query(CREATE_TABLE).execute(it) } }
 
         @JvmStatic @AfterAll fun tearDown(): Unit = runBlocking { pool.close() }
     }

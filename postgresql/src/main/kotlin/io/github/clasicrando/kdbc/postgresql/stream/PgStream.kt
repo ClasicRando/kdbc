@@ -97,40 +97,24 @@ internal class PgStream(
      * - [PgMessage.BackendKeyData], should not be received after startup but should be ignored
      * - [PgMessage.NegotiateProtocolVersion], should not be received after startup but should be
      *   ignored
-     *
-     * @throws CancellationException when the coroutine scope cancels this coroutine
      */
-    suspend inline fun processMessageLoop(process: (PgMessage) -> Loop): Result<Unit> {
-        try {
-            while (isConnected) {
-                when (val message = receiveNextServerMessage()) {
-                    is PgMessage.NoticeResponse -> onNotice(message)
-                    is PgMessage.NotificationResponse -> onNotification(message)
-                    is PgMessage.ParameterStatus -> onParameterStatus(message)
-                    is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                    is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
-                    else -> {
-                        when (process(message)) {
-                            Loop.Continue,
-                            Loop.Noop -> continue
-                            Loop.Break -> break
-                        }
+    suspend inline fun processMessageLoop(process: (PgMessage) -> Loop) {
+        while (isConnected) {
+            when (val message = receiveNextServerMessage()) {
+                is PgMessage.NoticeResponse -> onNotice(message)
+                is PgMessage.NotificationResponse -> onNotification(message)
+                is PgMessage.ParameterStatus -> onParameterStatus(message)
+                is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                else -> {
+                    when (process(message)) {
+                        Loop.Continue,
+                        Loop.Noop -> continue
+                        Loop.Break -> break
                     }
                 }
             }
-        } catch (ex: CancellationException) {
-            throw ex
-        } catch (ex: Exception) {
-            return Result.failure(ex)
         }
-        if (!isConnected) {
-            return Result.failure(
-                KdbcException(
-                    "Exited message processing loop because the underlining connection was closed"
-                )
-            )
-        }
-        return Result.success(Unit)
     }
 
     /**

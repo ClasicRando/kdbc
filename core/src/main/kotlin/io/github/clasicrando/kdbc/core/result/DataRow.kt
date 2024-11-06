@@ -1,11 +1,12 @@
 package io.github.clasicrando.kdbc.core.result
 
 import io.github.clasicrando.kdbc.core.column.ColumnExtractError
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 /**
- * Representation of a [ResultSet] row. Allows for fetching of each field's value by index or column
+ * Representation of a result row. Allows for fetching of each field's value by index or column
  * name. Fields can be read multiple times since implementors use the data backing each field in a
  * copy and reset type behaviour.
  *
@@ -65,9 +66,10 @@ public inline fun <reified T : Any> DataRow.getAs(index: Int): T? {
  *
  * @throws IllegalArgumentException if the [index] is out of range of the row
  * @throws ColumnExtractError if the column value cannot be cast to the desired type [T]
+ * @throws NullPointerException if the column value is null
  */
 public inline fun <reified T : Any> DataRow.getAsNonNull(index: Int): T {
-    return getAs(index) ?: throw NullPointerException("Expected non-null field value but got null")
+    return getAs(index) ?: throw KdbcException("Expected non-null field value but got null")
 }
 
 /**
