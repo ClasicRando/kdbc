@@ -131,7 +131,7 @@ class TestCopySpec {
             var rowIndex = 0
             val copyOutStatement =
                 CopyStatement.TableToCsv(schemaName = "public", tableName = "copy_out_test")
-            it.copyOut(copyOutStatement).collect { row ->
+            it.copyOutRows(copyOutStatement).collect { row ->
                 rowIndex++
                 assertEquals(rowIndex, row.getAsNonNull("id"))
                 assertEquals("$rowIndex Value", row.getAsNonNull("text_field"))
@@ -146,7 +146,7 @@ class TestCopySpec {
             var rowIndex = 0
             val copyOutStatement =
                 CopyStatement.QueryToCsv(query = "SELECT * FROM public.copy_out_test")
-            it.copyOut(copyOutStatement).collect { row ->
+            it.copyOutRows(copyOutStatement).collect { row ->
                 rowIndex++
                 assertEquals(rowIndex, row.getAsNonNull("id"))
                 assertEquals("$rowIndex Value", row.getAsNonNull("text_field"))
@@ -184,7 +184,7 @@ class TestCopySpec {
             var rowIndex = 0
             val copyOutStatement =
                 CopyStatement.TableToBinary(schemaName = "public", tableName = "copy_out_test")
-            it.copyOut(copyOutStatement).collect { row ->
+            it.copyOutRows(copyOutStatement).collect { row ->
                 rowIndex++
                 assertEquals(rowIndex, row.getAsNonNull("id"))
                 assertEquals("$rowIndex Value", row.getAsNonNull("text_field"))

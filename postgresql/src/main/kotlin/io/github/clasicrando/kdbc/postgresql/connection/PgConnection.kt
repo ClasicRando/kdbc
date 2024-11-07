@@ -15,13 +15,16 @@ import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.normalizeWhitespace
 import io.github.clasicrando.kdbc.core.query.Query
 import io.github.clasicrando.kdbc.core.query.QueryParameter
+import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
+import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -38,16 +41,17 @@ import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
+import io.github.clasicrando.kdbc.postgresql.type.BaseCompositeTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.CompositeTypeDefinition
+import io.github.clasicrando.kdbc.postgresql.type.EnumTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.PgType
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.ReflectionCompositeTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.typeOf
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.flow.Flow
@@ -66,6 +70,13 @@ import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
 import kotlinx.io.readByteArray
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -563,7 +574,7 @@ internal constructor(
     }
 
     override suspend fun close() {
-        if (!pool.giveBack(this@PgConnection)) {
+        if (!pool.giveBack(this)) {
             dispose()
         }
     }
@@ -765,7 +776,6 @@ internal constructor(
      * the server reverts to regular queries.
      *
      * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.TableFromCsv]
-     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
      */
     public suspend fun copyIn(
         copyInStatement: CopyStatement.TableFromCsv,
@@ -800,14 +810,13 @@ internal constructor(
      * the server reverts to regular queries.
      *
      * @throws IllegalArgumentException if the [copyInStatement] is not [CopyStatement.TableFromCsv]
-     * @throws kotlinx.io.IOException if the file cannot be read due to an IO related issue
      */
     public suspend fun copyIn(
         copyInStatement: CopyStatement.TableFromBinary,
         data: Flow<PgBinaryCopyRow>,
     ): QueryResult {
         val buffer = PgCopyEncodeBuffer(typeCache = typeCache)
-        return copyIn(
+        return this.copyIn(
             copyInStatement = copyInStatement,
             data =
                 flow<ByteArray> {
@@ -842,14 +851,14 @@ internal constructor(
         stream.waitForOrError<PgMessage.CopyOutResponse>()
         pendingReaderForQueryCount++
 
-        return channelFlow {
+        return flow {
             stream.processMessageLoop { message ->
                 when (message) {
                     is PgMessage.ErrorResponse -> {
                         throw GeneralPostgresError(message)
                     }
                     is PgMessage.CopyData -> {
-                        send(message.data)
+                        emit(message.data)
                         Loop.Continue
                     }
                     is PgMessage.CopyDone,
@@ -864,59 +873,25 @@ internal constructor(
         }
     }
 
-    /**
-     * Convert the [Flow] of [ByteArray] into an [InputStream] for text file parsing. This collects
-     * the flow contents into a [Buffer] and wraps it using [Buffer.asInputStream]
-     */
-    private suspend fun Flow<ByteArray>.toDelimitedInputStream(): InputStream {
-        val buffer = Buffer()
-        this.collect { buffer.write(it) }
-        return buffer.asInputStream()
+    public suspend fun copyOut(copyOutStatement: CopyStatement.To): Flow<ByteArray> {
+        checkConnected()
+        return mutex.withLock { copyOutInternal(copyOutStatement.toQuery()) }
     }
 
     /**
-     * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row, the
-     * first 19 bytes should be ignored since they are the binary copy's file header.
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
+     * each row returned from the query to the [sink] supplied
      */
-    private fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer {
-        return when {
-            rowCount == 1L -> ByteReadBuffer(row.copyOfRange(fromIndex = 19, toIndex = row.size))
-            else -> ByteReadBuffer(row)
-        }
+    public suspend fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
+        copyOut(copyOutStatement).collect(sink::write)
     }
 
-    private fun readTextData(
-        inputStream: InputStream,
-        fields: List<PgColumnDescription>,
-        delimiter: Char,
-        quote: Char?,
-        escape: Char?,
-        header: CopyHeader?,
-    ): Flow<DataRow> = channelFlow {
-        var rowCount = 0L
-        csvReader {
-                this.delimiter = delimiter
-                this.quoteChar = quote ?: '\u0000'
-                this.escapeChar = escape ?: '\u0000'
-            }
-            .openAsync(inputStream) {
-                val skip = if (header != null && header != CopyHeader.False) 1 else 0
-                this.readAllAsSequence().drop(skip).forEach { row ->
-                    rowCount++
-                    val dataRow =
-                        PgDataRow(
-                            pgValues =
-                                Array(row.size) { i ->
-                                    val rowData = row[i]
-                                    val fieldData = fields[i]
-                                    PgValue.Text(rowData, fieldData)
-                                },
-                            columnMapping = fields,
-                            typeCache = typeCache,
-                        )
-                    send(dataRow)
-                }
-            }
+    /**
+     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
+     * each row returned from the query to the [outputStream] supplied
+     */
+    public suspend fun copyOut(copyOutStatement: CopyStatement.To, outputStream: OutputStream) {
+        copyOut(copyOutStatement).collect(outputStream::write)
     }
 
     /**
@@ -926,10 +901,7 @@ internal constructor(
      * should always try to process each item as soon as possible or collect the elements into a
      * [List].
      */
-    public suspend fun copyOut(copyOutStatement: CopyStatement.To): Flow<DataRow> {
-        checkConnected()
-
-        val copyQuery = copyOutStatement.toQuery()
+    public suspend fun copyOutRows(copyOutStatement: CopyStatement.To): Flow<DataRow> {
         val fields =
             when (copyOutStatement) {
                 is CopyStatement.CopyTable -> {
@@ -943,7 +915,11 @@ internal constructor(
                 }
                 is CopyStatement.CopyQuery -> {
                     val statement =
-                        mutex.withLock { prepareStatement(copyOutStatement.query, emptyList()) }
+                        mutex.withLock {
+                            val statement = prepareStatement(copyOutStatement.query, emptyList())
+                            releasePreparedStatement(statement)
+                            statement
+                        }
                     statement.resultMetadata
                 }
                 else ->
@@ -952,59 +928,35 @@ internal constructor(
                     )
             }
 
-        return mutex.withLock {
-            var rowCount = 0L
-            val flow = copyOutInternal(copyQuery)
-            when (copyOutStatement) {
-                is CopyStatement.CopyText -> {
-                    val inputStream = flow.toDelimitedInputStream()
-                    readTextData(
-                        inputStream = inputStream,
-                        fields = fields,
-                        delimiter = copyOutStatement.delimiter,
-                        quote = (copyOutStatement as? CopyStatement.CopyCsv)?.quote,
-                        escape = (copyOutStatement as? CopyStatement.CopyCsv)?.escape,
-                        header = copyOutStatement.header,
+        var rowCount = 0L
+        val flow = copyOut(copyOutStatement)
+        return when (copyOutStatement) {
+            is CopyStatement.CopyText -> {
+                val inputStream = convertFlowToDelimitedInputStream(flow)
+                readTextData(
+                    inputStream = inputStream,
+                    fields = fields,
+                    delimiter = copyOutStatement.delimiter,
+                    quote = (copyOutStatement as? CopyStatement.CopyCsv)?.quote,
+                    escape = (copyOutStatement as? CopyStatement.CopyCsv)?.escape,
+                    header = copyOutStatement.header,
+                )
+            }
+            else ->
+                flow.mapNotNull { row ->
+                    val buffer = getBinaryBuffer(rowCount = ++rowCount, row = row)
+                    if (buffer.readShort().toInt() == -1) {
+                        return@mapNotNull null
+                    }
+                    buffer.reset()
+
+                    PgDataRow.fromBuffer(
+                        buffer = buffer,
+                        columnMapping = fields,
+                        typeCache = typeCache,
                     )
                 }
-                else ->
-                    flow.mapNotNull { row ->
-                        val buffer = getBinaryBuffer(rowCount = ++rowCount, row = row)
-                        if (buffer.readShort().toInt() == -1) {
-                            return@mapNotNull null
-                        }
-                        buffer.reset()
-
-                        PgDataRow.fromBuffer(
-                            buffer = buffer,
-                            columnMapping = fields,
-                            typeCache = typeCache,
-                        )
-                    }
-            }
         }
-    }
-
-    /**
-     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
-     * each row returned from the query to the [sink] supplied
-     */
-    public suspend fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
-        checkConnected()
-
-        val copyQuery = copyOutStatement.toQuery()
-        mutex.withLock { copyOutInternal(copyQuery).collect(sink::write) }
-    }
-
-    /**
-     * Execute a `COPY TO` command using the options supplied in the [copyOutStatement], writing
-     * each row returned from the query to the [outputStream] supplied
-     */
-    public suspend fun copyOut(copyOutStatement: CopyStatement.To, outputStream: OutputStream) {
-        checkConnected()
-
-        val copyQuery = copyOutStatement.toQuery()
-        mutex.withLock { copyOutInternal(copyQuery).collect(outputStream::write) }
     }
 
     /**
@@ -1016,22 +968,29 @@ internal constructor(
     }
 
     /**
-     * Register an [Enum] class as a new type available for encoding and decoding.
-     *
-     * @param type name of the type in the database (optionally schema qualified if not in public
-     *   schema)
+     * Add new [typeDescription] to the cache. This impacts all connections within the same pool and
+     * adds simple array type descriptions as well. If the [PgTypeDescription.kType] is already
+     * present within the cache, that description will be removed for the new description.
      */
-    public suspend inline fun <reified E : Enum<E>> registerEnumType(type: String) {
-        typeCache.addEnumType(
-            connection = this,
-            name = type,
-            kType = typeOf<E>(),
-            enumValues = enumValues<E>(),
-        )
+    public suspend fun <T : Any> registerCustomType(typeDescription: PgTypeDescription<T>) {
+        typeCache.addCustomType(connection = this, typeDescription = typeDescription)
     }
 
     /**
-     * Register [T] as a new type composite type available for encoding and decoding.
+     * Add a new composite type description to the type cache. Uses this connection to query the
+     * database for metadata of the composite type (searching by [type]) for encoding and decoding
+     * purposes. The generated [PgTypeDescription] is reflection based and has 2 checked
+     * requirements:
+     * 1. [T] must be a data class
+     * 2. The number of parameters supplied to [T] must match the number of attributes defined for
+     *    the composite type.
+     *
+     * The other requirements (such as the composite attribute types matching the data class) are
+     * not checked at runtime so the class definer responsible for verifying them.
+     *
+     * This impacts all connections within the same pool and adds simple array type descriptions as
+     * well. If the value class is already present within the cache, that description will be
+     * removed for the new description.
      *
      * @param type name of the type in the database (optionally schema qualified if not in public
      *   schema)
@@ -1040,30 +999,179 @@ internal constructor(
         type: String,
         compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
     ) {
-        typeCache.addCompositeType(
-            connection = this,
-            name = type,
-            cls = T::class,
-            compositeTypeDefinition = compositeTypeDefinition,
+        val compositeTypeDescription =
+            createCompositeTypeDescription(
+                type = type,
+                kType = typeOf<T>(),
+                kClass = T::class,
+                compositeTypeDefinition = compositeTypeDefinition,
+            )
+        this.registerCustomType(compositeTypeDescription)
+    }
+
+    /**
+     * Fetch and return the type OID for a composite with the [name]. Queries the database using
+     * this connection to retrieve the database instance specific OID. Returns null if the OID could
+     * not be found.
+     *
+     * @param name Name of the composite type. Can be schema qualified but defaults to public if no
+     *   schema is included
+     */
+    @PublishedApi
+    internal suspend fun checkCompositeDbTypeByName(name: String): Int? {
+        var schema: String? = null
+        var typeName = name
+        val schemaQualifierIndex = name.indexOf('.')
+        if (schemaQualifierIndex > -1) {
+            schema = name.substring(0, schemaQualifierIndex)
+            typeName = name.substring(schemaQualifierIndex + 1)
+        }
+
+        val oid =
+            query(pgCompositeTypeByName).bind(typeName).bind(schema).fetchScalar<Int>(this)
+                ?: return null
+        return oid
+    }
+
+    /**
+     * Fetch and return the [PgColumnDescription]s for the composite type specified by [oid].
+     * Queries the database using this connection to retrieve metadata about the composite type's
+     * attributes.
+     */
+    @PublishedApi
+    internal suspend fun getCompositeAttributeData(oid: Int): List<PgColumnDescription> {
+        return query(pgCompositeTypeDetailsByOid)
+            .bind(oid)
+            .fetchAll(this, CompositeAttributeDataRowParser)
+    }
+
+    @PublishedApi
+    internal suspend fun <T : Any> createCompositeTypeDescription(
+        type: String,
+        kClass: KClass<T>,
+        kType: KType,
+        compositeTypeDefinition: CompositeTypeDefinition<T>? = null,
+    ): PgTypeDescription<T> {
+        val verifiedOid =
+            checkCompositeDbTypeByName(type)
+                ?: error("Could not verify the composite type name '$type' in the database")
+
+        val compositeColumnMapping = getCompositeAttributeData(verifiedOid)
+
+        val typeDef = compositeTypeDefinition ?: ReflectionCompositeTypeDescription(kClass)
+        return BaseCompositeTypeDescription(
+            compositeTypeDefinition = typeDef,
+            typeOid = verifiedOid,
+            attributeMapping = compositeColumnMapping,
+            typeCache = typeCache,
+            kType = kType,
         )
     }
 
     /**
-     * Add new type description for a value class to the cache. This impacts all connections within
-     * the same pool and adds simple array type descriptions as well. If the value class is already
-     * present within the cache, that description will be removed for the new description.
+     * Add a new enum type definition to the type cache. Uses this connection to get the enums
+     * labels found in the database to compare against the supplied [enumValues]. This is the only
+     * check that is required since the decoding and encoding is just reading and writing the enum
+     * variants [Enum.name] value.
+     *
+     * This impacts all connections within the same pool and adds simple array type descriptions as
+     * well. If the value class is already present within the cache, that description will be
+     * removed for the new description.
+     *
+     * @param type name of the type in the database (optionally schema qualified if not in public
+     *   schema)
      */
-    public suspend inline fun <reified T : Any> registerValueType() {
-        typeCache.addValueType(connection = this, kClass = T::class, kType = typeOf<T>())
+    public suspend inline fun <reified E : Enum<E>> registerEnumType(type: String) {
+        val enumTypeDescription =
+            createEnumTypeDescription(type = type, kType = typeOf<E>(), values = enumValues<E>())
+        this.registerCustomType(enumTypeDescription)
     }
 
     /**
-     * Add new [typeDescription] to the cache. This impacts all connections within the same pool and
-     * adds simple array type descriptions as well. If the [PgTypeDescription.kType] is already
-     * present within the cache, that description will be removed for the new description.
+     * Fetch and return the type OID for an enum with the [name]. Queries the database to retrieve
+     * the database instance specific OID. Returns null if the OID could not be found.
+     *
+     * @param name Name of the enum type. Can be schema qualified but defaults to public if no
+     *   schema is included
      */
-    public suspend fun <T : Any> registerCustomType(typeDescription: PgTypeDescription<T>) {
-        typeCache.addCustomType(connection = this, typeDescription = typeDescription)
+    @PublishedApi
+    internal suspend fun checkEnumDbTypeByName(name: String): Int? {
+        var schema: String? = null
+        var typeName = name
+        val schemaQualifierIndex = name.indexOf('.')
+        if (schemaQualifierIndex > -1) {
+            schema = name.substring(0, schemaQualifierIndex)
+            typeName = name.substring(schemaQualifierIndex + 1)
+        }
+
+        val oid =
+            query(pgEnumTypeByName).bind(typeName).bind(schema).fetchScalar<Int>(this)
+                ?: return null
+        return oid
+    }
+
+    /** [RowParser] for parsing the query result of enum type labels */
+    internal object EnumLabelRowParser : RowParser<String> {
+        override fun fromRow(row: DataRow): String = row.getAsNonNull("enumlabel")
+    }
+
+    /**
+     * Fetch and return the labels of an enum type specified by the [oid]. Queries the database to
+     * retrieve the labels.
+     */
+    @PublishedApi
+    internal suspend fun getEnumLabels(oid: Int): List<String> {
+        return query(pgEnumLabelsByOid).bind(oid).fetchAll(this, EnumLabelRowParser)
+    }
+
+    @PublishedApi
+    internal suspend fun <E : Enum<E>> createEnumTypeDescription(
+        type: String,
+        kType: KType,
+        values: Array<E>,
+    ): PgTypeDescription<E> {
+        val verifiedOid =
+            checkEnumDbTypeByName(type)
+                ?: error("Could not verify the composite type name '$type' in the database")
+
+        val enumLabels = getEnumLabels(verifiedOid)
+        val enumTypeDescription =
+            EnumTypeDescription(
+                pgType = PgType.ByOid(oid = verifiedOid),
+                kType = kType,
+                values = values,
+            )
+        val missingLabels = enumLabels.filter { !enumTypeDescription.entryLookup.contains(it) }
+        check(missingLabels.isEmpty()) {
+            "Cannot register an enum type because the declared enum values do not match the " +
+                "database's enum labels. Enum missing ${missingLabels.joinToString()}"
+        }
+        return enumTypeDescription
+    }
+
+    /**
+     * Add new type description for a value class to the cache.
+     *
+     * This impacts all connections within the same pool and adds simple array type descriptions as
+     * well. If the value class is already present within the cache, that description will be
+     * removed for the new description.
+     */
+    public suspend inline fun <reified T : Any> registerValueType() {
+        val typeDescription = createValueTypeDescription(kClass = T::class, kType = typeOf<T>())
+        this.registerCustomType(typeDescription)
+    }
+
+    @PublishedApi
+    internal fun <T : Any> createValueTypeDescription(
+        kClass: KClass<T>,
+        kType: KType,
+    ): PgTypeDescription<T> {
+        require(kClass.isValue) { "Type must be a value type to create wrapper type description" }
+        val innerType = kClass.primaryConstructor!!.parameters.first().type
+        val innerTypeDescription =
+            typeCache.getTypeDescription<Any>(innerType)
+                ?: throw KdbcException("Could not find type description for inner type $innerType")
+        return ValueTypeDescription(kClass, kType, innerTypeDescription)
     }
 
     internal companion object {
@@ -1101,6 +1209,136 @@ internal constructor(
          * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
          */
         private val pgBinaryCopyTrailer = byteArrayOf(-1, -1)
+
+        /**
+         * Convert the [Flow] of [ByteArray] into an [InputStream] for text file parsing. This
+         * collects the flow contents into a [Buffer] and wraps it using [Buffer.asInputStream]
+         */
+        internal suspend fun convertFlowToDelimitedInputStream(flow: Flow<ByteArray>): InputStream {
+            val buffer = Buffer()
+            flow.collect { buffer.write(it) }
+            return buffer.asInputStream()
+        }
+
+        /**
+         * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row,
+         * the first 19 bytes should be ignored since they are the binary copy's file header.
+         */
+        internal fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer {
+            return when {
+                rowCount == 1L ->
+                    ByteReadBuffer(row.copyOfRange(fromIndex = 19, toIndex = row.size))
+                else -> ByteReadBuffer(row)
+            }
+        }
+
+        internal fun PgConnection.readTextData(
+            inputStream: InputStream,
+            fields: List<PgColumnDescription>,
+            delimiter: Char,
+            quote: Char?,
+            escape: Char?,
+            header: CopyHeader?,
+        ): Flow<DataRow> = channelFlow {
+            var rowCount = 0L
+            csvReader {
+                    this.delimiter = delimiter
+                    this.quoteChar = quote ?: '\u0000'
+                    this.escapeChar = escape ?: '\u0000'
+                }
+                .openAsync(inputStream) {
+                    val skip = if (header != null && header != CopyHeader.False) 1 else 0
+                    this.readAllAsSequence().drop(skip).forEach { row ->
+                        rowCount++
+                        val dataRow =
+                            PgDataRow(
+                                pgValues =
+                                    Array(row.size) { i ->
+                                        val rowData = row[i]
+                                        val fieldData = fields[i]
+                                        PgValue.Text(rowData, fieldData)
+                                    },
+                                columnMapping = fields,
+                                typeCache = typeCache,
+                            )
+                        send(dataRow)
+                    }
+                }
+        }
+
+        /**
+         * Query to fetch the OID of an enum using the name and the optional schema. Default schema
+         * is public.
+         */
+        private val pgEnumTypeByName =
+            """
+            select t.oid
+            from pg_type t
+            join pg_namespace n on t.typnamespace = n.oid
+            where
+                t.typname = $1
+                and n.nspname = coalesce(nullif($2,''), 'public')
+                and t.typcategory = 'E'
+            """
+                .trimIndent()
+
+        /** Query to fetch the labels of an enum type given the OID of the type */
+        private val pgEnumLabelsByOid =
+            """
+            select e.enumlabel
+            from pg_enum e
+            join pg_type t on e.enumtypid = t.oid
+            where
+                e.enumtypid = $1
+                and t.typcategory = 'E'
+            """
+                .trimIndent()
+
+        /**
+         * Query to fetch the OID of a composite using the name and the optional schema. Default
+         * schema is public.
+         */
+        private val pgCompositeTypeByName =
+            """
+            select t.oid
+            from pg_type t
+            join pg_namespace n on t.typnamespace = n.oid
+            where
+                t.typname = $1
+                and n.nspname = coalesce(nullif($2,''), 'public')
+                and t.typcategory = 'C'
+            """
+                .trimIndent()
+
+        /**
+         * Query to fetch the attribute related data of a composite given the OID of the composite
+         * type
+         */
+        private val pgCompositeTypeDetailsByOid =
+            """
+            select a.attname, a.attrelid, a.attnum, a.atttypid, a.attlen, a.atttypmod
+            from pg_type t
+            join pg_attribute a on t.typrelid = a.attrelid
+            where
+                t.oid = $1
+                and t.typcategory = 'C'
+                and a.attnum > 0
+            """
+                .trimIndent()
+
+        /** [RowParser] for parsing the query result of composite type attributes */
+        private object CompositeAttributeDataRowParser : RowParser<PgColumnDescription> {
+            override fun fromRow(row: DataRow): PgColumnDescription =
+                PgColumnDescription(
+                    fieldName = row.getAsNonNull("attname"),
+                    tableOid = row.getAsNonNull("attrelid"),
+                    columnAttribute = row.getAsNonNull("attnum"),
+                    pgType = PgType.fromOid(row.getAsNonNull("atttypid")),
+                    dataTypeSize = row.getAsNonNull("attlen"),
+                    typeModifier = row.getAsNonNull("atttypmod"),
+                    formatCode = 0,
+                )
+        }
 
         /**
          * Create a new [PgConnection] instance using the supplied [connectOptions], [stream] and
