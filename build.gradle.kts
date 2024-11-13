@@ -54,7 +54,6 @@ subprojects {
     val logbackVersion: String by project
     val mockkVersion: String by project
     val bigNumVersion: String by project
-    val kacheVersion: String by project
 
     dependencies {
         implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
@@ -68,7 +67,6 @@ subprojects {
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationJsonVersion")
         implementation("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDateTimeVersion")
         implementation("com.ionspin.kotlin:bignum:$bigNumVersion")
-        implementation("com.mayakapps.kache:kache:$kacheVersion")
 
         testImplementation(kotlin("test", version = kotlinVersion))
         testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
