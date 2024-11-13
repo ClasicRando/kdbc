@@ -1,5 +1,10 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
+import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorCompletionService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import javax.sql.DataSource
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -10,11 +15,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.Executor
-import java.util.concurrent.ExecutorCompletionService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import javax.sql.DataSource
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -31,9 +31,7 @@ open class PgBenchmarkBlockingMultiJdbc {
     @Setup
     open fun start() {
         getJdbcConnection().use { connection ->
-            connection.createStatement().use { statement ->
-                statement.execute(setupQuery)
-            }
+            connection.createStatement().use { statement -> statement.execute(setupQuery) }
         }
     }
 

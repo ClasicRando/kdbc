@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
+import java.util.concurrent.TimeUnit
+import javax.sql.DataSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -14,8 +16,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.TimeUnit
-import javax.sql.DataSource
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -30,9 +30,7 @@ open class PgBenchmarkAsyncMultiJdbc {
     @Setup
     open fun start() {
         dataSource.connection.use { connection ->
-            connection.createStatement().use { statement ->
-                statement.execute(setupQuery)
-            }
+            connection.createStatement().use { statement -> statement.execute(setupQuery) }
         }
     }
 
@@ -54,13 +52,12 @@ open class PgBenchmarkAsyncMultiJdbc {
     }
 
     @Benchmark
-    open fun querySingleRow(): Unit =
-        runBlocking {
-            val results =
-                List(CONCURRENCY_LIMIT) {
-                    val stepId = singleStep()
-                    async(Dispatchers.IO) { executeQuery(stepId) }
-                }
-            results.awaitAll()
-        }
+    open fun querySingleRow(): Unit = runBlocking {
+        val results =
+            List(CONCURRENCY_LIMIT) {
+                val stepId = singleStep()
+                async(Dispatchers.IO) { executeQuery(stepId) }
+            }
+        results.awaitAll()
+    }
 }

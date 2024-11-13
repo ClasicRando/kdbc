@@ -1,7 +1,6 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.SonatypeHost
-import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
     kotlin("jvm")
@@ -9,13 +8,13 @@ plugins {
     signing
     id("org.jetbrains.dokka")
     id("org.jetbrains.kotlinx.atomicfu")
-    id("org.jlleitschuh.gradle.ktlint")
+    id("com.ncorti.ktfmt.gradle")
 }
 
 allprojects {
     apply(plugin = "kotlin")
     group = "io.github.clasicrando"
-    version = "0.0.3"
+    version = "0.0.4"
 
     repositories {
         mavenCentral()
@@ -25,6 +24,10 @@ allprojects {
         jvmToolchain(17)
         compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
         compilerOptions.optIn.add("kotlin.uuid.ExperimentalUuidApi")
+        compilerOptions.optIn.add("io.github.clasicrando.kdbc.core.annotations.InternalApi")
+        if (this@allprojects.name != "benchmarks") {
+            explicitApi()
+        }
     }
 }
 
@@ -33,7 +36,7 @@ subprojects {
     apply(plugin = "signing")
     apply(plugin = "org.jetbrains.dokka")
     apply(plugin = "com.vanniktech.maven.publish")
-    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+    apply(plugin = "com.ncorti.ktfmt.gradle")
 
     repositories {
         mavenCentral()
@@ -72,12 +75,8 @@ subprojects {
         testImplementation("io.mockk:mockk:$mockkVersion")
     }
 
-    configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
-        version.set("1.0.1")
-        reporters {
-            reporter(ReporterType.JSON)
-            reporter(ReporterType.HTML)
-        }
+    ktfmt {
+        kotlinLangStyle()
     }
 
     tasks.test {
@@ -127,7 +126,7 @@ subprojects {
 
     tasks {
         jar {
-            base.archivesName = projName
+            base.archivesName.set(projName)
         }
     }
 
@@ -141,27 +140,27 @@ subprojects {
         publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
         coordinates(group.toString(), projName, version.toString())
         pom {
-            name = "kdbc"
-            description = "Blocking and Non-Blocking database drivers using Kotlin"
-            inceptionYear = "2024"
-            url = "https://github.com/ClasicRando/kdbc"
+            name.set("kdbc")
+            description.set("Blocking and Non-Blocking database drivers using Kotlin")
+            inceptionYear.set("2024")
+            url.set("https://github.com/ClasicRando/kdbc")
             licenses {
                 license {
-                    name = "The Apache License, Version 2.0"
-                    url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
-                    distribution = "repo"
+                    name.set("The Apache License, Version 2.0")
+                    url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                    distribution.set("repo")
                 }
             }
             developers {
                 developer {
-                    name = "Steven Thomson"
-                    email = "steventhomson9@gmail.com"
+                    name.set("Steven Thomson")
+                    email.set("steventhomson9@gmail.com")
                 }
             }
             scm {
-                url = "https://github.com/ClasicRando/kdbc/tree/main"
-                connection = "scm:git:git://github.com/ClasicRando/kdbc.git"
-                developerConnection = "scm:git:ssh://github.com:ClasicRando/kdbc.git"
+                url.set("https://github.com/ClasicRando/kdbc/tree/main")
+                connection.set("scm:git:git://github.com/ClasicRando/kdbc.git")
+                developerConnection.set("scm:git:ssh://github.com:ClasicRando/kdbc.git")
             }
         }
         signAllPublications()

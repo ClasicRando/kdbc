@@ -5,6 +5,7 @@ import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.query
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -17,7 +18,6 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.TimeUnit
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -29,11 +29,7 @@ open class PgBenchmarkAsyncSingleKdbc {
     private var id = 0
     private val connection: Connection = runBlocking { getKdbcAsyncConnection() }
 
-    @Setup
-    open fun start(): Unit =
-        runBlocking {
-            query(setupQuery).execute(connection)
-        }
+    @Setup open fun start(): Unit = runBlocking { query(setupQuery).execute(connection) }
 
     private fun singleStep(): Int {
         id++
@@ -47,23 +43,16 @@ open class PgBenchmarkAsyncSingleKdbc {
     }
 
     @Benchmark
-    open fun querySingleRow(): Unit =
-        runBlocking {
-            singleStep()
-            query(kdbcQuerySingle)
-                .bind(id)
-                .fetchAll(connection, PostDataClassRowParser)
-        }
+    open fun querySingleRow(): Unit = runBlocking {
+        singleStep()
+        query(kdbcQuerySingle).bind(id).fetchAll(connection, PostDataClassRowParser)
+    }
 
     @Benchmark
-    open fun queryMultipleRows(): Unit =
-        runBlocking {
-            multiStep()
-            query(kdbcQuery)
-                .bind(id)
-                .bind(id + 10)
-                .fetchAll(connection, PostDataClassRowParser)
-        }
+    open fun queryMultipleRows(): Unit = runBlocking {
+        multiStep()
+        query(kdbcQuery).bind(id).bind(id + 10).fetchAll(connection, PostDataClassRowParser)
+    }
 
     @TearDown
     fun destroy() {

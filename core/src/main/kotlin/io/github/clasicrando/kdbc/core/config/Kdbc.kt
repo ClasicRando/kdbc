@@ -8,18 +8,17 @@ import kotlinx.io.files.Path
 import kotlinx.io.readString
 import kotlinx.serialization.json.Json
 
-object Kdbc {
+public object Kdbc {
     private const val ENV_VARIABLE_NAME = "KDBC_CONFIG"
     private const val FILE_NAME = "kdbc_config.json"
     private val options: KdbcOptions by lazy {
         val jsonData =
-            System
-                .getenv(ENV_VARIABLE_NAME)
-                ?.let {
-                    val path = Path(it)
-                    IOUtils.source(path).buffered().readString()
-                }
-                ?: Kdbc::class.java
+            System.getenv(ENV_VARIABLE_NAME)?.let {
+                val path = Path(it)
+                IOUtils.source(path).buffered().readString()
+            }
+                ?: Kdbc::class
+                    .java
                     .classLoader
                     .getResourceAsStream(FILE_NAME)
                     ?.asSource()
@@ -34,5 +33,6 @@ object Kdbc {
         Json.decodeFromString(jsonData)
     }
 
-    val detailedLogging: Level get() = options.detailedLogging
+    public val detailedLogging: Level
+        get() = options.detailedLogging
 }

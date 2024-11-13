@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.annotations.Rename
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.result.DataRow
@@ -13,18 +12,19 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
+import kotlinx.io.Sink
 
 /**
  * Base requirements for a type description of a Postgresql composite type. The type must define how
  * to parse a [DataRow] into the type and also how to extract values that make up the composite
  * type.
  */
-interface CompositeTypeDefinition<T : Any> : RowParser<T> {
+public interface CompositeTypeDefinition<T : Any> : RowParser<T> {
     /**
      * Custom behaviour to return the composite instance's attribute values paired with the values
      * type.
      */
-    fun extractValues(value: T): List<Pair<Any?, KType>>
+    public fun extractValues(value: T): List<Pair<Any?, KType>>
 }
 
 /**
@@ -37,14 +37,10 @@ internal class BaseCompositeTypeDescription<T : Any>(
     private val attributeMapping: List<PgColumnDescription>,
     private val typeCache: PgTypeCache,
     kType: KType,
-) : PgTypeDescription<T>(
-        dbType = PgType.ByOid(oid = typeOid),
-        kType = kType,
-    ) {
+) : PgTypeDescription<T>(dbType = PgType.ByOid(oid = typeOid), kType = kType) {
     /**
-     * To encode the values into the buffer, first fetch all the composite type instance's
-     * attribute values (with value's [KType] as well) then write:
-     *
+     * To encode the values into the buffer, first fetch all the composite type instance's attribute
+     * values (with value's [KType] as well) then write:
      * 1. The number of attributes for the composite type
      * 2. For each attribute
      *     - the OID of the attribute's type
@@ -53,10 +49,7 @@ internal class BaseCompositeTypeDescription<T : Any>(
      *
      * @throws IllegalStateException if the number of
      */
-    override fun encode(
-        value: T,
-        buffer: ByteWriteBuffer,
-    ) {
+    override fun encode(value: T, buffer: Sink) {
         val values = compositeTypeDefinition.extractValues(value)
         check(values.size == attributeMapping.size) {
             "Values found for composite class instance does not match the expected number. " +
@@ -78,12 +71,9 @@ internal class BaseCompositeTypeDescription<T : Any>(
      * message included.
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the
-     * [CompositeTypeDefinition.fromRow] method throws an exception
+     *   [CompositeTypeDefinition.fromRow] method throws an exception
      */
-    private fun decodeAsDataRow(
-        attributes: PgDataRow,
-        typeData: PgColumnDescription,
-    ): T =
+    private fun decodeAsDataRow(attributes: PgDataRow, typeData: PgColumnDescription): T =
         try {
             compositeTypeDefinition.fromRow(attributes)
         } catch (ex: Exception) {
@@ -98,7 +88,6 @@ internal class BaseCompositeTypeDescription<T : Any>(
     /**
      * Decode the binary [value] as an [Array] of [PgValue]s that are used in a call to the
      * [decodeAsDataRow] method. Steps are as follows:
-     *
      * 1. Read the first [Int] of the buffer as the number of properties remaining in the buffer.
      * 2. Construct an [Array] with the size already fetched where each element created as:
      *     1. Read the next int as the element's OID
@@ -107,12 +96,13 @@ internal class BaseCompositeTypeDescription<T : Any>(
      *     4. Construct a PgValue to pass to the type registry for decoding the composite attribute
      *     5. Set that decoded value as the array element
      * 3. With all the elements obtained, call [decodeAsDataRow] to allow the custom parsing to
-     * occur
+     *    occur
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L688)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L688)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if parsing in
-     * [CompositeTypeDefinition.fromRow] fails
+     *   [CompositeTypeDefinition.fromRow] fails
      */
     override fun decodeBytes(value: PgValue.Binary): T {
         val length = value.bytes.readInt()
@@ -129,7 +119,6 @@ internal class BaseCompositeTypeDescription<T : Any>(
             }
         val dataRow =
             PgDataRow(
-                rowBuffer = value.bytes,
                 pgValues = attributes,
                 columnMapping = attributeMapping,
                 typeCache = typeCache,
@@ -138,28 +127,27 @@ internal class BaseCompositeTypeDescription<T : Any>(
     }
 
     /**
-     * Use the [PgCompositeLiteralParser] to parse each property in order, map each [String] into
-     * a [PgValue] and collect that into a [PgDataRow] for parsing using the [decodeAsDataRow]
-     * method.
+     * Use the [PgCompositeLiteralParser] to parse each property in order, map each [String] into a
+     * [PgValue] and collect that into a [PgDataRow] for parsing using the [decodeAsDataRow] method.
      *
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L330)
+     * [pg source
+     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rowtypes.c#L330)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if parsing in
-     * [CompositeTypeDefinition.fromRow] fails
+     *   [CompositeTypeDefinition.fromRow] fails
      */
     override fun decodeText(value: PgValue.Text): T {
         val attributes =
-            PgCompositeLiteralParser
-                .parse(value.text)
+            PgCompositeLiteralParser.parse(value.text)
                 .withIndex()
                 .map { (i, value) ->
                     val text = value ?: return@map null
                     PgValue.Text(text, attributeMapping[i])
-                }.toList()
+                }
+                .toList()
                 .toTypedArray<PgValue?>()
         val dataRow =
             PgDataRow(
-                rowBuffer = null,
                 pgValues = attributes,
                 columnMapping = attributeMapping,
                 typeCache = typeCache,
@@ -173,12 +161,11 @@ internal class BaseCompositeTypeDescription<T : Any>(
  * instances of [T] and create new instances of [T] by calling the primary constructor. This class
  * only works for data class definitions and will throw an [IllegalArgumentException] during the
  * constructor call if that is not the case. It also requires that the number of constructor
- * parameters matches the supplied columns mapping. Other requirements (such as the composite
- * type's attributes matching the expected data class properties) are up to the class definer.
+ * parameters matches the supplied columns mapping. Other requirements (such as the composite type's
+ * attributes matching the expected data class properties) are up to the class definer.
  */
-internal class ReflectionCompositeTypeDescription<T : Any>(
-    cls: KClass<T>,
-) : CompositeTypeDefinition<T> {
+internal class ReflectionCompositeTypeDescription<T : Any>(cls: KClass<T>) :
+    CompositeTypeDefinition<T> {
     init {
         require(cls.isData) { "Only data classes are allowed to represent composite types" }
     }
@@ -186,25 +173,17 @@ internal class ReflectionCompositeTypeDescription<T : Any>(
     private val primaryConstructor = cls.primaryConstructor!!
     private val constructorParameterNames = primaryConstructor.parameters.map { it.name!! }
     private val properties =
-        constructorParameterNames.map { param ->
-            cls.memberProperties.first { it.name == param }
-        }
+        constructorParameterNames.map { param -> cls.memberProperties.first { it.name == param } }
     private val finalParameterNames =
-        primaryConstructor.parameters
-            .map { param ->
-                val name =
-                    param.annotations
-                        .firstOrNull { it is Rename }
-                        ?.let { it as Rename }
-                        ?.value
-                        ?: param.name!!
-                name to param.type
-            }
+        primaryConstructor.parameters.map { param ->
+            val name =
+                param.annotations.firstOrNull { it is Rename }?.let { it as Rename }?.value
+                    ?: param.name!!
+            name to param.type
+        }
 
     override fun extractValues(value: T): List<Pair<Any?, KType>> =
-        properties.map {
-            it.call(value) to it.returnType
-        }
+        properties.map { it.call(value) to it.returnType }
 
     override fun fromRow(row: DataRow): T {
         val args =

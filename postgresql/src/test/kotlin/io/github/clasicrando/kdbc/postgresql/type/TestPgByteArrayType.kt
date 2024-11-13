@@ -8,10 +8,10 @@ import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Timeout
-import kotlin.test.Test
 
 class TestPgByteArrayType {
     private val fieldDescription =
@@ -31,9 +31,7 @@ class TestPgByteArrayType {
     fun `decode should succeed when prefixed hex value`() {
         val bytes = ints.map { it.toByte() }.toByteArray()
         val byteString =
-            ints.joinToString(separator = "", prefix = "\\x") {
-                it.toString(16).padStart(2, '0')
-            }
+            ints.joinToString(separator = "", prefix = "\\x") { it.toString(16).padStart(2, '0') }
 
         val pgValue = PgValue.Text(byteString, fieldDescription)
         val result = ByteaTypeDescription.decode(pgValue)
@@ -60,31 +58,28 @@ class TestPgByteArrayType {
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept ByteArray when querying postgresql`(): Unit =
-        runBlocking {
-            val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
-            val query = "SELECT $1 bytea_col;"
+    fun `encode should accept ByteArray when querying postgresql`(): Unit = runBlocking {
+        val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
+        val query = "SELECT $1 bytea_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(expectedResult)
-                        .fetchScalar<ByteArray>(conn)
-                Assertions.assertArrayEquals(expectedResult, value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = query(query).bind(expectedResult).fetchScalar<ByteArray>(conn)
+            Assertions.assertArrayEquals(expectedResult, value)
         }
+    }
 
     private suspend fun decodeTest(isExtended: Boolean) {
         val expectedResult = byteArrayOf(0x4f, 0x5a, 0x90.toByte())
         val query = "SELECT decode('4f5a90', 'hex') bytea_col;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<ByteArray>(conn)
-            Assertions.assertArrayEquals(expectedResult, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<ByteArray>(conn)
+                Assertions.assertArrayEquals(expectedResult, value)
+            }
     }
 
     @Test
