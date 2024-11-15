@@ -1,8 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.readCString
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Source
 
 /**
  * [MessageDecoder] for [PgMessage.CommandComplete]. This message is sent after a command has been
@@ -12,7 +13,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COMMANDCOMPLETE)
  */
 internal object CommandCompleteDecoder : PgMessageDecoder<PgMessage.CommandComplete>() {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.CommandComplete {
+    override fun decode(buffer: Source): PgMessage.CommandComplete {
         val message = buffer.readCString()
         val words = message.split(" ")
         val rowCount =

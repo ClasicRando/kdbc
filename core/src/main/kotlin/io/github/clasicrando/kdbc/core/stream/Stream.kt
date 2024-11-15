@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import kotlin.time.Duration
 import kotlinx.io.Sink
+import kotlinx.io.Source
 
 private const val RESOURCE_TYPE = "Stream"
 
@@ -61,5 +62,5 @@ public interface Stream : UniqueResourceId, AutoCloseable {
      * read available bytes into the internal buffer until the required number of bytes is
      * available. The bytes are then read into the buffer and returned.
      */
-    public suspend fun readBuffer(count: Int): ByteReadBuffer
+    public suspend fun readBuffer(count: Int): Source
 }

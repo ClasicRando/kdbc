@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Source
 
 /**
  * [MessageDecoder] for [PgMessage.BackendKeyData]. This message is sent after a successful login.
@@ -13,7 +13,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BACKENDKEYDATA)
  */
 internal object BackendKeyDataDecoder : PgMessageDecoder<PgMessage.BackendKeyData>() {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.BackendKeyData {
+    override fun decode(buffer: Source): PgMessage.BackendKeyData {
         return PgMessage.BackendKeyData(buffer.readInt(), buffer.readInt())
     }
 }

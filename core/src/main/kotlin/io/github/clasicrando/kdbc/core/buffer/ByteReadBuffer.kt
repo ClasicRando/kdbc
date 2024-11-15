@@ -14,10 +14,10 @@ import java.nio.charset.Charset
  * increments the [position] value based the number of bytes requested.
  */
 public class ByteReadBuffer(
-    private var innerBuffer: ByteArray,
+    private val innerBuffer: ByteArray,
     private val offset: Int = 0,
     @PublishedApi internal val size: Int = innerBuffer.size,
-) : AutoCloseable {
+) {
     @PublishedApi internal var position: Int = 0
 
     /**
@@ -252,14 +252,5 @@ public class ByteReadBuffer(
     /** Reset this buffer to it's initial reading position so the value can be read again */
     public fun reset() {
         position = 0
-    }
-
-    /**
-     * Reset the buffer's position to 0 and set the inner buffer to an empty [ByteArray]. This
-     * leaves the buffer in an unusable state
-     */
-    override fun close() {
-        reset()
-        innerBuffer = ByteArray(0)
     }
 }
