@@ -11,17 +11,19 @@ import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.IOUtils
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+import kotlinx.io.Buffer
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.writeString
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 
 @EnabledIfEnvironmentVariable(named = "PG_COPY_TEST", matches = "true")
 class TestCopySpec {
@@ -34,7 +36,9 @@ class TestCopySpec {
             val copyResult =
                 it.copyIn(
                     copyInStatement,
-                    (1..ROW_COUNT).map { i -> "$i,$i Value\n".toByteArray() }.asFlow(),
+                    (1..ROW_COUNT).asFlow().map { i ->
+                        Buffer().apply { writeString("$i,$i Value\n") }
+                    },
                 )
             assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
             assertEquals("COPY $ROW_COUNT", copyResult.message)
@@ -114,7 +118,9 @@ class TestCopySpec {
                     CopyStatement.TableFromCsv(schemaName = "public", tableName = "copy_in_test")
                 it.copyIn(
                     copyInStatement,
-                    (1..ROW_COUNT).map { i -> "$i,$i Value".toByteArray() }.asFlow(),
+                    (1..ROW_COUNT).asFlow().map { i ->
+                        Buffer().apply { writeString("$i,$i Value") }
+                    },
                 )
             }
         assertTrue(result.isFailure)

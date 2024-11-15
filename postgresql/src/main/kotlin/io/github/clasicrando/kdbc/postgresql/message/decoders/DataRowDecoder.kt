@@ -1,10 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import kotlinx.io.Source
-import kotlinx.io.readByteArray
 
 /**
  * [MessageDecoder] for [PgMessage.DataRow]. This message is sent as part of a query result and
@@ -19,6 +17,6 @@ import kotlinx.io.readByteArray
  */
 internal object DataRowDecoder : PgMessageDecoder<PgMessage.DataRow>() {
     override fun decode(buffer: Source): PgMessage.DataRow {
-        return PgMessage.DataRow(ByteReadBuffer(buffer.readByteArray()))
+        return PgMessage.DataRow(buffer)
     }
 }

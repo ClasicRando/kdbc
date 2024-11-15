@@ -1,12 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.message
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
 import io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
+import kotlinx.io.Source
 
 /**
  * Specified frontend and backend messages that can be sent to and received from the database
@@ -84,18 +83,11 @@ internal sealed class PgMessage(val code: Byte) {
 
     /**
      * Backend and frontend message sent with the [COPY_DATA_CODE] header [Byte]. Contains the copy
-     * [data] as a [ByteArray]. When this message is sent from the backend, the [data] represents a
-     * single row. WHen this message is sent from the frontend, the [data] could represent any chunk
+     * [data] as a [Source]. When this message is sent from the backend, the [data] represents a
+     * single row. When this message is sent from the frontend, the [data] could represent any chunk
      * of the total data copied since the backend parsing the data as it comes in, byte by byte.
-     *
-     * To optimize the sending of `COPY FROM` data, this messages is marked as [SizedMessage] to
-     * allow for packing as many messages into a buffer before flushing the messages to the backend.
-     * This is to avoid complex chunking logic of the data users might provide to the copy method
-     * and copying data only once (into the buffer).
      */
-    class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage { // F & B
-        override val size: Int = 5 + data.size
-    }
+    class CopyData(val data: Source) : PgMessage(COPY_DATA_CODE) // F & B
 
     /**
      * Backend and frontend message sent with the [COPY_DONE_CODE] header [Byte]. Contains no data,
@@ -148,7 +140,7 @@ internal sealed class PgMessage(val code: Byte) {
      * Backend message sent with the [DATA_ROW_CODE] header [Byte]. Contains the row data of a
      * single query result in [rowBuffer].
      */
-    data class DataRow(val rowBuffer: ByteReadBuffer) : PgMessage(DATA_ROW_CODE) // B
+    data class DataRow(val rowBuffer: Source) : PgMessage(DATA_ROW_CODE) // B
 
     /**
      * Frontend message sent with the [DESCRIBE_CODE] header [Byte]. Contains the [target] of the

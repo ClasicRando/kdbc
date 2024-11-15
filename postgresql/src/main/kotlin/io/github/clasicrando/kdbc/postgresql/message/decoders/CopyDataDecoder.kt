@@ -14,6 +14,6 @@ import kotlinx.io.readByteArray
  */
 internal object CopyDataDecoder : PgMessageDecoder<PgMessage.CopyData>() {
     override fun decode(buffer: Source): PgMessage.CopyData {
-        return PgMessage.CopyData(buffer.readByteArray())
+        return PgMessage.CopyData(buffer)
     }
 }

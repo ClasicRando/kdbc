@@ -38,6 +38,7 @@ public sealed class PgValue private constructor(public val typeData: PgColumnDes
     @PublishedApi
     internal constructor(public val bytes: ByteReadBuffer, typeData: PgColumnDescription) :
         PgValue(typeData) {
+        internal constructor(bytes: ByteArray, typeData: PgColumnDescription) : this(ByteReadBuffer(bytes), typeData)
         override fun toString(): String = "PgValue.Binary(typeData=$typeData)"
     }
 }
