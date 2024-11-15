@@ -34,7 +34,7 @@ private fun createSimplePasswordMessage(
  * Authentication OK.
  *
  * @throws PgAuthenticationError if the authentication flow failed for any reason. All other
- * [Throwable]s are also caught and added to a [PgAuthenticationError] as a suppressed error
+ *   [Throwable]s are also caught and added to a [PgAuthenticationError] as a suppressed error
  */
 internal suspend fun PgStream.simplePasswordAuthFlow(
     username: String,
@@ -42,12 +42,7 @@ internal suspend fun PgStream.simplePasswordAuthFlow(
     salt: ByteArray? = null,
 ) {
     try {
-        val passwordMessage =
-            createSimplePasswordMessage(
-                username,
-                password,
-                salt,
-            )
+        val passwordMessage = createSimplePasswordMessage(username, password, salt)
         this.writeToStream(passwordMessage)
 
         val response = this.receiveNextServerMessage()
@@ -60,9 +55,7 @@ internal suspend fun PgStream.simplePasswordAuthFlow(
         }
         val auth = response.authentication
         if (auth !is Authentication.Ok) {
-            this.log(Level.ERROR) {
-                message = "Expected an OK auth message but got $auth"
-            }
+            this.log(Level.ERROR) { message = "Expected an OK auth message but got $auth" }
             throw PgAuthenticationError("Expected an OK auth message but got $auth")
         }
     } catch (ex: PgAuthenticationError) {

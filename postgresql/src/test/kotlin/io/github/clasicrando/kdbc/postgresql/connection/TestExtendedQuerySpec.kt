@@ -14,68 +14,62 @@ import kotlin.test.assertEquals
 
 class TestExtendedQuerySpec {
     @BeforeTest
-    fun setup(): Unit =
-        runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                query(TEST_PROC).execute(it)
-            }
-        }
+    fun setup(): Unit = runBlocking {
+        PgConnectionHelper.defaultConnection().use { query(TEST_PROC).execute(it) }
+    }
 
     @Test
-    fun `sendExtendedQuery should return 1 result when regular query`(): Unit =
-        runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                val result =
-                    it
-                        .sendExtendedQuery(
-                            QUERY_SERIES,
-                            listOf(
-                                QueryParameter(1, typeOf<Int>()),
-                                QueryParameter(10, typeOf<Int>()),
-                            ),
-                        ).toList()
-                assertEquals(1, result.size)
-                val queryResult = result[0]
-                assertEquals(10, queryResult.rowsAffected)
-                var rowCount = 0
-                for ((i, row) in queryResult.rows.withIndex()) {
-                    rowCount++
-                    assertEquals(i + 1, row.getAsNonNull(0))
-                    assertEquals("Regular Query", row.getAsNonNull(1))
-                }
-                assertEquals(10, rowCount)
+    fun `sendExtendedQuery should return 1 result when regular query`(): Unit = runBlocking {
+        PgConnectionHelper.defaultConnection().use {
+            val (results, rowSets) =
+                it.sendExtendedQuery(
+                    QUERY_SERIES,
+                    listOf(QueryParameter(1, typeOf<Int>()), QueryParameter(10, typeOf<Int>())),
+                )
+                    .collectResults()
+            assertEquals(1, results.size)
+            assertEquals(1, rowSets.size)
+            val queryResult = results[0]
+            assertEquals(10, queryResult.rowsAffected)
+            val rows = rowSets[0]
+            var rowCount = 0
+            for ((i, row) in rows.withIndex()) {
+                rowCount++
+                assertEquals(i + 1, row.getAsNonNull(0))
+                assertEquals("Regular Query", row.getAsNonNull(1))
             }
+            assertEquals(10, rowCount)
         }
+    }
 
     @Test
-    fun `sendExtendedQuery should return 1 result when stored procedure with out parameter`(): Unit =
-        runBlocking {
-            PgConnectionHelper.defaultConnection().use {
-                val param1 = 2
-                val param2 = "start"
-                val params =
-                    listOf(
-                        QueryParameter(param1, typeOf<Int>()),
-                        QueryParameter(param2, typeOf<String>()),
-                    )
-                val result =
-                    it
-                        .sendExtendedQuery(
-                            "CALL public.test_proc_ext($1::int, $2::text)",
-                            params,
-                        ).toList()
-                assertEquals(1, result.size)
-                val queryResult = result[0]
-                assertEquals(0, queryResult.rowsAffected)
-                val rows = queryResult.rows.toList()
-                assertEquals(1, rows.size)
-                assertEquals(param1 + 1, rows[0].getAsNonNull(0))
-                assertEquals("$param2,${param1 + 1}", rows[0].getAsNonNull(1))
-            }
+    fun `sendExtendedQuery should return 1 result when stored procedure with out parameter`():
+        Unit = runBlocking {
+        PgConnectionHelper.defaultConnection().use {
+            val param1 = 2
+            val param2 = "start"
+            val params =
+                listOf(
+                    QueryParameter(param1, typeOf<Int>()),
+                    QueryParameter(param2, typeOf<String>()),
+                )
+            val (results, rowSets) =
+                it.sendExtendedQuery("CALL public.test_proc_ext($1::int, $2::text)", params)
+                    .collectResults()
+            assertEquals(1, results.size)
+            assertEquals(1, rowSets.size)
+            val queryResult = results[0]
+            assertEquals(0, queryResult.rowsAffected)
+            val rows = rowSets[0]
+            assertEquals(1, rows.size)
+            assertEquals(param1 + 1, rows[0].getAsNonNull(0))
+            assertEquals("$param2,${param1 + 1}", rows[0].getAsNonNull(1))
         }
+    }
 
     companion object {
-        const val TEST_PROC = """
+        const val TEST_PROC =
+            """
             DROP PROCEDURE IF EXISTS public.test_proc_ext;
             CREATE PROCEDURE public.test_proc_ext(in out int, in out text)
             LANGUAGE plpgsql
@@ -87,7 +81,8 @@ class TestExtendedQuerySpec {
             $$;
         """
 
-        const val QUERY_SERIES = """
+        const val QUERY_SERIES =
+            """
             SELECT s.s, 'Regular Query' t
             FROM generate_series($1::int, $2::int) s
         """

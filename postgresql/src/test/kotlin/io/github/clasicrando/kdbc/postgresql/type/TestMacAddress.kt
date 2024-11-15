@@ -7,14 +7,14 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class TestMacAddress {
     @ParameterizedTest
@@ -28,19 +28,13 @@ class TestMacAddress {
             println(value.isMacAddress8)
 
             PgConnectionHelper.defaultConnection().use { conn ->
-                val pgMacAddress =
-                    query(query)
-                        .bind(value)
-                        .fetchScalar<PgMacAddress>(conn)
+                val pgMacAddress = query(query).bind(value).fetchScalar<PgMacAddress>(conn)
                 assertNotNull(pgMacAddress)
                 assertEquals(value, pgMacAddress)
             }
         }
 
-    private suspend fun decodeTest(
-        isMacAddr8: Boolean,
-        isExtended: Boolean,
-    ) {
+    private suspend fun decodeTest(isMacAddr8: Boolean, isExtended: Boolean) {
         val select =
             if (isMacAddr8) {
                 "'$MAC_ADDR8_STRING'::macaddr8"
@@ -49,38 +43,33 @@ class TestMacAddress {
             }
         val query = "SELECT $select;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val pgMacAddress = query(query).fetchScalar<PgMacAddress>(conn)
-            assertNotNull(pgMacAddress)
-            assertEquals(
-                if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr(),
-                pgMacAddress,
-            )
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val pgMacAddress = query(query).fetchScalar<PgMacAddress>(conn)
+                assertNotNull(pgMacAddress)
+                assertEquals(
+                    if (isMacAddr8) macAddrValue else macAddrValue.toMacAddr(),
+                    pgMacAddress,
+                )
+            }
     }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
     fun `decode should return PgMacAddress when simple querying postgresql macaddr`(
-        value: Boolean,
-    ): Unit =
-        runBlocking {
-            decodeTest(isMacAddr8 = value, isExtended = false)
-        }
+        value: Boolean
+    ): Unit = runBlocking { decodeTest(isMacAddr8 = value, isExtended = false) }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(booleans = [true, false])
     fun `decode should return PgMacAddress when extended querying postgresql macaddr`(
-        value: Boolean,
-    ): Unit =
-        runBlocking {
-            decodeTest(isMacAddr8 = value, isExtended = true)
-        }
+        value: Boolean
+    ): Unit = runBlocking { decodeTest(isMacAddr8 = value, isExtended = true) }
 
     companion object {
         private const val MACADDR_TEST_TABLE = "macaddr_test"
@@ -91,25 +80,22 @@ class TestMacAddress {
 
         @BeforeAll
         @JvmStatic
-        fun createObjects(): Unit =
-            runBlocking {
-                PgConnectionHelper.defaultConnection().use {
-                    query("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").execute(it)
-                    query("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").execute(it)
-                    query("CREATE TABLE public.$MACADDR_TEST_TABLE(column_1 macaddr)").execute(it)
-                    query("CREATE TABLE public.$MACADDR8_TEST_TABLE(column_1 macaddr8)")
-                        .execute(it)
-                }
+        fun createObjects(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use {
+                query("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").execute(it)
+                query("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").execute(it)
+                query("CREATE TABLE public.$MACADDR_TEST_TABLE(column_1 macaddr)").execute(it)
+                query("CREATE TABLE public.$MACADDR8_TEST_TABLE(column_1 macaddr8)").execute(it)
             }
+        }
 
         @AfterAll
         @JvmStatic
-        fun cleanObjects(): Unit =
-            runBlocking {
-                PgConnectionHelper.defaultConnection().use {
-                    query("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").execute(it)
-                    query("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").execute(it)
-                }
+        fun cleanObjects(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use {
+                query("DROP TABLE IF EXISTS public.$MACADDR_TEST_TABLE").execute(it)
+                query("DROP TABLE IF EXISTS public.$MACADDR8_TEST_TABLE").execute(it)
             }
+        }
     }
 }

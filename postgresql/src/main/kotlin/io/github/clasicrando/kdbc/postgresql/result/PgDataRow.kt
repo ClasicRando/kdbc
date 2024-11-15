@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -10,9 +12,7 @@ import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
 import kotlin.reflect.KType
 import kotlin.reflect.full.withNullability
 
-/**
- * Postgresql specific implementation for a [DataRow].
- */
+/** Postgresql specific implementation for a [DataRow] */
 internal class PgDataRow(
     private var pgValues: Array<PgValue?>,
     private val columnMapping: List<PgColumnDescription>,
@@ -35,10 +35,7 @@ internal class PgDataRow(
         return columnMapping[index].pgType
     }
 
-    private fun <T : Any> decode(
-        index: Int,
-        deserializer: PgTypeDescription<T>,
-    ): T? {
+    private fun <T : Any> decode(index: Int, deserializer: PgTypeDescription<T>): T? {
         val pgValue = pgValues[index] ?: return null
         return deserializer.decode(pgValue)
     }
@@ -52,10 +49,7 @@ internal class PgDataRow(
         error("Could not find column in mapping. Column = '$column', columns = $columns")
     }
 
-    override fun get(
-        index: Int,
-        type: KType,
-    ): Any? {
+    override fun get(index: Int, type: KType): Any? {
         val pgType = getPgType(index)
         val nonNullType =
             if (type.isMarkedNullable) {
@@ -69,13 +63,47 @@ internal class PgDataRow(
         if (typeDescription.dbType.oid == pgType.oid) {
             return decode(index, typeDescription)
         }
-        if (typeDescription.isCompatible(pgType)) {
-            return decode(index, typeDescription)
+        val pgValue = pgValues[index] ?: return null
+        checkOrColumnDecodeError(
+            check = typeDescription.isCompatible(pgType),
+            kType = nonNullType,
+            type = pgValue.typeData,
+        ) {
+            "Actual column type is not compatible with required type"
         }
+        return decode(index, typeDescription)
+    }
 
-        throw KdbcException(
-            "Actual column type is not compatible with required type. " +
-                "Actual type: $pgType, Expected type: $nonNullType",
-        )
+    internal companion object {
+        fun fromBuffer(
+            buffer: ByteReadBuffer,
+            columnMapping: List<PgColumnDescription>,
+            typeCache: PgTypeCache,
+        ): PgDataRow {
+            val count = buffer.readShort()
+            val pgValues =
+                Array(count.toInt()) {
+                    val length = buffer.readInt()
+                    if (length < 0) {
+                        return@Array null
+                    }
+                    val slice = buffer.slice(length)
+                    val columnType = columnMapping[it]
+                    when (val formatCode = columnType.formatCode) {
+                        0.toShort() -> PgValue.Text(slice, columnType)
+                        1.toShort() -> PgValue.Binary(slice, columnType)
+                        else ->
+                            throw KdbcException(
+                                "Invalid format code from row description. Got $formatCode"
+                            )
+                    }
+                }
+
+            return PgDataRow(
+                pgValues = pgValues,
+                columnMapping = columnMapping,
+                typeCache = typeCache,
+            )
+        }
     }
 }

@@ -11,113 +11,86 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestCompositeType {
-    data class CompositeType(
-        val id: Int,
-        val text: String,
-        val timestamp: DateTime,
-    )
+    data class CompositeType(val id: Int, val text: String, val timestamp: DateTime)
 
     data class CompositeTable(
         val id: Int,
-        @Rename("record_order")
-        val recordOrder: Int,
-        @Rename("sub_id")
-        val subId: Long,
-        @Rename("json_value")
-        val jsonValue: PgJson?,
+        @Rename("record_order") val recordOrder: Int,
+        @Rename("sub_id") val subId: Long,
+        @Rename("json_value") val jsonValue: PgJson?,
     )
 
-    data class CompositeDef(
-        val id: Int,
-        val text: String,
-    ) {
+    data class CompositeDef(val id: Int, val text: String) {
         companion object : CompositeTypeDefinition<CompositeDef> {
             override fun extractValues(value: CompositeDef): List<Pair<Any?, KType>> =
-                listOf(
-                    value.id to typeOf<Int>(),
-                    value.text to typeOf<String>(),
-                )
+                listOf(value.id to typeOf<Int>(), value.text to typeOf<String>())
 
             override fun fromRow(row: DataRow): CompositeDef =
-                CompositeDef(
-                    id = row.getAsNonNull("id"),
-                    text = row.getAsNonNull("text"),
-                )
+                CompositeDef(id = row.getAsNonNull("id"), text = row.getAsNonNull("text"))
         }
     }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept CompositeTest when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 composite_col;"
+    fun `encode should accept CompositeTest when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 composite_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                conn.registerCompositeType<CompositeType>("composite_type")
-                val value =
-                    query(query)
-                        .bind(type)
-                        .fetchScalar<CompositeType>(conn)
-                assertEquals(type, value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            conn.registerCompositeType<CompositeType>("composite_type")
+            val value = query(query).bind(type).fetchScalar<CompositeType>(conn)
+            assertEquals(type, value)
         }
+    }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept CompositeTable when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 composite_table;"
+    fun `encode should accept CompositeTable when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 composite_table;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                conn.registerCompositeType<CompositeTable>("table_composite")
-                val value =
-                    query(query)
-                        .bind(table)
-                        .fetchScalar<CompositeTable>(conn)
-                assertEquals(table, value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            conn.registerCompositeType<CompositeTable>("table_composite")
+            val value = query(query).bind(table).fetchScalar<CompositeTable>(conn)
+            assertEquals(table, value)
         }
+    }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept CompositeDef when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 composite_def;"
+    fun `encode should accept CompositeDef when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 composite_def;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                conn.registerCompositeType<CompositeDef>("composite_def")
-                val value =
-                    query(query)
-                        .bind(def)
-                        .fetchScalar<CompositeDef>(conn)
-                assertEquals(def, value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            conn.registerCompositeType<CompositeDef>("composite_def")
+            val value = query(query).bind(def).fetchScalar<CompositeDef>(conn)
+            assertEquals(def, value)
         }
+    }
 
     private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT row(1,'Composite Type','2024-02-25T05:25:51Z')::composite_type;"
 
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            conn.registerCompositeType<CompositeType>("composite_type")
-            val value = query(query).fetchScalar<CompositeType>(conn)
-            assertEquals(type, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                conn.registerCompositeType<CompositeType>("composite_type")
+                val value = query(query).fetchScalar<CompositeType>(conn)
+                assertEquals(type, value)
+            }
     }
 
     @Test
@@ -138,14 +111,15 @@ class TestCompositeType {
         val query = "SELECT row(1,1,2930,NULL)::table_composite;"
 
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            conn.registerCompositeType<CompositeTable>("table_composite")
-            val value = query(query).fetchScalar<CompositeTable>(conn)
-            assertEquals(table, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                conn.registerCompositeType<CompositeTable>("table_composite")
+                val value = query(query).fetchScalar<CompositeTable>(conn)
+                assertEquals(table, value)
+            }
     }
 
     @Test
@@ -165,14 +139,15 @@ class TestCompositeType {
     private suspend fun decodeDefTest(isExtended: Boolean) {
         val query = "SELECT row(1,'Composite Def')::composite_def;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            conn.registerCompositeType<CompositeDef>("composite_def")
-            val value = query(query).fetchScalar<CompositeDef>(conn)
-            assertEquals(def, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                conn.registerCompositeType<CompositeDef>("composite_def")
+                val value = query(query).fetchScalar<CompositeDef>(conn)
+                assertEquals(def, value)
+            }
     }
 
     @Test
@@ -201,25 +176,14 @@ class TestCompositeType {
                         offset = UtcOffset(seconds = 0),
                     ),
             )
-        private val table =
-            CompositeTable(
-                id = 1,
-                recordOrder = 1,
-                subId = 2930,
-                jsonValue = null,
-            )
-        private val def =
-            CompositeDef(
-                id = 1,
-                text = "Composite Def",
-            )
+        private val table = CompositeTable(id = 1, recordOrder = 1, subId = 2930, jsonValue = null)
+        private val def = CompositeDef(id = 1, text = "Composite Def")
 
         @JvmStatic
         @BeforeAll
-        fun setup(): Unit =
-            runBlocking {
-                PgConnectionHelper.defaultConnection().use { connection ->
-                    query(
+        fun setup(): Unit = runBlocking {
+            PgConnectionHelper.defaultConnection().use { connection ->
+                query(
                         """
                         DROP TYPE IF EXISTS public.composite_type;
                         CREATE TYPE public.composite_type AS
@@ -228,9 +192,11 @@ class TestCompositeType {
                             "text" text,
                             "timestamp" timestamptz
                         );
-                        """.trimIndent(),
-                    ).execute(connection)
-                    query(
+                        """
+                            .trimIndent()
+                    )
+                    .execute(connection)
+                query(
                         """
                         DROP TABLE IF EXISTS public.table_composite;
                         CREATE TABLE public.table_composite
@@ -240,9 +206,11 @@ class TestCompositeType {
                             sub_id bigint,
                             json_value jsonb
                         );
-                        """.trimIndent(),
-                    ).execute(connection)
-                    query(
+                        """
+                            .trimIndent()
+                    )
+                    .execute(connection)
+                query(
                         """
                         DROP TYPE IF EXISTS public.composite_def;
                         CREATE TYPE public.composite_def AS
@@ -250,9 +218,11 @@ class TestCompositeType {
                             id int,
                             "text" text
                         );
-                        """.trimIndent(),
-                    ).execute(connection)
-                }
+                        """
+                            .trimIndent()
+                    )
+                    .execute(connection)
             }
+        }
     }
 }

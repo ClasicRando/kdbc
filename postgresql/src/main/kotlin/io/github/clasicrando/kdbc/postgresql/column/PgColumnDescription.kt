@@ -8,7 +8,7 @@ import io.github.clasicrando.kdbc.postgresql.type.PgType
  * provided from row description messages sent from the postgres backend. Other fields as also
  * included that related to postgres specific properties.
  */
-data class PgColumnDescription(
+public data class PgColumnDescription(
     override val fieldName: String,
     /** OID of the table this field. If the field is not part of a table, the value is 0. */
     val tableOid: Int,
@@ -27,16 +27,13 @@ data class PgColumnDescription(
     /** Format code of the field. Currently, this value will be either 0 (text) or 1 (binary). */
     val formatCode: Short,
 ) : ColumnMetadata {
-    override val dataType: Int get() = pgType.oid
+    override val dataType: Int = pgType.oid
     override val typeName: String = fieldName
     override val typeSize: Long = dataTypeSize.toLong()
 
-    companion object {
-        fun dummyDescription(
-            pgType: PgType,
-            formatCode: Short,
-        ): PgColumnDescription =
-            PgColumnDescription(
+    public companion object {
+        public fun dummyDescription(pgType: PgType, formatCode: Short): PgColumnDescription {
+            return PgColumnDescription(
                 fieldName = "",
                 tableOid = 0,
                 columnAttribute = 0,
@@ -45,5 +42,6 @@ data class PgColumnDescription(
                 typeModifier = 0,
                 formatCode = formatCode,
             )
+        }
     }
 }

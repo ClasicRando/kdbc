@@ -1,6 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.message.information
 
-enum class Severity {
+public enum class Severity {
     ERROR,
     FATAL,
     PANIC,

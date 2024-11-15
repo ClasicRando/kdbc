@@ -6,42 +6,39 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import java.time.OffsetTime
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toJavaZoneOffset
 import org.junit.jupiter.api.Timeout
-import java.time.OffsetTime
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestTimeTzType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept PgTimeTz when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 timetz_col;"
+    fun `encode should accept PgTimeTz when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 timetz_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(timeTz)
-                        .fetchScalar<PgTimeTz>(conn)
-                assertEquals(expected = timeTz, actual = value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = query(query).bind(timeTz).fetchScalar<PgTimeTz>(conn)
+            assertEquals(expected = timeTz, actual = value)
         }
+    }
 
     private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT '05:25:51+02:00'::timetz;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<PgTimeTz>(conn)
-            assertEquals(timeTz, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<PgTimeTz>(conn)
+                assertEquals(timeTz, value)
+            }
     }
 
     @Test
@@ -60,29 +57,26 @@ class TestTimeTzType {
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept OffsetTime when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 timetz_col;"
+    fun `encode should accept OffsetTime when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 timetz_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(offsetTime)
-                        .fetchScalar<OffsetTime>(conn)
-                assertEquals(expected = offsetTime, actual = value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = query(query).bind(offsetTime).fetchScalar<OffsetTime>(conn)
+            assertEquals(expected = offsetTime, actual = value)
         }
+    }
 
     private suspend fun decodeOffsetTimeTest(isExtended: Boolean) {
         val query = "SELECT '05:25:51+02:00'::timetz;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<OffsetTime>(conn)
-            assertEquals(offsetTime, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<OffsetTime>(conn)
+                assertEquals(offsetTime, value)
+            }
     }
 
     @Test
@@ -104,9 +98,6 @@ class TestTimeTzType {
         private val offset = UtcOffset(hours = 2)
         private val timeTz = PgTimeTz(localTime, offset)
         private val offsetTime =
-            OffsetTime.of(
-                localTime.toJavaLocalTime(),
-                offset.toJavaZoneOffset(),
-            )
+            OffsetTime.of(localTime.toJavaLocalTime(), offset.toJavaZoneOffset())
     }
 }

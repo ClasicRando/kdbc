@@ -13,6 +13,7 @@ import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
@@ -21,12 +22,9 @@ import kotlinx.datetime.toInstant
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.Test
 
-internal object IntArrayTypeDescription : ArrayTypeDescription<Int>(
-    pgType = PgType.Int4Array,
-    innerType = IntTypeDescription,
-)
+internal object IntArrayTypeDescription :
+    ArrayTypeDescription<Int>(pgType = PgType.Int4Array, innerType = IntTypeDescription)
 
 class TestPgArrayType {
     private fun fieldDescription(pgType: PgType): PgColumnDescription =
@@ -56,10 +54,11 @@ class TestPgArrayType {
         val pgValue = PgValue.Text(literal, fieldDescription(PgType.TextArray))
 
         val description =
-            object : ArrayTypeDescription<String>(
-                pgType = PgType.VarcharArray,
-                innerType = VarcharTypeDescription,
-            ) {
+            object :
+                ArrayTypeDescription<String>(
+                    pgType = PgType.VarcharArray,
+                    innerType = VarcharTypeDescription,
+                ) {
                 override fun isCompatible(dbType: PgType): Boolean =
                     dbType == PgType.TextArray ||
                         dbType == PgType.VarcharArray ||
@@ -78,10 +77,11 @@ class TestPgArrayType {
         val pgValue = PgValue.Text(literal, fieldDescription(PgType.TimestampArray))
 
         val description =
-            object : ArrayTypeDescription<Instant>(
-                pgType = PgType.TimestampArray,
-                innerType = InstantTypeDescription,
-            ) {}
+            object :
+                ArrayTypeDescription<Instant>(
+                    pgType = PgType.TimestampArray,
+                    innerType = InstantTypeDescription,
+                ) {}
         val result = description.decode(pgValue)
 
         Assertions.assertIterableEquals(
@@ -95,42 +95,40 @@ class TestPgArrayType {
         val literal = "1,2,3,4"
         val pgValue = PgValue.Text(literal, fieldDescription(PgType.Int4Array))
 
-        assertThrows<ColumnDecodeError> {
-            IntArrayTypeDescription.decode(pgValue)
-        }
+        assertThrows<ColumnDecodeError> { IntArrayTypeDescription.decode(pgValue) }
     }
 
     @Test
-    fun `encode should accept int list when querying postgresql`(): Unit =
-        runBlocking {
-            val values = listOf(1, 2, 3, 4)
-            val query = "SELECT x array_values FROM UNNEST($1) x"
+    fun `encode should accept int list when querying postgresql`(): Unit = runBlocking {
+        val values = listOf(1, 2, 3, 4)
+        val query = "SELECT x array_values FROM UNNEST($1) x"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val ints =
-                    query(query)
-                        .bind(values)
-                        .fetchAll(
-                            conn,
-                            object : RowParser<Int> {
-                                override fun fromRow(row: DataRow): Int = row.getAsNonNull(0)
-                            },
-                        )
-                Assertions.assertIterableEquals(values, ints)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val ints =
+                query(query)
+                    .bind(values)
+                    .fetchAll(
+                        conn,
+                        object : RowParser<Int> {
+                            override fun fromRow(row: DataRow): Int = row.getAsNonNull(0)
+                        },
+                    )
+            Assertions.assertIterableEquals(values, ints)
         }
+    }
 
     private suspend fun decodeTest(isExtended: Boolean) {
         val expectedResult = listOf(1, 2, 3, 4)
         val query = "SELECT ARRAY[1,2,3,4]::int[]"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val ints = query(query).fetchScalar<List<Int>>(conn)
-            Assertions.assertIterableEquals(expectedResult, ints)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val ints = query(query).fetchScalar<List<Int>>(conn)
+                Assertions.assertIterableEquals(expectedResult, ints)
+            }
     }
 
     @Test

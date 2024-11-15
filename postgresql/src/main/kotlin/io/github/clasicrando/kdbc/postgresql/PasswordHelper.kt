@@ -27,15 +27,11 @@ internal object PasswordHelper {
 
     /**
      * Convert each [Byte] in [bytes] to it's hex representation. This means that each [Byte] in
-     * [bytes] is split into 2 separate [Byte] values as the 4 highest bits and 4 lowest bits.
-     * The iteration over [bytes] is capped at index 15 since the MD5 digest will always contain
-     * 128 bits (16 bytes).
+     * [bytes] is split into 2 separate [Byte] values as the 4 highest bits and 4 lowest bits. The
+     * iteration over [bytes] is capped at index 15 since the MD5 digest will always contain 128
+     * bits (16 bytes).
      */
-    private fun md5BytesToHex(
-        bytes: ByteArray,
-        hex: ByteArray,
-        offset: Int,
-    ) {
+    private fun md5BytesToHex(bytes: ByteArray, hex: ByteArray, offset: Int) {
         var pos = offset
         var i = 0
         while (i < 16) {
@@ -55,11 +51,7 @@ internal object PasswordHelper {
      *
      * @throws java.security.NoSuchAlgorithmException
      */
-    fun encode(
-        username: ByteArray,
-        password: ByteArray,
-        salt: ByteArray,
-    ): ByteArray {
+    fun encode(username: ByteArray, password: ByteArray, salt: ByteArray): ByteArray {
         val md = MessageDigest.getInstance("MD5")
         val hexDigest = ByteArray(35)
         md.update(password)

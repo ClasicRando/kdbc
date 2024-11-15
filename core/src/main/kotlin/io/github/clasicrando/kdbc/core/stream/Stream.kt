@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import kotlin.time.Duration
+import kotlinx.io.Sink
 
 private const val RESOURCE_TYPE = "Stream"
 
@@ -12,11 +12,12 @@ private const val RESOURCE_TYPE = "Stream"
  * implementation will depend on the platform and compilation target but each method will suspend
  * during IO operation to yield control of the otherwise blocked thread.
  */
-interface Stream : UniqueResourceId, AutoCloseable {
-    override val resourceType: String get() = RESOURCE_TYPE
+public interface Stream : UniqueResourceId, AutoCloseable {
+    override val resourceType: String
+        get() = RESOURCE_TYPE
 
     /** Returns true if the stream is still connected to the host */
-    val isConnected: Boolean
+    public val isConnected: Boolean
 
     /**
      * Connect to the host targeted by this stream. This method initiates a connection to the host
@@ -25,30 +26,24 @@ interface Stream : UniqueResourceId, AutoCloseable {
      * @throws StreamConnectError if the connect operation fails
      * @throws IllegalArgumentException if the [timeout] is not positive
      */
-    suspend fun connect(timeout: Duration)
+    public suspend fun connect(timeout: Duration)
 
-    suspend fun upgradeTls(timeout: Duration)
+    public suspend fun upgradeTls(timeout: Duration)
 
     /**
-     * Write all bytes to the supplied [buffer] into the stream. If the number of bytes in the
-     * [buffer] exceeds the maximum number of bytes that can be sent in a single write operation,
-     * this method will loop until all bytes have been written. While a write operation is waiting
-     * to complete, this method will suspend.
-     *
-     * @throws StreamWriteError if the write operation fails
+     * Write bytes to the supplied [Sink]. This exposes the socket's write buffer which is flushed
+     * after the write operation is complete.
      */
-    suspend fun writeBuffer(buffer: ByteWriteBuffer)
+    public suspend fun writeTo(block: suspend (Sink) -> Unit)
 
     /**
      * Read a single [Byte] from the stream.
      *
-     * This returns immediately if the stream has a single [Byte] available for read. Otherwise,
-     * it suspends to read available bytes into the internal buffer, reading and returning the
-     * first available [Byte].
-     *
-     * @throws StreamReadError if the read operation fails
+     * This returns immediately if the stream has a single [Byte] available for read. Otherwise, it
+     * suspends to read available bytes into the internal buffer, reading and returning the first
+     * available [Byte].
      */
-    suspend fun readByte(): Byte
+    public suspend fun readByte(): Byte
 
     /**
      * Read an [Int] (4 [Byte]s) from the stream.
@@ -56,19 +51,15 @@ interface Stream : UniqueResourceId, AutoCloseable {
      * This returns immediately if the stream has 4 [Byte]s available. Otherwise, it suspends to
      * read available bytes into the internal buffer until the required number of bytes is
      * available. The bytes are then read and returned.
-     *
-     * @throws StreamReadError if the read operation fails
      */
-    suspend fun readInt(): Int
+    public suspend fun readInt(): Int
 
     /**
      * Read the required number of bytes as [count] into a [ByteReadBuffer] and return that buffer.
      *
-     * This returns immediately if the stream has [count] bytes available. Otherwise, it suspends
-     * to read available bytes into the internal buffer until the required number of bytes is
+     * This returns immediately if the stream has [count] bytes available. Otherwise, it suspends to
+     * read available bytes into the internal buffer until the required number of bytes is
      * available. The bytes are then read into the buffer and returned.
-     *
-     * @throws StreamReadError if the read operation fails
      */
-    suspend fun readBuffer(count: Int): ByteReadBuffer
+    public suspend fun readBuffer(count: Int): ByteReadBuffer
 }

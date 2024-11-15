@@ -7,6 +7,10 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
@@ -15,37 +19,30 @@ import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toJavaZoneOffset
 import org.junit.jupiter.api.Timeout
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestTimestampTzType {
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept DateTime when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 datetime_col;"
+    fun `encode should accept DateTime when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 datetime_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(dateTime)
-                        .fetchScalar<DateTime>(conn)
-                assertEquals(expected = dateTime.withOffset(UtcOffset.ZERO), actual = value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = query(query).bind(dateTime).fetchScalar<DateTime>(conn)
+            assertEquals(expected = dateTime.withOffset(UtcOffset.ZERO), actual = value)
         }
+    }
 
     private suspend fun decodeTest(isExtended: Boolean) {
         val query = "SELECT '2024-02-25T05:25:51+02'::timestamptz;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<DateTime>(conn)
-            assertEquals(dateTime.withOffset(UtcOffset.ZERO), value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<DateTime>(conn)
+                assertEquals(dateTime.withOffset(UtcOffset.ZERO), value)
+            }
     }
 
     @Test
@@ -64,35 +61,32 @@ class TestTimestampTzType {
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept OffsetDateTime when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 datetime_col;"
+    fun `encode should accept OffsetDateTime when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 datetime_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(offsetDateTime)
-                        .fetchScalar<OffsetDateTime>(conn)
-                assertEquals(
-                    expected = offsetDateTime.toInstant().atOffset(ZoneOffset.UTC),
-                    actual = value,
-                )
-            }
-        }
-
-    private suspend fun decodeOffsetDateTimeTest(isExtended: Boolean) {
-        val query = "SELECT '2024-02-25T05:25:51+02'::timestamptz;"
-        if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<OffsetDateTime>(conn)
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = query(query).bind(offsetDateTime).fetchScalar<OffsetDateTime>(conn)
             assertEquals(
                 expected = offsetDateTime.toInstant().atOffset(ZoneOffset.UTC),
                 actual = value,
             )
         }
+    }
+
+    private suspend fun decodeOffsetDateTimeTest(isExtended: Boolean) {
+        val query = "SELECT '2024-02-25T05:25:51+02'::timestamptz;"
+        if (isExtended) {
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<OffsetDateTime>(conn)
+                assertEquals(
+                    expected = offsetDateTime.toInstant().atOffset(ZoneOffset.UTC),
+                    actual = value,
+                )
+            }
     }
 
     @Test
@@ -104,10 +98,8 @@ class TestTimestampTzType {
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return OffsetDateTime when extended querying postgresql timestamptz`(): Unit =
-        runBlocking {
-            decodeOffsetDateTimeTest(isExtended = true)
-        }
+    fun `decode should return OffsetDateTime when extended querying postgresql timestamptz`():
+        Unit = runBlocking { decodeOffsetDateTimeTest(isExtended = true) }
 
     companion object {
         private val localDate = LocalDate(year = 2024, monthNumber = 2, dayOfMonth = 25)

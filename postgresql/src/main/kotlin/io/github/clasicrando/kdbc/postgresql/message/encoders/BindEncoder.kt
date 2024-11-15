@@ -1,10 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
+import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
+import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.Bind]. This message is sent to initiate the backend to bind
@@ -19,25 +20,22 @@ import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
  *     - [Int], the length of the parameter values as bytes
  *     - [ByteArray], the value of the parameter encoded into bytes
  * - a [Short] as the number of result column format codes (always 1 since we only use binary
- * encoding)
+ *   encoding)
  * - a [Short] as the format code of the result columns (1 = binary)
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BIND)
  */
 internal object BindEncoder : PgMessageEncoder<PgMessage.Bind>() {
-    override fun encode(
-        value: PgMessage.Bind,
-        buffer: ByteWriteBuffer,
-    ) {
+    override fun encode(value: PgMessage.Bind, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
             writeCString(value.portal ?: "")
             writeCString(value.statementName)
             writeShort(1)
             writeShort(1)
-            writeShort(value.arguments.size.toShort())
-            for (argument in value.arguments) {
-                this.encodeValue(argument.parameter.value, argument.pgTypeDescription)
+            writeShort(value.parameters.size.toShort())
+            for ((parameter, type) in value.parameters) {
+                this.encodeValue(parameter, type, value.typeCache)
             }
             writeShort(1)
             writeShort(1)

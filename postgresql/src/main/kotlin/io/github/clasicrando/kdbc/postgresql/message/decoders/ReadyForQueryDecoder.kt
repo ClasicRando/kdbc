@@ -14,10 +14,7 @@ import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
  */
 internal object ReadyForQueryDecoder : PgMessageDecoder<PgMessage.ReadyForQuery>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.ReadyForQuery {
-        val status =
-            buffer.use {
-                TransactionStatus.fromByte(it.readByte())
-            }
+        val status = TransactionStatus.fromByte(buffer.readByte())
         return PgMessage.ReadyForQuery(status)
     }
 }

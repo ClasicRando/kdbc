@@ -7,17 +7,17 @@ import io.github.clasicrando.kdbc.postgresql.listen.PgListener
 import io.github.clasicrando.kdbc.postgresql.pool.PgPoolManager
 
 /** [Database] implementation for Postgresql */
-object Postgres : Database<PgConnection, PgConnectOptions> {
+public object Postgres : Database<PgConnection, PgConnectOptions> {
     /**
-     * Create a new [PgConnection] (or reuse an existing connection if any are available) using
-     * the supplied [PgConnectOptions].
+     * Create a new [PgConnection] (or reuse an existing connection if any are available) using the
+     * supplied [PgConnectOptions].
      */
-    override suspend fun connection(connectOptions: PgConnectOptions): PgConnection =
-        PgPoolManager.acquireConnection(connectOptions)
+    override suspend fun connection(connectOptions: PgConnectOptions): PgConnection {
+        return PgPoolManager.acquireConnection(connectOptions)
+    }
 
-    /**
-     * Create a new [PgListener] with a connection acquired from [connection]
-     */
-    suspend fun listener(connectOptions: PgConnectOptions): PgListener =
-        PgListener(connection(connectOptions))
+    /** Create a new [PgListener] with a connection acquired from [connection] */
+    public suspend fun listener(connectOptions: PgConnectOptions): PgListener {
+        return PgListener(connection(connectOptions))
+    }
 }

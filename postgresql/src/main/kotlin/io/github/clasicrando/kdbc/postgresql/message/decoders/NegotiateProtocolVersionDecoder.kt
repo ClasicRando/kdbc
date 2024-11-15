@@ -8,23 +8,19 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [MessageDecoder] for [PgMessage.NegotiateProtocolVersion]. This message is sent when the server
  * does not support the minor protocol version specified by the [PgMessage.StartupMessage] but does
  * support an earlier version of the protocol. The contents are:
- *
  * - the newest minor protocol version supported by the server for the major protocol version
- * requested as an [Int]
+ *   requested as an [Int]
  * - the number of protocol options not recognized by the server
  * - [List] of the protocol option names as CStrings with a size defined by the previous value
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-NEGOTIATEPROTOCOLVERSION)
  */
 @Suppress("ktlint:standard:max-line-length")
-internal object NegotiateProtocolVersionDecoder : PgMessageDecoder<PgMessage.NegotiateProtocolVersion>() {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.NegotiateProtocolVersion =
-        buffer.use { buf ->
-            val newestMinorProtocol = buf.readInt()
-            val unrecognizedOptions =
-                List(buf.readInt()) {
-                    buf.readCString()
-                }
-            PgMessage.NegotiateProtocolVersion(newestMinorProtocol, unrecognizedOptions)
-        }
+internal object NegotiateProtocolVersionDecoder :
+    PgMessageDecoder<PgMessage.NegotiateProtocolVersion>() {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.NegotiateProtocolVersion {
+        val newestMinorProtocol = buffer.readInt()
+        val unrecognizedOptions = List(buffer.readInt()) { buffer.readCString() }
+        return PgMessage.NegotiateProtocolVersion(newestMinorProtocol, unrecognizedOptions)
+    }
 }

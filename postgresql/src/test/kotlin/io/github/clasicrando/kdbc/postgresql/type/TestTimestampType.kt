@@ -6,6 +6,8 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import java.util.stream.Stream
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -17,8 +19,6 @@ import kotlinx.datetime.toJavaLocalDateTime
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.util.stream.Stream
-import kotlin.test.assertEquals
 
 class TestTimestampType {
     @ParameterizedTest
@@ -29,66 +29,51 @@ class TestTimestampType {
             val query = "SELECT $1 instant_col;"
 
             PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(instant)
-                        .fetchScalar<Instant>(conn)
+                val value = query(query).bind(instant).fetchScalar<Instant>(conn)
                 assertEquals(expected = instant, actual = value)
             }
         }
 
-    private suspend fun decodeTest(
-        isExtended: Boolean,
-        expectedValue: Instant,
-    ) {
+    private suspend fun decodeTest(isExtended: Boolean, expectedValue: Instant) {
         val query = "SELECT '$expectedValue'::timestamp;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<Instant>(conn)
-            assertEquals(expectedValue, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<Instant>(conn)
+                assertEquals(expectedValue, value)
+            }
     }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("instants")
     fun `decode should return Instant when simple querying postgresql timestamp`(
-        instant: Instant,
-    ): Unit =
-        runBlocking {
-            decodeTest(isExtended = false, expectedValue = instant)
-        }
+        instant: Instant
+    ): Unit = runBlocking { decodeTest(isExtended = false, expectedValue = instant) }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("instants")
     fun `decode should return Instant when extended querying postgresql timestamp`(
-        instant: Instant,
-    ): Unit =
-        runBlocking {
-            decodeTest(isExtended = true, expectedValue = instant)
-        }
+        instant: Instant
+    ): Unit = runBlocking { decodeTest(isExtended = true, expectedValue = instant) }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `encode should accept Java LocalDateTime when querying postgresql`(
-        localDateTime: java.time.LocalDateTime,
-    ): Unit =
-        runBlocking {
-            val query = "SELECT $1 instant_col;"
+        localDateTime: java.time.LocalDateTime
+    ): Unit = runBlocking {
+        val query = "SELECT $1 instant_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val value =
-                    query(query)
-                        .bind(localDateTime)
-                        .fetchScalar<java.time.LocalDateTime>(conn)
-                assertEquals(expected = localDateTime, actual = value)
-            }
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val value = query(query).bind(localDateTime).fetchScalar<java.time.LocalDateTime>(conn)
+            assertEquals(expected = localDateTime, actual = value)
         }
+    }
 
     private suspend fun decodeJavaTest(
         isExtended: Boolean,
@@ -96,34 +81,29 @@ class TestTimestampType {
     ) {
         val query = "SELECT '$expectedValue'::timestamp;"
         if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val value = query(query).fetchScalar<java.time.LocalDateTime>(conn)
-            assertEquals(expectedValue, value)
-        }
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val value = query(query).fetchScalar<java.time.LocalDateTime>(conn)
+                assertEquals(expectedValue, value)
+            }
     }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `decode should return Java LocalDateTime when simple querying postgresql timestamp`(
-        localDateTime: java.time.LocalDateTime,
-    ): Unit =
-        runBlocking {
-            decodeJavaTest(isExtended = false, expectedValue = localDateTime)
-        }
+        localDateTime: java.time.LocalDateTime
+    ): Unit = runBlocking { decodeJavaTest(isExtended = false, expectedValue = localDateTime) }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @MethodSource("localDateTimes")
     fun `decode should return Java LocalDateTime when extended querying postgresql timestamp`(
-        localDateTime: java.time.LocalDateTime,
-    ): Unit =
-        runBlocking {
-            decodeJavaTest(isExtended = true, expectedValue = localDateTime)
-        }
+        localDateTime: java.time.LocalDateTime
+    ): Unit = runBlocking { decodeJavaTest(isExtended = true, expectedValue = localDateTime) }
 
     companion object {
         private val positiveLocalDate = LocalDate(year = 2024, monthNumber = 2, dayOfMonth = 25)
@@ -142,8 +122,9 @@ class TestTimestampType {
         @JvmStatic
         private fun localDateTimes(): Stream<java.time.LocalDateTime> =
             listOf(
-                positiveLocalDateTime.toJavaLocalDateTime(),
-                negativeLocalDateTime.toJavaLocalDateTime(),
-            ).stream()
+                    positiveLocalDateTime.toJavaLocalDateTime(),
+                    negativeLocalDateTime.toJavaLocalDateTime(),
+                )
+                .stream()
     }
 }

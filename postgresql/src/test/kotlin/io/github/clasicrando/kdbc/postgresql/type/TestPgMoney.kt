@@ -6,45 +6,32 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
 class TestPgMoney {
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(
-        strings = [
-            "This is a test",
-            "2.63265E+10",
-            "@22.63",
-            "$22.63526",
-            "-$22.63526",
-            "22.",
-        ],
+        strings = ["This is a test", "2.63265E+10", "@22.63", "$22.63526", "-$22.63526", "22."]
     )
-    fun `PgMoney should fail when string does not match the money regex pattern`(
-        strMoney: String,
-    ) {
-        assertFailsWith<IllegalArgumentException> {
-            PgMoney.fromString(strMoney)
-        }
+    fun `PgMoney should fail when string does not match the money regex pattern`(strMoney: String) {
+        assertFailsWith<IllegalArgumentException> { PgMoney.fromString(strMoney) }
     }
 
     @ParameterizedTest
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @ValueSource(doubles = [22.635, 22.63526])
     fun `PgMoney should fail when double has more than 2 values after the decimal place`(
-        dblMoney: Double,
+        dblMoney: Double
     ) {
-        assertFailsWith<IllegalStateException> {
-            PgMoney(dblMoney)
-        }
+        assertFailsWith<IllegalStateException> { PgMoney(dblMoney) }
     }
 
     @ParameterizedTest
@@ -117,37 +104,33 @@ class TestPgMoney {
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `encode should accept PgMoney when querying postgresql`(): Unit =
-        runBlocking {
-            val query = "SELECT $1 money_col;"
+    fun `encode should accept PgMoney when querying postgresql`(): Unit = runBlocking {
+        val query = "SELECT $1 money_col;"
 
-            PgConnectionHelper.defaultConnection().use { conn ->
-                val money =
-                    query(query)
-                        .bind(moneyValue)
-                        .fetchScalar<PgMoney>(conn)
-                assertEquals(moneyValue, money)
-            }
-        }
-
-    private suspend fun decodeTest(isExtended: Boolean) {
-        val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
-        if (isExtended) {
-            PgConnectionHelper.defaultConnection()
-        } else {
-            PgConnectionHelper.defaultConnectionWithForcedSimple()
-        }.use { conn ->
-            val money = query(query).fetchScalar<PgMoney>(conn)
+        PgConnectionHelper.defaultConnection().use { conn ->
+            val money = query(query).bind(moneyValue).fetchScalar<PgMoney>(conn)
             assertEquals(moneyValue, money)
         }
     }
 
+    private suspend fun decodeTest(isExtended: Boolean) {
+        val query = "SELECT $MONEY_DOUBLE_VALUE::money;"
+        if (isExtended) {
+                PgConnectionHelper.defaultConnection()
+            } else {
+                PgConnectionHelper.defaultConnectionWithForcedSimple()
+            }
+            .use { conn ->
+                val money = query(query).fetchScalar<PgMoney>(conn)
+                assertEquals(moneyValue, money)
+            }
+    }
+
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return PgMoney when simple querying postgresql money`(): Unit =
-        runBlocking {
-            decodeTest(isExtended = false)
-        }
+    fun `decode should return PgMoney when simple querying postgresql money`(): Unit = runBlocking {
+        decodeTest(isExtended = false)
+    }
 
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
