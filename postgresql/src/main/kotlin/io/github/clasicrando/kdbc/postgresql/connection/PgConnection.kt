@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
+import com.github.doyaaaaaken.kotlincsv.client.CsvReader
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
@@ -38,6 +39,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
+import io.github.clasicrando.kdbc.postgresql.statement.PgArgument
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.github.clasicrando.kdbc.postgresql.type.BaseCompositeTypeDescription
@@ -490,12 +492,12 @@ internal constructor(
         parameters: List<QueryParameter>,
         sendSync: Boolean = true,
     ) {
+        val arguments = parameters.map { PgArgument(it, typeCache) }
         stream.writeManyToStream(
             PgMessage.Bind(
                 portal = null,
                 statementName = statement.statementName,
-                parameters = parameters,
-                typeCache = typeCache,
+                arguments = arguments,
             ),
             PgMessage.Execute(portalName = null, maxRowCount = 0),
             PgMessage.Close(MessageTarget.Portal, null),
@@ -803,7 +805,7 @@ internal constructor(
         return copyIn(
             copyInStatement = copyInStatement,
             data =
-                data.chunked(size = 50).map { chunk ->
+                data.chunked(size = CSV_ROW_BUFFER_SIZE).map { chunk ->
                     writer.openAsync(sink.asOutputStream()) { writeRows(chunk.map { it.values }) }
                     sink
                 },
@@ -832,7 +834,7 @@ internal constructor(
                 flow<Source> {
                     emit(Buffer().apply { write(pgBinaryCopyHeader) })
                     val mappedFlow =
-                        data.chunked(size = 50).map { chunk ->
+                        data.chunked(size = CSV_ROW_BUFFER_SIZE).map { chunk ->
                             for (row in chunk) {
                                 buffer.innerBuffer.writeShort(row.valueCount)
                                 row.encodeValues(buffer)
@@ -943,7 +945,7 @@ internal constructor(
         return when (copyOutStatement) {
             is CopyStatement.CopyText -> {
                 readTextData(
-                    source = mergeFlow(flow),
+                    flow = flow,
                     fields = fields,
                     delimiter = copyOutStatement.delimiter,
                     quote = (copyOutStatement as? CopyStatement.CopyCsv)?.quote,
@@ -1188,6 +1190,7 @@ internal constructor(
 
     internal companion object {
         private const val COPY_BUFFER_SIZE = 4096L
+        private const val CSV_ROW_BUFFER_SIZE = 2000
         /**
          * Magic header value required at the start a binary COPY operation
          *
@@ -1224,16 +1227,6 @@ internal constructor(
         private val pgBinaryCopyTrailer = byteArrayOf(-1, -1)
 
         /**
-         * Convert the [Flow] of [Source] into an [Buffer] for text file parsing. This
-         * collects the flow contents into a [Buffer] and wraps it using [Buffer.asInputStream]
-         */
-        internal suspend fun mergeFlow(flow: Flow<Source>): Source {
-            val buffer = Buffer()
-            flow.collect { buffer.transferFrom(it) }
-            return buffer
-        }
-
-        /**
          * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row,
          * the first 19 bytes should be ignored since they are the binary copy's file header.
          */
@@ -1245,35 +1238,57 @@ internal constructor(
         }
 
         internal fun PgConnection.readTextData(
-            source: Source,
+            flow: Flow<Source>,
             fields: List<PgColumnDescription>,
             delimiter: Char,
             quote: Char?,
             escape: Char?,
             header: CopyHeader?,
         ): Flow<DataRow> {
+            val reader = csvReader {
+                this.delimiter = delimiter
+                this.quoteChar = quote ?: '\u0000'
+                this.escapeChar = escape ?: '\u0000'
+            }
+            val tempBuffer = Buffer()
             return flow {
-                val reader = csvReader {
-                    this.delimiter = delimiter
-                    this.quoteChar = quote ?: '\u0000'
-                    this.escapeChar = escape ?: '\u0000'
+                var rowCount = 0
+                flow.collect {
+                    rowCount++
+                    tempBuffer.transferFrom(it)
+                    if (rowCount == CSV_ROW_BUFFER_SIZE) {
+                        readCsvSource(tempBuffer, reader, fields, typeCache, header)
+                        rowCount = 0
+                    }
                 }
-                reader.openAsync(source.asInputStream()) {
-                    val skip = if (header != null && header != CopyHeader.False) 1 else 0
-                    this.readAllAsSequence().drop(skip).forEach { row ->
-                        val dataRow =
-                            PgDataRow(
-                                pgValues =
+                if (!tempBuffer.exhausted()) {
+                    readCsvSource(tempBuffer, reader, fields, typeCache, header)
+                }
+            }
+        }
+
+        private suspend fun FlowCollector<DataRow>.readCsvSource(
+            tempBuffer: Source,
+            reader: CsvReader,
+            fields: List<PgColumnDescription>,
+            typeCache: PgTypeCache,
+            header: CopyHeader?,
+        ) {
+            reader.openAsync(tempBuffer.asInputStream()) {
+                val skip = if (header != null && header != CopyHeader.False) 1 else 0
+                for (row in this.readAllAsSequence().drop(skip)) {
+                    val dataRow =
+                        PgDataRow(
+                            pgValues =
                                 Array(row.size) { i ->
                                     val rowData = row[i]
                                     val fieldData = fields[i]
                                     PgValue.Text(rowData, fieldData)
                                 },
-                                columnMapping = fields,
-                                typeCache = typeCache,
-                            )
-                        emit(dataRow)
-                    }
+                            columnMapping = fields,
+                            typeCache = typeCache,
+                        )
+                    emit(dataRow)
                 }
             }
         }

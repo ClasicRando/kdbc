@@ -1,10 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.message
 
-import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
 import io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse
-import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
+import io.github.clasicrando.kdbc.postgresql.statement.PgArgument
 import kotlinx.io.Source
 
 /**
@@ -35,14 +34,13 @@ internal sealed class PgMessage(val code: Byte) {
 
     /**
      * Frontend message sent with the [BIND_CODE] header [Byte]. Supplies the optional [portal] name
-     * (if null or empty, the unnamed portal is used), the [statementName], the [parameters] to be
-     * bound to the portal and the type cache to encode the parameters.
+     * (if null or empty, the unnamed portal is used), the [statementName], the [arguments] to be
+     * bound to the portal.
      */
     data class Bind(
         val portal: String?,
         val statementName: String,
-        val parameters: List<QueryParameter>,
-        val typeCache: PgTypeCache,
+        val arguments: List<PgArgument>,
     ) : PgMessage(BIND_CODE) // F
 
     /**

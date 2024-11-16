@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.type
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.datetime.DateTime
+import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchScalar
@@ -11,16 +12,14 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
-import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class TestCompositeType {
     data class CompositeType(val id: Int, val text: String, val timestamp: DateTime)
@@ -34,8 +33,8 @@ class TestCompositeType {
 
     data class CompositeDef(val id: Int, val text: String) {
         companion object : CompositeTypeDefinition<CompositeDef> {
-            override fun extractValues(value: CompositeDef): List<Pair<Any?, KType>> =
-                listOf(value.id to typeOf<Int>(), value.text to typeOf<String>())
+            override fun extractValues(value: CompositeDef): List<QueryParameter> =
+                listOf(QueryParameter(value.id), QueryParameter(value.text))
 
             override fun fromRow(row: DataRow): CompositeDef =
                 CompositeDef(id = row.getAsNonNull("id"), text = row.getAsNonNull("text"))

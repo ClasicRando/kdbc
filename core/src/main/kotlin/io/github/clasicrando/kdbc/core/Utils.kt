@@ -7,6 +7,8 @@ import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
 import java.io.InputStream
+import kotlin.reflect.KType
+import kotlin.reflect.full.withNullability
 import kotlin.time.Duration
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -222,3 +224,15 @@ public fun java.math.BigDecimal.toBigNum(): BigDecimal {
 public fun String.normalizeWhitespace(): String = this.replace(Regex("\\s+"), " ")
 
 public const val DEFAULT_KDBC_TEST_TIMEOUT: Long = 60L
+
+/**
+ * Returns this [KType] if it's non-null or a new non-null version of this [KType] if it's nullable
+ */
+@Suppress("NOTHING_TO_INLINE")
+public inline fun KType.ensureNonNull(): KType {
+    return if (this.isMarkedNullable) {
+        this.withNullability(nullable = false)
+    } else {
+        this
+    }
+}

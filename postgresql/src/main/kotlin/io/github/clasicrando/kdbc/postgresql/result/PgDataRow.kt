@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
+import io.github.clasicrando.kdbc.core.ensureNonNull
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -8,11 +9,10 @@ import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.type.PgType
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
+import kotlin.reflect.KType
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
 import kotlinx.io.readString
-import kotlin.reflect.KType
-import kotlin.reflect.full.withNullability
 
 /** Postgresql specific implementation for a [DataRow] */
 internal class PgDataRow(
@@ -53,12 +53,7 @@ internal class PgDataRow(
 
     override fun get(index: Int, type: KType): Any? {
         val pgType = getPgType(index)
-        val nonNullType =
-            if (type.isMarkedNullable) {
-                type.withNullability(nullable = false)
-            } else {
-                type
-            }
+        val nonNullType = type.ensureNonNull()
         val typeDescription =
             typeCache.getTypeDescription<Any>(nonNullType)
                 ?: throw KdbcException("Could not find type description for $nonNullType")

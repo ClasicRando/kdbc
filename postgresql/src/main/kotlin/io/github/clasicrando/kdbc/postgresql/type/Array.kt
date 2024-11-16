@@ -1,13 +1,13 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
+import kotlinx.io.Sink
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.withNullability
-import kotlinx.io.Sink
 
 /** Dummy [PgColumnDescription] to create a [PgValue.Text] instance for text decoding */
 private val dummyFieldDescription =
@@ -80,11 +80,7 @@ internal abstract class ArrayTypeDescription<T : Any>(
         buffer.writeInt(value.size)
         buffer.writeInt(1)
         for (item in value) {
-            if (item == null) {
-                buffer.writeByte(-1)
-                continue
-            }
-            buffer.writeLengthPrefixed { innerType.encode(item, this) }
+            buffer.encodeValue(item, innerType)
         }
     }
 

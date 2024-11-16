@@ -4,9 +4,9 @@ import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import io.ktor.utils.io.core.writeText
 import kotlin.reflect.KType
 import kotlinx.io.Sink
+import kotlinx.io.writeString
 
 /** Implementation of [PgTypeDescription] for custom enum types in a postgresql database */
 internal class EnumTypeDescription<E : Enum<E>>(pgType: PgType, kType: KType, values: Array<E>) :
@@ -41,7 +41,7 @@ internal class EnumTypeDescription<E : Enum<E>>(pgType: PgType, kType: KType, va
      * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/enum.c#L179)
      */
     override fun encode(value: E, buffer: Sink) {
-        buffer.writeText(nameMap[value]!!)
+        buffer.writeString(nameMap[value]!!)
     }
 
     private fun getLabel(text: String, type: ColumnMetadata): E {
@@ -82,10 +82,3 @@ internal class EnumTypeDescription<E : Enum<E>>(pgType: PgType, kType: KType, va
         return getLabel(value.text, value.typeData)
     }
 }
-
-/** Implementation of an [ArrayTypeDescription] for custom enum types in a postgresql database */
-internal class EnumArrayTypeDescription<E : Enum<E>>(
-    pgType: PgType,
-    innerType: EnumTypeDescription<E>,
-    innerNullable: Boolean,
-) : ArrayTypeDescription<E>(pgType = pgType, innerType = innerType, innerNullable = innerNullable)
