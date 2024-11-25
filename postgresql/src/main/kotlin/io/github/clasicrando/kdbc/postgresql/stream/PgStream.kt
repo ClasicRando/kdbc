@@ -6,7 +6,6 @@ import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
-import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.core.stream.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.stream.Stream
 import io.github.clasicrando.kdbc.core.stream.StreamConnectError
@@ -24,11 +23,9 @@ import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import kotlin.math.floor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.flow.Flow
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgStream"
@@ -228,27 +225,6 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     /**
-     * Utilize the known size of the [M] messages to optimally write a [flow] of messages to the
-     * server. This involves collecting the [flow] and packing is as many messages as possible into
-     * a single write to the database server.
-     */
-    suspend fun <M> writeManyToStream(flow: Flow<M>) where M : PgMessage, M : SizedMessage {
-        var maxBatchSize = 1
-        val batch = ArrayList<M>()
-        flow.collect { message ->
-            batch.add(message)
-            if (maxBatchSize == batch.size) {
-                maxBatchSize = floor(SEND_BUFFER_SIZE / message.size).toInt()
-                stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
-                batch.clear()
-            }
-        }
-        if (batch.isNotEmpty()) {
-            stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
-        }
-    }
-
-    /**
      * Close all channels held by this connection, supplying the [throwable] if it's the cause of
      * the closure.
      */
@@ -346,9 +322,8 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     companion object {
-        private const val SEND_BUFFER_SIZE = 4096.0
         private const val TLS_REJECT_WARNING =
-            "Preferred SSL mode was rejected by server. " + "Continuing with non TLS connection"
+            "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
 
         /**
          * Create a new TCP connection with the Postgresql database targeted by the [connectOptions]

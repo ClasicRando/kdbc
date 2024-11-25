@@ -1,18 +1,20 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
+import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
+import io.github.clasicrando.kdbc.mysql.buffer.readBytesLengthEncoded
+import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
+import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
-import io.github.clasicrando.kdbc.mysql.readBytesLengthEncoded
-import io.github.clasicrando.kdbc.mysql.readLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import io.github.clasicrando.kdbc.mysql.type.MySqlType
+import kotlinx.io.Source
+import kotlinx.io.readIntLe
+import kotlinx.io.readShortLe
 
-internal object ColumnDefinitionDecoder : MessageDecoder<MysqlMessage.ColumnDefinition, Unit> {
-    override fun decode(
-        buffer: ByteReadBuffer,
-        context: Unit,
-    ): MysqlMessage.ColumnDefinition {
+internal object ColumnDefinitionDecoder :
+    MessageDecoder<MysqlMessage.ColumnDefinition, Capabilities> {
+    override fun decode(buffer: Source, context: Capabilities): MysqlMessage.ColumnDefinition {
         val catalog = buffer.readBytesLengthEncoded()
         val schema = buffer.readBytesLengthEncoded()
         val tableAlias = buffer.readBytesLengthEncoded()

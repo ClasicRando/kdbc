@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.core
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.Sign
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
@@ -235,4 +236,54 @@ public inline fun KType.ensureNonNull(): KType {
     } else {
         this
     }
+}
+
+public fun splitQuery(query: String): List<String> = buildList {
+    if (!query.contains(';')) {
+        add(query)
+        return@buildList
+    }
+    val builder = StringBuilder()
+    var inQuote = false
+    val iter = query.iterator()
+    while (iter.hasNext()) {
+        when (val char = iter.nextChar()) {
+            '\'' -> {
+                inQuote = !inQuote
+                builder.append(char)
+            }
+            ';' ->
+                if (inQuote) {
+                    builder.append(char)
+                } else {
+                    add(builder.toString())
+                    builder.clear()
+                }
+            else -> builder.append(char)
+        }
+    }
+    if (builder.isNotEmpty()) {
+        add(builder.toString())
+    }
+}
+
+public fun validateByte(value: Long): Byte {
+    if (value < Byte.MIN_VALUE || value > Byte.MAX_VALUE) {
+        throw KdbcException("Invalid TINYINT value. $value must be between ${Byte.MIN_VALUE} and ${Byte.MAX_VALUE}")
+    }
+    return value.toByte()
+}
+
+public fun validateShort(value: Long): Short {
+    if (value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
+        throw KdbcException("Invalid SMALLINT value. $value must be between ${Short.MIN_VALUE} and ${Short.MAX_VALUE}")
+    }
+    return value.toShort()
+}
+
+public fun validateInt(value: Long): Int {
+    if (value < Int.MIN_VALUE || value > Int.MAX_VALUE) {
+        throw KdbcException("Invalid INT value. $value must be between ${Int.MIN_VALUE} and ${Int.MAX_VALUE}")
+    }
+    return value.toInt()
 }

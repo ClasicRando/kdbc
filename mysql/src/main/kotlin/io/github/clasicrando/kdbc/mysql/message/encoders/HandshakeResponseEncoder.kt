@@ -1,15 +1,17 @@
 package io.github.clasicrando.kdbc.mysql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.mysql.buffer.writeLengthEncoded
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
+import kotlinx.io.Sink
 
 internal object HandshakeResponseEncoder :
     MessageEncoder<MysqlMessage.HandshakeResponse, Capabilities> {
     override fun encode(
         value: MysqlMessage.HandshakeResponse,
-        buffer: ByteWriteBuffer,
+        buffer: Sink,
         context: Capabilities,
     ) {
         var capabilities = context
@@ -23,11 +25,10 @@ internal object HandshakeResponseEncoder :
         buffer.writeCString(value.username)
 
         if (capabilities[Capabilities.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA]) {
-            buffer.writeLong(value.authResponse?.size?.toLong() ?: 0)
-            buffer.writeBytes(value.authResponse ?: ByteArray(0))
+            buffer.writeLengthEncoded(value.authResponse ?: ByteArray(0))
         } else if (capabilities[Capabilities.CLIENT_SECURE_CONNECTION]) {
             buffer.writeByte(value.authResponse?.size?.toByte() ?: 0)
-            buffer.writeBytes(value.authResponse ?: ByteArray(0))
+            buffer.write(value.authResponse ?: ByteArray(0))
         } else {
             buffer.writeByte(0)
         }

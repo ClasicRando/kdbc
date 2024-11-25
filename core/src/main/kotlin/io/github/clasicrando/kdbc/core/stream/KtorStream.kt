@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -18,11 +17,13 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readBuffer
 import io.ktor.utils.io.readByte
-import io.ktor.utils.io.readFully
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
+import kotlinx.io.Buffer
 import kotlinx.io.Sink
-import kotlinx.io.Source
 
 private val logger = KotlinLogging.logger {}
 
@@ -38,6 +39,9 @@ public class KtorStream(
     override val isConnected: Boolean
         get() = this::connection.isInitialized && !socket.isClosed
 
+    override var coroutineContext: CoroutineContext = SupervisorJob()
+        private set
+
     override suspend fun connect(timeout: Duration) {
         require(timeout.isPositive()) { "Timeout must be positive" }
         try {
@@ -48,6 +52,8 @@ public class KtorStream(
             socket = connection.socket
             writeChannel = connection.output
             readChannel = connection.input
+            coroutineContext =
+                socket.coroutineContext + SupervisorJob(parent = socket.coroutineContext.job)
         } catch (ex: Exception) {
             logWithResource(logger, Kdbc.detailedLogging) {
                 message = "Failed to connect to $address"
@@ -97,10 +103,8 @@ public class KtorStream(
         return result
     }
 
-    override suspend fun readBuffer(count: Int): Source {
+    override suspend fun readBuffer(count: Int): Buffer {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-//        val destination = ByteArray(count)
-//        readChannel.readFully(destination)
         return readChannel.readBuffer(count)
     }
 

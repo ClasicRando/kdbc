@@ -1,13 +1,18 @@
 package io.github.clasicrando.kdbc.mysql.result
 
 @JvmInline
-internal value class ColumnFlags(
+public value class ColumnFlags(
     private val flags: Int,
 ) {
-    operator fun get(columnFlags: ColumnFlags): Boolean =
-        (this.flags and columnFlags.flags) == columnFlags.flags
+    public operator fun get(columnFlags: ColumnFlags): Boolean {
+        return (this.flags and columnFlags.flags) == columnFlags.flags
+    }
 
-    companion object {
+    public operator fun plus(columnFlags: ColumnFlags): ColumnFlags {
+        return ColumnFlags(this.flags or columnFlags.flags)
+    }
+
+    public companion object {
         internal val NOT_NULL = ColumnFlags(1)
         internal val PRIMARY_KEY = ColumnFlags(2)
         internal val UNIQUE_KEY = ColumnFlags(4)

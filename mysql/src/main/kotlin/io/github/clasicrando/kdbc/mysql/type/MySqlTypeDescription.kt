@@ -1,10 +1,13 @@
 package io.github.clasicrando.kdbc.mysql.type
 
+import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
+import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.type.DbType
+import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
 import kotlin.reflect.KType
 
-abstract class MySqlTypeDescription<T : Any>(
+public abstract class MySqlTypeDescription<T : Any>(
     /**
      * [MySqlType] that is referenced for this type description as the serialization input and
      * deserialization output
@@ -12,4 +15,54 @@ abstract class MySqlTypeDescription<T : Any>(
     final override val dbType: MySqlType,
     /** Kotlin type of [T] that is recognized by this type description */
     final override val kType: KType,
-) : DbType<T, MySqlValue, MySqlType>
+) : DbType<T, MySqlValue, MySqlType> {
+    public open val flags: ColumnFlags = ColumnFlags.BINARY
+
+    /** Decode the bytes provided into the type [T] */
+    public abstract fun decodeBytes(value: MySqlValue.Binary): T
+
+    /** Decode the [String] provided into the type [T] */
+    public abstract fun decodeText(value: MySqlValue.Text): T
+
+    override fun isCompatible(dbType: MySqlType): Boolean {
+        return dbType == this.dbType
+    }
+
+    override fun getActualType(value: T): MySqlType {
+        return dbType
+    }
+
+    final override fun decode(value: MySqlValue): T {
+        return when (value) {
+            is MySqlValue.Binary -> {
+                try {
+                    decodeBytes(value)
+                } catch (ex: ColumnDecodeError) {
+                    throw ex
+                } catch (ex: Exception) {
+                    columnDecodeError(
+                        kType = kType,
+                        type = value.column,
+                        reason = "Failed to decode bytes for unexpected reason",
+                        cause = ex,
+                    )
+                } finally {
+                    value.bytes.reset()
+                }
+            }
+            is MySqlValue.Text ->
+                try {
+                    decodeText(value)
+                } catch (ex: ColumnDecodeError) {
+                    throw ex
+                } catch (ex: Exception) {
+                    columnDecodeError(
+                        kType = kType,
+                        type = value.column,
+                        reason = "Failed to decode bytes for unexpected reason",
+                        cause = ex,
+                    )
+                }
+        }
+    }
+}

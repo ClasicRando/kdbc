@@ -1,8 +1,6 @@
 package io.github.clasicrando.kdbc.mysql.connection
 
-enum class Collation(
-    val code: Int,
-) {
+public enum class Collation(public val code: Int) {
     Armscii8Bin(64),
     Armscii8GeneralCi(32),
     AsciiBin(65),

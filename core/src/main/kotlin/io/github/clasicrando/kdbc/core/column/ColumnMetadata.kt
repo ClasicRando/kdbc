@@ -13,7 +13,4 @@ public interface ColumnMetadata {
 
     /** ID associated with the type */
     public val dataType: Int
-
-    /** Number of bytes required for the type */
-    public val typeSize: Long
 }

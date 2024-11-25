@@ -54,12 +54,6 @@ import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.utils.io.core.discard
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.typeOf
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.flow.Flow
@@ -80,6 +74,12 @@ import kotlinx.io.asOutputStream
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -196,6 +196,9 @@ internal constructor(
     }
 
     override suspend fun executeQuery(query: Query): Flow<Either<QueryResult, DataRow>> {
+        log(connectOptions.statementLogLevel) {
+            message = "Sending query: ${query.sql.normalizeWhitespace()}"
+        }
         if (query.parameters.isEmpty()) {
             return sendSimpleQuery(query.sql)
         }
@@ -326,9 +329,6 @@ internal constructor(
 
         return mutex.withLock {
             waitUntilReady()
-            log(connectOptions.statementLogLevel) {
-                message = "Sending query: ${query.normalizeWhitespace()}"
-            }
             stream.writeToStream(PgMessage.Query(query))
             pendingReaderForQueryCount++
 
@@ -506,9 +506,6 @@ internal constructor(
             writeSync()
         }
         statement.lastExecuted = Clock.System.now()
-        log(connectOptions.statementLogLevel) {
-            message = "Sending query: ${statement.query.normalizeWhitespace()}"
-        }
     }
 
     /**

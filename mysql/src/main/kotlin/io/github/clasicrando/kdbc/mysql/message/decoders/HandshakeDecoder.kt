@@ -1,28 +1,30 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.readCString
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.authentication.AuthPlugin
+import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import io.github.clasicrando.kdbc.mysql.message.Status
+import kotlinx.io.Source
+import kotlinx.io.readByteArray
+import kotlinx.io.readIntLe
+import kotlinx.io.readShortLe
 
 internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> {
-    override fun decode(
-        buffer: ByteReadBuffer,
-        context: Unit,
-    ): MysqlMessage.Handshake {
+    override fun decode(buffer: Source, context: Unit): MysqlMessage.Handshake {
         val protocol = buffer.readByte()
         val serverVersion = buffer.readCString()
         val connectionId = buffer.readIntLe()
-        val authPluginData1 = buffer.readBytes(8)
+        val authPluginData1 = buffer.readByteArray(8)
         buffer.readByte()
 
-        val capabilities1 = buffer.readShortLe().toLong()
+        val capabilities1 = (buffer.readShortLe().toLong() and 0xff_ff).toULong()
         val collation = buffer.readByte()
         val status = Status(buffer.readShortLe())
-        val capabilities2 = buffer.readShortLe().toLong()
-        var capabilities = Capabilities((capabilities2 shl 16) or capabilities1)
+        val capabilities2 = buffer.readShortLe().toLong() and 0xff_ff
+        var capabilities = Capabilities((capabilities2.toULong() shl 16) or capabilities1)
         val capabilitiesHasPluginAuth = capabilities[Capabilities.CLIENT_PLUGIN_AUTH]
         val authPluginDataLength =
             if (capabilitiesHasPluginAuth) {
@@ -31,20 +33,20 @@ internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> 
                 buffer.readByte()
                 0
             }
-        buffer.readBytes(6)
+        buffer.skip(6)
 
         if (capabilities[Capabilities.CLIENT_MYSQL]) {
-            buffer.readBytes(4)
+            buffer.skip(4)
         } else {
-            val capabilities3 = buffer.readIntLe().toLong()
-            capabilities += Capabilities(capabilities3 shl 32)
+            val capabilities3 = buffer.readIntLe().toLong() and 0xff_ff_ff_ff
+            capabilities += Capabilities(capabilities3.toULong() shl 32)
         }
 
         val authPluginData2 =
             if (capabilities[Capabilities.CLIENT_SECURE_CONNECTION]) {
-                val length = authPluginDataLength.coerceAtLeast(12)
-                val value = buffer.readBytes(length)
-                buffer.readByte()
+                val length = (authPluginDataLength - 9).coerceAtLeast(12)
+                val value = buffer.readByteArray(length)
+                buffer.skip(1)
                 value
             } else {
                 ByteArray(0)

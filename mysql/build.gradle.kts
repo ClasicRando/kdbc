@@ -6,3 +6,7 @@ plugins {
 dependencies {
     api(project(":core"))
 }
+
+kotlin {
+    compilerOptions.optIn.add("kotlin.ExperimentalStdlibApi")
+}

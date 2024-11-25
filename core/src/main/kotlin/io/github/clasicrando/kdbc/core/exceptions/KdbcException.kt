@@ -12,7 +12,6 @@ public inline fun checkOrKdbcException(check: Boolean, crossinline message: () -
         returns() implies check
         callsInPlace(message, InvocationKind.AT_MOST_ONCE)
     }
-    check(true) {}
     if (!check) {
         throw KdbcException(message())
     }

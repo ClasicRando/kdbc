@@ -1,8 +1,6 @@
 package io.github.clasicrando.kdbc.mysql.connection
 
-enum class Charset(
-    val defaultCollation: Collation,
-) {
+public enum class Charset(public val defaultCollation: Collation) {
     Armscii8(Collation.Armscii8GeneralCi),
     Ascii(Collation.AsciiGeneralCi),
     Big5(Collation.Big5ChineseCi),

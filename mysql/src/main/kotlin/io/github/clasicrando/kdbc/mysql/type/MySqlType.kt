@@ -30,9 +30,7 @@ private const val VAR_STRING = 0xfd
 private const val STRING = 0xfe
 private const val GEOMETRY = 0xff
 
-enum class MySqlType(
-    val inner: Int,
-) {
+public enum class MySqlType(public val inner: Int) {
     Decimal(DECIMAL),
     Tiny(TINY),
     Short(SHORT),
@@ -59,11 +57,10 @@ enum class MySqlType(
     Blob(BLOB),
     VarString(VAR_STRING),
     String(STRING),
-    Geometry(GEOMETRY),
-    ;
+    Geometry(GEOMETRY);
 
-    companion object {
-        fun from(int: Int): MySqlType =
+    public companion object {
+        public fun from(int: Int): MySqlType =
             when (int) {
                 DECIMAL -> Decimal
                 TINY -> Tiny

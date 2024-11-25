@@ -6,6 +6,7 @@ import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.listen.PgListener
 import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
+import io.github.oshai.kotlinlogging.Level
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -21,6 +22,7 @@ object PgConnectionHelper {
             password = password,
             applicationName = "KdbcTests",
             sslMode = SslMode.Disable,
+            statementLogLevel = Level.INFO,
         )
 
     fun defaultPool(): PgConnectionPool = PgConnectionPool(defaultConnectOptions, PoolOptions())
@@ -32,41 +34,21 @@ object PgConnectionHelper {
         Postgres.listener(connectOptions = defaultConnectOptions)
 
     private val defaultConnectOptionsWithForcedSimple =
-        PgConnectOptions(
-            host = "localhost",
-            port = port,
-            username = "postgres",
-            password = password,
-            applicationName = "KdbcTests",
-            sslMode = SslMode.Disable,
-            useExtendedProtocolForSimpleQueries = false,
-        )
+        defaultConnectOptions.copy(useExtendedProtocolForSimpleQueries = false)
 
     suspend fun defaultConnectionWithForcedSimple(): PgConnection =
         Postgres.connection(connectOptions = defaultConnectOptionsWithForcedSimple)
 
     private val defaultConnectOptionsWithQueryTimeout =
-        PgConnectOptions(
-            host = "localhost",
-            port = port,
-            username = "postgres",
-            password = password,
-            applicationName = "KdbcTests",
-            sslMode = SslMode.Disable,
-            useExtendedProtocolForSimpleQueries = false,
-            queryTimeout = 2.toDuration(DurationUnit.SECONDS),
+        defaultConnectOptionsWithForcedSimple.copy(
+            queryTimeout = 2.toDuration(DurationUnit.SECONDS)
         )
 
     suspend fun defaultConnectionWithQueryTimeout(): PgConnection =
         Postgres.connection(connectOptions = defaultConnectOptionsWithQueryTimeout)
 
     private val defaultConnectOptionsSsl =
-        PgConnectOptions(
-            host = "localhost",
-            port = port,
-            username = "postgres",
-            password = password,
-            applicationName = "KdbcTests",
+        defaultConnectOptions.copy(
             sslMode = SslMode.Require,
             connectionTimeout = 1.toDuration(unit = DurationUnit.SECONDS),
         )

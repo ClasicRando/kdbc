@@ -180,6 +180,18 @@ public class ByteReadBuffer(
         return result
     }
 
+    public fun readIntLe(byteCount: Int): Long {
+        require(byteCount in 1..8) { "An integer cannot be expressed by 1-8 bytes" }
+        val bytes = readBytes(byteCount)
+        var result = 0L
+        var shiftValue = 0
+        for (i in 1..byteCount) {
+            result = result or (bytes[i - 1].toLong() and 0xff shl shiftValue)
+            shiftValue += 8
+        }
+        return result
+    }
+
     /**
      * Read the next available [Float] within the buffer (requires 4 bytes).
      *
@@ -190,12 +202,30 @@ public class ByteReadBuffer(
     }
 
     /**
+     * Read the next available [Float] within the buffer (requires 4 bytes).
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readFloatLe(): Float {
+        return Float.fromBits(this.readIntLe())
+    }
+
+    /**
      * Read the next available [Double] within the buffer (requires 8 bytes).
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
     public fun readDouble(): Double {
         return Double.fromBits(this.readLong())
+    }
+
+    /**
+     * Read the next available [Double] within the buffer (requires 8 bytes).
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readDoubleLe(): Double {
+        return Double.fromBits(this.readLongLe())
     }
 
     /**

@@ -1,4 +1,4 @@
 package io.github.clasicrando.kdbc.mysql
 
-class MysqlError {
+public class MysqlError {
 }
