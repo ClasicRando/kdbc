@@ -33,36 +33,22 @@ public abstract class MySqlTypeDescription<T : Any>(
     }
 
     final override fun decode(value: MySqlValue): T {
-        return when (value) {
-            is MySqlValue.Binary -> {
-                try {
-                    decodeBytes(value)
-                } catch (ex: ColumnDecodeError) {
-                    throw ex
-                } catch (ex: Exception) {
-                    columnDecodeError(
-                        kType = kType,
-                        type = value.column,
-                        reason = "Failed to decode bytes for unexpected reason",
-                        cause = ex,
-                    )
-                } finally {
-                    value.bytes.reset()
-                }
+        return try {
+            when (value) {
+                is MySqlValue.Binary -> decodeBytes(value)
+                is MySqlValue.Text -> decodeText(value)
             }
-            is MySqlValue.Text ->
-                try {
-                    decodeText(value)
-                } catch (ex: ColumnDecodeError) {
-                    throw ex
-                } catch (ex: Exception) {
-                    columnDecodeError(
-                        kType = kType,
-                        type = value.column,
-                        reason = "Failed to decode bytes for unexpected reason",
-                        cause = ex,
-                    )
-                }
+        } catch (ex: ColumnDecodeError) {
+            throw ex
+        } catch (ex: Exception) {
+            columnDecodeError(
+                kType = kType,
+                type = value.column,
+                reason = "Failed to decode bytes for unexpected reason",
+                cause = ex,
+            )
+        } finally {
+            value.bytes.reset()
         }
     }
 }

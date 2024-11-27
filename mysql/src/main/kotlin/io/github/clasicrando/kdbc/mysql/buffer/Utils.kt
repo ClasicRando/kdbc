@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.mysql.buffer
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.exceptions.checkOrKdbcException
 import kotlinx.io.Buffer
 import kotlinx.io.DelicateIoApi
@@ -13,6 +14,10 @@ import kotlinx.io.writeShortLe
 import kotlinx.io.writeToInternalBuffer
 
 internal fun Source.readByteAsInt(): Int = this.readByte().toInt() and 0xff
+
+internal fun Source.read3ByteIntLe(): Int {
+    return (this.readByteAsInt() or (this.readByteAsInt() shl 8) or (this.readByteAsInt() shl 16))
+}
 
 internal fun Source.readLongLengthEncoded(): Long {
     val length = readByteAsInt()
@@ -33,10 +38,6 @@ internal fun Source.readBytesLengthEncoded(): ByteArray {
         "Length encoded value exceeds Int.MAX_VALUE"
     }
     return readByteArray(length.toInt())
-}
-
-internal fun Source.read3ByteIntLe(): Int {
-    return (this.readByteAsInt() or (this.readByteAsInt() shl 8) or (this.readByteAsInt() shl 16))
 }
 
 internal fun Sink.writeLongLengthEncoded(value: Long) {
