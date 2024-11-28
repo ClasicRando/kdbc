@@ -20,11 +20,11 @@ internal data class MySqlTime(
     val microseconds: Int,
 ) {
     init {
-        checkOrKdbcException(hours in 0..838) { "Hours must be between 0 and 838" }
-        checkOrKdbcException(minutes in 0..59) { "Minutes must be between 0 and 59" }
-        checkOrKdbcException(seconds in 0..59) { "Seconds must be between 0 and 59" }
+        checkOrKdbcException(hours in 0..838) { "Hours must be between 0 and 838. Found $hours" }
+        checkOrKdbcException(minutes in 0..59) { "Minutes must be between 0 and 59. Found $minutes" }
+        checkOrKdbcException(seconds in 0..59) { "Seconds must be between 0 and 59. Found $seconds" }
         checkOrKdbcException(microseconds in 0..999_999) {
-            "Microseconds must be between 0 and 999_999"
+            "Microseconds must be between 0 and 999_999. Found $microseconds"
         }
     }
 
@@ -92,8 +92,8 @@ internal data class MySqlTime(
                 "Parsing of MySQL TIME requires 3 parts separated by ':'"
             }
             val hours = parts[0].toInt()
-            val minutes = parts[0].toInt()
-            val secondsStr = parts[0]
+            val minutes = parts[1].toInt()
+            val secondsStr = parts[2]
             val (seconds, microseconds) =
                 if (secondsStr.contains('.')) {
                     val (sec, micro) = secondsStr.split('.', limit = 2)

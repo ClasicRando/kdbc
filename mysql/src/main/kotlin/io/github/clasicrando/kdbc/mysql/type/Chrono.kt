@@ -4,9 +4,6 @@ import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlinx.io.Sink
-import kotlinx.io.writeIntLe
-import kotlinx.io.writeShortLe
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -17,10 +14,13 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
+import kotlinx.io.Sink
+import kotlinx.io.writeIntLe
+import kotlinx.io.writeShortLe
 
 internal object LocalTimeTypeDescription :
     MySqlTypeDescription<LocalTime>(dbType = MySqlType.Time, kType = typeOf<LocalTime>()) {
-    private val formatter = DateTimeFormatter.ofPattern("HH:mm:ss.S")
+    private val formatter = DateTimeFormatter.ofPattern("HH:mm:ss[.S]")
 
     override fun encode(value: LocalTime, buffer: Sink) {
         val length = value.encodedLength()
@@ -79,7 +79,11 @@ internal object LocalDateTimeTypeDescription :
         dbType = MySqlType.Datetime,
         kType = typeOf<LocalDateTime>(),
     ) {
-    private val formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.S")
+    private val formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss[.S]")
+
+    override fun isCompatible(dbType: MySqlType): Boolean {
+        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+    }
 
     override fun encode(value: LocalDateTime, buffer: Sink) {
         val length = value.encodedLength()
@@ -111,8 +115,15 @@ internal object OffsetDateTimeTypeDescription :
         dbType = MySqlType.Timestamp,
         kType = typeOf<OffsetDateTime>(),
     ) {
+    override fun isCompatible(dbType: MySqlType): Boolean {
+        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+    }
+
     override fun encode(value: OffsetDateTime, buffer: Sink) {
-        LocalDateTimeTypeDescription.encode(value.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime(), buffer)
+        LocalDateTimeTypeDescription.encode(
+            value.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime(),
+            buffer,
+        )
     }
 
     override fun decodeBytes(value: MySqlValue.Binary): OffsetDateTime {
@@ -127,10 +138,11 @@ internal object OffsetDateTimeTypeDescription :
 }
 
 internal object InstantTypeDescription :
-    MySqlTypeDescription<Instant>(
-        dbType = MySqlType.Timestamp,
-        kType = typeOf<Instant>(),
-    ) {
+    MySqlTypeDescription<Instant>(dbType = MySqlType.Timestamp, kType = typeOf<Instant>()) {
+    override fun isCompatible(dbType: MySqlType): Boolean {
+        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+    }
+
     override fun encode(value: Instant, buffer: Sink) {
         LocalDateTimeTypeDescription.encode(LocalDateTime.ofInstant(value, ZoneOffset.UTC), buffer)
     }

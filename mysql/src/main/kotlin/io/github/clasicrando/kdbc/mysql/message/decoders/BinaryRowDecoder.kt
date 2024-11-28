@@ -62,7 +62,7 @@ internal object BinaryRowDecoder : MessageDecoder<MysqlMessage.BinaryRow, List<M
                         MySqlType.Time,
                         MySqlType.Timestamp,
                         MySqlType.Date,
-                        MySqlType.Datetime -> buffer.readByteAsInt() + 1
+                        MySqlType.Datetime -> buffer.peek().readByteAsInt() + 1
                         MySqlType.Null ->
                             throw KdbcException("Unreachable! Found null type for non-null value")
                     }
