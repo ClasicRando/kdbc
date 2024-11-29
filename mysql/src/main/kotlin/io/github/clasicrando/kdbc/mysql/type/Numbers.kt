@@ -42,7 +42,7 @@ internal object BooleanTypeDescription :
 }
 
 internal object TinyIntTypeDescription :
-    MySqlTypeDescription<Byte>(dbType = MySqlType.Long, kType = typeOf<Byte>()) {
+    MySqlTypeDescription<Byte>(dbType = MySqlType.Tiny, kType = typeOf<Byte>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = intCompatible(dbType)
 
     override fun encode(value: Byte, buffer: Sink) {
@@ -60,7 +60,7 @@ internal object TinyIntTypeDescription :
 }
 
 internal object ShortTypeDescription :
-    MySqlTypeDescription<Short>(dbType = MySqlType.Long, kType = typeOf<Short>()) {
+    MySqlTypeDescription<Short>(dbType = MySqlType.Short, kType = typeOf<Short>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = intCompatible(dbType)
 
     override fun encode(value: Short, buffer: Sink) {
@@ -96,7 +96,7 @@ internal object IntegerTypeDescription :
 }
 
 internal object LongTypeDescription :
-    MySqlTypeDescription<Long>(dbType = MySqlType.Long, kType = typeOf<Long>()) {
+    MySqlTypeDescription<Long>(dbType = MySqlType.LongLong, kType = typeOf<Long>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = intCompatible(dbType)
 
     override fun encode(value: Long, buffer: Sink) {

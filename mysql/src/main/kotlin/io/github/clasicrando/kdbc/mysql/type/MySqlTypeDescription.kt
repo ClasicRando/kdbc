@@ -44,7 +44,7 @@ public abstract class MySqlTypeDescription<T : Any>(
             columnDecodeError(
                 kType = kType,
                 type = value.column,
-                reason = "Failed to decode bytes for unexpected reason",
+                reason = "Failed to decode bytes. See cause",
                 cause = ex,
             )
         } finally {
