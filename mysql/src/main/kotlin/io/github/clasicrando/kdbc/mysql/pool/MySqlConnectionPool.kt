@@ -19,7 +19,7 @@ public class MySqlConnectionPool(connectOptions: MySqlConnectionOptions, poolOpt
         poolOptions = poolOptions,
         provider = MySqlConnectionProvider(connectOptions),
     ) {
-    internal val typeCache = MySqlTypeCache()
+    internal val typeCache = MySqlTypeCache(connectOptions.timeZoneOffset)
     internal val selectorManager = SelectorManager(dispatcher = this.coroutineContext)
 
     override suspend fun disposeConnection(connection: MySqlConnection) {

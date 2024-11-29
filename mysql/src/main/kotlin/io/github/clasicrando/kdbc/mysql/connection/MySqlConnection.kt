@@ -92,7 +92,7 @@ internal constructor(
                     continue
                 }
 
-                stream.removeFirstWaiting()
+                stream.removeFirstWaitingIfAny()
                 return@flow
             }
 
@@ -118,7 +118,7 @@ internal constructor(
                         break
                     }
 
-                    stream.removeFirstWaiting()
+                    stream.removeFirstWaitingIfAny()
                     return@flow
                 }
 

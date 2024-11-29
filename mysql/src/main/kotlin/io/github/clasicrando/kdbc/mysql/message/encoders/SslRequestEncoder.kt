@@ -13,7 +13,7 @@ internal object SslRequestEncoder : MessageEncoder<MysqlMessage.SslRequest, Capa
     override fun encode(value: MysqlMessage.SslRequest, buffer: Sink, context: Capabilities) {
         context.writeAsIntLe(buffer)
         buffer.writeIntLe(value.maxPacketSize)
-        buffer.writeByte(value.collation)
+        buffer.writeByte(value.characterSet)
 
         buffer.write(EMPTY_19_BYTES)
 

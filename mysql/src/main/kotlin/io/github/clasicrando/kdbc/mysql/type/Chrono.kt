@@ -110,7 +110,7 @@ internal object LocalDateTimeTypeDescription :
     }
 }
 
-internal object OffsetDateTimeTypeDescription :
+internal class OffsetDateTimeTypeDescription(private val zoneOffset: ZoneOffset) :
     MySqlTypeDescription<OffsetDateTime>(
         dbType = MySqlType.Timestamp,
         kType = typeOf<OffsetDateTime>(),
@@ -121,19 +121,19 @@ internal object OffsetDateTimeTypeDescription :
 
     override fun encode(value: OffsetDateTime, buffer: Sink) {
         LocalDateTimeTypeDescription.encode(
-            value.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime(),
+            value.atZoneSameInstant(zoneOffset).toLocalDateTime(),
             buffer,
         )
     }
 
     override fun decodeBytes(value: MySqlValue.Binary): OffsetDateTime {
         val local = LocalDateTimeTypeDescription.decode(value)
-        return OffsetDateTime.of(local, ZoneOffset.UTC)
+        return OffsetDateTime.of(local, zoneOffset)
     }
 
     override fun decodeText(value: MySqlValue.Text): OffsetDateTime {
         val local = LocalDateTimeTypeDescription.decode(value)
-        return OffsetDateTime.of(local, ZoneOffset.UTC)
+        return OffsetDateTime.of(local, zoneOffset)
     }
 }
 

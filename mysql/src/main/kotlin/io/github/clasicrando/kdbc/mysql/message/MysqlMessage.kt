@@ -21,13 +21,14 @@ internal sealed interface MysqlMessage {
     class HandshakeResponse(
         val database: String?,
         val maxPacketSize: Int,
-        val collation: Byte,
+        val characterSet: Byte,
         val username: String,
         val authPlugin: AuthPlugin?,
         val authResponse: ByteArray?,
+        val sessionProperties: Map<String, String>,
     ) : MysqlMessage
 
-    class SslRequest(val maxPacketSize: Int, val collation: Byte) : MysqlMessage
+    class SslRequest(val maxPacketSize: Int, val characterSet: Byte) : MysqlMessage
 
     class AuthSwitchRequest(val plugin: AuthPlugin, val data: ByteArray) : MysqlMessage
 

@@ -38,7 +38,6 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
 
     override val resourceType: String = RESOURCE_TYPE
 
-    val collation = connectionOptions.collation
     private var sequenceId = 0
     var serverVersion: Triple<Int, Int, Int> = Triple(0, 0, 0)
     var isTls = false
@@ -60,6 +59,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             Capabilities.CLIENT_PS_MULTI_RESULTS +
             Capabilities.CLIENT_SSL +
             Capabilities.CLIENT_LOCAL_FILES +
+            Capabilities.CLIENT_CONNECT_ATTRS +
             if (connectionOptions.database == null) {
                 Capabilities(0uL)
             } else {
@@ -75,8 +75,10 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         waitingQueue.addLast(waiting)
     }
 
-    fun removeFirstWaiting() {
-        waitingQueue.removeFirst()
+    fun removeFirstWaitingIfAny() {
+        if (waitingQueue.isNotEmpty()) {
+            waitingQueue.removeFirst()
+        }
     }
 
     /**
@@ -114,7 +116,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         writePacket(
             MysqlMessage.SslRequest(
                 maxPacketSize = MAX_PACKET_SIZE,
-                collation = collation.code.toByte(),
+                characterSet = DEFAULT_CHARSET,
             )
         )
 
@@ -128,7 +130,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
                 val packet = receiveNextPacket()
                 if (packet.peek().readByteAsInt() == 0xfe && packet.size < 9) {
                     val eof = EofDecoder.decode(packet, Unit)
-                    removeFirstWaiting()
+                    removeFirstWaitingIfAny()
                     if (eof.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
                         waitingQueue.addFirst(Waiting.Result)
                     }
@@ -140,7 +142,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
                 if (packet.peek().readByteAsInt() == 0x00) {
                     val of = OkDecoder.decode(packet, Unit)
                     if (of.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
-                        removeFirstWaiting()
+                        removeFirstWaitingIfAny()
                     }
                 } else {
                     updateFirstWaiting(Waiting.Row)
@@ -175,7 +177,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         }
 
         if (payload.peek().readByteAsInt() == 0xff) {
-            removeFirstWaiting()
+            removeFirstWaitingIfAny()
             val err = ErrDecoder.decode(payload, capabilities)
             throw MySqlException(
                 "errorCode=${err.errorCode}, sqlState=${err.sqlState}, errorMessage='${err.errorMessage}'"
@@ -225,9 +227,19 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
     }
 
     companion object {
+        const val DEFAULT_CHARSET = 224.toByte()
         const val MAX_PACKET_SIZE = 1024
         const val TLS_REJECT_WARNING =
             "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
+
+        suspend fun MySqlStream.setSessionVariable(variableName: String, value: String) {
+            try {
+                sendPacket(MysqlMessage.Query("SET SESSION $variableName=$value;"))
+                receiveOk()
+            } catch (ex: Exception) {
+                throw KdbcException("Could not set $variableName", ex)
+            }
+        }
 
         suspend fun connect(
             stream: Stream,
@@ -236,21 +248,13 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             stream.connect(timeout = connectionOptions.connectionTimeout)
             val mySqlStream = MySqlStream(innerStream = stream, connectionOptions = connectionOptions)
             mySqlStream.authFlow()
-            try {
-                mySqlStream.sendPacket(MysqlMessage.Query("SET NAMES 'utf8mb4';"))
-                mySqlStream.receiveOk()
-            } catch (ex: Exception) {
-                throw KdbcException("Could not initialize client character encoding to UTF-8", ex)
-            }
             if (connectionOptions.queryTimeout.isFinite()) {
-                try {
-                    val timeout = connectionOptions.queryTimeout.inWholeMilliseconds
-                    mySqlStream.sendPacket(MysqlMessage.Query("SET SESSION MAX_EXECUTION_TIME=$timeout;"))
-                    mySqlStream.receiveOk()
-                } catch (ex: Exception) {
-                    throw KdbcException("Could not set query timeout", ex)
-                }
+                mySqlStream.setSessionVariable(
+                    "MAX_EXECUTION_TIME",
+                    connectionOptions.queryTimeout.inWholeMilliseconds.toString()
+                )
             }
+            mySqlStream.setSessionVariable("TIME_ZONE", "UTC")
             return mySqlStream
         }
     }

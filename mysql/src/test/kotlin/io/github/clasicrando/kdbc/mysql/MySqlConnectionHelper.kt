@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.mysql
 
 import io.github.clasicrando.kdbc.core.SslMode
-import io.github.clasicrando.kdbc.mysql.connection.Charset
 import io.github.clasicrando.kdbc.mysql.connection.MySqlConnection
 import io.github.clasicrando.kdbc.mysql.connection.MySqlConnectionOptions
 import kotlin.time.DurationUnit
@@ -19,7 +18,6 @@ object MySqlConnectionHelper {
             username = username,
             password = password,
             database = "test",
-            charset = Charset.Utf8mb4,
             sslMode = SslMode.Disable,
         )
 

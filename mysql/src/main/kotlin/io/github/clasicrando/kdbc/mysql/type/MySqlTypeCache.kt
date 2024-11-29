@@ -2,11 +2,12 @@ package io.github.clasicrando.kdbc.mysql.type
 
 import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
+import java.time.ZoneOffset
 import kotlin.reflect.KType
 
-internal class MySqlTypeCache {
+internal class MySqlTypeCache(zoneOffset: ZoneOffset) {
     private val typeDescriptions: MutableMap<KType, MySqlTypeDescription<*>> =
-        AtomicMutableMap(baseTypes)
+        AtomicMutableMap(getBaseTypes(zoneOffset = zoneOffset))
 
     /**
      * Return the custom type description for the provided [kType]
@@ -25,28 +26,30 @@ internal class MySqlTypeCache {
     }
 
     companion object {
-        private val baseTypes: Map<KType, MySqlTypeDescription<*>> = listOf(
-            BooleanTypeDescription,
-            TinyIntTypeDescription,
-            ShortTypeDescription,
-            IntegerTypeDescription,
-            LongTypeDescription,
-            FloatTypeDescription,
-            DoubleTypeDescription,
-            ByteArrayTypeDescription,
-            DurationTypeDescription,
-            LocalTimeTypeDescription,
-            LocalDateTypeDescription,
-            LocalDateTimeTypeDescription,
-            OffsetDateTimeTypeDescription,
-            InstantTypeDescription,
-            UuidTypeDescription,
-            JUUIDTypeDescription,
-            StringTypeDescription,
-            BigDecimalTypeDescription,
-            JsonTypeDescription,
-            JsonTextTypeDescription,
-            JsonBytesTypeDescription,
-        ).associateBy { it.kType }
+        private fun getBaseTypes(zoneOffset: ZoneOffset): Map<KType, MySqlTypeDescription<*>> {
+            return listOf(
+                BooleanTypeDescription,
+                TinyIntTypeDescription,
+                ShortTypeDescription,
+                IntegerTypeDescription,
+                LongTypeDescription,
+                FloatTypeDescription,
+                DoubleTypeDescription,
+                ByteArrayTypeDescription,
+                DurationTypeDescription,
+                LocalTimeTypeDescription,
+                LocalDateTypeDescription,
+                LocalDateTimeTypeDescription,
+                OffsetDateTimeTypeDescription(zoneOffset = zoneOffset),
+                InstantTypeDescription,
+                UuidTypeDescription,
+                JUUIDTypeDescription,
+                StringTypeDescription,
+                BigDecimalTypeDescription,
+                JsonTypeDescription,
+                JsonTextTypeDescription,
+                JsonBytesTypeDescription,
+            ).associateBy { it.kType }
+        }
     }
 }

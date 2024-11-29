@@ -8,6 +8,7 @@ import io.github.clasicrando.kdbc.mysql.message.decoders.AuthSwitchRequestDecode
 import io.github.clasicrando.kdbc.mysql.message.decoders.HandshakeDecoder
 import io.github.clasicrando.kdbc.mysql.message.decoders.OkDecoder
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
+import io.github.clasicrando.kdbc.mysql.stream.MySqlStream.Companion.DEFAULT_CHARSET
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream.Companion.MAX_PACKET_SIZE
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
@@ -42,10 +43,11 @@ internal suspend fun MySqlStream.authFlow() {
         MysqlMessage.HandshakeResponse(
             database = connectionOptions.database,
             maxPacketSize = MAX_PACKET_SIZE,
-            collation = this.collation.code.toByte(),
+            characterSet = DEFAULT_CHARSET,
             username = connectionOptions.username,
             authPlugin = plugin,
             authResponse = authResponse,
+            sessionProperties = connectionOptions.properties,
         )
     this.writePacket(handshakeResponse)
 
