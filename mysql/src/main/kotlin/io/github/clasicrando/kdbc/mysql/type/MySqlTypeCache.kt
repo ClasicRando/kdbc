@@ -45,6 +45,8 @@ internal class MySqlTypeCache {
             StringTypeDescription,
             BigDecimalTypeDescription,
             JsonTypeDescription,
+            JsonTextTypeDescription,
+            JsonBytesTypeDescription,
         ).associateBy { it.kType }
     }
 }

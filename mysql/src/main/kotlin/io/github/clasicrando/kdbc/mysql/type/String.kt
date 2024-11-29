@@ -7,10 +7,10 @@ import io.github.clasicrando.kdbc.core.type.Json
 import io.github.clasicrando.kdbc.mysql.buffer.writeLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.writeStringLengthEncoded
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlinx.io.Sink
 import java.math.BigDecimal
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
+import kotlinx.io.Sink
 
 internal object StringTypeDescription :
     MySqlTypeDescription<String>(dbType = MySqlType.VarString, kType = typeOf<String>()) {
@@ -59,10 +59,8 @@ internal object BigDecimalTypeDescription :
 
 /** Implementation of [MySqlTypeDescription] for custom enum columns in a mysql database */
 @PublishedApi
-internal class EnumTypeDescription<E : Enum<E>>(
-    kType: KType,
-    values: Array<E>,
-) : MySqlTypeDescription<E>(dbType = StringTypeDescription.dbType, kType = kType) {
+internal class EnumTypeDescription<E : Enum<E>>(kType: KType, values: Array<E>) :
+    MySqlTypeDescription<E>(dbType = StringTypeDescription.dbType, kType = kType) {
     private val nameMap: Map<E, String>
     internal val entryLookup: Map<String, E>
 
@@ -146,5 +144,49 @@ internal object JsonTypeDescription :
 
     override fun decodeText(value: MySqlValue.Text): Json {
         return Json.Text(value.text)
+    }
+}
+
+internal object JsonTextTypeDescription :
+    MySqlTypeDescription<Json.Text>(
+        dbType = JsonTypeDescription.dbType,
+        kType = typeOf<Json.Text>(),
+    ) {
+    override fun isCompatible(dbType: MySqlType): Boolean {
+        return JsonTypeDescription.isCompatible(dbType)
+    }
+
+    override fun encode(value: Json.Text, buffer: Sink) {
+        JsonTypeDescription.encode(value, buffer)
+    }
+
+    override fun decodeBytes(value: MySqlValue.Binary): Json.Text {
+        return JsonTypeDescription.decodeBytes(value).asJson()
+    }
+
+    override fun decodeText(value: MySqlValue.Text): Json.Text {
+        return JsonTypeDescription.decodeText(value).asJson()
+    }
+}
+
+internal object JsonBytesTypeDescription :
+    MySqlTypeDescription<Json.Bytes>(
+        dbType = JsonTypeDescription.dbType,
+        kType = typeOf<Json.Bytes>(),
+    ) {
+    override fun isCompatible(dbType: MySqlType): Boolean {
+        return JsonTypeDescription.isCompatible(dbType)
+    }
+
+    override fun encode(value: Json.Bytes, buffer: Sink) {
+        JsonTypeDescription.encode(value, buffer)
+    }
+
+    override fun decodeBytes(value: MySqlValue.Binary): Json.Bytes {
+        return JsonTypeDescription.decodeBytes(value).asJson()
+    }
+
+    override fun decodeText(value: MySqlValue.Text): Json.Bytes {
+        return JsonTypeDescription.decodeText(value).asJson()
     }
 }

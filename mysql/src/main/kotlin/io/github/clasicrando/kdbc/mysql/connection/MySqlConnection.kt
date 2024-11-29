@@ -147,7 +147,6 @@ internal constructor(
         }
         return mutex.withLock {
             stream.waitUntilReady()
-            stream.addLastWaiting(Waiting.Result)
             var isBinaryEncoding = false
             if (query.parameters.isNotEmpty()) {
                 val statement = getOrPrepareStatement(query.sql)
@@ -159,6 +158,7 @@ internal constructor(
             } else {
                 stream.sendPacket(MysqlMessage.Query(sql = query.sql))
             }
+            stream.addLastWaiting(Waiting.Result)
 
             collectResults(
                 needsMetadataParam = query.parameters.isEmpty(),
@@ -336,7 +336,7 @@ internal constructor(
         typeCache.addTypeDescription<T>(typeDescription)
     }
 
-    public inline fun <reified E : Enum<E>> addEnumTypeDescription() {
+    public inline fun <reified E : Enum<E>> registerEnumTypeDescription() {
         val typeDescription = EnumTypeDescription(kType = typeOf<E>(), values = enumValues<E>())
         registerCustomType<E>(typeDescription)
     }

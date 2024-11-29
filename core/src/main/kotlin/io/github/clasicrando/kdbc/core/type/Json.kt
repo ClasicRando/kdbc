@@ -3,42 +3,20 @@ package io.github.clasicrando.kdbc.core.type
 import kotlinx.io.Sink
 import kotlinx.io.writeString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json as KotlinxJson
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.Json as KotlinxJson
 
 /**
  * Wrapper for json data encoded as [Bytes] or [Text]
  */
 public sealed class Json {
     public class Bytes(public val bytes: ByteArray) : Json() {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is Bytes) return false
-
-            return bytes.contentEquals(other.bytes)
-        }
-
-        override fun hashCode(): Int {
-            return bytes.contentHashCode()
-        }
-
         override fun toString(): String {
             return "Json.Bytes(bytes=${bytes.contentToString()})"
         }
     }
 
     public class Text(public val text: String) : Json() {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is Text) return false
-
-            return text == other.text
-        }
-
-        override fun hashCode(): Int {
-            return text.hashCode()
-        }
-
         override fun toString(): String {
             return "Json.Text(text='$text')"
         }
@@ -63,10 +41,43 @@ public sealed class Json {
         return decodeUsingSerialization()
     }
 
+    public inline fun <reified T : Json> asJson(): T {
+        if (this is T) {
+            return this
+        }
+        return when (this) {
+            is Bytes -> Text(this.bytes.toString(charset = Charsets.UTF_8)) as T
+            is Text -> Bytes(this.text.toByteArray(charset = Charsets.UTF_8)) as T
+        }
+    }
+
     override fun toString(): String {
         return when (this) {
             is Bytes -> bytes.toString(charset = Charsets.UTF_8)
             is Text -> text
+        }
+    }
+
+    final override fun hashCode(): Int {
+        return when (this) {
+            is Bytes -> this.bytes.contentHashCode()
+            is Text -> this.text.hashCode()
+        }
+    }
+
+    final override fun equals(other: Any?): Boolean {
+        if (other !is Json) {
+            return false
+        }
+        return when (this) {
+            is Bytes -> when (other) {
+                is Text -> this.bytes.toString(charset = Charsets.UTF_8) == other.text
+                is Bytes -> this.bytes.contentEquals(other.bytes)
+            }
+            is Text -> when (other) {
+                is Text -> this.text == other.text
+                is Bytes -> this.text == other.bytes.toString(charset = Charsets.UTF_8)
+            }
         }
     }
 
