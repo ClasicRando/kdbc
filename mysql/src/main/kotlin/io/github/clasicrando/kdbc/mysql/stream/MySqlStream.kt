@@ -114,10 +114,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         }
 
         writePacket(
-            MysqlMessage.SslRequest(
-                maxPacketSize = MAX_PACKET_SIZE,
-                characterSet = DEFAULT_CHARSET,
-            )
+            MysqlMessage.SslRequest(maxPacketSize = MAX_PACKET_SIZE, characterSet = DEFAULT_CHARSET)
         )
 
         innerStream.upgradeTls(connectionOptions.connectionTimeout)
@@ -232,12 +229,12 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         const val TLS_REJECT_WARNING =
             "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
 
-        suspend fun MySqlStream.setSessionVariable(variableName: String, value: String) {
+        suspend fun MySqlStream.setSessionVariables(options: List<String>) {
             try {
-                sendPacket(MysqlMessage.Query("SET SESSION $variableName=$value;"))
+                sendPacket(MysqlMessage.Query("SET ${options.joinToString(separator = ",")};"))
                 receiveOk()
             } catch (ex: Exception) {
-                throw KdbcException("Could not set $variableName", ex)
+                throw KdbcException("Could not set session variables: $options", ex)
             }
         }
 
@@ -246,15 +243,30 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             connectionOptions: MySqlConnectionOptions,
         ): MySqlStream {
             stream.connect(timeout = connectionOptions.connectionTimeout)
-            val mySqlStream = MySqlStream(innerStream = stream, connectionOptions = connectionOptions)
+            val mySqlStream =
+                MySqlStream(innerStream = stream, connectionOptions = connectionOptions)
             mySqlStream.authFlow()
-            if (connectionOptions.queryTimeout.isFinite()) {
-                mySqlStream.setSessionVariable(
-                    "MAX_EXECUTION_TIME",
-                    connectionOptions.queryTimeout.inWholeMilliseconds.toString()
-                )
-            }
-            mySqlStream.setSessionVariable("TIME_ZONE", "UTC")
+
+            val sessionVariables =
+                buildList<String> {
+                    if (connectionOptions.queryTimeout.isFinite()) {
+                        add(
+                            "MAX_EXECUTION_TIME=${connectionOptions.queryTimeout.inWholeMilliseconds}"
+                        )
+                    }
+                    val sqlMode =
+                        connectionOptions
+                            .sqlModeOptions()
+                            .filterNotNull()
+                            .joinToString(
+                                separator = ",",
+                                prefix = "sql_mode=(SELECT CONCAT(@@sql_mode, ',",
+                                postfix = "'))",
+                            )
+                    add(sqlMode)
+                    add("TIME_ZONE=UTC")
+                }
+            mySqlStream.setSessionVariables(sessionVariables)
             return mySqlStream
         }
     }

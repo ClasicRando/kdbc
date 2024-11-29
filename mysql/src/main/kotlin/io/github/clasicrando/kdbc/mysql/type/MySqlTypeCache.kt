@@ -41,7 +41,7 @@ internal class MySqlTypeCache(zoneOffset: ZoneOffset) {
                 LocalDateTypeDescription,
                 LocalDateTimeTypeDescription,
                 OffsetDateTimeTypeDescription(zoneOffset = zoneOffset),
-                InstantTypeDescription,
+                InstantTypeDescription(zoneOffset = zoneOffset),
                 UuidTypeDescription,
                 JUUIDTypeDescription,
                 StringTypeDescription,

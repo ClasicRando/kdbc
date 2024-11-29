@@ -63,10 +63,19 @@ public data class MySqlConnectionOptions(
      */
     val noEngineSubstitution: Boolean = true,
     /**
+     * Set the `sql_mode` option to allow for a double pipe ('||') to represent a character
+     * concatenation rather than calling `CONCAT(a, b)`.
+     */
+    val pipeAsConcat: Boolean = true,
+    /**
      * Allows a client to take a batch of duplicate `INSERT` statements and rewrite to a single
      * `INSERT` statement with chained `VALUES` tuples to execute all inserts in 1 statement. This
-     * override the `withTransaction` parameter supplied to a query batch execution since all
+     * overrides the `withTransaction` parameter supplied to a query batch execution since all
      * inserts work or the entire statement fails and no records are inserted.
+     *
+     * **Note** MySQL caps the number of parameters in a statement to 65,536 (i.e. max u16 value) so
+     * if you have a complex insert, consider external batching, the `LOAD DATE INFILE` statement,
+     * or raise an issue to request this custom behaviour.
      */
     val rewriteBatchInsertQuery: Boolean = false,
     /**
@@ -90,6 +99,13 @@ public data class MySqlConnectionOptions(
             "_client_version" to "0.0.4",
             "_program_name" to applicationName,
         )
+
+    internal fun sqlModeOptions(): Sequence<String?> {
+        return sequenceOf(
+            if (pipeAsConcat) "PIPES_AS_CONCAT" else null,
+            if (noEngineSubstitution) "NO_ENGINE_SUBSTITUTION" else null,
+        )
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
