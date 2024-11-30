@@ -9,7 +9,6 @@ internal class MySqlPreparedStatement(
     override val statementId: Int,
     override val paramCount: Int,
     val columns: List<MySqlColumn>,
-    val columnNames: Map<String, Int>,
 ) : PreparedStatement {
     override var prepared = true
     override var lastExecuted: Instant? = null

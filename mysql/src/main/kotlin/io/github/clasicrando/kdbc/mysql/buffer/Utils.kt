@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.buffer
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.exceptions.checkOrKdbcException
+import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
 import kotlinx.io.Buffer
 import kotlinx.io.DelicateIoApi
 import kotlinx.io.Sink
@@ -75,7 +75,7 @@ internal fun Sink.write3ByteIntLe(int: Int) {
     writeByte((int shr 16 and 0xff).toByte())
 }
 
-private const val MAX_PACKET_DATA_LENGTH = 0xff_ff_ffL
+private const val MAX_PACKET_DATA_LENGTH = MySqlStream.MAX_PACKET_SIZE.toLong() - 4
 
 @OptIn(DelicateIoApi::class)
 internal inline fun Sink.writeLengthEncoded(crossinline block: Sink.() -> Unit) {
@@ -99,7 +99,7 @@ internal inline fun Sink.writePackets(
     var tempSequenceId = currentSequenceId
     val tempBuffer = Buffer()
     block(tempBuffer)
-    while (!tempBuffer.exhausted()) {
+    do {
         val length = minOf(tempBuffer.size, MAX_PACKET_DATA_LENGTH)
         this.writeToInternalBuffer { buf ->
             buf.write3ByteIntLe(length.toInt())
@@ -107,6 +107,6 @@ internal inline fun Sink.writePackets(
             buf.write(tempBuffer, length)
         }
         tempSequenceId = if (tempSequenceId >= 255) 1 else tempSequenceId + 1
-    }
+    } while (!tempBuffer.exhausted())
     return tempSequenceId
 }

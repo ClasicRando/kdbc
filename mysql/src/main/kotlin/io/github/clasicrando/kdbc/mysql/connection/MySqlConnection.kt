@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.cache.LruCache
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.AbstractConnection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
+import io.github.clasicrando.kdbc.core.exceptions.checkOrKdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.normalizeWhitespace
 import io.github.clasicrando.kdbc.core.query.Query
@@ -13,9 +14,13 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.splitQuery
+import io.github.clasicrando.kdbc.core.statement.CsvDataRow
+import io.github.clasicrando.kdbc.core.statement.mapIntoCsvDataChunks
 import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
+import io.github.clasicrando.kdbc.mysql.load.LoadLocalFileStatement
+import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import io.github.clasicrando.kdbc.mysql.message.Status
 import io.github.clasicrando.kdbc.mysql.message.decoders.BinaryRowDecoder
@@ -39,12 +44,21 @@ import io.github.clasicrando.kdbc.mysql.type.MysqlTypeInfo
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import java.io.IOException
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.reflect.typeOf
+import kotlinx.io.Buffer
+import kotlinx.io.Source
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 
 private val logger = KotlinLogging.logger {}
 
@@ -73,67 +87,68 @@ internal constructor(
         logWithResource(logger, level, block)
     }
 
-    private fun collectResults(
-        needsMetadataParam: Boolean,
-        isBinaryEncoding: Boolean,
-    ): Flow<Either<QueryResult, DataRow>> = flow {
-        var columns: List<MySqlColumn>
-        var needsMetadata = needsMetadataParam
-        while (true) {
-            val packet = stream.receiveNextPacket()
-            val firstByte = packet.peek().readByteAsInt()
-            if (firstByte == 0x00) {
-                val ok = OkDecoder.decode(packet)
-                emit(
-                    Either.Left(QueryResult(ok.affectedRows, "Last Insert ID: ${ok.lastInsertId}"))
-                )
-
-                if (ok.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
-                    continue
-                }
-
-                stream.removeFirstWaitingIfAny()
-                return@flow
-            }
-
-            stream.updateFirstWaiting(Waiting.Row)
-
-            val columnCount = packet.readLongLengthEncoded().toInt()
-            if (needsMetadata) {
-                columns = receiveResultColumns(columnCount, true)
-            } else {
-                needsMetadata = true
-                columns = receiveResultColumns(columnCount, false)
-            }
-
-            var rowCount = 0L
+    /**
+     * Collect all result sets sent from the server as a [Flow] of [Either] a [QueryResult] or a
+     * [DataRow]. The flow will always be terminated with a [QueryResult].
+     */
+    private fun collectResults(isBinaryEncoding: Boolean): Flow<Either<QueryResult, DataRow>> =
+        flow {
+            var columns: List<MySqlColumn>
             while (true) {
-                val rowPacket = stream.receiveNextPacket()
-                if (rowPacket.peek().readByteAsInt() == 0xfe && rowPacket.size < 9) {
-                    val eof = EofDecoder.decode(rowPacket)
-                    emit(Either.Left(QueryResult(rowCount, "")))
+                val packet = stream.receiveNextPacket()
+                val firstByte = packet.peek().readByteAsInt()
+                if (firstByte == 0x00) {
+                    val ok = OkDecoder.decode(packet)
+                    emit(
+                        Either.Left(
+                            QueryResult(ok.affectedRows, "Last Insert ID: ${ok.lastInsertId}")
+                        )
+                    )
 
-                    if (eof.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
-                        stream.updateFirstWaiting(Waiting.Result)
-                        break
+                    if (ok.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
+                        continue
                     }
 
                     stream.removeFirstWaitingIfAny()
                     return@flow
                 }
+                checkOrKdbcException(firstByte != 0xfb) {
+                    "Found local load response. Execute that command with MySqlConnect.loadLocalFile"
+                }
 
-                val rowValues =
-                    if (isBinaryEncoding) {
-                        BinaryRowDecoder.decode(rowPacket, columns).row
-                    } else {
-                        TextRowDecoder.decode(rowPacket, columns).row
+                stream.updateFirstWaiting(Waiting.Row)
+
+                val columnCount = packet.readLongLengthEncoded().toInt()
+                columns = receiveResultColumns(columnCount)
+
+                var rowCount = 0L
+                while (true) {
+                    val rowPacket = stream.receiveNextPacket()
+                    if (rowPacket.peek().readByteAsInt() == 0xfe && rowPacket.size < 9) {
+                        val eof = EofDecoder.decode(rowPacket)
+                        emit(Either.Left(QueryResult(rowCount, "")))
+
+                        if (eof.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
+                            stream.updateFirstWaiting(Waiting.Result)
+                            break
+                        }
+
+                        stream.removeFirstWaitingIfAny()
+                        return@flow
                     }
-                val dataRow = MySqlDataRow(rowValues, columns, typeCache)
-                emit(Either.Right(dataRow))
-                rowCount++
+
+                    val rowValues =
+                        if (isBinaryEncoding) {
+                            BinaryRowDecoder.decode(rowPacket, columns).row
+                        } else {
+                            TextRowDecoder.decode(rowPacket, columns).row
+                        }
+                    val dataRow = MySqlDataRow(rowValues, columns, typeCache)
+                    emit(Either.Right(dataRow))
+                    rowCount++
+                }
             }
         }
-    }
 
     override suspend fun executeQuery(query: Query): Flow<Either<QueryResult, DataRow>> {
         val queryCount = splitQuery(query.sql).size
@@ -160,10 +175,7 @@ internal constructor(
             }
             stream.addLastWaiting(Waiting.Result)
 
-            collectResults(
-                needsMetadataParam = query.parameters.isEmpty(),
-                isBinaryEncoding = isBinaryEncoding,
-            )
+            collectResults(isBinaryEncoding = isBinaryEncoding)
         }
     }
 
@@ -207,13 +219,171 @@ internal constructor(
         }
     }
 
+    /**
+     * Issue a `LOAD FILE LOCAL` command to copy all data found when reading the [file] to the
+     * server.
+     *
+     * A consideration for local loading is that once data has been sent to the server, it cannot be
+     * aborted. This means that if you want to allow rolling back inserts where the client failed
+     * part way through a read (or just generally to be safer) you should override the
+     * [withTransaction] flag to true to wrap the entire operation in a transaction.
+     *
+     * @throws KdbcException if local loading is not supported by the server, the initial request
+     *   response has an unexpected header or a general KDBC exception
+     */
+    public suspend fun loadLocalFile(
+        statement: LoadLocalFileStatement,
+        file: Path,
+        withTransaction: Boolean = false,
+    ): QueryResult {
+        return Files.newInputStream(file).use { loadLocalFile(statement, it, withTransaction) }
+    }
+
+    /**
+     * Issue a `LOAD FILE LOCAL` command to copy all [InputStream] data to the server.
+     *
+     * A consideration for local loading is that once data has been sent to the server, it cannot be
+     * aborted. This means that if you want to allow rolling back inserts where the client failed
+     * part way through a read (or just generally to be safer) you should override the
+     * [withTransaction] flag to true to wrap the entire operation in a transaction.
+     *
+     * @throws KdbcException if local loading is not supported by the server, the initial request
+     *   response has an unexpected header or a general KDBC exception
+     */
+    public suspend fun loadLocalFile(
+        statement: LoadLocalFileStatement,
+        inputStream: InputStream,
+        withTransaction: Boolean = false,
+    ): QueryResult {
+        return loadLocalFile(statement, inputStream.asSource().buffered(), withTransaction)
+    }
+
+    /**
+     * Issue a `LOAD FILE LOCAL` command to copy all [Source] data to the server.
+     *
+     * A consideration for local loading is that once data has been sent to the server, it cannot be
+     * aborted. This means that if you want to allow rolling back inserts where the client failed
+     * part way through a read (or just generally to be safer) you should override the
+     * [withTransaction] flag to true to wrap the entire operation in a transaction.
+     *
+     * @throws KdbcException if local loading is not supported by the server, the initial request
+     *   response has an unexpected header or a general KDBC exception
+     */
+    public suspend fun loadLocalFile(
+        statement: LoadLocalFileStatement,
+        source: Source,
+        withTransaction: Boolean = false,
+    ): QueryResult {
+        return loadLocalInternal(statement, flowOf(source), withTransaction)
+    }
+
+    /**
+     * Issue a `LOAD FILE LOCAL` command to copy all [CsvDataRow]s to the server.
+     *
+     * A consideration for local loading is that once data has been sent to the server, it cannot be
+     * aborted. This means that if you want to allow rolling back inserts where the client failed
+     * part way through a read (or just generally to be safer) you should override the
+     * [withTransaction] flag to true to wrap the entire operation in a transaction.
+     *
+     * @throws KdbcException if local loading is not supported by the server, the initial request
+     *   response has an unexpected header or a general KDBC exception
+     */
+    public suspend fun loadLocalData(
+        statement: LoadLocalFileStatement,
+        data: Flow<CsvDataRow>,
+        withTransaction: Boolean = false,
+    ): QueryResult {
+        return loadLocalInternal(
+            statement =
+                statement.copy(
+                    characterSet = "utf8mb4",
+                    delimiter = ',',
+                    quoteChar = '"',
+                    newline = "\n",
+                    skipLines = 0,
+                ),
+            data = data.mapIntoCsvDataChunks(CSV_ROW_BUFFER_SIZE),
+            withTransaction = withTransaction,
+        )
+    }
+
+    /**
+     * Issue a `LOAD FILE LOCAL` command to copy all the [data] contents to the server.
+     *
+     * A consideration for local loading is that once data has been sent to the server, it cannot be
+     * aborted. This means that if you want to allow rolling back inserts where the client failed
+     * part way through a read (or just generally to be safer) you should override the
+     * [withTransaction] flag to true to wrap the entire operation in a transaction.
+     *
+     * @throws KdbcException if local loading is not supported by the server, the initial request
+     *   response has an unexpected header or a general KDBC exception
+     */
+    private suspend fun loadLocalInternal(
+        statement: LoadLocalFileStatement,
+        data: Flow<Source>,
+        withTransaction: Boolean = false,
+    ): QueryResult {
+        checkOrKdbcException(stream.capabilities[Capabilities.CLIENT_LOCAL_FILES]) {
+            "Server does not support local load commands"
+        }
+        val query = statement.toQuery()
+
+        if (withTransaction) {
+            begin()
+        }
+
+        log(connectionOptions.statementLogLevel) {
+            message = "Sending query: ${query.normalizeWhitespace()}"
+        }
+        try {
+            stream.sendPacket(MysqlMessage.Query(sql = query))
+            stream.addLastWaiting(Waiting.Result)
+            val response = stream.receiveNextPacket()
+            val firstByte = response.readByteAsInt()
+            checkOrKdbcException(firstByte == 0xFB) {
+                "LOAD LOCAL response is supposed to be 0xFB but found 0x${firstByte.toHexString()}"
+            }
+
+            var error: Exception? = null
+            try {
+                val tempBuffer = Buffer()
+                data.collect {
+                    while (!it.exhausted()) {
+                        it.readAtMostTo(tempBuffer, COPY_BUFFER_SIZE - tempBuffer.size)
+                        if (tempBuffer.size >= COPY_BUFFER_SIZE) {
+                            stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))
+                        }
+                    }
+                }
+                if (!tempBuffer.exhausted()) {
+                    stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))
+                }
+            } catch (ex: Exception) {
+                error = ex
+                throw ex
+            } finally {
+                if (error !is IOException) {
+                    stream.writePacket(MysqlMessage.Empty)
+                }
+            }
+            val ok = stream.receiveOk()
+            stream.removeFirstWaitingIfAny()
+            if (withTransaction) {
+                commit()
+            }
+            return QueryResult(rowsAffected = ok.affectedRows, message = "LOAD DATA done")
+        } catch (ex: Throwable) {
+            if (withTransaction && ex !is IOException) {
+                rollback()
+            }
+            throw ex
+        }
+    }
+
     private val lruCache =
         LruCache<String, MySqlPreparedStatement>(connectionOptions.statementCacheCapacity)
 
-    private suspend fun receiveResultColumns(
-        columnCount: Int,
-        alwaysCheckEof: Boolean,
-    ): List<MySqlColumn> {
+    private suspend fun receiveResultColumns(columnCount: Int): List<MySqlColumn> {
         val columns = mutableListOf<MySqlColumn>()
         for (i in 1..columnCount) {
             val columnDefinition = stream.receiveNext(ColumnDefinitionDecoder)
@@ -224,34 +394,9 @@ internal constructor(
                     typeInfo = MysqlTypeInfo.fromColumnDefinition(columnDefinition),
                 )
             columns.add(column)
-        }
-
-        if (alwaysCheckEof || columnCount > 0) {
-            stream.receiveEofIfPossible()
         }
 
         return columns
-    }
-
-    private suspend fun receiveResultMetadata(
-        columnCount: Int
-    ): Pair<Map<String, Int>, List<MySqlColumn>> {
-        val columnNames = mutableMapOf<String, Int>()
-        val columns = mutableListOf<MySqlColumn>()
-        for (i in 1..columnCount) {
-            val columnDefinition = stream.receiveNext(ColumnDefinitionDecoder)
-            val column =
-                MySqlColumn(
-                    ordinal = i.toLong(),
-                    name = columnDefinition.getName(),
-                    typeInfo = MysqlTypeInfo.fromColumnDefinition(columnDefinition),
-                )
-
-            columnNames[column.name] = i
-            columns.add(column)
-        }
-        stream.receiveEofIfPossible()
-        return columnNames to columns
     }
 
     private suspend fun prepareStatement(query: String): MySqlPreparedStatement {
@@ -259,14 +404,13 @@ internal constructor(
         val prepareOk = stream.receiveNext(PrepareOkDecoder)
         if (prepareOk.params > 0) {
             (1..prepareOk.params).forEach { stream.receiveNext(ColumnDefinitionDecoder) }
-            stream.receiveEofIfPossible()
         }
 
-        val (columnNames, columns) =
+        val columns =
             if (prepareOk.columns > 0) {
-                receiveResultMetadata(prepareOk.columns)
+                receiveResultColumns(prepareOk.columns)
             } else {
-                emptyMap<String, Int>() to emptyList()
+                emptyList()
             }
 
         return MySqlPreparedStatement(
@@ -274,7 +418,6 @@ internal constructor(
             statementId = prepareOk.statementId,
             paramCount = prepareOk.params,
             columns = columns,
-            columnNames = columnNames,
         )
     }
 
@@ -342,6 +485,9 @@ internal constructor(
     }
 
     internal companion object {
+        private const val COPY_BUFFER_SIZE = MySqlStream.MAX_PACKET_SIZE - 4
+        private const val CSV_ROW_BUFFER_SIZE = 2000
+
         suspend fun connect(
             connectionOptions: MySqlConnectionOptions,
             stream: MySqlStream,

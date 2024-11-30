@@ -4,6 +4,28 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import kotlinx.coroutines.flow.Flow
+import kotlinx.io.asSink
+import kotlinx.io.buffered
+import kotlinx.io.writeString
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
+
+fun createTempCsvForLoad(outputFile: Path, rowCount: Long): Path {
+    try {
+        Files.newOutputStream(outputFile, StandardOpenOption.CREATE).use { out ->
+            out.asSink().buffered().use {
+                (1..rowCount).forEach { i ->
+                    it.writeString("$i,$i Value\n")
+                }
+            }
+        }
+        return outputFile
+    } catch (ex: Exception) {
+        Files.deleteIfExists(outputFile)
+        throw ex
+    }
+}
 
 suspend fun Flow<Either<QueryResult, DataRow>>.collectResults(): Pair<List<QueryResult>, List<List<DataRow>>> {
     val results = mutableListOf<QueryResult>()

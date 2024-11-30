@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.mysql.connection
 
+import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.bindOut
 import io.github.clasicrando.kdbc.core.query.execute
@@ -11,6 +12,7 @@ import io.github.clasicrando.kdbc.core.useCatching
 import io.github.clasicrando.kdbc.mysql.MySqlConnectionHelper
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import kotlin.test.BeforeTest
@@ -27,6 +29,7 @@ class TestQuerySpec {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `executeQuery should return single row when simple query`(): Unit = runBlocking {
         val simpleQuery = query("SELECT 1 AS test")
         MySqlConnectionHelper.defaultConnection().use {
@@ -42,6 +45,7 @@ class TestQuerySpec {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `executeQuery should return multiple row when simple query`(): Unit = runBlocking {
         val simpleQuery = query("SELECT 1 AS test UNION SELECT 2")
         MySqlConnectionHelper.defaultConnection().use {
@@ -58,6 +62,7 @@ class TestQuerySpec {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `executeQuery should return multiple results when multi query`(): Unit = runBlocking {
         val simpleQuery = query("SELECT 1 AS test; SELECT 2 AS `second row`")
         MySqlConnectionHelper.defaultConnection().use {
@@ -77,6 +82,7 @@ class TestQuerySpec {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `executeQuery should timeout when long running query`(): Unit = runBlocking {
         val timeoutQuery =
             query(
@@ -107,6 +113,7 @@ class TestQuerySpec {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `executeQuery should return single row when prepared statement`(): Unit = runBlocking {
         val preparedStatement = query("SELECT ? AS test").bind(1)
         MySqlConnectionHelper.defaultConnection().use {
@@ -122,6 +129,7 @@ class TestQuerySpec {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `executeQuery should return multiple row when prepared statement`(): Unit = runBlocking {
         val simpleQuery = query("SELECT ? AS test UNION SELECT ?").bind(1).bind(2)
         MySqlConnectionHelper.defaultConnection().use {
@@ -138,6 +146,7 @@ class TestQuerySpec {
     }
 
     @Test
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `executeQuery should return single row when stored procedure with out parameter`(): Unit =
         runBlocking {
             val preparedStatement = query("CALL $TEST_PROC_NAME(1, ?)").bindOut<String>()
@@ -156,6 +165,7 @@ class TestQuerySpec {
         }
 
     @ParameterizedTest
+    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     @CsvSource("true,true", "true,false", "false,true", "false,false")
     fun `executeQueryBatch should return multiple results when multiple queries`(
         inTransaction: Boolean,

@@ -24,7 +24,6 @@ import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.io.Buffer
-import kotlinx.io.InternalIoApi
 import kotlinx.io.Source
 
 private val logger = KotlinLogging.logger {}
@@ -137,8 +136,8 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             while (waitingQueue.firstOrNull() == Waiting.Result) {
                 val packet = receiveNextPacket()
                 if (packet.peek().readByteAsInt() == 0x00) {
-                    val of = OkDecoder.decode(packet, Unit)
-                    if (of.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
+                    val ok = OkDecoder.decode(packet, Unit)
+                    if (!ok.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
                         removeFirstWaitingIfAny()
                     }
                 } else {
@@ -157,10 +156,9 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         return innerStream.readBuffer(packetSize)
     }
 
-    @OptIn(InternalIoApi::class)
     suspend fun receiveNextPacket(): Buffer {
         val payload = readRawPacket()
-        if (payload.buffer.size >= 0xff_ff_ff) {
+        if (payload.size >= 0xff_ff_ff) {
             var lastRead = 0xff_ff_ffL
             while (lastRead == 0xff_ff_ffL) {
                 val nextPayload = readRawPacket()
@@ -183,17 +181,9 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         return payload
     }
 
-    suspend fun receiveEofIfPossible(): MysqlMessage.Eof? {
-        if (capabilities[Capabilities.CLIENT_DEPRECATE_EOF]) {
-            return null
-        }
-        return EofDecoder.decode(receiveNextPacket(), Unit)
-    }
-
     private suspend fun skipResultMetadata(packet: Source) {
         val columnsCount = packet.readLongLengthEncoded()
         (0..columnsCount).forEach { receiveNextPacket() }
-        receiveEofIfPossible()
     }
 
     suspend fun receiveOk(): MysqlMessage.Ok {
@@ -211,7 +201,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
 
     suspend fun writePacket(message: MysqlMessage) {
         innerStream.writeTo {
-            it.writePackets(currentSequenceId = sequenceId) {
+            sequenceId = it.writePackets(currentSequenceId = sequenceId) {
                 MySqlMessageEncoders.encode(message, this, capabilities)
             }
         }
@@ -225,7 +215,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
 
     companion object {
         const val DEFAULT_CHARSET = 224.toByte()
-        const val MAX_PACKET_SIZE = 1024
+        const val MAX_PACKET_SIZE = 0xff_ff_ff
         const val TLS_REJECT_WARNING =
             "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
 

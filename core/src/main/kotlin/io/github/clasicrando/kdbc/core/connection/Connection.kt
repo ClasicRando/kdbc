@@ -9,6 +9,7 @@ import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.use
 import kotlinx.coroutines.flow.Flow
+import kotlinx.io.IOException
 
 private const val RESOURCE_TYPE = "Connection"
 
@@ -110,7 +111,13 @@ public suspend inline fun <R, C : Connection> C.transaction(block: (C) -> R): R 
         commit()
         result
     } catch (ex: Throwable) {
-        rollback()
+        if (ex !is IOException) {
+            try {
+                rollback()
+            } catch (ex2: Exception) {
+                ex.addSuppressed(ex2)
+            }
+        }
         throw ex
     }
 }

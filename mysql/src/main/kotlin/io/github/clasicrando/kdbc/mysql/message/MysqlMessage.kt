@@ -5,6 +5,7 @@ import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
 import io.github.clasicrando.kdbc.mysql.statement.MySqlArguments
 import io.github.clasicrando.kdbc.mysql.type.MySqlType
+import kotlinx.io.Buffer
 
 internal sealed interface MysqlMessage {
     class Handshake(
@@ -93,4 +94,10 @@ internal sealed interface MysqlMessage {
     class SingleByte(val byte: Byte) : MysqlMessage
 
     class MultiByte(val bytes: ByteArray) : MysqlMessage
+
+    data object ResetSession : MysqlMessage
+
+    class LoadLocal(val source: Buffer) : MysqlMessage
+
+    data object Empty : MysqlMessage
 }

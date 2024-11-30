@@ -15,15 +15,15 @@ import io.ktor.network.tls.tls
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
-import io.ktor.utils.io.readBuffer
 import io.ktor.utils.io.readByte
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
+import io.ktor.utils.io.readFully
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Buffer
 import kotlinx.io.Sink
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -105,7 +105,9 @@ public class KtorStream(
 
     override suspend fun readBuffer(count: Int): Buffer {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        return readChannel.readBuffer(count)
+        val destination = ByteArray(count)
+        readChannel.readFully(destination)
+        return Buffer().apply { write(destination) }
     }
 
     override fun close() {

@@ -25,6 +25,7 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
+import io.github.clasicrando.kdbc.core.statement.CsvDataRow
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -33,7 +34,6 @@ import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata
 import io.github.clasicrando.kdbc.postgresql.copy.PgBinaryCopyRow
 import io.github.clasicrando.kdbc.postgresql.copy.PgCopyEncodeBuffer
-import io.github.clasicrando.kdbc.postgresql.copy.PgCsvCopyRow
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
@@ -778,9 +778,8 @@ internal constructor(
 
     /**
      * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
-     * each [PgCsvCopyRow] supplied to the COPY sink by using the [PgCsvCopyRow.values] as the CSV
-     * row contents. By default, the [Any.toString] method is called to convert the data into CSV
-     * rows.
+     * each [CsvDataRow] supplied to the COPY sink by using the [CsvDataRow.values] as the CSV row
+     * contents. By default, the [Any.toString] method is called to convert the data into CSV rows.
      *
      * If the server sends an error message during or at completion of streaming the copy data, the
      * message will be captured and thrown after completing the COPY process and the connection with
@@ -790,7 +789,7 @@ internal constructor(
      */
     public suspend fun copyIn(
         copyInStatement: CopyStatement.TableFromCsv,
-        data: Flow<PgCsvCopyRow>,
+        data: Flow<CsvDataRow>,
     ): QueryResult {
         val sink = Buffer()
         val writer = csvWriter {
