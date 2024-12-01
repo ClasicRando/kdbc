@@ -10,9 +10,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Postgresql specific implementation of a [io.github.clasicrando.kdbc.core.pool.ConnectionPool],
- * keeping reference to the pool's [typeCache] and providing the custom [disposeConnection] method
- * that simple calls [MySqlConnection.dispose].
+ * MySQL specific implementation of a [io.github.clasicrando.kdbc.core.pool.ConnectionPool], keeping
+ * reference to the pool's [typeCache] and providing the custom [disposeConnection] method that
+ * simple calls [MySqlConnection.dispose].
  */
 public class MySqlConnectionPool(connectOptions: MySqlConnectionOptions, poolOptions: PoolOptions) :
     AbstractDefaultConnectionPool<MySqlConnection>(

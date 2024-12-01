@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.mysql.connection
 import io.github.clasicrando.kdbc.core.cache.LruCache
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.AbstractConnection
+import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
-import io.github.clasicrando.kdbc.core.exceptions.checkOrKdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.normalizeWhitespace
 import io.github.clasicrando.kdbc.core.query.Query
@@ -19,6 +19,7 @@ import io.github.clasicrando.kdbc.core.statement.mapIntoCsvDataChunks
 import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
+import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.load.LoadLocalFileStatement
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
@@ -44,11 +45,6 @@ import io.github.clasicrando.kdbc.mysql.type.MysqlTypeInfo
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.IOException
-import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
@@ -59,14 +55,30 @@ import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import java.io.IOException
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * [Connection] object for a MySQL database. A new instance cannot be created but rather the
+ * [io.github.clasicrando.kdbc.mysql.MySql.connection] method should be called to receive a new
+ * [MySqlConnection] ready for usage. This method will use connection pooling behind the scenes as
+ * to reduce unnecessary TCP connection creation to the server when an application creates and
+ * closes connections frequently.
+ */
 public class MySqlConnection
 internal constructor(
+    /** Connection options supplied when requesting a new MySQL connection */
     internal val connectionOptions: MySqlConnectionOptions,
+    /** Underlining stream of data to and from the database */
     internal val stream: MySqlStream,
+    /** Reference to the connection pool that owns this connection */
     internal val pool: MySqlConnectionPool,
+    /** Type registry for connection. Used to decode data rows returned by the server. */
     @PublishedApi internal val typeCache: MySqlTypeCache = pool.typeCache,
 ) : AbstractConnection() {
     /**
@@ -91,8 +103,8 @@ internal constructor(
      * Collect all result sets sent from the server as a [Flow] of [Either] a [QueryResult] or a
      * [DataRow]. The flow will always be terminated with a [QueryResult].
      */
-    private fun collectResults(isBinaryEncoding: Boolean): Flow<Either<QueryResult, DataRow>> =
-        flow {
+    private fun collectResults(isBinaryEncoding: Boolean): Flow<Either<QueryResult, DataRow>> {
+        return flow {
             var columns: List<MySqlColumn>
             while (true) {
                 val packet = stream.receiveNextPacket()
@@ -112,7 +124,7 @@ internal constructor(
                     stream.removeFirstWaitingIfAny()
                     return@flow
                 }
-                checkOrKdbcException(firstByte != 0xfb) {
+                checkOrMySqlException(firstByte != 0xfb) {
                     "Found local load response. Execute that command with MySqlConnect.loadLocalFile"
                 }
 
@@ -149,6 +161,7 @@ internal constructor(
                 }
             }
         }
+    }
 
     override suspend fun executeQuery(query: Query): Flow<Either<QueryResult, DataRow>> {
         val queryCount = splitQuery(query.sql).size
@@ -220,7 +233,7 @@ internal constructor(
     }
 
     /**
-     * Issue a `LOAD FILE LOCAL` command to copy all data found when reading the [file] to the
+     * Issue a `LOAD DATA LOCAL` command to copy all data found when reading the [file] to the
      * server.
      *
      * A consideration for local loading is that once data has been sent to the server, it cannot be
@@ -240,7 +253,7 @@ internal constructor(
     }
 
     /**
-     * Issue a `LOAD FILE LOCAL` command to copy all [InputStream] data to the server.
+     * Issue a `LOAD DATA LOCAL` command to copy all [InputStream] data to the server.
      *
      * A consideration for local loading is that once data has been sent to the server, it cannot be
      * aborted. This means that if you want to allow rolling back inserts where the client failed
@@ -259,7 +272,7 @@ internal constructor(
     }
 
     /**
-     * Issue a `LOAD FILE LOCAL` command to copy all [Source] data to the server.
+     * Issue a `LOAD DATA LOCAL` command to copy all [Source] data to the server.
      *
      * A consideration for local loading is that once data has been sent to the server, it cannot be
      * aborted. This means that if you want to allow rolling back inserts where the client failed
@@ -278,7 +291,7 @@ internal constructor(
     }
 
     /**
-     * Issue a `LOAD FILE LOCAL` command to copy all [CsvDataRow]s to the server.
+     * Issue a `LOAD DATA LOCAL` command to copy all [CsvDataRow]s to the server.
      *
      * A consideration for local loading is that once data has been sent to the server, it cannot be
      * aborted. This means that if you want to allow rolling back inserts where the client failed
@@ -308,7 +321,7 @@ internal constructor(
     }
 
     /**
-     * Issue a `LOAD FILE LOCAL` command to copy all the [data] contents to the server.
+     * Issue a `LOAD DATA LOCAL` command to copy all the [data] contents to the server.
      *
      * A consideration for local loading is that once data has been sent to the server, it cannot be
      * aborted. This means that if you want to allow rolling back inserts where the client failed
@@ -323,7 +336,7 @@ internal constructor(
         data: Flow<Source>,
         withTransaction: Boolean = false,
     ): QueryResult {
-        checkOrKdbcException(stream.capabilities[Capabilities.CLIENT_LOCAL_FILES]) {
+        checkOrMySqlException(stream.capabilities[Capabilities.CLIENT_LOCAL_FILES]) {
             "Server does not support local load commands"
         }
         val query = statement.toQuery()
@@ -340,7 +353,7 @@ internal constructor(
             stream.addLastWaiting(Waiting.Result)
             val response = stream.receiveNextPacket()
             val firstByte = response.readByteAsInt()
-            checkOrKdbcException(firstByte == 0xFB) {
+            checkOrMySqlException(firstByte == 0xFB) {
                 "LOAD LOCAL response is supposed to be 0xFB but found 0x${firstByte.toHexString()}"
             }
 
@@ -383,6 +396,10 @@ internal constructor(
     private val lruCache =
         LruCache<String, MySqlPreparedStatement>(connectionOptions.statementCacheCapacity)
 
+    /**
+     * Pull the next N = [columnCount] packets from the server as [MysqlMessage.ColumnDefinition]
+     * messages and mapping each message to a [MySqlColumn] for result set parsing.
+     */
     private suspend fun receiveResultColumns(columnCount: Int): List<MySqlColumn> {
         val columns = mutableListOf<MySqlColumn>()
         for (i in 1..columnCount) {
@@ -390,7 +407,7 @@ internal constructor(
             val column =
                 MySqlColumn(
                     ordinal = i.toLong(),
-                    name = columnDefinition.getName(),
+                    name = columnDefinition.columnName,
                     typeInfo = MysqlTypeInfo.fromColumnDefinition(columnDefinition),
                 )
             columns.add(column)
@@ -399,6 +416,10 @@ internal constructor(
         return columns
     }
 
+    /**
+     * Send the [query] for parsing into a [MySqlPreparedStatement]. Collects all metadata sent as a
+     * response to the statement prepare request.
+     */
     private suspend fun prepareStatement(query: String): MySqlPreparedStatement {
         stream.sendPacket(MysqlMessage.Prepare(query))
         val prepareOk = stream.receiveNext(PrepareOkDecoder)
@@ -417,10 +438,11 @@ internal constructor(
             query = query,
             statementId = prepareOk.statementId,
             paramCount = prepareOk.params,
-            columns = columns,
+            resultMetadata = columns,
         )
     }
 
+    /**  */
     private suspend fun getOrPrepareStatement(query: String): MySqlPreparedStatement {
         lruCache[query]?.let {
             return it
@@ -433,10 +455,27 @@ internal constructor(
         return statement
     }
 
+    /**
+     * Accepts a [batch] of queries and returns a single `INSERT` [Query] if all queries:
+     * 1. Are the same SQL text
+     * 2. Have the same number of parameters
+     * 3. Match the pattern of a simple `INSERT VALUES` query
+     *     - `^INSERT INTO [db.]table[(column1,....,columnN)] VALUES(?,...,?)`
+     *
+     * Internally the first query is used as a starting point and a `VALUES` tuple is added to the
+     * final query for each batch provided. The new query string is then used to create a [Query]
+     * with all parameters from each query in the batch (in order) bound to the resulting query.
+     */
     private fun attemptInsertQueriesRewrite(batch: List<Query>): Query? {
         val firstSql = batch[0].sql
         val parameterCount = batch[0].parameters.size
-        if (!firstSql.startsWith("INSERT", ignoreCase = true) || parameterCount == 0) {
+        if (parameterCount == 0) {
+            return null
+        }
+
+        val matchResult = INSERT_VALUES_REGEX.matchEntire(firstSql) ?: return null
+        val parametersGroup = matchResult.groups[4]?.value ?: return null
+        if (parametersGroup.count { it == '?' } != parameterCount) {
             return null
         }
 
@@ -458,6 +497,10 @@ internal constructor(
         return query(finalSql.toString()).bindMany(parameters)
     }
 
+    /**
+     * If the stream is still active send a [MysqlMessage.Quit] message before closing the
+     * connection.
+     */
     internal suspend fun dispose() {
         try {
             if (stream.isConnected) {
@@ -475,10 +518,20 @@ internal constructor(
         lruCache.clear()
     }
 
+    /**
+     * Add new [typeDescription] to the cache. This impacts all connections within the same pool and
+     * adds simple array type descriptions as well. If the [MySqlTypeDescription.kType] is already
+     * present within the cache, that description will be removed for the new description.
+     */
     public fun <T : Any> registerCustomType(typeDescription: MySqlTypeDescription<T>) {
         typeCache.addTypeDescription<T>(typeDescription)
     }
 
+    /**
+     * Register a new type description for an [Enum] type. The encoding and decoding is done using
+     * each label's [Enum.name] property and only works for columns that are defined with an ENUM
+     * constraint.
+     */
     public inline fun <reified E : Enum<E>> registerEnumTypeDescription() {
         val typeDescription = EnumTypeDescription(kType = typeOf<E>(), values = enumValues<E>())
         registerCustomType<E>(typeDescription)
@@ -487,6 +540,12 @@ internal constructor(
     internal companion object {
         private const val COPY_BUFFER_SIZE = MySqlStream.MAX_PACKET_SIZE - 4
         private const val CSV_ROW_BUFFER_SIZE = 2000
+        private val INSERT_VALUES_REGEX =
+            Regex(
+                "^INSERT\\s+INTO\\s+([0-9a-z_$]+(?:\\.[0-9a-z_$]+)?)\\(([0-9a-z_$]+(,[0-9a-z_$]+)*)\\)\\s*" +
+                    "VALUES\\((\\?(?:,\\?)*)\\);?$",
+                RegexOption.IGNORE_CASE,
+            )
 
         suspend fun connect(
             connectionOptions: MySqlConnectionOptions,
@@ -497,7 +556,7 @@ internal constructor(
             try {
                 connection = MySqlConnection(connectionOptions, stream, pool)
                 if (!connection.isConnected) {
-                    throw KdbcException("Could not initialize connection")
+                    throw MySqlException("Could not initialize connection")
                 }
                 return connection
             } catch (ex: Exception) {

@@ -12,29 +12,29 @@ import kotlin.time.toDuration
 
 /** Connection options for a mysql database */
 @Serializable
-public data class MySqlConnectionOptions(
+public class MySqlConnectionOptions(
     /** Host name or IP address of the postgresql server */
-    val host: String,
+    public val host: String,
     /** Port on the host machine of the postgresql server */
-    val port: Int,
+    public val port: Int,
     /** Name of the user to log in to the postgresql server */
-    val username: String,
+    public val username: String,
     /**
      * Optional application name to set as part of the connection context. Defaults to
      * 'kdbc-mysql-application'
      */
-    val applicationName: String = "kdbc-mysql-application",
+    public val applicationName: String = "kdbc-mysql-application",
     /** Timeout duration during initial TCP connection establishment */
-    val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
+    public val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
     /** Password if the database instance requires a password */
-    val password: String? = null,
+    public val password: String? = null,
     /**
      * Optional initial connection database name. If not specified then postgresql will assume a
      * database with the same name as the [username]
      */
-    val database: String? = null,
+    public val database: String? = null,
     /** Statement logging level. If not specified, [Level.DEBUG] is used. */
-    val statementLogLevel: Level = Level.DEBUG,
+    public val statementLogLevel: Level = Level.DEBUG,
     /**
      * The duration that is waited before canceling a query execution due to timeout. The default is
      * an infinite timeout which means it will never cancel a query.
@@ -47,13 +47,13 @@ public data class MySqlConnectionOptions(
      * Note: [Duration.ZERO] is also treated as infinite and negative timeouts are ignored with the
      * default value is used
      */
-    val queryTimeout: Duration = Duration.INFINITE,
+    public val queryTimeout: Duration = Duration.INFINITE,
     /** Size of the cache storing prepared statement on the client side */
-    val statementCacheCapacity: Int = 100,
+    public val statementCacheCapacity: Int = 100,
     /** SSL Mode of the connection. Uses the default mode of [SslMode.Prefer] */
-    val sslMode: SslMode = SslMode.DEFAULT,
+    public val sslMode: SslMode = SslMode.DEFAULT,
     /** Allow for connection to database with clear text auth plugin */
-    val allowClearTextPlugin: Boolean = false,
+    public val allowClearTextPlugin: Boolean = false,
     /**
      * Flag that enables or disables the `NO_ENGINE_SUBSTITUTION` sql_mod settings after connection.
      *
@@ -61,12 +61,12 @@ public data class MySqlConnectionOptions(
      * available, a warning is given and the default storage engine is used instead. If set true,
      * engine substitution is forbidden and will result in an error.
      */
-    val noEngineSubstitution: Boolean = true,
+    public val noEngineSubstitution: Boolean = true,
     /**
      * Set the `sql_mode` option to allow for a double pipe ('||') to represent a character
      * concatenation rather than calling `CONCAT(a, b)`.
      */
-    val pipeAsConcat: Boolean = true,
+    public val pipeAsConcat: Boolean = true,
     /**
      * Allows a client to take a batch of duplicate `INSERT` statements and rewrite to a single
      * `INSERT` statement with chained `VALUES` tuples to execute all inserts in 1 statement. This
@@ -77,23 +77,23 @@ public data class MySqlConnectionOptions(
      * if you have a complex insert, consider external batching, the `LOAD DATE INFILE` statement,
      * or raise an issue to request this custom behaviour.
      */
-    val rewriteBatchInsertQuery: Boolean = false,
+    public val rewriteBatchInsertQuery: Boolean = false,
     /**
      * Timezone offset to use when retrieving timezone aware types from the database. The connection
      * itself will always use UTC but when [java.time.OffsetDateTime] is requested, this offset will
      * be applied before returning the value. The default value is [ZoneOffset.UTC].
      */
-    @Transient val timeZoneOffset: ZoneOffset = ZoneOffset.UTC,
+    @Transient public val timeZoneOffset: ZoneOffset = ZoneOffset.UTC,
     /**
      * TLS Config builder action to modify the config provided to the ktor socket creator. This is
      * only used if the server supports TLS and the socket used to create the database connection is
      * a [io.github.clasicrando.kdbc.core.stream.KtorStream] (i.e. only for async connections).
      */
-    @Transient val tlsConfig: TLSConfigBuilder.() -> Unit = {},
+    @Transient public val tlsConfig: TLSConfigBuilder.() -> Unit = {},
 ) {
     /** Connection properties as they are sent to the database upon connection initialization */
     @Transient
-    val properties: Map<String, String> =
+    internal val properties: Map<String, String> =
         mapOf(
             "_client_name" to "kdbc-mysql-driver",
             "_client_version" to "0.0.4",
@@ -109,9 +109,7 @@ public data class MySqlConnectionOptions(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as MySqlConnectionOptions
+        if (other !is MySqlConnectionOptions) return false
 
         if (port != other.port) return false
         if (statementCacheCapacity != other.statementCacheCapacity) return false
@@ -150,36 +148,12 @@ public data class MySqlConnectionOptions(
     }
 
     override fun toString(): String {
-        return buildString {
-            append("MySqlConnectionOptions(host='")
-            append(host)
-            append("', port=")
-            append(port)
-            append(", username='")
-            append(username)
-            append("', applicationName='")
-            append(applicationName)
-            append("', connectionTimeout=")
-            append(connectionTimeout)
-            append(", database=")
-            append(database)
-            append(", statementLogLevel=")
-            append(statementLogLevel)
-            append(", queryTimeout=")
-            append(queryTimeout)
-            append(", statementCacheCapacity=")
-            append(statementCacheCapacity)
-            append(", sslMode=")
-            append(sslMode)
-            append(", allowClearTextPlugin=")
-            append(allowClearTextPlugin)
-            append(", noEngineSubstitution=")
-            append(noEngineSubstitution)
-            append(", rewriteBatchInsertQuery=")
-            append(rewriteBatchInsertQuery)
-            append(", timeZoneOffset=")
-            append(timeZoneOffset)
-            append(")")
-        }
+        return "MySqlConnectionOptions(host='$host', port=$port, username='$username', " +
+            "applicationName='$applicationName', connectionTimeout=$connectionTimeout, " +
+            "database=$database, statementLogLevel=$statementLogLevel, " +
+            "queryTimeout=$queryTimeout, statementCacheCapacity=$statementCacheCapacity, " +
+            "sslMode=$sslMode, allowClearTextPlugin=$allowClearTextPlugin, " +
+            "noEngineSubstitution=$noEngineSubstitution, pipeAsConcat=$pipeAsConcat, " +
+            "rewriteBatchInsertQuery=$rewriteBatchInsertQuery, timeZoneOffset=$timeZoneOffset)"
     }
 }

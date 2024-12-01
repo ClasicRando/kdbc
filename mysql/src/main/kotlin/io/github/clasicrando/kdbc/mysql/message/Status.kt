@@ -1,27 +1,40 @@
 package io.github.clasicrando.kdbc.mysql.message
 
+/**
+ * Server status bitflag type. Internally it's an [Int] since the actual value is a [Short] so [Int]
+ * can hold all the values needed and allow for bitwise operations.
+ */
 @JvmInline
-internal value class Status(
-    val flags: Int,
-) {
+internal value class Status(val flags: Int) {
     constructor(flags: Short) : this(flags.toInt() and 0xff_ff)
 
+    /**
+     * Returns true if the specific status is present in this value (i.e. [Int.and] equals the
+     * supplied [status])
+     */
     operator fun get(status: Status): Boolean {
         return (this.flags and status.flags) == status.flags
     }
 
+    /**
+     * Add all bits from the donor [Status] while preserving all exists flags. This is equivalent to
+     * a [Int.or]
+     */
     operator fun plus(status: Status): Status {
         return Status(this.flags or status.flags)
     }
 
+    /** Remove all [status] bits supplied by settings the bit positions to zero */
     operator fun minus(status: Status): Status {
         return Status(this.flags and (status.flags.inv()))
     }
 
+    /** `and` these two [Status] to get a result that is [Int.and] */
     infix fun and(status: Status): Status {
         return Status(this.flags and status.flags)
     }
 
+    @Suppress("unused")
     companion object {
         internal val SERVER_STATUS_IN_TRANS = Status(1)
         internal val SERVER_STATUS_AUTOCOMMIT = Status(2)

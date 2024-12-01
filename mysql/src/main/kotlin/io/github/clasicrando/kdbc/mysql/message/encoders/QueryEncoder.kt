@@ -5,6 +5,12 @@ import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import kotlinx.io.Sink
 import kotlinx.io.writeString
 
+/**
+ * [MessageEncoder] for [MysqlMessage.Query]. Sends the supplied query for execution without
+ * parameters.
+ *
+ * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html)
+ */
 internal object QueryEncoder : MessageEncoder<MysqlMessage.Query, Unit> {
     override fun encode(value: MysqlMessage.Query, buffer: Sink, context: Unit) {
         buffer.writeByte(0x03)

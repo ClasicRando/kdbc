@@ -12,14 +12,34 @@ internal object PasswordHelper {
     private val publicKeyRegex =
         Regex("(-+BEGIN PUBLIC KEY-+\\r?\\n|\\n?-+END PUBLIC KEY-+\\r?\\n?)")
 
+    /**
+     * Encrypt the supplied [password] using the `SHA-1` algorithm and the [authPluginData] as part
+     * of the digestion process.
+     */
     fun encryptPasswordSha1(password: String, authPluginData: ByteArray): ByteArray {
-        return encryptPassword(password, authPluginData, "SHA-1")
+        return encryptPassword(password, authPluginData, algorithm = "SHA-1")
     }
 
+    /**
+     * Encrypt the supplied [password] using the `SHA-256` algorithm and the [authPluginData] as
+     * part of the digestion process.
+     */
     fun encryptPasswordSha256(password: String, authPluginData: ByteArray): ByteArray {
-        return encryptPassword(password, authPluginData, "SHA-256")
+        return encryptPassword(password, authPluginData, algorithm = "SHA-256")
     }
 
+    /**
+     * Encrypt the [password] by fetching the [MessageDigest] for the specific [algorithm], followed
+     * by:
+     * 1. [MessageDigest.digest] the password as bytes
+     * 2. reset the [MessageDigest]
+     * 3. [MessageDigest.digest] the result of the first digest
+     * 4. reset the [MessageDigest]
+     * 5. [MessageDigest.update] with the [authPluginData]
+     * 6. [MessageDigest.update] with the result of the second digest
+     * 7. [MessageDigest.digest] the current state
+     * 8. Produce a [ByteArray] with the first digest XORed by the final digest result
+     */
     private fun encryptPassword(
         password: String,
         authPluginData: ByteArray,
@@ -43,6 +63,10 @@ internal object PasswordHelper {
         }
     }
 
+    /**
+     * Encrypted the password as a null terminated string using the public key and [authPluginData]
+     * supplied.
+     */
     fun encryptWithPublicKey(
         publicKeyBytes: ByteArray,
         passwordCStringBytes: ByteArray,

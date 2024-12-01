@@ -67,6 +67,7 @@ internal object UuidTypeDescription :
         return Uuid.parse(value.text)
     }
 }
+
 /**
  * Implementation of a [MySqlTypeDescription] for the [UUID] type.
  *

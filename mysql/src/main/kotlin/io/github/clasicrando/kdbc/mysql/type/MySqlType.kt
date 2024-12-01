@@ -1,6 +1,6 @@
 package io.github.clasicrando.kdbc.mysql.type
 
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
+import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 
 private const val DECIMAL = 0x00
 private const val TINY = 0x01
@@ -30,7 +30,11 @@ private const val VAR_STRING = 0xfd
 private const val STRING = 0xfe
 private const val GEOMETRY = 0xff
 
-public enum class MySqlType(public val inner: Int) {
+/** All natively supported types in MySQL */
+public enum class MySqlType(
+    /** internal type code */
+    public val inner: Int
+) {
     Decimal(DECIMAL),
     Tiny(TINY),
     Short(SHORT),
@@ -60,8 +64,13 @@ public enum class MySqlType(public val inner: Int) {
     Geometry(GEOMETRY);
 
     public companion object {
-        public fun from(int: Int): MySqlType =
-            when (int) {
+        /**
+         * Return the [MySqlType] for this [code]
+         *
+         * @throws MySqlException if the type code cannot be matched to a known type
+         */
+        public fun from(code: Int): MySqlType =
+            when (code) {
                 DECIMAL -> Decimal
                 TINY -> Tiny
                 SHORT -> Short
@@ -89,7 +98,7 @@ public enum class MySqlType(public val inner: Int) {
                 VAR_STRING -> VarString
                 STRING -> String
                 GEOMETRY -> Geometry
-                else -> throw KdbcException("")
+                else -> throw MySqlException("Invalid type code of $code")
             }
     }
 }

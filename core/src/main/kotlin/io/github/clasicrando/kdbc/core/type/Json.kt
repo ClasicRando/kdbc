@@ -6,9 +6,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.Json as KotlinxJson
 
-/**
- * Wrapper for json data encoded as [Bytes] or [Text]
- */
+/** Wrapper for json data encoded as [Bytes] or [Text] */
 public sealed class Json {
     public class Bytes(public val bytes: ByteArray) : Json() {
         override fun toString(): String {
@@ -41,6 +39,10 @@ public sealed class Json {
         return decodeUsingSerialization()
     }
 
+    /**
+     * Converts this opaque [Json] type into the desired [Json] subtype. If the underlining value is
+     * already of type [T] then the original value is returned
+     */
     public inline fun <reified T : Json> asJson(): T {
         if (this is T) {
             return this
@@ -70,14 +72,16 @@ public sealed class Json {
             return false
         }
         return when (this) {
-            is Bytes -> when (other) {
-                is Text -> this.bytes.toString(charset = Charsets.UTF_8) == other.text
-                is Bytes -> this.bytes.contentEquals(other.bytes)
-            }
-            is Text -> when (other) {
-                is Text -> this.text == other.text
-                is Bytes -> this.text == other.bytes.toString(charset = Charsets.UTF_8)
-            }
+            is Bytes ->
+                when (other) {
+                    is Text -> this.bytes.toString(charset = Charsets.UTF_8) == other.text
+                    is Bytes -> this.bytes.contentEquals(other.bytes)
+                }
+            is Text ->
+                when (other) {
+                    is Text -> this.text == other.text
+                    is Bytes -> this.text == other.bytes.toString(charset = Charsets.UTF_8)
+                }
         }
     }
 
@@ -87,4 +91,3 @@ public sealed class Json {
         }
     }
 }
-

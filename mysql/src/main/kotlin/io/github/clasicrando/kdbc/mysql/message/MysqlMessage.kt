@@ -7,6 +7,10 @@ import io.github.clasicrando.kdbc.mysql.statement.MySqlArguments
 import io.github.clasicrando.kdbc.mysql.type.MySqlType
 import kotlinx.io.Buffer
 
+/**
+ * Various server/client messages sent within the MySQL C/S protocol. Not all messages are present
+ * because we don't use them during driver operation.
+ */
 internal sealed interface MysqlMessage {
     class Handshake(
         val protocolVersion: Byte,
@@ -66,21 +70,15 @@ internal sealed interface MysqlMessage {
         val schema: ByteArray,
         val tableAlias: ByteArray,
         val table: ByteArray,
-        val alias: ByteArray,
-        val name: ByteArray,
+        val alias: String,
+        val name: String,
         val collation: Int,
         val maxSize: Int,
         val type: MySqlType,
         val flags: ColumnFlags,
         val decimals: Byte,
     ) : MysqlMessage {
-        fun getName(): String {
-            val alias = String(alias)
-            if (alias.isNotEmpty()) {
-                return alias
-            }
-            return String(name)
-        }
+        val columnName: String = alias.takeIf { it.isNotEmpty() } ?: name
     }
 
     data object Ping : MysqlMessage

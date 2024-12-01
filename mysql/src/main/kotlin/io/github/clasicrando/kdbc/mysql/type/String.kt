@@ -7,11 +7,15 @@ import io.github.clasicrando.kdbc.core.type.Json
 import io.github.clasicrando.kdbc.mysql.buffer.writeLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.writeStringLengthEncoded
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
+import kotlinx.io.Sink
 import java.math.BigDecimal
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
 
+/**
+ * Implementation of a [MySqlTypeDescription] for the [String] type. Accepts BLOB, VARCHAR,
+ * TINYBLOB, MEDIUMBLOB, LONGBLOB, STRING, VARSTRING and ENUM types when decoding.
+ */
 internal object StringTypeDescription :
     MySqlTypeDescription<String>(dbType = MySqlType.VarString, kType = typeOf<String>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
@@ -38,6 +42,11 @@ internal object StringTypeDescription :
     }
 }
 
+/**
+ * Implementation of a [MySqlTypeDescription] for the [BigDecimal] type. Accepts NEWDECIMAL and
+ * DECIMAL types when decoding. For reading a writing, the binary protocol uses decimal text
+ * representations of the values.
+ */
 internal object BigDecimalTypeDescription :
     MySqlTypeDescription<BigDecimal>(dbType = MySqlType.NewDecimal, kType = typeOf<BigDecimal>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
@@ -126,6 +135,10 @@ internal class EnumTypeDescription<E : Enum<E>>(kType: KType, values: Array<E>) 
     }
 }
 
+/**
+ * Implementation of a [MySqlTypeDescription] for the [Json] type. Accepts BLOB, VARCHAR, TINYBLOB,
+ * MEDIUMBLOB, LONGBLOB, STRING, VARSTRING and ENUM types when decoding.
+ */
 internal object JsonTypeDescription :
     MySqlTypeDescription<Json>(dbType = MySqlType.String, kType = typeOf<Json>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
@@ -134,19 +147,27 @@ internal object JsonTypeDescription :
             ByteArrayTypeDescription.isCompatible(dbType)
     }
 
+    /** Write value length encoded either as bytes or text */
     override fun encode(value: Json, buffer: Sink) {
         buffer.writeLengthEncoded { value.writeToBuffer(this) }
     }
 
+    /** Dump all bytes into [Json.Bytes] */
     override fun decodeBytes(value: MySqlValue.Binary): Json {
         return Json.Bytes(value.bytes.readBytes())
     }
 
+    /** Dump text into [Json.Text] */
     override fun decodeText(value: MySqlValue.Text): Json {
         return Json.Text(value.text)
     }
 }
 
+/**
+ * Implementation of a [MySqlTypeDescription] for the [Json.Text] type. Wraps the
+ * [JsonTypeDescription] for all actions but converts the returned [Json] if internally it's
+ * [Json.Bytes].
+ */
 internal object JsonTextTypeDescription :
     MySqlTypeDescription<Json.Text>(
         dbType = JsonTypeDescription.dbType,
@@ -169,6 +190,11 @@ internal object JsonTextTypeDescription :
     }
 }
 
+/**
+ * Implementation of a [MySqlTypeDescription] for the [Json.Bytes] type. Wraps the
+ * [JsonTypeDescription] for all actions but converts the returned [Json] if internally it's
+ * [Json.Text].
+ */
 internal object JsonBytesTypeDescription :
     MySqlTypeDescription<Json.Bytes>(
         dbType = JsonTypeDescription.dbType,

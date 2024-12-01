@@ -2,18 +2,23 @@ package io.github.clasicrando.kdbc.mysql.result
 
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.ensureNonNull
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.result.DataRow
+import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.type.MySqlTypeCache
 import io.github.clasicrando.kdbc.mysql.type.MySqlTypeDescription
 import io.github.clasicrando.kdbc.mysql.type.MysqlTypeInfo
 import kotlin.reflect.KType
 
+/**
+ * [DataRow] implementation for MySQL. Stored each [MySqlValue] in the row as well as the associated
+ * [MySqlColumn] info and the [MySqlTypeCache] to lookup type descriptions for decoding.
+ */
 internal class MySqlDataRow(
     private val values: Array<MySqlValue?>,
     private val columns: List<MySqlColumn>,
     private val typeCache: MySqlTypeCache,
 ) : DataRow {
+    /** Quick lookup map for column names to the corresponding index */
     private val columnNames =
         columns.asSequence().mapIndexed { index, column -> column.name to index }.toMap()
 
@@ -25,7 +30,7 @@ internal class MySqlDataRow(
 
         val columnCollection = columns.withIndex().joinToString { (i, c) -> "$i->${c.name}" }
         return columnNames[column]
-            ?: throw KdbcException(
+            ?: throw MySqlException(
                 "Could not find column in mapping. Column = '$column', columns = $columnCollection"
             )
     }

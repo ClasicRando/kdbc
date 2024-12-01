@@ -7,6 +7,12 @@ import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import kotlinx.io.Sink
 import kotlinx.io.writeIntLe
 
+/**
+ * [MessageEncoder] for [MysqlMessage.Execute]. Executes a prepared statement with the given bound
+ * parameters.
+ *
+ * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html)
+ */
 internal object ExecuteEncoder : MessageEncoder<MysqlMessage.Execute, Capabilities> {
     override fun encode(value: MysqlMessage.Execute, buffer: Sink, context: Capabilities) {
         buffer.writeByte(0x17)

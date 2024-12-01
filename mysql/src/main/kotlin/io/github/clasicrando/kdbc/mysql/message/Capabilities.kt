@@ -3,73 +3,44 @@ package io.github.clasicrando.kdbc.mysql.message
 import kotlinx.io.Sink
 import kotlinx.io.writeUIntLe
 
+/**
+ * Server/Client capabilities bitflag type. Internally it's just a [ULong]. Utility methods are
+ * provided to compare against other known flags.
+ */
 @JvmInline
 internal value class Capabilities(val flags: ULong) {
+    /**
+     * Returns true if the specific capability is present in this value (i.e. [ULong.and] equals the
+     * supplied [capabilities])
+     */
     operator fun get(capabilities: Capabilities): Boolean {
         return (this.flags and capabilities.flags) == capabilities.flags
     }
 
+    /**
+     * Add all bits from the donor [Capabilities] while preserving all exists flags. This is
+     * equivalent to a [ULong.or]
+     */
     operator fun plus(capabilities: Capabilities): Capabilities {
         return Capabilities(this.flags or capabilities.flags)
     }
 
+    /** Remove all [capabilities] supplied by settings the bit positions to zero */
     operator fun minus(capabilities: Capabilities): Capabilities {
         return Capabilities(this.flags and capabilities.flags.inv().and(0xff_ff_ff_ff_ff_ff_ff_ffu))
     }
 
+    /** `and` these two [Capabilities] to get a result that is [ULong.and] */
     infix fun and(capabilities: Capabilities): Capabilities {
         return Capabilities(this.flags and capabilities.flags)
     }
 
+    /** Write this value to the [sink] as the first 32 bit flags in Little Endian order */
     fun writeAsIntLe(sink: Sink) {
         sink.writeUIntLe(flags.toUInt())
     }
 
-    fun getAll(): List<Capabilities> {
-        return sequenceOf(
-                CLIENT_MYSQL,
-                CLIENT_FOUND_ROWS,
-                CLIENT_LONG_FLAG,
-                CLIENT_CONNECT_WITH_DB,
-                CLIENT_NO_SCHEMA,
-                CLIENT_COMPRESS,
-                CLIENT_ODBC,
-                CLIENT_LOCAL_FILES,
-                CLIENT_IGNORE_SPACE,
-                CLIENT_PROTOCOL_41,
-                CLIENT_INTERACTIVE,
-                CLIENT_SSL,
-                CLIENT_IGNORE_SIGPIPE,
-                CLIENT_TRANSACTIONS,
-                CLIENT_RESERVED,
-                CLIENT_SECURE_CONNECTION,
-                CLIENT_MULTI_STATEMENTS,
-                CLIENT_MULTI_RESULTS,
-                CLIENT_PS_MULTI_RESULTS,
-                CLIENT_PLUGIN_AUTH,
-                CLIENT_CONNECT_ATTRS,
-                CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA,
-                CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS,
-                CLIENT_SESSION_TRACK,
-                CLIENT_DEPRECATE_EOF,
-                CLIENT_OPTIONAL_RESULTSET_METADATA,
-                CLIENT_ZSTD_COMPRESSION_ALGORITHM,
-                CLIENT_QUERY_ATTRIBUTES,
-                MULTI_FACTOR_AUTHENTICATION,
-                CLIENT_CAPABILITY_EXTENSION,
-                CLIENT_SSL_VERIFY_SERVER_CERT,
-                CLIENT_REMEMBER_OPTIONS,
-                MARIADB_CLIENT_PROGRESS,
-                MARIADB_CLIENT_MULTI,
-                MARIADB_CLIENT_STMT_BULK_OPERATIONS,
-                MARIADB_CLIENT_EXTENDED_TYPE_INFO,
-                MARIADB_CLIENT_CACHE_METADATA,
-                MARIADB_CLIENT_BULK_UNIT_RESULTS,
-            )
-            .filter { this[it] }
-            .toList()
-    }
-
+    @Suppress("unused")
     companion object {
         internal val CLIENT_MYSQL = Capabilities(1u)
         internal val CLIENT_FOUND_ROWS = Capabilities(2u)

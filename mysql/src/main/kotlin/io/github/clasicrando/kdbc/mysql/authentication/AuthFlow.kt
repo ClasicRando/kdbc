@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.authentication
 
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
+import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import io.github.clasicrando.kdbc.mysql.message.decoders.AuthSwitchRequestDecoder
@@ -13,9 +13,16 @@ import io.github.clasicrando.kdbc.mysql.stream.MySqlStream.Companion.MAX_PACKET_
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
 
+/**
+ * Move through the authentication flow for a MySQL connection. The steps are:
+ * 1. Decode and process the initial handshake packet sent from the server
+ * 2. Perform a TLS handshake (if needed)
+ * 3. Prepare and send a handshake response packet
+ * 4. Receive packets until an Ok packet is sent, handling switch requests sent back to client and
+ *    auth continuation packets for supported auth plugins
+ */
 internal suspend fun MySqlStream.authFlow() {
-    val handshake =
-        HandshakeDecoder.decode(buffer = this.receiveNextPacket(), context = Unit)
+    val handshake = HandshakeDecoder.decode(buffer = this.receiveNextPacket(), context = Unit)
     var plugin = handshake.authPlugin
 
     val serverVersion = handshake.serverVersion.splitToSequence('.').iterator()
@@ -59,28 +66,45 @@ internal suspend fun MySqlStream.authFlow() {
                 break
             }
             0xfe -> {
-                val switchRequest = AuthSwitchRequestDecoder.decode(packet, connectionOptions.allowClearTextPlugin)
+                val switchRequest =
+                    AuthSwitchRequestDecoder.decode(packet, connectionOptions.allowClearTextPlugin)
                 plugin = switchRequest.plugin
-                val response = this.createAuthResponse(
-                    authPlugin = plugin,
-                    password = connectionOptions.password ?: "",
-                    authPluginData = switchRequest.data,
-                )
+                val response =
+                    this.createAuthResponse(
+                        authPlugin = plugin,
+                        password = connectionOptions.password ?: "",
+                        authPluginData = switchRequest.data,
+                    )
                 this.writePacket(MysqlMessage.AuthSwitchResponse(response))
             }
             else -> {
                 if (plugin != null && connectionOptions.password != null) {
-                    if (this.handleAuthResponse(plugin, packet, connectionOptions.password, handshake.authPluginData)) {
+                    if (
+                        this.handleAuthResponse(
+                            plugin,
+                            packet,
+                            connectionOptions.password,
+                            handshake.authPluginData,
+                        )
+                    ) {
                         break
                     }
                 } else {
-                    throw KdbcException("Unexpected packet 0x${id.toHexString()}")
+                    throw MySqlException("Unexpected packet 0x${id.toHexString()}")
                 }
             }
         }
     }
 }
 
+/**
+ * Create an auth response data chunk depending on the [authPlugin] specified.
+ * - MySQL Native -> encrypt using SHA1 and plugin data
+ * - Caching SHA256 -> encrypt using SHA256 algorithm and plugin data
+ * - SHA256 -> if TLS active, send null terminated string of password, otherwise call [encryptRsa]
+ *   to use the server's public key to encrypt
+ * - Clear Text -> send null terminated string of password
+ */
 private suspend fun MySqlStream.createAuthResponse(
     authPlugin: AuthPlugin,
     password: String,
@@ -101,6 +125,11 @@ private suspend fun MySqlStream.createAuthResponse(
     }
 }
 
+/**
+ * Handle auth continuation response by checking the first byte of the [packet] and sending another
+ * payload if the server is requesting more packets. The next packet will always be the result of
+ * [encryptRsa]. Only valid for [AuthPlugin.CachingSha2Password].
+ */
 private suspend fun MySqlStream.handleAuthResponse(
     authPlugin: AuthPlugin,
     packet: Source,
@@ -117,16 +146,20 @@ private suspend fun MySqlStream.handleAuthResponse(
                 return false
             }
             else ->
-                throw KdbcException(
+                throw MySqlException(
                     "Unexpected result from fast authentication 0x${nextByte.toHexString()} when expected 0x03 (AUTH_OK) or 0x04 (AUTH_CONTINUE)"
                 )
         }
     }
-    throw KdbcException(
+    throw MySqlException(
         "Unexpected packet 0x${firstByte.toHexString()} for auth plugin $authPlugin during authentication"
     )
 }
 
+/**
+ * Send a single [byte] to request the server's public key, forwarding that key to
+ * [PasswordHelper.encryptWithPublicKey] to create the required auth data
+ */
 private suspend fun MySqlStream.encryptRsa(
     byte: Byte,
     password: String,

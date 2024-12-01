@@ -1,6 +1,6 @@
 package io.github.clasicrando.kdbc.mysql.buffer
 
-import io.github.clasicrando.kdbc.core.exceptions.checkOrKdbcException
+import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
 import kotlinx.io.Buffer
 import kotlinx.io.DelicateIoApi
@@ -9,6 +9,7 @@ import kotlinx.io.Source
 import kotlinx.io.readByteArray
 import kotlinx.io.readLongLe
 import kotlinx.io.readShortLe
+import kotlinx.io.readString
 import kotlinx.io.writeLongLe
 import kotlinx.io.writeShortLe
 import kotlinx.io.writeToInternalBuffer
@@ -19,6 +20,14 @@ internal fun Source.read3ByteIntLe(): Int {
     return (this.readByteAsInt() or (this.readByteAsInt() shl 8) or (this.readByteAsInt() shl 16))
 }
 
+/**
+ * Read a [Long] as a variable number of bytes where the first byte prescribes how many subsequent
+ * bytes (if any) are needed to decode the value. The header byte is:
+ * - 0xfc, read 2 more bytes
+ * - 0xfd, read 3 more bytes
+ * - 0xfe, read 8 more bytes
+ * - other values indicate that the first byte is the length
+ */
 internal fun Source.readLongLengthEncoded(): Long {
     val length = readByteAsInt()
     return when (length) {
@@ -29,17 +38,39 @@ internal fun Source.readLongLengthEncoded(): Long {
     }
 }
 
-internal fun Source.readStringLengthEncoded(): String =
-    readBytesLengthEncoded().toString(Charsets.UTF_8)
-
-internal fun Source.readBytesLengthEncoded(): ByteArray {
+/**
+ * Read a group bytes as a UTF-8 encoded [String] where the length of the bytes to decode is encoded
+ * as a prefix to the bytes. The method is equivalent to:
+ * ```
+ * readString(byteCount = readLongLengthEncoded())
+ * ```
+ */
+internal fun Source.readStringLengthEncoded(): String {
     val length = readLongLengthEncoded()
-    checkOrKdbcException(length in Int.MIN_VALUE..Int.MAX_VALUE) {
-        "Length encoded value exceeds Int.MAX_VALUE"
-    }
-    return readByteArray(length.toInt())
+    return readString(byteCount = length)
 }
 
+/**
+ * Read a group of bytes where the number of bytes is length encoded. This is equivalent to:
+ * ```
+ * readByteArray(readLongLengthEncoded())
+ * ```
+ *
+ * with an extra check to ensure the length is an int since a [ByteArray]'s size is capped to
+ * [Int.MAX_VALUE].
+ */
+internal fun Source.readBytesLengthEncoded(): ByteArray {
+    val length = readLongLengthEncoded()
+    return readByteArray(validateInt(length))
+}
+
+/**
+ * Write a length encode integer where the number of bytes written depends on the size value.
+ * - 0..250 -> write single byte as the length
+ * - 251..0xff_ff -> write 0xfc then the length as a [Short]
+ * - 0x010000..0xffffff -> write 0xfd then the length as 3 [Byte]s
+ * - other values are written with 0xfe as the header and the entire [Long] value
+ */
 internal fun Sink.writeLongLengthEncoded(value: Long) {
     when (value) {
         in 0..250 -> writeByte(value.toByte())
@@ -47,11 +78,9 @@ internal fun Sink.writeLongLengthEncoded(value: Long) {
             writeByte(0xfc.toByte())
             writeShortLe(value.toShort())
         }
-        in 0x1_00_00..0xff_ff_ff -> {
+        in 0x01_00_00..0xff_ff_ff -> {
             writeByte(0xfd.toByte())
-            writeByte((value shl 8 and 0xff).toByte())
-            writeByte((value shl 16 and 0xff).toByte())
-            writeByte((value shl 24 and 0xff).toByte())
+            write3ByteIntLe(value.toInt())
         }
         else -> {
             writeByte(0xfe.toByte())
@@ -60,11 +89,16 @@ internal fun Sink.writeLongLengthEncoded(value: Long) {
     }
 }
 
+/**
+ * Write a group of bytes where the size of the group is encoded using [writeLongLengthEncoded] and
+ * the actual bytes are written as is.
+ */
 internal fun Sink.writeLengthEncoded(bytes: ByteArray) {
     writeLongLengthEncoded(bytes.size.toLong())
     write(bytes)
 }
 
+/** Write a [String] as a group of bytes */
 internal fun Sink.writeStringLengthEncoded(string: String) {
     writeLengthEncoded(string.toByteArray())
 }

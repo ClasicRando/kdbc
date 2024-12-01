@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
-import io.github.clasicrando.kdbc.core.exceptions.checkOrKdbcException
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
+import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
+import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import io.github.clasicrando.kdbc.mysql.result.MySqlColumn
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
@@ -13,14 +13,23 @@ import io.github.clasicrando.kdbc.mysql.type.MySqlType
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
 
+/**
+ * [MessageDecoder] for [MysqlMessage.BinaryRow] packets. Starts with a 0x00 header, followed by the
+ * null bitmap (size = (column count + 7 + 2) / 8) and all the values in binary format. The null
+ * bitmap declares which columns in the current row are null so no bytes are present. For value
+ * parsing, values either have known sizes based upon the column type or the length is encoded into
+ * the binary value. Each [MySqlValue.Binary] is then packed into the resulting message.
+ *
+ * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row)
+ */
 internal object BinaryRowDecoder : MessageDecoder<MysqlMessage.BinaryRow, List<MySqlColumn>> {
     override fun decode(buffer: Source, context: List<MySqlColumn>): MysqlMessage.BinaryRow {
         val header = buffer.readByte()
-        checkOrKdbcException(header == 0.toByte()) {
+        checkOrMySqlException(header == 0.toByte()) {
             "Expected row header (0x00) but found 0x${header.toHexString()}"
         }
 
-        val nullBitmap = buffer.readByteArray((context.size + 9) / 8)
+        val nullBitmap = buffer.readByteArray((context.size + 7 + 2) / 8)
 
         val values: Array<MySqlValue?> =
             Array(context.size) { i ->
@@ -64,7 +73,7 @@ internal object BinaryRowDecoder : MessageDecoder<MysqlMessage.BinaryRow, List<M
                         MySqlType.Date,
                         MySqlType.Datetime -> buffer.peek().readByteAsInt() + 1
                         MySqlType.Null ->
-                            throw KdbcException("Unreachable! Found null type for non-null value")
+                            throw MySqlException("Unreachable! Found null type for non-null value")
                     }
 
                 MySqlValue.Binary(ByteReadBuffer(buffer.readByteArray(size)), context[i])

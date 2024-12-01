@@ -12,6 +12,12 @@ import kotlinx.io.readByteArray
 import kotlinx.io.readIntLe
 import kotlinx.io.readShortLe
 
+/**
+ * [MessageDecoder] for [MysqlMessage.Handshake] packets. Provides initial details about the server,
+ * it's capabilities, auth information to later negotiate connection properties.
+ *
+ * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html)
+ */
 internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> {
     override fun decode(buffer: Source, context: Unit): MysqlMessage.Handshake {
         val protocol = buffer.readByte()
@@ -25,12 +31,11 @@ internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> 
         val status = Status(buffer.readShortLe())
         val capabilities2 = buffer.readShortLe().toLong() and 0xff_ff
         var capabilities = Capabilities((capabilities2.toULong() shl 16) or capabilities1)
-        val capabilitiesHasPluginAuth = capabilities[Capabilities.CLIENT_PLUGIN_AUTH]
         val authPluginDataLength =
-            if (capabilitiesHasPluginAuth) {
+            if (capabilities[Capabilities.CLIENT_PLUGIN_AUTH]) {
                 buffer.readByteAsInt()
             } else {
-                buffer.readByte()
+                buffer.skip(1)
                 0
             }
         buffer.skip(6)
@@ -53,7 +58,7 @@ internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> 
             }
 
         val authPlugin =
-            if (capabilitiesHasPluginAuth) {
+            if (capabilities[Capabilities.CLIENT_PLUGIN_AUTH]) {
                 AuthPlugin.fromName(buffer.readCString())
             } else {
                 null

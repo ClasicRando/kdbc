@@ -9,6 +9,13 @@ import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import kotlinx.io.Sink
 
+/**
+ * [MessageEncoder] for [MysqlMessage.HandshakeResponse]. Sends the post TLS handshake (if TLS is
+ * available and selected) response to the server to response to an authentication requirement or
+ * start the auth flow.
+ *
+ * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_response.html#sect_protocol_connection_phase_packets_protocol_handshake_response41)
+ */
 internal object HandshakeResponseEncoder :
     MessageEncoder<MysqlMessage.HandshakeResponse, Capabilities> {
     override fun encode(

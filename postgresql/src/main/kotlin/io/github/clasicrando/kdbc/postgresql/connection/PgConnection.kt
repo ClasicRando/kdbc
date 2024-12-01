@@ -86,9 +86,9 @@ private val logger = KotlinLogging.logger {}
 /**
  * [Connection] object for a Postgresql database. A new instance cannot be created but rather the
  * [io.github.clasicrando.kdbc.postgresql.Postgres.connection] method should be called to receive a
- * new [PgConnection] ready for user usage. This method will use connection pooling behind the
- * scenes as to reduce unnecessary tcp connection creation to the server when an application creates
- * and closes connections frequently.
+ * new [PgConnection] ready for usage. This method will use connection pooling behind the scenes as
+ * to reduce unnecessary TCP connection creation to the server when an application creates and
+ * closes connections frequently.
  */
 public class PgConnection
 internal constructor(

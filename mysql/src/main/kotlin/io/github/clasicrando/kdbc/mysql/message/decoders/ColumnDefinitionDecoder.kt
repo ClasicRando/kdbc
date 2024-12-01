@@ -4,6 +4,7 @@ import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.buffer.readBytesLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
+import io.github.clasicrando.kdbc.mysql.buffer.readStringLengthEncoded
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
@@ -12,6 +13,12 @@ import kotlinx.io.Source
 import kotlinx.io.readIntLe
 import kotlinx.io.readShortLe
 
+/**
+ * [MessageDecoder] for [MysqlMessage.ColumnDefinition] packets. Simple struct with column related
+ * details (most are not used).
+ *
+ * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html)
+ */
 internal object ColumnDefinitionDecoder :
     MessageDecoder<MysqlMessage.ColumnDefinition, Capabilities> {
     override fun decode(buffer: Source, context: Capabilities): MysqlMessage.ColumnDefinition {
@@ -19,8 +26,8 @@ internal object ColumnDefinitionDecoder :
         val schema = buffer.readBytesLengthEncoded()
         val tableAlias = buffer.readBytesLengthEncoded()
         val table = buffer.readBytesLengthEncoded()
-        val alias = buffer.readBytesLengthEncoded()
-        val name = buffer.readBytesLengthEncoded()
+        val alias = buffer.readStringLengthEncoded()
+        val name = buffer.readStringLengthEncoded()
         buffer.readLongLengthEncoded() // next length, always 0x0c
         val collation = buffer.readShortLe().toInt()
         val maxSize = buffer.readIntLe()

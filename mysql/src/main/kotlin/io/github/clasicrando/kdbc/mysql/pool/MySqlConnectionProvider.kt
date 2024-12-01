@@ -9,13 +9,12 @@ import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
 import io.ktor.network.sockets.InetSocketAddress
 
 /**
- * Postgresql specific implementation for [ConnectionProvider] that provides the means to
- * create new [ConnectionPool] instances holding [MySqlConnection]s as well as
- * validating that a [MySqlConnection] is valid for reuse.
+ * MySQL specific implementation for [ConnectionProvider] that provides the means to create new
+ * [ConnectionPool] instances holding [MySqlConnection]s as well as validating that a
+ * [MySqlConnection] is valid for reuse.
  */
-internal class MySqlConnectionProvider(
-    private val connectOptions: MySqlConnectionOptions,
-) : ConnectionProvider<MySqlConnection> {
+internal class MySqlConnectionProvider(private val connectOptions: MySqlConnectionOptions) :
+    ConnectionProvider<MySqlConnection> {
     override suspend fun create(pool: ConnectionPool<MySqlConnection>): MySqlConnection {
         pool as MySqlConnectionPool
         val address = InetSocketAddress(connectOptions.host, connectOptions.port)

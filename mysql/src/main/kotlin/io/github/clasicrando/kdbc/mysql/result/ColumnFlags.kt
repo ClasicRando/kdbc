@@ -1,17 +1,25 @@
 package io.github.clasicrando.kdbc.mysql.result
 
+/** Column attribute bit flags. Internally stored as an [Int] */
 @JvmInline
-public value class ColumnFlags(
-    private val flags: Int,
-) {
+public value class ColumnFlags(private val flags: Int) {
+    /**
+     * Returns true if the specific [columnFlags] are present in this value (i.e. [Int.and] equals
+     * the supplied [columnFlags])
+     */
     public operator fun get(columnFlags: ColumnFlags): Boolean {
         return (this.flags and columnFlags.flags) == columnFlags.flags
     }
 
+    /**
+     * Add all bits from the donor [ColumnFlags] while preserving all exists flags. This is
+     * equivalent to a [Int.or]
+     */
     public operator fun plus(columnFlags: ColumnFlags): ColumnFlags {
         return ColumnFlags(this.flags or columnFlags.flags)
     }
 
+    @Suppress("unused")
     public companion object {
         internal val NOT_NULL = ColumnFlags(1)
         internal val PRIMARY_KEY = ColumnFlags(2)
