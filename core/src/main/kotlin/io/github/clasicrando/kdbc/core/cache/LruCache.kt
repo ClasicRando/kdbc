@@ -1,5 +1,10 @@
 package io.github.clasicrando.kdbc.core.cache
 
+/**
+ * LRU cache implementation. Wrapper for a [LinkedHashMap] where the `removeEldestEntry` method is
+ * overridden to check the capacity and making the entry that will be removed available to the
+ * [insert] method.
+ */
 public class LruCache<K, V>(public val capacity: Int) {
     private var removedEntry: Map.Entry<K, V>? = null
     private val map: LinkedHashMap<K, V> = object : LinkedHashMap<K, V>(capacity) {

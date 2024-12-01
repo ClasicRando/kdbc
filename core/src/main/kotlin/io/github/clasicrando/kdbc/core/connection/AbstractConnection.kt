@@ -6,24 +6,29 @@ import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import kotlin.uuid.Uuid
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
-import kotlin.uuid.Uuid
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Base [Connection] implementation for supplying transaction commands using default implementations
+ */
 public abstract class AbstractConnection : Connection {
     final override val resourceId: Uuid = Uuid.random()
 
     final override val resourceIdAsString: String = resourceId.toString()
 
     private val _inTransaction: AtomicBoolean = atomic(false)
-    override val inTransaction: Boolean
+    final override val inTransaction: Boolean
         get() = _inTransaction.value
 
-    override suspend fun begin() {
+    protected val beginQuery: String = "BEGIN;"
+
+    final override suspend fun begin() {
         try {
-            query("BEGIN;").execute(this)
+            query(beginQuery).execute(this)
             if (!_inTransaction.compareAndSet(expect = false, update = true)) {
                 throw UnexpectedTransactionState(inTransaction = true)
             }
@@ -48,9 +53,11 @@ public abstract class AbstractConnection : Connection {
         }
     }
 
-    override suspend fun commit() {
+    protected val commitQuery: String = "COMMIT;"
+
+    final override suspend fun commit() {
         try {
-            query("COMMIT;").execute(this)
+            query(commitQuery).execute(this)
         } finally {
             if (!_inTransaction.compareAndSet(expect = true, update = false)) {
                 logWithResource(logger, Level.WARN) {
@@ -60,9 +67,11 @@ public abstract class AbstractConnection : Connection {
         }
     }
 
-    override suspend fun rollback() {
+    protected val rollbackQuery: String = "ROLLBACK;"
+
+    final override suspend fun rollback() {
         try {
-            query("ROLLBACK;").execute(this)
+            query(rollbackQuery).execute(this)
         } finally {
             if (!_inTransaction.compareAndSet(expect = true, update = false)) {
                 logWithResource(logger, Level.WARN) {
