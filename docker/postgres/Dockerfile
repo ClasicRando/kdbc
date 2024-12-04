@@ -1,10 +1,10 @@
 FROM docker.io/postgis/postgis:16-3.4-alpine
 
-COPY ./docker/postgres/certs/server.key /var/lib/postgresql
-COPY ./docker/postgres/certs/server.crt /var/lib/postgresql
+COPY ./docker/certs/server.key /var/lib/postgresql
+COPY ./docker/certs/server.crt /var/lib/postgresql
 
-COPY ./docker/postgres/certs/kdbc-test-sslCA.crt /var/lib/postgresql
-COPY ./docker/postgres/certs/kdbc-test-sslCA.crl /var/lib/postgresql
+COPY ./docker/certs/kdbc-test-sslCA.crt /var/lib/postgresql
+COPY ./docker/certs/kdbc-test-sslCA.crl /var/lib/postgresql
 
 RUN chown 0:70 /var/lib/postgresql/server.key && chmod 640 /var/lib/postgresql/server.key
 RUN chown 0:70 /var/lib/postgresql/server.crt && chmod 640 /var/lib/postgresql/server.crt

@@ -25,6 +25,9 @@ allprojects {
         compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
         compilerOptions.optIn.add("kotlin.uuid.ExperimentalUuidApi")
         compilerOptions.optIn.add("io.github.clasicrando.kdbc.core.annotations.InternalApi")
+        compilerOptions {
+            freeCompilerArgs.add("-Xwhen-guards")
+        }
         if (this@allprojects.name != "benchmarks") {
             explicitApi()
         }

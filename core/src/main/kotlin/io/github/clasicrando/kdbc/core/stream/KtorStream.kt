@@ -18,7 +18,10 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Sink
 
@@ -36,6 +39,9 @@ public class KtorStream(
     override val isConnected: Boolean
         get() = this::connection.isInitialized && !socket.isClosed
 
+    override var coroutineContext: CoroutineContext = SupervisorJob()
+        private set
+
     override suspend fun connect(timeout: Duration) {
         require(timeout.isPositive()) { "Timeout must be positive" }
         try {
@@ -46,6 +52,8 @@ public class KtorStream(
             socket = connection.socket
             writeChannel = connection.output
             readChannel = connection.input
+            coroutineContext =
+                socket.coroutineContext + SupervisorJob(parent = socket.coroutineContext.job)
         } catch (ex: Exception) {
             logWithResource(logger, Kdbc.detailedLogging) {
                 message = "Failed to connect to $address"
@@ -73,7 +81,7 @@ public class KtorStream(
         check(isConnected) { "Cannot write to a stream that is not connected" }
         try {
             block(writeChannel.writeBuffer)
-        } finally{
+        } finally {
             writeChannel.flush()
         }
     }

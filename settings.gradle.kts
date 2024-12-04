@@ -29,3 +29,4 @@ rootProject.name = "kdbc"
 include("core")
 include("postgresql")
 include("benchmarks")
+include("mysql")

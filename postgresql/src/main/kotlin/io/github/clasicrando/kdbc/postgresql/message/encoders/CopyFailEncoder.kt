@@ -15,7 +15,7 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYFAIL)
  */
-internal object CopyFailEncoder : MessageEncoder<PgMessage.CopyFail> {
+internal object CopyFailEncoder : PgMessageEncoder<PgMessage.CopyFail>() {
     override fun encode(value: PgMessage.CopyFail, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) { writeCString(value.message) }

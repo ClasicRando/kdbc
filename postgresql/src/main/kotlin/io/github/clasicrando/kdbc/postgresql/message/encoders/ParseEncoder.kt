@@ -19,7 +19,7 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PARSE)
  */
-internal object ParseEncoder : MessageEncoder<PgMessage.Parse> {
+internal object ParseEncoder : PgMessageEncoder<PgMessage.Parse>() {
     override fun encode(value: PgMessage.Parse, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {

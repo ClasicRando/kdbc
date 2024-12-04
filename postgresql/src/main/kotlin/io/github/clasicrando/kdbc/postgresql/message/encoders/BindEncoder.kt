@@ -25,7 +25,7 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BIND)
  */
-internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
+internal object BindEncoder : PgMessageEncoder<PgMessage.Bind>() {
     override fun encode(value: PgMessage.Bind, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {
@@ -33,9 +33,9 @@ internal object BindEncoder : MessageEncoder<PgMessage.Bind> {
             writeCString(value.statementName)
             writeShort(1)
             writeShort(1)
-            writeShort(value.parameters.size.toShort())
-            for ((parameter, type) in value.parameters) {
-                this.encodeValue(parameter, type, value.typeCache)
+            writeShort(value.arguments.size.toShort())
+            for (arg in value.arguments) {
+                this.encodeValue(arg.parameter.value, arg.pgTypeDescription)
             }
             writeShort(1)
             writeShort(1)

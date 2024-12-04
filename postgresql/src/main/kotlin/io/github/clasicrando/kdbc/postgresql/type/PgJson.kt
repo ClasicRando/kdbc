@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.ktor.utils.io.core.writeText
 import kotlinx.io.Sink
+import kotlinx.io.writeString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -50,7 +50,7 @@ public sealed class PgJson {
     internal fun writeToBuffer(buffer: Sink) {
         when (this) {
             is Bytes -> buffer.write(bytes)
-            is Text -> buffer.writeText(text)
+            is Text -> buffer.writeString(text)
         }
     }
 

@@ -4,7 +4,7 @@ import kotlin.reflect.typeOf
 
 /** API to perform a single query against a database */
 public class Query(public val sql: String) {
-    private val parametersInner: MutableList<QueryParameter> = mutableListOf()
+    private var parametersInner: MutableList<QueryParameter> = mutableListOf()
 
     public val parameters: List<QueryParameter>
         get() = parametersInner
@@ -18,6 +18,15 @@ public class Query(public val sql: String) {
      */
     public fun bind(parameter: QueryParameter): Query {
         parametersInner.add(parameter)
+        return this
+    }
+
+    public fun bindMany(parameters: List<QueryParameter>): Query {
+        if (parametersInner.isEmpty()) {
+            parametersInner = parameters as? MutableList ?: ArrayList(parameters)
+            return this
+        }
+        parametersInner.addAll(parameters)
         return this
     }
 
@@ -72,4 +81,13 @@ public inline fun <reified T : Any> Query.bind(parameter: List<T?>): Query {
  */
 public inline fun <reified T : Any> Query.bind(parameter: List<T>): Query {
     return bind(QueryParameter(value = parameter, parameterType = typeOf<List<T>>()))
+}
+
+/**
+ * Bind an out parameter used to call a stored procedure with the type [T] used for query planning
+ * and a null placeholder input. The value of the out parameter will be provided as a row in the
+ * query result so this statement is just to satisfy prepared query parsing and planning.
+ */
+public inline fun <reified T : Any> Query.bindOut(): Query {
+    return bind(QueryParameter(value = null, typeOf<T>()))
 }

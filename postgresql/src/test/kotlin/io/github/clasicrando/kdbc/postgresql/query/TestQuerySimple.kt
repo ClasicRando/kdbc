@@ -1,29 +1,27 @@
 package io.github.clasicrando.kdbc.postgresql.query
 
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
-import io.github.clasicrando.kdbc.core.column.ColumnExtractError
 import io.github.clasicrando.kdbc.core.exceptions.EmptyQueryResult
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.exceptions.RowParseError
-import io.github.clasicrando.kdbc.core.exceptions.TooManyRows
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetch
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.fetchFirst
-import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.fetchOne
+import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import kotlinx.coroutines.flow.collect
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.assertThrows
@@ -168,7 +166,6 @@ class TestQuerySimple {
                 )
             val exception =
                 assertThrows<RowParseError> { query.fetchAll(connection, BadRowParserTest2) }
-            exception.printStackTrace()
             val suppressedExceptions = exception.suppressedExceptions
             assertEquals(1, suppressedExceptions.size)
             val suppressedException = suppressedExceptions.first()
@@ -301,7 +298,6 @@ class TestQuerySimple {
                         .bind(STRING_VALUE)
                 val exception =
                     assertThrows<RowParseError> { rows.fetchAll(connection, BadRowParserTest2) }
-                exception.printStackTrace()
                 val suppressedExceptions = exception.suppressedExceptions
                 assertEquals(1, suppressedExceptions.size)
                 val suppressedException = suppressedExceptions.first()

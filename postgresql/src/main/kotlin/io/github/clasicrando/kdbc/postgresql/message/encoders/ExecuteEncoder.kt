@@ -17,7 +17,7 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-EXECUTE)
  */
-internal object ExecuteEncoder : MessageEncoder<PgMessage.Execute> {
+internal object ExecuteEncoder : PgMessageEncoder<PgMessage.Execute>() {
     override fun encode(value: PgMessage.Execute, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {

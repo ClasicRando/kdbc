@@ -24,21 +24,19 @@ import io.github.clasicrando.kdbc.postgresql.type.PgType
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-ROWDESCRIPTION)
  */
-internal object RowDescriptionDecoder : MessageDecoder<PgMessage.RowDescription> {
+internal object RowDescriptionDecoder : PgMessageDecoder<PgMessage.RowDescription>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.RowDescription {
         val descriptions =
-            buffer.use { buf ->
-                List(buf.readShort().toInt()) {
-                    PgColumnDescription(
-                        fieldName = buf.readCString(),
-                        tableOid = buf.readInt(),
-                        columnAttribute = buf.readShort(),
-                        pgType = PgType.fromOid(buf.readInt()),
-                        dataTypeSize = buf.readShort(),
-                        typeModifier = buf.readInt(),
-                        formatCode = buf.readShort(),
-                    )
-                }
+            List(buffer.readShort().toInt()) {
+                PgColumnDescription(
+                    fieldName = buffer.readCString(),
+                    tableOid = buffer.readInt(),
+                    columnAttribute = buffer.readShort(),
+                    pgType = PgType.fromOid(buffer.readInt()),
+                    dataTypeSize = buffer.readShort(),
+                    typeModifier = buffer.readInt(),
+                    formatCode = buffer.readShort(),
+                )
             }
         return PgMessage.RowDescription(descriptions)
     }

@@ -17,11 +17,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 @Suppress("ktlint:standard:max-line-length")
 internal object NegotiateProtocolVersionDecoder :
-    MessageDecoder<PgMessage.NegotiateProtocolVersion> {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.NegotiateProtocolVersion =
-        buffer.use { buf ->
-            val newestMinorProtocol = buf.readInt()
-            val unrecognizedOptions = List(buf.readInt()) { buf.readCString() }
-            PgMessage.NegotiateProtocolVersion(newestMinorProtocol, unrecognizedOptions)
-        }
+    PgMessageDecoder<PgMessage.NegotiateProtocolVersion>() {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.NegotiateProtocolVersion {
+        val newestMinorProtocol = buffer.readInt()
+        val unrecognizedOptions = List(buffer.readInt()) { buffer.readCString() }
+        return PgMessage.NegotiateProtocolVersion(newestMinorProtocol, unrecognizedOptions)
+    }
 }

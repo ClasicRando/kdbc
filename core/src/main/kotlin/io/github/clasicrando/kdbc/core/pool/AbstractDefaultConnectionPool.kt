@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.core.pool
 
 import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
 import io.github.clasicrando.kdbc.core.connection.Connection
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.coroutines.CoroutineContext
 import kotlin.uuid.Uuid
@@ -102,7 +103,7 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
                         null
                     }
                 }
-            result.isClosed -> error("Connection channel for pool is closed")
+            result.isClosed -> throw KdbcException("Connection channel for pool is closed")
         }
         return null
     }
@@ -165,7 +166,7 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
                     }
                 }
                 result.isFailure -> break
-                result.isClosed -> error("Connection channel for pool is closed")
+                result.isClosed -> throw KdbcException("Connection channel for pool is closed")
             }
         }
 

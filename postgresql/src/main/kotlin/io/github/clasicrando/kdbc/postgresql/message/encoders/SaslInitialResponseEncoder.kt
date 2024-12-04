@@ -18,7 +18,7 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SASLINITIALRESPONSE)
  */
-internal object SaslInitialResponseEncoder : MessageEncoder<PgMessage.SaslInitialResponse> {
+internal object SaslInitialResponseEncoder : PgMessageEncoder<PgMessage.SaslInitialResponse>() {
     override fun encode(value: PgMessage.SaslInitialResponse, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeLengthPrefixed(includeLength = true) {

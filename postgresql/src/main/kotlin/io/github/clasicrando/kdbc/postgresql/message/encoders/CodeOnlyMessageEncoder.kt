@@ -10,7 +10,7 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html)
  */
-internal object CodeOnlyMessageEncoder : MessageEncoder<PgMessage> {
+internal object CodeOnlyMessageEncoder : PgMessageEncoder<PgMessage>() {
     override fun encode(value: PgMessage, buffer: Sink) {
         buffer.writeByte(value.code)
         buffer.writeInt(4)

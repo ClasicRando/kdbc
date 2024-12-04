@@ -2,6 +2,8 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
+import io.github.clasicrando.kdbc.core.ensureNonNull
+import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
@@ -24,7 +26,7 @@ public interface CompositeTypeDefinition<T : Any> : RowParser<T> {
      * Custom behaviour to return the composite instance's attribute values paired with the values
      * type.
      */
-    public fun extractValues(value: T): List<Pair<Any?, KType>>
+    public fun extractValues(value: T): List<QueryParameter>
 }
 
 /**
@@ -59,8 +61,7 @@ internal class BaseCompositeTypeDescription<T : Any>(
         for (i in attributeMapping.indices) {
             val column = attributeMapping[i]
             buffer.writeInt(column.pgType.oid)
-            val (attribute, kType) = values[i]
-            buffer.encodeValue(attribute, kType, typeCache)
+            buffer.encodeValue(values[i], typeCache)
         }
     }
 
@@ -182,8 +183,9 @@ internal class ReflectionCompositeTypeDescription<T : Any>(cls: KClass<T>) :
             name to param.type
         }
 
-    override fun extractValues(value: T): List<Pair<Any?, KType>> =
-        properties.map { it.call(value) to it.returnType }
+    override fun extractValues(value: T): List<QueryParameter> {
+        return properties.map { QueryParameter(it.call(value), it.returnType.ensureNonNull()) }
+    }
 
     override fun fromRow(row: DataRow): T {
         val args =

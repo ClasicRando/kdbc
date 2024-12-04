@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import kotlinx.io.Sink
 
@@ -13,11 +12,10 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SSLREQUEST)
  */
-internal object SslMessageEncoder : MessageEncoder<PgMessage.SslRequest> {
+internal object SslMessageEncoder : PgMessageEncoder<PgMessage.SslRequest>() {
     override fun encode(value: PgMessage.SslRequest, buffer: Sink) {
-        buffer.writeLengthPrefixed(includeLength = true) {
-            writeShort(1234)
-            writeShort(5679)
-        }
+        buffer.writeInt(8)
+        buffer.writeShort(1234)
+        buffer.writeShort(5679)
     }
 }

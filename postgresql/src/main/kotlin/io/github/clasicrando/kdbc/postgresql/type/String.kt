@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import io.ktor.utils.io.core.writeText
 import kotlin.reflect.typeOf
 import kotlinx.io.Sink
+import kotlinx.io.writeString
 
 /**
  * Implementation of a [PgTypeDescription] for the [String] type. This maps to the
@@ -11,16 +11,17 @@ import kotlinx.io.Sink
  */
 internal object VarcharTypeDescription :
     PgTypeDescription<String>(dbType = PgType.Varchar, kType = typeOf<String>()) {
-    override fun isCompatible(dbType: PgType): Boolean =
-        dbType == PgType.Text ||
+    override fun isCompatible(dbType: PgType): Boolean {
+        return dbType == PgType.Text ||
             dbType == PgType.Varchar ||
             dbType == PgType.Xml ||
             dbType == PgType.Name ||
             dbType == PgType.Bpchar
+    }
 
     /** Simply writes the [String] value to the buffer in UTF8 encoding */
     override fun encode(value: String, buffer: Sink) {
-        buffer.writeText(value)
+        buffer.writeString(value)
     }
 
     /** Read the bytes as text using UFT8 encoding */

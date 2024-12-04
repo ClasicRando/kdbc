@@ -3,16 +3,17 @@ package io.github.clasicrando.kdbc.postgresql.type
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import io.ktor.utils.io.core.writeText
 import kotlin.reflect.typeOf
 import kotlinx.io.Sink
+import kotlinx.io.writeString
 import kotlinx.serialization.SerializationException
 
 /** Implementation of a [PgTypeDescription] for the [PgJson] type */
 internal object JsonTypeDescription :
     PgTypeDescription<PgJson>(dbType = PgType.Jsonb, kType = typeOf<PgJson>()) {
-    override fun isCompatible(dbType: PgType): Boolean =
-        dbType == this.dbType || dbType == PgType.Json
+    override fun isCompatible(dbType: PgType): Boolean {
+        return dbType == this.dbType || dbType == PgType.Json
+    }
 
     /**
      * Writes a single [Byte] of 1, then calls [PgJson.writeToBuffer] which encodes the json data
@@ -88,7 +89,7 @@ internal object JsonPathTypeDescription :
      */
     override fun encode(value: PgJsonPath, buffer: Sink) {
         buffer.writeByte(1)
-        buffer.writeText(value.value)
+        buffer.writeString(value.value)
     }
 
     /**

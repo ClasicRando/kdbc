@@ -15,7 +15,7 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-CANCELREQUEST)
  */
-internal object CancelRequestEncoder : MessageEncoder<PgMessage.CancelRequest> {
+internal object CancelRequestEncoder : PgMessageEncoder<PgMessage.CancelRequest>() {
     override fun encode(value: PgMessage.CancelRequest, buffer: Sink) {
         buffer.writeInt(16)
         buffer.writeShort(1234)

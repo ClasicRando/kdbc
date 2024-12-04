@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
+import com.github.doyaaaaaken.kotlincsv.client.CsvReader
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
@@ -25,6 +26,7 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
+import io.github.clasicrando.kdbc.core.statement.CsvDataRow
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -33,12 +35,12 @@ import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata
 import io.github.clasicrando.kdbc.postgresql.copy.PgBinaryCopyRow
 import io.github.clasicrando.kdbc.postgresql.copy.PgCopyEncodeBuffer
-import io.github.clasicrando.kdbc.postgresql.copy.PgCsvCopyRow
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
 import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
+import io.github.clasicrando.kdbc.postgresql.statement.PgArgument
 import io.github.clasicrando.kdbc.postgresql.statement.PgPreparedStatement
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.github.clasicrando.kdbc.postgresql.type.BaseCompositeTypeDescription
@@ -52,12 +54,17 @@ import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -69,23 +76,20 @@ import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
+import kotlinx.io.asOutputStream
+import kotlinx.io.asSink
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import kotlinx.io.readByteArray
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * [Connection] object for a Postgresql database. A new instance cannot be created but rather the
  * [io.github.clasicrando.kdbc.postgresql.Postgres.connection] method should be called to receive a
- * new [PgConnection] ready for user usage. This method will use connection pooling behind the
- * scenes as to reduce unnecessary tcp connection creation to the server when an application creates
- * and closes connections frequently.
+ * new [PgConnection] ready for usage. This method will use connection pooling behind the scenes as
+ * to reduce unnecessary TCP connection creation to the server when an application creates and
+ * closes connections frequently.
  */
 public class PgConnection
 internal constructor(
@@ -193,6 +197,9 @@ internal constructor(
     }
 
     override suspend fun executeQuery(query: Query): Flow<Either<QueryResult, DataRow>> {
+        log(connectOptions.statementLogLevel) {
+            message = "Sending query: ${query.sql.normalizeWhitespace()}"
+        }
         if (query.parameters.isEmpty()) {
             return sendSimpleQuery(query.sql)
         }
@@ -323,9 +330,6 @@ internal constructor(
 
         return mutex.withLock {
             waitUntilReady()
-            log(connectOptions.statementLogLevel) {
-                message = "Sending query: ${query.normalizeWhitespace()}"
-            }
             stream.writeToStream(PgMessage.Query(query))
             pendingReaderForQueryCount++
 
@@ -489,12 +493,12 @@ internal constructor(
         parameters: List<QueryParameter>,
         sendSync: Boolean = true,
     ) {
+        val arguments = parameters.map { PgArgument(it, typeCache) }
         stream.writeManyToStream(
             PgMessage.Bind(
                 portal = null,
                 statementName = statement.statementName,
-                parameters = parameters,
-                typeCache = typeCache,
+                arguments = arguments,
             ),
             PgMessage.Execute(portalName = null, maxRowCount = 0),
             PgMessage.Close(MessageTarget.Portal, null),
@@ -503,9 +507,6 @@ internal constructor(
             writeSync()
         }
         statement.lastExecuted = Clock.System.now()
-        log(connectOptions.statementLogLevel) {
-            message = "Sending query: ${statement.query.normalizeWhitespace()}"
-        }
     }
 
     /**
@@ -762,14 +763,13 @@ internal constructor(
         inputStream: InputStream,
     ): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
-        return copyIn(copyInStatement = copyInStatement, data = inputStream.chunkedBytes().asFlow())
+        return copyIn(copyInStatement = copyInStatement, source = inputStream.asSource().buffered())
     }
 
     /**
      * Execute a `COPY FROM` command using the options supplied in the [copyInStatement] and feed
-     * each [PgCsvCopyRow] supplied to the COPY sink by using the [PgCsvCopyRow.values] as the CSV
-     * row contents. By default, the [Any.toString] method is called to convert the data into CSV
-     * rows.
+     * each [CsvDataRow] supplied to the COPY sink by using the [CsvDataRow.values] as the CSV row
+     * contents. By default, the [Any.toString] method is called to convert the data into CSV rows.
      *
      * If the server sends an error message during or at completion of streaming the copy data, the
      * message will be captured and thrown after completing the COPY process and the connection with
@@ -779,9 +779,9 @@ internal constructor(
      */
     public suspend fun copyIn(
         copyInStatement: CopyStatement.TableFromCsv,
-        data: Flow<PgCsvCopyRow>,
+        data: Flow<CsvDataRow>,
     ): QueryResult {
-        val outputStream = ByteArrayOutputStream()
+        val sink = Buffer()
         val writer = csvWriter {
             delimiter = copyInStatement.delimiter
             quote { char = copyInStatement.quote }
@@ -791,11 +791,9 @@ internal constructor(
         return copyIn(
             copyInStatement = copyInStatement,
             data =
-                data.chunked(size = 50).map { chunk ->
-                    writer.openAsync(outputStream) { writeRows(chunk.map { it.values }) }
-                    val bytes = outputStream.toByteArray()
-                    outputStream.reset()
-                    bytes
+                data.chunked(size = CSV_ROW_BUFFER_SIZE).map { chunk ->
+                    writer.openAsync(sink.asOutputStream()) { writeRows(chunk.map { it.values }) }
+                    sink.readByteArray()
                 },
         )
     }
@@ -822,7 +820,7 @@ internal constructor(
                 flow<ByteArray> {
                     emit(pgBinaryCopyHeader)
                     val mappedFlow =
-                        data.chunked(size = 50).map { chunk ->
+                        data.chunked(size = CSV_ROW_BUFFER_SIZE).map { chunk ->
                             for (row in chunk) {
                                 buffer.innerBuffer.writeShort(row.valueCount)
                                 row.encodeValues(buffer)
@@ -891,7 +889,7 @@ internal constructor(
      * each row returned from the query to the [outputStream] supplied
      */
     public suspend fun copyOut(copyOutStatement: CopyStatement.To, outputStream: OutputStream) {
-        copyOut(copyOutStatement).collect(outputStream::write)
+        return copyOut(copyOutStatement = copyOutStatement, sink = outputStream.asSink().buffered())
     }
 
     /**
@@ -932,9 +930,8 @@ internal constructor(
         val flow = copyOut(copyOutStatement)
         return when (copyOutStatement) {
             is CopyStatement.CopyText -> {
-                val inputStream = convertFlowToDelimitedInputStream(flow)
                 readTextData(
-                    inputStream = inputStream,
+                    flow = flow,
                     fields = fields,
                     delimiter = copyOutStatement.delimiter,
                     quote = (copyOutStatement as? CopyStatement.CopyCsv)?.quote,
@@ -1054,7 +1051,9 @@ internal constructor(
     ): PgTypeDescription<T> {
         val verifiedOid =
             checkCompositeDbTypeByName(type)
-                ?: error("Could not verify the composite type name '$type' in the database")
+                ?: throw KdbcException(
+                    "Could not verify the composite type name '$type' in the database"
+                )
 
         val compositeColumnMapping = getCompositeAttributeData(verifiedOid)
 
@@ -1132,7 +1131,9 @@ internal constructor(
     ): PgTypeDescription<E> {
         val verifiedOid =
             checkEnumDbTypeByName(type)
-                ?: error("Could not verify the composite type name '$type' in the database")
+                ?: throw KdbcException(
+                    "Could not verify the composite type name '$type' in the database"
+                )
 
         val enumLabels = getEnumLabels(verifiedOid)
         val enumTypeDescription =
@@ -1175,6 +1176,7 @@ internal constructor(
     }
 
     internal companion object {
+        private const val CSV_ROW_BUFFER_SIZE = 2000
         /**
          * Magic header value required at the start a binary COPY operation
          *
@@ -1211,59 +1213,72 @@ internal constructor(
         private val pgBinaryCopyTrailer = byteArrayOf(-1, -1)
 
         /**
-         * Convert the [Flow] of [ByteArray] into an [InputStream] for text file parsing. This
-         * collects the flow contents into a [Buffer] and wraps it using [Buffer.asInputStream]
-         */
-        internal suspend fun convertFlowToDelimitedInputStream(flow: Flow<ByteArray>): InputStream {
-            val buffer = Buffer()
-            flow.collect { buffer.write(it) }
-            return buffer.asInputStream()
-        }
-
-        /**
          * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row,
          * the first 19 bytes should be ignored since they are the binary copy's file header.
          */
         internal fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer {
-            return when {
-                rowCount == 1L ->
-                    ByteReadBuffer(row.copyOfRange(fromIndex = 19, toIndex = row.size))
-                else -> ByteReadBuffer(row)
-            }
+            return ByteReadBuffer(
+                when {
+                    rowCount == 1L -> row.copyOfRange(fromIndex = 19, toIndex = row.size)
+                    else -> row
+                }
+            )
         }
 
         internal fun PgConnection.readTextData(
-            inputStream: InputStream,
+            flow: Flow<ByteArray>,
             fields: List<PgColumnDescription>,
             delimiter: Char,
             quote: Char?,
             escape: Char?,
             header: CopyHeader?,
-        ): Flow<DataRow> = channelFlow {
-            var rowCount = 0L
-            csvReader {
-                    this.delimiter = delimiter
-                    this.quoteChar = quote ?: '\u0000'
-                    this.escapeChar = escape ?: '\u0000'
-                }
-                .openAsync(inputStream) {
-                    val skip = if (header != null && header != CopyHeader.False) 1 else 0
-                    this.readAllAsSequence().drop(skip).forEach { row ->
-                        rowCount++
-                        val dataRow =
-                            PgDataRow(
-                                pgValues =
-                                    Array(row.size) { i ->
-                                        val rowData = row[i]
-                                        val fieldData = fields[i]
-                                        PgValue.Text(rowData, fieldData)
-                                    },
-                                columnMapping = fields,
-                                typeCache = typeCache,
-                            )
-                        send(dataRow)
+        ): Flow<DataRow> {
+            val reader = csvReader {
+                this.delimiter = delimiter
+                this.quoteChar = quote ?: '\u0000'
+                this.escapeChar = escape ?: '\u0000'
+            }
+            val tempBuffer = Buffer()
+            return flow {
+                var rowCount = 0
+                flow.collect {
+                    rowCount++
+                    tempBuffer.write(it)
+                    if (rowCount == CSV_ROW_BUFFER_SIZE) {
+                        readCsvSource(tempBuffer, reader, fields, typeCache, header)
+                        rowCount = 0
                     }
                 }
+                if (!tempBuffer.exhausted()) {
+                    readCsvSource(tempBuffer, reader, fields, typeCache, header)
+                }
+            }
+        }
+
+        private suspend fun FlowCollector<DataRow>.readCsvSource(
+            tempBuffer: Source,
+            reader: CsvReader,
+            fields: List<PgColumnDescription>,
+            typeCache: PgTypeCache,
+            header: CopyHeader?,
+        ) {
+            reader.openAsync(tempBuffer.asInputStream()) {
+                val skip = if (header != null && header != CopyHeader.False) 1 else 0
+                for (row in this.readAllAsSequence().drop(skip)) {
+                    val dataRow =
+                        PgDataRow(
+                            pgValues =
+                                Array(row.size) { i ->
+                                    val rowData = row[i]
+                                    val fieldData = fields[i]
+                                    PgValue.Text(rowData, fieldData)
+                                },
+                            columnMapping = fields,
+                            typeCache = typeCache,
+                        )
+                    emit(dataRow)
+                }
+            }
         }
 
         /**

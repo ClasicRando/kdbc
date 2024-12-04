@@ -8,10 +8,7 @@ package io.github.clasicrando.kdbc.core.result
  * This type is not thread safe and should be accessed by a single thread or coroutine to ensure
  * consistent processing of data.
  */
-public open class QueryResult(
-    public val rowsAffected: Long,
-    public val message: String,
-) {
+public open class QueryResult(public val rowsAffected: Long, public val message: String) {
     public fun merge(other: QueryResult): QueryResult {
         return QueryResult(
             rowsAffected = this.rowsAffected + other.rowsAffected,

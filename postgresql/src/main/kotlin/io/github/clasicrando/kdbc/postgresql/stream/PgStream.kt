@@ -24,15 +24,11 @@ import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import kotlin.coroutines.CoroutineContext
 import kotlin.math.floor
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.job
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgStream"
@@ -42,17 +38,12 @@ private const val RESOURCE_TYPE = "PgStream"
  * [PgConnection] will own a [PgStream] and utilize it's public methods to process incoming server
  * messages.
  */
-internal class PgStream(
-    scope: CoroutineScope,
-    private val stream: Stream,
-    internal val connectOptions: PgConnectOptions,
-) : DefaultUniqueResourceId(), CoroutineScope, AutoCloseable {
+internal class PgStream(private val stream: Stream, internal val connectOptions: PgConnectOptions) :
+    DefaultUniqueResourceId(), AutoCloseable {
     /** Data sent from the backend during connection initialization */
     private var backendKeyData: PgMessage.BackendKeyData? = null
 
     override val resourceType: String = RESOURCE_TYPE
-
-    override val coroutineContext: CoroutineContext = Job(parent = scope.coroutineContext.job)
 
     /** [Channel] used to store all server notifications that have not been processed */
     private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
@@ -247,7 +238,7 @@ internal class PgStream(
         flow.collect { message ->
             batch.add(message)
             if (maxBatchSize == batch.size) {
-                maxBatchSize = floor(SEND_BUFFER_SIZE / message.size).toInt()
+                maxBatchSize = floor(WRITE_MANY_BUFFER_SIZE / message.size).toInt()
                 stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
                 batch.clear()
             }
@@ -315,7 +306,7 @@ internal class PgStream(
                 )
             }
             is Authentication.Sasl -> this.saslAuthFlow(auth)
-            else -> error("Auth request type cannot be handled. $auth")
+            else -> throw KdbcException("Auth request type cannot be handled. $auth")
         }
     }
 
@@ -326,7 +317,9 @@ internal class PgStream(
             'N'.code.toByte() -> false
             else -> {
                 val responseChar = response.toInt().toChar()
-                error("Invalid response byte after SSL request. Byte = '$responseChar'")
+                throw KdbcException(
+                    "Invalid response byte after SSL request. Byte = '$responseChar'"
+                )
             }
         }
     }
@@ -353,9 +346,9 @@ internal class PgStream(
     }
 
     companion object {
-        private const val SEND_BUFFER_SIZE = 4096.0
+        private const val WRITE_MANY_BUFFER_SIZE = 4096.0
         private const val TLS_REJECT_WARNING =
-            "Preferred SSL mode was rejected by server. " + "Continuing with non TLS connection"
+            "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
 
         /**
          * Create a new TCP connection with the Postgresql database targeted by the [connectOptions]
@@ -372,13 +365,9 @@ internal class PgStream(
          * @throws ExitOfProcessingLoop if waiting for [PgMessage.ReadyForQuery] or error after
          *   authentication exits the processing loop unexpectedly
          */
-        internal suspend fun connect(
-            scope: CoroutineScope,
-            stream: Stream,
-            connectOptions: PgConnectOptions,
-        ): PgStream {
+        internal suspend fun connect(stream: Stream, connectOptions: PgConnectOptions): PgStream {
             stream.connect(timeout = connectOptions.connectionTimeout)
-            val pgStream = PgStream(scope = scope, stream = stream, connectOptions = connectOptions)
+            val pgStream = PgStream(stream = stream, connectOptions = connectOptions)
             pgStream.upgradeIfNeeded()
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
             pgStream.writeToStream(message = startupMessage)

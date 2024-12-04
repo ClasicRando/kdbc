@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import kotlinx.io.Sink
 
@@ -14,9 +13,10 @@ import kotlinx.io.Sink
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYDATA)
  */
-internal object CopyDataEncoder : MessageEncoder<PgMessage.CopyData> {
+internal object CopyDataEncoder : PgMessageEncoder<PgMessage.CopyData>() {
     override fun encode(value: PgMessage.CopyData, buffer: Sink) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) { write(value.data) }
+        buffer.writeInt(value.data.size + 4)
+        buffer.write(value.data)
     }
 }

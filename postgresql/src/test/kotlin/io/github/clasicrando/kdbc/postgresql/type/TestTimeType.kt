@@ -6,12 +6,12 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.toJavaLocalTime
 import org.junit.jupiter.api.Timeout
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestTimeType {
     @Test

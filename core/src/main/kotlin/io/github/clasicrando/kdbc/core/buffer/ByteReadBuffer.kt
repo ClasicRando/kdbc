@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.buffer
 
 import io.github.clasicrando.kdbc.core.ZERO_BYTE
-import java.nio.charset.Charset
 
 /**
  * Buffer containing a fixed size [ByteArray] where reads against the buffer are always read
@@ -14,10 +13,10 @@ import java.nio.charset.Charset
  * increments the [position] value based the number of bytes requested.
  */
 public class ByteReadBuffer(
-    private var innerBuffer: ByteArray,
+    private val innerBuffer: ByteArray,
     private val offset: Int = 0,
     @PublishedApi internal val size: Int = innerBuffer.size,
-) : AutoCloseable {
+) {
     @PublishedApi internal var position: Int = 0
 
     /**
@@ -44,6 +43,25 @@ public class ByteReadBuffer(
         return size - position
     }
 
+    /** Returns true if the remaining bytes to read is 0 */
+    @Suppress("NOTHING_TO_INLINE")
+    public inline fun exhausted(): Boolean {
+        return remaining() == 0
+    }
+
+    public fun skip(byteCount: Int) {
+        checkRemaining(byteCount)
+        position += byteCount
+    }
+
+    /**
+     * Request the availability of a set number of bytes in the buffer. Returns true if the
+     * remaining bytes meets or exceeds the requested number of bytes.
+     */
+    public fun request(byteCount: Int): Boolean {
+        return remaining() >= byteCount
+    }
+
     /**
      * Check to confirm that the required number of bytes are available within the buffer. If the
      * [remaining] value is not greater than or equal to the [required] byte count,
@@ -58,6 +76,25 @@ public class ByteReadBuffer(
     }
 
     /**
+     * View the next available [Byte] within the buffer without consuming the value.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun peekNext(): Byte {
+        checkRemaining(1)
+        return innerBuffer[offset + position]
+    }
+
+    /**
+     * View the next available [Byte] within the buffer without consuming the value.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun peekNextAsInt(): Int {
+        return peekNext().toInt() and 0xff
+    }
+
+    /**
      * Read the next available [Byte] within the buffer.
      *
      * @throws BufferExhausted if the buffer has been exhausted
@@ -68,6 +105,15 @@ public class ByteReadBuffer(
     }
 
     /**
+     * Read the next available [Byte] within the buffer.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readByteAsInt(): Int {
+        return readByte().toInt() and 0xff
+    }
+
+    /**
      * Read the next available [Short] within the buffer (requires 2 bytes).
      *
      * @throws BufferExhausted if the buffer has been exhausted
@@ -75,10 +121,21 @@ public class ByteReadBuffer(
     public fun readShort(): Short {
         checkRemaining(2)
         val result =
-            (innerBuffer[offset + position++].toInt() and
-                0xff shl
-                8 or
+            ((innerBuffer[offset + position++].toInt() and 0xff shl 8) or
                 (innerBuffer[offset + position++].toInt() and 0xff))
+        return result.toShort()
+    }
+
+    /**
+     * Read the next available [Short] within the buffer (requires 2 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readShortLe(): Short {
+        checkRemaining(2)
+        val result =
+            ((innerBuffer[offset + position++].toInt() and 0xff) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 8))
         return result.toShort()
     }
 
@@ -94,6 +151,21 @@ public class ByteReadBuffer(
                 (innerBuffer[offset + position++].toInt() and 0xff shl 16) or
                 (innerBuffer[offset + position++].toInt() and 0xff shl 8) or
                 (innerBuffer[offset + position++].toInt() and 0xff))
+        return result
+    }
+
+    /**
+     * Read the next available [Int] within the buffer (requires 4 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readIntLe(): Int {
+        checkRemaining(4)
+        val result =
+            ((innerBuffer[offset + position++].toInt() and 0xff) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 8) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 16) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 24))
         return result
     }
 
@@ -117,12 +189,52 @@ public class ByteReadBuffer(
     }
 
     /**
+     * Read the next available [Long] within the buffer (requires 8 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readLongLe(): Long {
+        checkRemaining(8)
+        val result =
+            ((innerBuffer[offset + position++].toLong() and 0xffL) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 8) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 16) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 24) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 32) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 40) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 48) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 56))
+        return result
+    }
+
+    public fun readIntLe(byteCount: Int): Long {
+        require(byteCount in 1..8) { "An integer cannot be expressed by 1-8 bytes" }
+        val bytes = readBytes(byteCount)
+        var result = 0L
+        var shiftValue = 0
+        for (i in 1..byteCount) {
+            result = result or (bytes[i - 1].toLong() and 0xff shl shiftValue)
+            shiftValue += 8
+        }
+        return result
+    }
+
+    /**
      * Read the next available [Float] within the buffer (requires 4 bytes).
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
     public fun readFloat(): Float {
         return Float.fromBits(this.readInt())
+    }
+
+    /**
+     * Read the next available [Float] within the buffer (requires 4 bytes).
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readFloatLe(): Float {
+        return Float.fromBits(this.readIntLe())
     }
 
     /**
@@ -135,22 +247,24 @@ public class ByteReadBuffer(
     }
 
     /**
+     * Read the next available [Double] within the buffer (requires 8 bytes).
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readDoubleLe(): Double {
+        return Double.fromBits(this.readLongLe())
+    }
+
+    /**
      * Attempt to read an exact number of bytes specified by [length] into a [ByteArray].
      *
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
-    public fun readBytes(length: Int): ByteArray {
+    public fun readBytes(length: Int = remaining()): ByteArray {
         checkRemaining(length)
         val start = offset + position
         position += length
         return this.innerBuffer.copyOfRange(start, start + length)
-    }
-
-    /** Read all remaining bytes into a [ByteArray]. This can result in an empty array. */
-    public fun readBytes(): ByteArray {
-        val currentPosition = position
-        position = size
-        return this.innerBuffer.copyOfRange(offset + currentPosition, offset + size)
     }
 
     /**
@@ -159,8 +273,8 @@ public class ByteReadBuffer(
      *
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
-    public fun readText(charset: Charset = Charsets.UTF_8): String {
-        return String(this.readBytes(), charset = charset)
+    public fun readText(length: Int = remaining()): String {
+        return String(this.readBytes(length = length), charset = Charsets.UTF_8)
     }
 
     /**
@@ -171,7 +285,7 @@ public class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted before finding a zero byte
      * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
      */
-    public fun readCString(charset: Charset = Charsets.UTF_8): String {
+    public fun readCString(): String {
         val buffer = ArrayList<Byte>()
 
         while (remaining() > 0) {
@@ -182,20 +296,11 @@ public class ByteReadBuffer(
 
             buffer.add(nextByte)
         }
-        return String(bytes = buffer.toByteArray(), charset = charset)
+        return String(bytes = buffer.toByteArray(), charset = Charsets.UTF_8)
     }
 
     /** Reset this buffer to it's initial reading position so the value can be read again */
     public fun reset() {
         position = 0
-    }
-
-    /**
-     * Reset the buffer's position to 0 and set the inner buffer to an empty [ByteArray]. This
-     * leaves the buffer in an unusable state
-     */
-    override fun close() {
-        reset()
-        innerBuffer = ByteArray(0)
     }
 }

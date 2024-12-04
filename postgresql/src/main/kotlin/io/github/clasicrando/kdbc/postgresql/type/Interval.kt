@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
@@ -198,7 +199,7 @@ internal object PgIntervalTypeDescription :
                     currentNumber = 0
                     break
                 }
-                else -> error("")
+                else -> throw KdbcException("Unexpected character in interval: '$currentChar'")
             }
         }
 

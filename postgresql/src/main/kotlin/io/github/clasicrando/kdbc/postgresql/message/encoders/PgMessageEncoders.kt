@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import kotlinx.io.Sink
@@ -7,36 +8,32 @@ import kotlinx.io.Sink
 /** Common entry point for encoding frontend [PgMessage]s. */
 internal object PgMessageEncoders {
     /**
-     * Encode the [PgMessage] of type [T] into the supplied [buffer] by looking up the appropriate
+     * Encode the [PgMessage] into the supplied [buffer] by looking up the appropriate
      * [MessageEncoder] and calling [MessageEncoder.encode].
      *
-     * @throws IllegalStateException if the [message] provided does not have a corresponding
+     * @throws KdbcException if the [message] provided does not have a corresponding
      *   [MessageEncoder]
      */
-    @Suppress("UNCHECKED_CAST")
-    fun <T : PgMessage> encode(message: T, buffer: Sink) {
-        val encoder =
-            when (message) {
-                is PgMessage.StartupMessage -> StartupEncoder
-                is PgMessage.PasswordMessage -> PasswordEncoder
-                is PgMessage.SaslInitialResponse -> SaslInitialResponseEncoder
-                is PgMessage.SaslResponse -> SaslResponseEncoder
-                is PgMessage.SslRequest -> SslMessageEncoder
-                is PgMessage.Query -> QueryEncoder
-                is PgMessage.Terminate -> CodeOnlyMessageEncoder
-                is PgMessage.Parse -> ParseEncoder
-                is PgMessage.Bind -> BindEncoder
-                is PgMessage.Describe -> DescribeEncoder
-                is PgMessage.Execute -> ExecuteEncoder
-                is PgMessage.Sync -> CodeOnlyMessageEncoder
-                is PgMessage.Close -> CloseEncoder
-                is PgMessage.CopyData -> CopyDataEncoder
-                is PgMessage.CopyDone -> CodeOnlyMessageEncoder
-                is PgMessage.CopyFail -> CopyFailEncoder
-                is PgMessage.CancelRequest -> CancelRequestEncoder
-                else -> error("Message $message cannot be encoded")
-            }
-                as MessageEncoder<T>
-        encoder.encode(message, buffer)
+    fun encode(message: PgMessage, buffer: Sink) {
+        when (message) {
+            is PgMessage.StartupMessage -> StartupEncoder.encode(message, buffer)
+            is PgMessage.PasswordMessage -> PasswordEncoder.encode(message, buffer)
+            is PgMessage.SaslInitialResponse -> SaslInitialResponseEncoder.encode(message, buffer)
+            is PgMessage.SaslResponse -> SaslResponseEncoder.encode(message, buffer)
+            is PgMessage.SslRequest -> SslMessageEncoder.encode(message, buffer)
+            is PgMessage.Query -> QueryEncoder.encode(message, buffer)
+            is PgMessage.Terminate -> CodeOnlyMessageEncoder.encode(message, buffer)
+            is PgMessage.Parse -> ParseEncoder.encode(message, buffer)
+            is PgMessage.Bind -> BindEncoder.encode(message, buffer)
+            is PgMessage.Describe -> DescribeEncoder.encode(message, buffer)
+            is PgMessage.Execute -> ExecuteEncoder.encode(message, buffer)
+            is PgMessage.Sync -> CodeOnlyMessageEncoder.encode(message, buffer)
+            is PgMessage.Close -> CloseEncoder.encode(message, buffer)
+            is PgMessage.CopyData -> CopyDataEncoder.encode(message, buffer)
+            is PgMessage.CopyDone -> CodeOnlyMessageEncoder.encode(message, buffer)
+            is PgMessage.CopyFail -> CopyFailEncoder.encode(message, buffer)
+            is PgMessage.CancelRequest -> CancelRequestEncoder.encode(message, buffer)
+            else -> throw KdbcException("Message $message cannot be encoded")
+        }
     }
 }

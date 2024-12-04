@@ -15,7 +15,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-DATAROW)
  */
-internal object DataRowDecoder : MessageDecoder<PgMessage.DataRow> {
+internal object DataRowDecoder : PgMessageDecoder<PgMessage.DataRow>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.DataRow {
         return PgMessage.DataRow(buffer)
     }

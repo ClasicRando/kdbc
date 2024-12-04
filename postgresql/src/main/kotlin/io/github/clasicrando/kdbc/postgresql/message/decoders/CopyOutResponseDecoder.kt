@@ -15,14 +15,12 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYOUTRESPONSE)
  */
-internal object CopyOutResponseDecoder : MessageDecoder<PgMessage.CopyOutResponse> {
+internal object CopyOutResponseDecoder : PgMessageDecoder<PgMessage.CopyOutResponse>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.CopyOutResponse {
-        return buffer.use { buf ->
-            val copyFormat = CopyFormat.fromByte(buf.readByte())
-            val columnCount = buf.readShort().toInt()
-            val columnFormats = List(columnCount) { CopyFormat.fromByte(buf.readByte()) }
+        val copyFormat = CopyFormat.fromByte(buffer.readByte())
+        val columnCount = buffer.readShort().toInt()
+        val columnFormats = List(columnCount) { CopyFormat.fromByte(buffer.readByte()) }
 
-            PgMessage.CopyOutResponse(copyFormat, columnCount, columnFormats)
-        }
+        return PgMessage.CopyOutResponse(copyFormat, columnCount, columnFormats)
     }
 }

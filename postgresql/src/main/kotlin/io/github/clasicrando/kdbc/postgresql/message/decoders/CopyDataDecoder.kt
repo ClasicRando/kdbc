@@ -11,8 +11,8 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYDATA)
  */
-internal object CopyDataDecoder : MessageDecoder<PgMessage.CopyData> {
+internal object CopyDataDecoder : PgMessageDecoder<PgMessage.CopyData>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.CopyData {
-        return PgMessage.CopyData(buffer.use { it.readBytes() })
+        return PgMessage.CopyData(buffer.readBytes())
     }
 }

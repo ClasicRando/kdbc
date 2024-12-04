@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.core.stream
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import kotlin.time.Duration
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.io.Sink
 
 private const val RESOURCE_TYPE = "Stream"
@@ -12,7 +13,7 @@ private const val RESOURCE_TYPE = "Stream"
  * implementation will depend on the platform and compilation target but each method will suspend
  * during IO operation to yield control of the otherwise blocked thread.
  */
-public interface Stream : UniqueResourceId, AutoCloseable {
+public interface Stream : UniqueResourceId, AutoCloseable, CoroutineScope {
     override val resourceType: String
         get() = RESOURCE_TYPE
 

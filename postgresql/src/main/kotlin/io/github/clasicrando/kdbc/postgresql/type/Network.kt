@@ -12,8 +12,9 @@ private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()
 /** Implementation of a [PgTypeDescription] for the [PgInet] type */
 internal object NetworkAddressTypeDescription :
     PgTypeDescription<PgInet>(dbType = PgType.Inet, kType = typeOf<PgInet>()) {
-    override fun isCompatible(dbType: PgType): Boolean =
-        dbType == this.dbType || dbType == PgType.Cidr
+    override fun isCompatible(dbType: PgType): Boolean {
+        return dbType == this.dbType || dbType == PgType.Cidr
+    }
 
     /**
      * Writes 5 values to the buffer:

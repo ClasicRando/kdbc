@@ -13,12 +13,10 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PARAMETERDESCRIPTION)
  */
-internal object ParameterDescriptionDecoder : MessageDecoder<PgMessage.ParameterDescription> {
+internal object ParameterDescriptionDecoder : PgMessageDecoder<PgMessage.ParameterDescription>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.ParameterDescription {
-        return buffer.use { buf ->
-            val parameterCount = buf.readShort()
-            val parameterTypes = List(parameterCount.toInt()) { buf.readInt() }
-            PgMessage.ParameterDescription(parameterTypes)
-        }
+        val parameterCount = buffer.readShort()
+        val parameterTypes = List(parameterCount.toInt()) { buffer.readInt() }
+        return PgMessage.ParameterDescription(parameterTypes)
     }
 }

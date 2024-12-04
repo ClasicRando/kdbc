@@ -1,14 +1,15 @@
 package io.github.clasicrando.kdbc.core.buffer
 
-import io.ktor.utils.io.core.writeText
-import java.nio.charset.Charset
 import kotlinx.io.Sink
+import kotlinx.io.writeString
 
 /**
  * Write the [text] to the buffer by encoding the string using the specified [charset] and finishing
- * with a null terminator (zero byte). By default, the [text] is written using [Charsets.UTF_8].
+ * with a null terminator (zero byte). By default, the [text] is written using as UTF-8
  */
-public fun Sink.writeCString(text: CharSequence, charset: Charset = Charsets.UTF_8) {
-    writeText(text, charset = charset)
+public fun Sink.writeCString(text: CharSequence?) {
+    if (!text.isNullOrEmpty()) {
+        writeString(text)
+    }
     writeByte(0)
 }

@@ -9,15 +9,17 @@ import kotlinx.io.Sink
 /** Implementation of a [PgTypeDescription] for the [PgMacAddress] type */
 internal object MacAddressTypeDescription :
     PgTypeDescription<PgMacAddress>(dbType = PgType.Macaddr, kType = typeOf<PgMacAddress>()) {
-    override fun isCompatible(dbType: PgType): Boolean =
-        dbType == this.dbType || dbType == PgType.Macaddr8
+    override fun isCompatible(dbType: PgType): Boolean {
+        return dbType == this.dbType || dbType == PgType.Macaddr8
+    }
 
-    override fun getActualType(value: PgMacAddress): PgType =
-        if (value.isMacAddress8) {
+    override fun getActualType(value: PgMacAddress): PgType {
+        return if (value.isMacAddress8) {
             PgType.Macaddr8
         } else {
             PgType.Macaddr
         }
+    }
 
     /**
      * Write all bytes in the [PgMacAddress] unless the supplied [dbType] is not [PgType.Macaddr8]

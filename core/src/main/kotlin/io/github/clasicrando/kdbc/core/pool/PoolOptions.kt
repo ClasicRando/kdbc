@@ -39,6 +39,8 @@ public data class PoolOptions(
     val parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
 ) {
     init {
+        require(maxConnections > 0) { "Max connection count cannot be less than 1" }
+        require(minConnections >= 0) { "Min connection count cannot be less than 0" }
         require(acquireTimeout.isPositive()) { "acquireTimeout pool option must be positive" }
         require(idleTime.isPositive()) { "idleTime pool option must be positive" }
     }

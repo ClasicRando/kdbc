@@ -74,7 +74,7 @@ class TestSimpleQuerySpec {
     fun `sendSimpleQuery should timeout when long running query with timeout specified`(): Unit =
         runBlocking {
             PgConnectionHelper.defaultConnectionWithQueryTimeout().use { connection ->
-                val queries = "CALL public.$LONG_RUNNING_TEST_PROC_NAME()"
+                val queries = "SELECT pg_sleep(5);"
                 val exception =
                     assertThrows<GeneralPostgresError> {
                         connection.sendSimpleQuery(queries).collect()
@@ -86,7 +86,6 @@ class TestSimpleQuerySpec {
 
     companion object {
         const val TEST_PROC_NAME = "test_proc"
-        const val LONG_RUNNING_TEST_PROC_NAME = "long_running_test_proc"
         private const val STARTUP_SCRIPT =
             """
             DROP PROCEDURE IF EXISTS public.$TEST_PROC_NAME;
@@ -97,12 +96,6 @@ class TestSimpleQuerySpec {
                 $1 := 4;
                 $2 := 'This is a test';
             END;
-            $$;
-            DROP PROCEDURE IF EXISTS public.$LONG_RUNNING_TEST_PROC_NAME;
-            CREATE PROCEDURE public.$LONG_RUNNING_TEST_PROC_NAME()
-            LANGUAGE sql
-            AS $$
-            SELECT pg_sleep(5);
             $$;
         """
 

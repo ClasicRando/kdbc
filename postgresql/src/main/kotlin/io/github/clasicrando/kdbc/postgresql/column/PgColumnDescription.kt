@@ -29,7 +29,6 @@ public data class PgColumnDescription(
 ) : ColumnMetadata {
     override val dataType: Int = pgType.oid
     override val typeName: String = fieldName
-    override val typeSize: Long = dataTypeSize.toLong()
 
     public companion object {
         public fun dummyDescription(pgType: PgType, formatCode: Short): PgColumnDescription {

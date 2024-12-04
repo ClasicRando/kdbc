@@ -90,11 +90,12 @@ class TestAbstractDefaultConnectionPool {
                 }
             val options =
                 PoolOptions(
-                    maxConnections = 0,
+                    maxConnections = 1,
                     minConnections = 0,
                     acquireTimeout = 1.toDuration(DurationUnit.NANOSECONDS),
                 )
             TestConnectionPoolImpl(poolOptions = options, provider = factory).use {
+                assertDoesNotThrow { it.acquire() }
                 assertThrows<AcquireTimeout> { it.acquire() }
             }
         }

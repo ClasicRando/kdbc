@@ -67,7 +67,7 @@ internal class PgTypeCache {
         val oid = typeDescription.dbType.oid
         val arrayTypeOid =
             checkArrayDbTypeByOid(connection, oid)
-                ?: error("Could not verify the array type for element oid = $oid")
+                ?: throw KdbcException("Could not verify the array type for element oid = $oid")
         addArrayTypeDescriptions(
             arrayType = PgType.fromOid(arrayTypeOid),
             typeDescription = typeDescription,

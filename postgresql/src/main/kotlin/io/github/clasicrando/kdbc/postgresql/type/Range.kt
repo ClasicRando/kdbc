@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.type
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -163,7 +164,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
             ')' -> Bound.Excluded(value)
             '[',
             ']' -> Bound.Included(value)
-            else -> error("Expected bound character but found '$char'")
+            else -> throw KdbcException("Expected bound character but found '$char'")
         }
 
     /**

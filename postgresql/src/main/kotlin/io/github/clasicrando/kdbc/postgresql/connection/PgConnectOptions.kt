@@ -73,6 +73,7 @@ public data class PgConnectOptions(
     @Transient val tlsConfig: TLSConfigBuilder.() -> Unit = {},
 ) {
     /** Connection properties as they are sent to the database upon connection initialization */
+    @Transient
     val properties: List<Pair<String, String>> =
         listOf(
                 "user" to username,
