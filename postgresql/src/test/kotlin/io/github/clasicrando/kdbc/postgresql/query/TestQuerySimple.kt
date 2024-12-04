@@ -166,7 +166,6 @@ class TestQuerySimple {
                 )
             val exception =
                 assertThrows<RowParseError> { query.fetchAll(connection, BadRowParserTest2) }
-            exception.printStackTrace()
             val suppressedExceptions = exception.suppressedExceptions
             assertEquals(1, suppressedExceptions.size)
             val suppressedException = suppressedExceptions.first()
@@ -299,7 +298,6 @@ class TestQuerySimple {
                         .bind(STRING_VALUE)
                 val exception =
                     assertThrows<RowParseError> { rows.fetchAll(connection, BadRowParserTest2) }
-                exception.printStackTrace()
                 val suppressedExceptions = exception.suppressedExceptions
                 assertEquals(1, suppressedExceptions.size)
                 val suppressedException = suppressedExceptions.first()
