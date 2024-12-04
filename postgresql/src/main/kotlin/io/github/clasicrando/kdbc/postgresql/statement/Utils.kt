@@ -5,8 +5,8 @@ import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
-import kotlinx.io.Sink
 import kotlin.reflect.KType
+import kotlinx.io.Sink
 
 /**
  * Encode the supplied [queryParameter] in this [Sink], looking up the type definition in the
@@ -27,9 +27,7 @@ internal fun <T : Any> Sink.encodeValue(value: T?, type: KType, typeCache: PgTyp
     encodeValue(value, description)
 }
 
-/**
- * Encode the supplied [value] in this [Sink] using the associated type description.
- */
+/** Encode the supplied [value] in this [Sink] using the associated type description. */
 internal fun <T : Any> Sink.encodeValue(value: T?, pgTypeDescription: PgTypeDescription<T>) {
     if (value == null) {
         writeInt(-1)

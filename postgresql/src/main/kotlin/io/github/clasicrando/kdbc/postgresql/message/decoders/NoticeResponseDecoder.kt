@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Source
 
 /**
  * [io.github.clasicrando.kdbc.core.message.MessageDecoder] for [PgMessage.NoticeResponse]. This
@@ -13,7 +13,7 @@ import kotlinx.io.Source
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-NOTICERESPONSE)
  */
 internal object NoticeResponseDecoder : InformationResponseDecoder<PgMessage.NoticeResponse>() {
-    override fun decode(buffer: Source): PgMessage.NoticeResponse {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.NoticeResponse {
         val fields = decodeToInformationResponse(buffer)
         return PgMessage.NoticeResponse(fields)
     }

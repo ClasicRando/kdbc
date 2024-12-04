@@ -43,7 +43,6 @@ internal object PgMessageDecoders {
                 logger.atTrace {
                     message = "Received unexpected message of format = '${rawMessage.format}'"
                 }
-                rawMessage.contents.close()
                 PgMessage.UnknownMessage
             }
         }

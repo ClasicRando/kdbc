@@ -1,16 +1,11 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.readCString
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.authentication.AuthPlugin
-import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import io.github.clasicrando.kdbc.mysql.message.Status
-import kotlinx.io.Source
-import kotlinx.io.readByteArray
-import kotlinx.io.readIntLe
-import kotlinx.io.readShortLe
 
 /**
  * [MessageDecoder] for [MysqlMessage.Handshake] packets. Provides initial details about the server,
@@ -19,11 +14,11 @@ import kotlinx.io.readShortLe
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html)
  */
 internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> {
-    override fun decode(buffer: Source, context: Unit): MysqlMessage.Handshake {
+    override fun decode(buffer: ByteReadBuffer, context: Unit): MysqlMessage.Handshake {
         val protocol = buffer.readByte()
         val serverVersion = buffer.readCString()
         val connectionId = buffer.readIntLe()
-        val authPluginData1 = buffer.readByteArray(8)
+        val authPluginData1 = buffer.readBytes(8)
         buffer.readByte()
 
         val capabilities1 = (buffer.readShortLe().toLong() and 0xff_ff).toULong()
@@ -50,7 +45,7 @@ internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> 
         val authPluginData2 =
             if (capabilities[Capabilities.CLIENT_SECURE_CONNECTION]) {
                 val length = (authPluginDataLength - 9).coerceAtLeast(12)
-                val value = buffer.readByteArray(length)
+                val value = buffer.readBytes(length)
                 buffer.skip(1)
                 value
             } else {

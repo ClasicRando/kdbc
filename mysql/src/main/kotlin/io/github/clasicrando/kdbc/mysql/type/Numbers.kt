@@ -7,13 +7,13 @@ import io.github.clasicrando.kdbc.core.validateShort
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
+import kotlin.reflect.typeOf
 import kotlinx.io.Sink
 import kotlinx.io.writeDoubleLe
 import kotlinx.io.writeFloatLe
 import kotlinx.io.writeIntLe
 import kotlinx.io.writeLongLe
 import kotlinx.io.writeShortLe
-import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [MySqlTypeDescription] for the [Boolean] type. Accepts TINY, SHORT, INT24,

@@ -1,13 +1,10 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
-import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
-import kotlinx.io.Source
-import kotlinx.io.readIntLe
-import kotlinx.io.readShortLe
 
 /**
  * [MessageDecoder] for [MysqlMessage.PrepareOk] packets. Starts with 0x00 followed by the statement
@@ -18,7 +15,7 @@ import kotlinx.io.readShortLe
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response_ok)
  */
 internal object PrepareOkDecoder : MessageDecoder<MysqlMessage.PrepareOk, Capabilities> {
-    override fun decode(buffer: Source, context: Capabilities): MysqlMessage.PrepareOk {
+    override fun decode(buffer: ByteReadBuffer, context: Capabilities): MysqlMessage.PrepareOk {
         val status = buffer.readByteAsInt()
         checkOrMySqlException(status == 0x00) {
             "Expected PrepareOk status to be 0x00 but found 0x${status.toHexString()}"

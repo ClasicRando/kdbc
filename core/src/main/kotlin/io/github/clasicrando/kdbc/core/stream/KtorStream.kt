@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -17,13 +18,12 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
-import kotlinx.io.Buffer
 import kotlinx.io.Sink
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -103,11 +103,11 @@ public class KtorStream(
         return result
     }
 
-    override suspend fun readBuffer(count: Int): Buffer {
+    override suspend fun readBuffer(count: Int): ByteReadBuffer {
         check(isConnected) { "Cannot read from a stream that is not connected" }
         val destination = ByteArray(count)
         readChannel.readFully(destination)
-        return Buffer().apply { write(destination) }
+        return ByteReadBuffer(destination)
     }
 
     override fun close() {

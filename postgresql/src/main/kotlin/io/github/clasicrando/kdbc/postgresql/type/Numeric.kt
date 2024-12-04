@@ -2,8 +2,8 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import kotlin.reflect.typeOf
+import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [BigDecimal] type. This maps to the `numeric`

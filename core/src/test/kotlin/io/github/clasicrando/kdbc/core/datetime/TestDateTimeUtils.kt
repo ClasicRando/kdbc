@@ -25,13 +25,13 @@ class TestDateTimeUtils {
     @ParameterizedTest
     @ValueSource(
         strings =
-        [
-            "2020-05-19 06:59:19",
-            "2020-05-19T06:59:19",
-            "2020-05-19 06:59:19+08",
-            "2023-01-01T23:56:45Z",
-            "2023-01-01 23:56:45Z",
-        ]
+            [
+                "2020-05-19 06:59:19",
+                "2020-05-19T06:59:19",
+                "2020-05-19 06:59:19+08",
+                "2023-01-01T23:56:45Z",
+                "2023-01-01 23:56:45Z",
+            ]
     )
     fun `LocalDateTime_tryFromString should return success when valid iso-8601 string`(
         value: String
@@ -62,13 +62,13 @@ class TestDateTimeUtils {
     @ParameterizedTest
     @ValueSource(
         strings =
-        [
-            "2020-05-19T06:59:19-03",
-            "2020-05-19T06:59:19+09",
-            "2020-05-19 06:59:19",
-            "2023-01-01T23:56:45Z",
-            "2023-01-01T23:56:45Z",
-        ]
+            [
+                "2020-05-19T06:59:19-03",
+                "2020-05-19T06:59:19+09",
+                "2020-05-19 06:59:19",
+                "2023-01-01T23:56:45Z",
+                "2023-01-01T23:56:45Z",
+            ]
     )
     fun `Instant_tryFromString should return success when valid iso-8601 string`(value: String) {
         assertDoesNotThrow { Instant.tryFromString(value) }

@@ -17,10 +17,8 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
-import kotlinx.io.Buffer
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
-import kotlinx.io.writeString
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
@@ -36,9 +34,7 @@ class TestCopySpec {
             val copyResult =
                 it.copyIn(
                     copyInStatement,
-                    (1..ROW_COUNT).asFlow().map { i ->
-                        Buffer().apply { writeString("$i,$i Value\n") }
-                    },
+                    (1..ROW_COUNT).asFlow().map { i -> "$i,$i Value\n".toByteArray() },
                 )
             assertEquals(ROW_COUNT_LONG, copyResult.rowsAffected)
             assertEquals("COPY $ROW_COUNT", copyResult.message)
@@ -118,9 +114,7 @@ class TestCopySpec {
                     CopyStatement.TableFromCsv(schemaName = "public", tableName = "copy_in_test")
                 it.copyIn(
                     copyInStatement,
-                    (1..ROW_COUNT).asFlow().map { i ->
-                        Buffer().apply { writeString("$i,$i Value") }
-                    },
+                    (1..ROW_COUNT).asFlow().map { i -> "$i,$i Value".toByteArray() },
                 )
             }
         assertTrue(result.isFailure)

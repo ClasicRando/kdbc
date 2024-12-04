@@ -32,8 +32,6 @@ internal inline fun Sink.writeLengthPrefixed(
     val length = tempBuffer.size + if (includeLength) 4 else 0
     check(length in 0..Int.MAX_VALUE)
     writeInt(length.toInt())
-    this.writeToInternalBuffer {
-        it.write(tempBuffer, tempBuffer.size)
-    }
+    this.writeToInternalBuffer { it.write(tempBuffer, tempBuffer.size) }
     transferFrom(tempBuffer)
 }

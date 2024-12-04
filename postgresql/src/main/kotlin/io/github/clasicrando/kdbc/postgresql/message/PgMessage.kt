@@ -1,10 +1,47 @@
 package io.github.clasicrando.kdbc.postgresql.message
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.AUTHENTICATION_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.BACKEND_KEY_DATA_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.BIND_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.BIND_COMPLETE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.CLOSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.CLOSE_COMPLETE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.COMMAND_COMPLETE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.COPY_BOTH_RESPONSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.COPY_DATA_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.COPY_DONE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.COPY_FAIL_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.COPY_IN_RESPONSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.COPY_OUT_RESPONSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.DATA_ROW_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.DESCRIBE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.EMPTY_QUERY_RESPONSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.ERROR_RESPONSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.EXECUTE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.FLUSH_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.FUNCTION_CALL_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.FUNCTION_CALL_RESPONSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.NEGOTIATE_PROTOCOL_VERSION_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.NOTICE_RESPONSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.NOTIFICATION_RESPONSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.NO_DATA_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.PARAMETER_DESCRIPTION_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.PARAMETER_STATUS_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.PARSE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.PARSE_COMPLETE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.PASSWORD_MESSAGE_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.PORTAL_SUSPENDED_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.QUERY_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.READY_FOR_QUERY_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.ROW_DESCRIPTION_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.SYNC_CODE
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage.Companion.TERMINATE_CODE
 import io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse
 import io.github.clasicrando.kdbc.postgresql.statement.PgArgument
-import kotlinx.io.Source
 
 /**
  * Specified frontend and backend messages that can be sent to and received from the database
@@ -81,11 +118,14 @@ internal sealed class PgMessage(val code: Byte) {
 
     /**
      * Backend and frontend message sent with the [COPY_DATA_CODE] header [Byte]. Contains the copy
-     * [data] as a [Source]. When this message is sent from the backend, the [data] represents a
-     * single row. When this message is sent from the frontend, the [data] could represent any chunk
-     * of the total data copied since the backend parsing the data as it comes in, byte by byte.
+     * [data] as a [ByteReadBuffer]. When this message is sent from the backend, the [data]
+     * represents a single row. When this message is sent from the frontend, the [data] could
+     * represent any chunk of the total data copied since the backend parsing the data as it comes
+     * in, byte by byte.
      */
-    class CopyData(val data: Source) : PgMessage(COPY_DATA_CODE) // F & B
+    class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage {
+        override val size: Int = data.size
+    } // F & B
 
     /**
      * Backend and frontend message sent with the [COPY_DONE_CODE] header [Byte]. Contains no data,
@@ -138,7 +178,7 @@ internal sealed class PgMessage(val code: Byte) {
      * Backend message sent with the [DATA_ROW_CODE] header [Byte]. Contains the row data of a
      * single query result in [rowBuffer].
      */
-    data class DataRow(val rowBuffer: Source) : PgMessage(DATA_ROW_CODE) // B
+    data class DataRow(val rowBuffer: ByteReadBuffer) : PgMessage(DATA_ROW_CODE) // B
 
     /**
      * Frontend message sent with the [DESCRIBE_CODE] header [Byte]. Contains the [target] of the

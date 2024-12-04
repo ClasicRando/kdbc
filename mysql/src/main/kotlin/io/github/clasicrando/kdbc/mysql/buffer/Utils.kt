@@ -1,22 +1,16 @@
 package io.github.clasicrando.kdbc.mysql.buffer
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
 import kotlinx.io.Buffer
 import kotlinx.io.DelicateIoApi
 import kotlinx.io.Sink
-import kotlinx.io.Source
-import kotlinx.io.readByteArray
-import kotlinx.io.readLongLe
-import kotlinx.io.readShortLe
-import kotlinx.io.readString
 import kotlinx.io.writeLongLe
 import kotlinx.io.writeShortLe
 import kotlinx.io.writeToInternalBuffer
 
-internal fun Source.readByteAsInt(): Int = this.readByte().toInt() and 0xff
-
-internal fun Source.read3ByteIntLe(): Int {
+internal fun ByteReadBuffer.read3ByteIntLe(): Int {
     return (this.readByteAsInt() or (this.readByteAsInt() shl 8) or (this.readByteAsInt() shl 16))
 }
 
@@ -28,7 +22,7 @@ internal fun Source.read3ByteIntLe(): Int {
  * - 0xfe, read 8 more bytes
  * - other values indicate that the first byte is the length
  */
-internal fun Source.readLongLengthEncoded(): Long {
+internal fun ByteReadBuffer.readLongLengthEncoded(): Long {
     val length = readByteAsInt()
     return when (length) {
         0xfc -> readShortLe().toLong() and 0xff_ff
@@ -45,9 +39,9 @@ internal fun Source.readLongLengthEncoded(): Long {
  * readString(byteCount = readLongLengthEncoded())
  * ```
  */
-internal fun Source.readStringLengthEncoded(): String {
+internal fun ByteReadBuffer.readStringLengthEncoded(): String {
     val length = readLongLengthEncoded()
-    return readString(byteCount = length)
+    return readText(length = validateInt(length))
 }
 
 /**
@@ -59,9 +53,9 @@ internal fun Source.readStringLengthEncoded(): String {
  * with an extra check to ensure the length is an int since a [ByteArray]'s size is capped to
  * [Int.MAX_VALUE].
  */
-internal fun Source.readBytesLengthEncoded(): ByteArray {
+internal fun ByteReadBuffer.readBytesLengthEncoded(): ByteArray {
     val length = readLongLengthEncoded()
-    return readByteArray(validateInt(length))
+    return readBytes(validateInt(length))
 }
 
 /**

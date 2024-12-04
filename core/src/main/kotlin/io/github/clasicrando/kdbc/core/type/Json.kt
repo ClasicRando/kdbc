@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.core.type
 import kotlinx.io.Sink
 import kotlinx.io.writeString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.Json as KotlinxJson
+import kotlinx.serialization.json.JsonElement
 
 /** Wrapper for json data encoded as [Bytes] or [Text] */
 public sealed class Json {

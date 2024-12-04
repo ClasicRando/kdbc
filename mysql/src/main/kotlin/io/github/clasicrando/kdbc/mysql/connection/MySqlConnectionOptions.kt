@@ -3,16 +3,16 @@ package io.github.clasicrando.kdbc.mysql.connection
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.network.tls.TLSConfigBuilder
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import java.time.ZoneOffset
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /** Connection options for a mysql database */
 @Serializable
-public class MySqlConnectionOptions(
+public data class MySqlConnectionOptions(
     /** Host name or IP address of the postgresql server */
     public val host: String,
     /** Port on the host machine of the postgresql server */

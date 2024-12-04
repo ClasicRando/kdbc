@@ -3,9 +3,7 @@ package io.github.clasicrando.kdbc.core.query
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
-/**
- * Create a [QueryParameter] using the reified type [T] as the [KType] required
- */
+/** Create a [QueryParameter] using the reified type [T] as the [KType] required */
 public inline fun <reified T> QueryParameter(value: T?): QueryParameter {
     return QueryParameter(value, typeOf<T>())
 }

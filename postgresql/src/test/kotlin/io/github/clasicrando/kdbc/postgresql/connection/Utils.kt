@@ -27,7 +27,8 @@ fun createTempCsvForCopy(rowCount: Int): Path {
     }
 }
 
-suspend fun Flow<Either<QueryResult, DataRow>>.collectResults(): Pair<List<QueryResult>, List<List<DataRow>>> {
+suspend fun Flow<Either<QueryResult, DataRow>>.collectResults():
+    Pair<List<QueryResult>, List<List<DataRow>>> {
     val results = mutableListOf<QueryResult>()
     val rows = mutableListOf<MutableList<DataRow>>()
     this.collect {

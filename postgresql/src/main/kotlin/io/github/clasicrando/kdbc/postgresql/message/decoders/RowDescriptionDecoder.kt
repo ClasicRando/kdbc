@@ -1,11 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.readCString
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.type.PgType
-import kotlinx.io.Source
 
 /**
  * [MessageDecoder] for [PgMessage.RowDescription]. This message is sent when the client issues a
@@ -26,7 +25,7 @@ import kotlinx.io.Source
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-ROWDESCRIPTION)
  */
 internal object RowDescriptionDecoder : PgMessageDecoder<PgMessage.RowDescription>() {
-    override fun decode(buffer: Source): PgMessage.RowDescription {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.RowDescription {
         val descriptions =
             List(buffer.readShort().toInt()) {
                 PgColumnDescription(

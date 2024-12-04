@@ -26,10 +26,10 @@ class TestPipelineQuerySpec {
                     .pipelineQueries(
                         syncAll = true,
                         queries =
-                        listOf(
-                            query("SELECT $1 i").bind(1),
-                            query("SELECT $1 t").bind("Pipeline Query"),
-                        ),
+                            listOf(
+                                query("SELECT $1 i").bind(1),
+                                query("SELECT $1 t").bind("Pipeline Query"),
+                            ),
                     )
                     .collectResults()
             assertEquals(2, results.size)
@@ -47,15 +47,15 @@ class TestPipelineQuerySpec {
         val result =
             PgConnectionHelper.defaultConnection().useCatching {
                 it.pipelineQueries(
-                    syncAll = true,
-                    queries =
-                    listOf(
-                        query("INSERT INTO public.rollback_check VALUES($1,$2)")
-                            .bind(1)
-                            .bind("Pipeline Query"),
-                        query("SELECT $1::int t").bind("not int"),
-                    ),
-                )
+                        syncAll = true,
+                        queries =
+                            listOf(
+                                query("INSERT INTO public.rollback_check VALUES($1,$2)")
+                                    .bind(1)
+                                    .bind("Pipeline Query"),
+                                query("SELECT $1::int t").bind("not int"),
+                            ),
+                    )
                     .toList()
             }
         assertTrue(result.isFailure)
@@ -76,16 +76,16 @@ class TestPipelineQuerySpec {
         val result =
             PgConnectionHelper.defaultConnection().useCatching {
                 it.pipelineQueries(
-                    syncAll = true,
-                    queries =
-                    listOf(
-                        query("INSERT INTO public.rollback_check VALUES($1,$2)")
-                            .bind(1)
-                            .bind("Pipeline Query"),
-                        query("SELECT $1::int t").bind("not int"),
-                        query("SELECT $1 t").bind("not int"),
-                    ),
-                )
+                        syncAll = true,
+                        queries =
+                            listOf(
+                                query("INSERT INTO public.rollback_check VALUES($1,$2)")
+                                    .bind(1)
+                                    .bind("Pipeline Query"),
+                                query("SELECT $1::int t").bind("not int"),
+                                query("SELECT $1 t").bind("not int"),
+                            ),
+                    )
                     .collect()
             }
         assertTrue(result.isFailure)
@@ -106,15 +106,15 @@ class TestPipelineQuerySpec {
         val result =
             PgConnectionHelper.defaultConnection().useCatching {
                 it.pipelineQueries(
-                    syncAll = false,
-                    queries =
-                    listOf(
-                        query("INSERT INTO public.rollback_check VALUES($1,$2)")
-                            .bind(1)
-                            .bind("Pipeline Query"),
-                        query("SELECT $1::int t").bind("not int"),
-                    ),
-                )
+                        syncAll = false,
+                        queries =
+                            listOf(
+                                query("INSERT INTO public.rollback_check VALUES($1,$2)")
+                                    .bind(1)
+                                    .bind("Pipeline Query"),
+                                query("SELECT $1::int t").bind("not int"),
+                            ),
+                    )
                     .collect()
             }
         assertTrue(result.isFailure)

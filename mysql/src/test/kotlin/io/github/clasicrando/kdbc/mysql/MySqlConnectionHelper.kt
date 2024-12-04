@@ -31,4 +31,10 @@ object MySqlConnectionHelper {
     suspend fun defaultConnectionWithTimeout(): MySqlConnection {
         return MySql.connection(connectOptions = defaultTimeoutConnectOptions)
     }
+
+    private val defaultSslConnectOptions = defaultConnectOptions.copy(sslMode = SslMode.Require)
+
+    suspend fun defaultConnectionWithSsl(): MySqlConnection {
+        return MySql.connection(connectOptions = defaultSslConnectOptions)
+    }
 }

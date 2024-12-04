@@ -2,9 +2,9 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import java.net.Inet6Address
 import kotlin.reflect.typeOf
+import kotlinx.io.Sink
 
 private const val PGSQL_AF_INET: Byte = 2
 private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()

@@ -7,15 +7,16 @@ package io.github.clasicrando.kdbc.core.cache
  */
 public class LruCache<K, V>(public val capacity: Int) {
     private var removedEntry: Map.Entry<K, V>? = null
-    private val map: LinkedHashMap<K, V> = object : LinkedHashMap<K, V>(capacity) {
-        override fun removeEldestEntry(eldest: Map.Entry<K, V>): Boolean {
-            if (size > capacity) {
-                removedEntry = eldest
-                return true
+    private val map: LinkedHashMap<K, V> =
+        object : LinkedHashMap<K, V>(capacity) {
+            override fun removeEldestEntry(eldest: Map.Entry<K, V>): Boolean {
+                if (size > capacity) {
+                    removedEntry = eldest
+                    return true
+                }
+                return false
             }
-            return false
         }
-    }
 
     public operator fun get(key: K): V? = map[key]
 

@@ -6,6 +6,9 @@
 podman container stop kdbc-test-pg
 podman container rm kdbc-test-pg
 
+podman container stop kdbc-test-mysql
+podman container rm kdbc-test-mysql
+
 # If using docker, comment out this line
 systemctl --user start podman.socket
 export DOCKER_HOST="unix:///$XDG_RUNTIME_DIR/podman/podman.sock"

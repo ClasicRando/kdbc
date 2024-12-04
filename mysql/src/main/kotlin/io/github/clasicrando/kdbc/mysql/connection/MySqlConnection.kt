@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.connection
 
 import io.github.clasicrando.kdbc.core.cache.LruCache
+import io.github.clasicrando.kdbc.core.chunkedBytes
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.AbstractConnection
 import io.github.clasicrando.kdbc.core.connection.Connection
@@ -15,8 +16,7 @@ import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.splitQuery
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
-import io.github.clasicrando.kdbc.core.statement.mapIntoCsvDataChunks
-import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
+import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
@@ -45,21 +45,21 @@ import io.github.clasicrando.kdbc.mysql.type.MysqlTypeInfo
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import java.io.IOException
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.asSource
 import kotlinx.io.buffered
-import java.io.IOException
-import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -108,7 +108,7 @@ internal constructor(
             var columns: List<MySqlColumn>
             while (true) {
                 val packet = stream.receiveNextPacket()
-                val firstByte = packet.peek().readByteAsInt()
+                val firstByte = packet.peekNextAsInt()
                 if (firstByte == 0x00) {
                     val ok = OkDecoder.decode(packet)
                     emit(
@@ -136,7 +136,7 @@ internal constructor(
                 var rowCount = 0L
                 while (true) {
                     val rowPacket = stream.receiveNextPacket()
-                    if (rowPacket.peek().readByteAsInt() == 0xfe && rowPacket.size < 9) {
+                    if (rowPacket.peekNextAsInt() == 0xfe && rowPacket.remaining() < 9) {
                         val eof = EofDecoder.decode(rowPacket)
                         emit(Either.Left(QueryResult(rowCount, "")))
 
@@ -287,7 +287,7 @@ internal constructor(
         source: Source,
         withTransaction: Boolean = false,
     ): QueryResult {
-        return loadLocalInternal(statement, flowOf(source), withTransaction)
+        return loadLocalInternal(statement, source.chunkedBytes().asFlow(), withTransaction)
     }
 
     /**
@@ -315,7 +315,7 @@ internal constructor(
                     newline = "\n",
                     skipLines = 0,
                 ),
-            data = data.mapIntoCsvDataChunks(CSV_ROW_BUFFER_SIZE),
+            data = data.mapIntoCsvByteArrayChunks(CSV_ROW_BUFFER_SIZE),
             withTransaction = withTransaction,
         )
     }
@@ -333,7 +333,7 @@ internal constructor(
      */
     private suspend fun loadLocalInternal(
         statement: LoadLocalFileStatement,
-        data: Flow<Source>,
+        data: Flow<ByteArray>,
         withTransaction: Boolean = false,
     ): QueryResult {
         checkOrMySqlException(stream.capabilities[Capabilities.CLIENT_LOCAL_FILES]) {
@@ -361,12 +361,10 @@ internal constructor(
             try {
                 val tempBuffer = Buffer()
                 data.collect {
-                    while (!it.exhausted()) {
-                        it.readAtMostTo(tempBuffer, COPY_BUFFER_SIZE - tempBuffer.size)
-                        if (tempBuffer.size >= COPY_BUFFER_SIZE) {
-                            stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))
-                        }
+                    if (tempBuffer.size + it.size > COPY_BUFFER_SIZE) {
+                        stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))
                     }
+                    tempBuffer.write(it)
                 }
                 if (!tempBuffer.exhausted()) {
                     stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))

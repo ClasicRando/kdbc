@@ -3,10 +3,10 @@ package io.github.clasicrando.kdbc.postgresql.type
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlin.reflect.typeOf
 import kotlinx.io.Sink
 import kotlinx.io.writeString
 import kotlinx.serialization.SerializationException
-import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [PgJson] type */
 internal object JsonTypeDescription :

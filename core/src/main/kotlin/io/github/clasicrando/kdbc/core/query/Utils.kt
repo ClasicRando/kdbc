@@ -6,14 +6,14 @@ import io.github.clasicrando.kdbc.core.exceptions.RowParseError
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toList
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 
 /**
  * Execute the query and return a [QueryResult] from the query execution. This discards any rows

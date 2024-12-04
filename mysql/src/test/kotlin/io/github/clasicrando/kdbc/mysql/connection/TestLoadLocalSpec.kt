@@ -8,11 +8,6 @@ import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.core.useCatching
 import io.github.clasicrando.kdbc.mysql.MySqlConnectionHelper
 import io.github.clasicrando.kdbc.mysql.load.LoadLocalFileStatement
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.BeforeTest
@@ -20,6 +15,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
 
 class TestLoadLocalSpec {
     @BeforeTest
@@ -32,14 +32,14 @@ class TestLoadLocalSpec {
     @Test
     fun `loadLocalFile should accept valid csv file`(): Unit = runBlocking {
         val statement = LoadLocalFileStatement(TEST_TABLE, skipLines = 0)
-        val result = MySqlConnectionHelper.defaultConnection().use {
-            it.loadLocalFile(statement, filePath)
-        }
+        val result =
+            MySqlConnectionHelper.defaultConnection().use { it.loadLocalFile(statement, filePath) }
         assertEquals(result.rowsAffected, ROW_COUNT)
 
-        val count = MySqlConnectionHelper.defaultConnection().use {
-            query("SELECT COUNT(*) FROM $TEST_TABLE").fetchScalar<Long>(it)
-        }
+        val count =
+            MySqlConnectionHelper.defaultConnection().use {
+                query("SELECT COUNT(*) FROM $TEST_TABLE").fetchScalar<Long>(it)
+            }
 
         assertNotNull(count)
         assertEquals(ROW_COUNT, count)
@@ -52,48 +52,50 @@ class TestLoadLocalSpec {
     @Test
     fun `loadLocalFile should accept valid csv rows`(): Unit = runBlocking {
         val statement = LoadLocalFileStatement(TEST_TABLE)
-        val records = (1..ROW_COUNT).asFlow().map { i ->
-            LocalLoadRow(i.toInt(), "$i Value")
-        }
-        val result = MySqlConnectionHelper.defaultConnection().use {
-            it.loadLocalData(statement, records)
-        }
+        val records = (1..ROW_COUNT).asFlow().map { i -> LocalLoadRow(i.toInt(), "$i Value") }
+        val result =
+            MySqlConnectionHelper.defaultConnection().use { it.loadLocalData(statement, records) }
         assertEquals(result.rowsAffected, ROW_COUNT)
 
-        val count = MySqlConnectionHelper.defaultConnection().use {
-            query("SELECT COUNT(*) FROM $TEST_TABLE").fetchScalar<Long>(it)
-        }
+        val count =
+            MySqlConnectionHelper.defaultConnection().use {
+                query("SELECT COUNT(*) FROM $TEST_TABLE").fetchScalar<Long>(it)
+            }
 
         assertNotNull(count)
         assertEquals(ROW_COUNT, count)
     }
 
     @Test
-    fun `loadLocalFile should rollback when inTransaction is false and bad row`(): Unit = runBlocking {
-        val statement = LoadLocalFileStatement(TEST_TABLE)
-        val records = (1..ROW_COUNT).asFlow().map { i ->
-            if (i == ROW_COUNT) {
-                error("Bad Row")
-            }
-            LocalLoadRow(i.toInt(), "$i Value")
-        }
-        val result = MySqlConnectionHelper.defaultConnection().useCatching {
-            it.loadLocalData(statement, records, withTransaction = true)
-        }
+    fun `loadLocalFile should rollback when inTransaction is false and bad row`(): Unit =
+        runBlocking {
+            val statement = LoadLocalFileStatement(TEST_TABLE)
+            val records =
+                (1..ROW_COUNT).asFlow().map { i ->
+                    if (i == ROW_COUNT) {
+                        error("Bad Row")
+                    }
+                    LocalLoadRow(i.toInt(), "$i Value")
+                }
+            val result =
+                MySqlConnectionHelper.defaultConnection().useCatching {
+                    it.loadLocalData(statement, records, withTransaction = true)
+                }
 
-        assertTrue(result.isFailure)
-        val ex = result.exceptionOrNull()
-        assertNotNull(ex)
-        assertNotNull(ex.message)
-        assertEquals("Bad Row", ex.message)
+            assertTrue(result.isFailure)
+            val ex = result.exceptionOrNull()
+            assertNotNull(ex)
+            assertNotNull(ex.message)
+            assertEquals("Bad Row", ex.message)
 
-        val count = MySqlConnectionHelper.defaultConnection().use {
-            query("SELECT COUNT(*) FROM $TEST_TABLE").fetchScalar<Long>(it)
+            val count =
+                MySqlConnectionHelper.defaultConnection().use {
+                    query("SELECT COUNT(*) FROM $TEST_TABLE").fetchScalar<Long>(it)
+                }
+
+            assertNotNull(count)
+            assertEquals(0, count)
         }
-
-        assertNotNull(count)
-        assertEquals(0, count)
-    }
 
     companion object {
         private val filePath = Path.of(".", "temp", "local_load.csv")

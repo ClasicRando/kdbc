@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.ensureNonNull
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
@@ -10,9 +11,6 @@ import io.github.clasicrando.kdbc.postgresql.type.PgType
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
 import kotlin.reflect.KType
-import kotlinx.io.Source
-import kotlinx.io.readByteArray
-import kotlinx.io.readString
 
 /** Postgresql specific implementation for a [DataRow] */
 internal class PgDataRow(
@@ -73,7 +71,7 @@ internal class PgDataRow(
 
     internal companion object {
         fun fromBuffer(
-            buffer: Source,
+            buffer: ByteReadBuffer,
             columnMapping: List<PgColumnDescription>,
             typeCache: PgTypeCache,
         ): PgDataRow {
@@ -86,8 +84,8 @@ internal class PgDataRow(
                     }
                     val columnType = columnMapping[it]
                     when (val formatCode = columnType.formatCode) {
-                        0.toShort() -> PgValue.Text(buffer.readString(length.toLong()), columnType)
-                        1.toShort() -> PgValue.Binary(buffer.readByteArray(length), columnType)
+                        0.toShort() -> PgValue.Text(buffer.slice(length), columnType)
+                        1.toShort() -> PgValue.Binary(buffer.slice(length), columnType)
                         else ->
                             throw KdbcException(
                                 "Invalid format code from row description. Got $formatCode"

@@ -7,14 +7,14 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.core.useCatching
 import io.github.clasicrando.kdbc.mysql.MySqlConnectionHelper
+import kotlin.test.assertContains
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import kotlin.test.assertContains
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 class TestNumbers {
     @ParameterizedTest
@@ -164,9 +164,10 @@ class TestNumbers {
         runBlocking {
             val query = "SELECT ? short_column;"
 
-            val result = MySqlConnectionHelper.defaultConnection().useCatching { conn ->
-                query(query).bind(value).fetchScalar<Byte>(conn)
-            }
+            val result =
+                MySqlConnectionHelper.defaultConnection().useCatching { conn ->
+                    query(query).bind(value).fetchScalar<Byte>(conn)
+                }
             assertTrue(result.isFailure)
             val ex = result.exceptionOrNull()
             assertNotNull(ex)
@@ -198,9 +199,10 @@ class TestNumbers {
         runBlocking {
             val query = "SELECT ? int_column;"
 
-            val result = MySqlConnectionHelper.defaultConnection().useCatching { conn ->
-                query(query).bind(value).fetchScalar<Byte>(conn)
-            }
+            val result =
+                MySqlConnectionHelper.defaultConnection().useCatching { conn ->
+                    query(query).bind(value).fetchScalar<Byte>(conn)
+                }
             assertTrue(result.isFailure)
             val ex = result.exceptionOrNull()
             assertNotNull(ex)
@@ -232,9 +234,10 @@ class TestNumbers {
         runBlocking {
             val query = "SELECT ? long_column;"
 
-            val result = MySqlConnectionHelper.defaultConnection().useCatching { conn ->
-                query(query).bind(value).fetchScalar<Byte>(conn)
-            }
+            val result =
+                MySqlConnectionHelper.defaultConnection().useCatching { conn ->
+                    query(query).bind(value).fetchScalar<Byte>(conn)
+                }
             assertTrue(result.isFailure)
             val ex = result.exceptionOrNull()
             assertNotNull(ex)
@@ -308,9 +311,10 @@ class TestNumbers {
         runBlocking {
             val query = "SELECT ? int_column;"
 
-            val result = MySqlConnectionHelper.defaultConnection().useCatching { conn ->
-                query(query).bind(value).fetchScalar<Short>(conn)
-            }
+            val result =
+                MySqlConnectionHelper.defaultConnection().useCatching { conn ->
+                    query(query).bind(value).fetchScalar<Short>(conn)
+                }
             assertTrue(result.isFailure)
             val ex = result.exceptionOrNull()
             assertNotNull(ex)
@@ -342,9 +346,10 @@ class TestNumbers {
         runBlocking {
             val query = "SELECT ? long_column;"
 
-            val result = MySqlConnectionHelper.defaultConnection().useCatching { conn ->
-                query(query).bind(value).fetchScalar<Short>(conn)
-            }
+            val result =
+                MySqlConnectionHelper.defaultConnection().useCatching { conn ->
+                    query(query).bind(value).fetchScalar<Short>(conn)
+                }
             assertTrue(result.isFailure)
             val ex = result.exceptionOrNull()
             assertNotNull(ex)
@@ -432,9 +437,10 @@ class TestNumbers {
         runBlocking {
             val query = "SELECT ? long_column;"
 
-            val result = MySqlConnectionHelper.defaultConnection().useCatching { conn ->
-                query(query).bind(value).fetchScalar<Int>(conn)
-            }
+            val result =
+                MySqlConnectionHelper.defaultConnection().useCatching { conn ->
+                    query(query).bind(value).fetchScalar<Int>(conn)
+                }
             assertTrue(result.isFailure)
             val ex = result.exceptionOrNull()
             assertNotNull(ex)

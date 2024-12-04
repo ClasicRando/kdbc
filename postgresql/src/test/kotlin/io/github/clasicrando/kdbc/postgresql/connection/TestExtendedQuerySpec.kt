@@ -6,11 +6,11 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
-import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.BeforeAll
 import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.BeforeAll
 
 class TestExtendedQuerySpec {
 
@@ -18,10 +18,7 @@ class TestExtendedQuerySpec {
     fun `sendExtendedQuery should return 1 result when regular query`(): Unit = runBlocking {
         PgConnectionHelper.defaultConnection().use {
             val (results, rowSets) =
-                it.sendExtendedQuery(
-                    QUERY_SERIES,
-                    listOf(QueryParameter(1), QueryParameter(10)),
-                )
+                it.sendExtendedQuery(QUERY_SERIES, listOf(QueryParameter(1), QueryParameter(10)))
                     .collectResults()
             assertEquals(1, results.size)
             assertEquals(1, rowSets.size)
@@ -44,11 +41,7 @@ class TestExtendedQuerySpec {
         PgConnectionHelper.defaultConnection().use {
             val param1 = 2
             val param2 = "start"
-            val params =
-                listOf(
-                    QueryParameter(param1),
-                    QueryParameter(param2),
-                )
+            val params = listOf(QueryParameter(param1), QueryParameter(param2))
             val (results, rowSets) =
                 it.sendExtendedQuery("CALL public.$TEST_PROC_IN_OUT($1::int, $2::text)", params)
                     .collectResults()

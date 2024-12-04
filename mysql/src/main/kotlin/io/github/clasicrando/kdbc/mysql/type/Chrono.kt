@@ -4,9 +4,6 @@ import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlinx.io.Sink
-import kotlinx.io.writeIntLe
-import kotlinx.io.writeShortLe
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -17,6 +14,9 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
+import kotlinx.io.Sink
+import kotlinx.io.writeIntLe
+import kotlinx.io.writeShortLe
 
 /**
  * Implementation of a [MySqlTypeDescription] for the [LocalTime] type. Accepts `TIME` when

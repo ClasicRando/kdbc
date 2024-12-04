@@ -1,14 +1,10 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.readCString
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.authentication.AuthPlugin
-import io.github.clasicrando.kdbc.mysql.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
-import io.ktor.utils.io.core.remaining
-import kotlinx.io.Source
-import kotlinx.io.readByteArray
 
 /**
  * [MessageDecoder] for [MysqlMessage.AuthSwitchRequest] packets. Starts with 0xfe followed by a
@@ -18,7 +14,7 @@ import kotlinx.io.readByteArray
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_auth_switch_request.html)
  */
 internal object AuthSwitchRequestDecoder : MessageDecoder<MysqlMessage.AuthSwitchRequest, Boolean> {
-    override fun decode(buffer: Source, context: Boolean): MysqlMessage.AuthSwitchRequest {
+    override fun decode(buffer: ByteReadBuffer, context: Boolean): MysqlMessage.AuthSwitchRequest {
         val header = buffer.readByteAsInt()
         checkOrMySqlException(header == 0xfe) {
             "Expected auth switch header (0xfe) but found 0x${header.toHexString()}"
@@ -35,9 +31,9 @@ internal object AuthSwitchRequestDecoder : MessageDecoder<MysqlMessage.AuthSwitc
         }
 
         checkOrMySqlException(buffer.request(21)) {
-            "Expected 21 bytes but found ${buffer.remaining} bytes"
+            "Expected 21 bytes but found ${buffer.remaining()} bytes"
         }
-        val data = buffer.readByteArray(20)
+        val data = buffer.readBytes(20)
         buffer.readByte()
 
         return MysqlMessage.AuthSwitchRequest(plugin, data)

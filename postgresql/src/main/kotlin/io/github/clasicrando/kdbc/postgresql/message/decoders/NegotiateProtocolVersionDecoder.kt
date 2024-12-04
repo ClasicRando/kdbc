@@ -1,9 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.readCString
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Source
 
 /**
  * [MessageDecoder] for [PgMessage.NegotiateProtocolVersion]. This message is sent when the server
@@ -19,7 +18,7 @@ import kotlinx.io.Source
 @Suppress("ktlint:standard:max-line-length")
 internal object NegotiateProtocolVersionDecoder :
     PgMessageDecoder<PgMessage.NegotiateProtocolVersion>() {
-    override fun decode(buffer: Source): PgMessage.NegotiateProtocolVersion {
+    override fun decode(buffer: ByteReadBuffer): PgMessage.NegotiateProtocolVersion {
         val newestMinorProtocol = buffer.readInt()
         val unrecognizedOptions = List(buffer.readInt()) { buffer.readCString() }
         return PgMessage.NegotiateProtocolVersion(newestMinorProtocol, unrecognizedOptions)

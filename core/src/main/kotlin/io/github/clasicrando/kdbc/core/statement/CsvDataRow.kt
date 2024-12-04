@@ -4,7 +4,7 @@ import io.github.clasicrando.kdbc.core.chunked
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.io.Buffer
-import kotlinx.io.Source
+import kotlinx.io.readByteArray
 import kotlinx.io.writeString
 
 /**
@@ -23,10 +23,10 @@ public interface CsvDataRow {
 }
 
 /**
- * Convert a [Flow] of [CsvDataRow] into a [Flow] of [Source] by chunking the original flow and
+ * Convert a [Flow] of [CsvDataRow] into a [Flow] of [ByteArray] by chunking the original flow and
  * mapping each chunk into a single buffer of the CSV data from that chunk.
  */
-public fun Flow<CsvDataRow>.mapIntoCsvDataChunks(chunkSize: Int): Flow<Source> {
+public fun Flow<CsvDataRow>.mapIntoCsvByteArrayChunks(chunkSize: Int): Flow<ByteArray> {
     return this.chunked(size = chunkSize).map { chunk ->
         val tempBuffer = Buffer()
         for (row in chunk) {
@@ -46,6 +46,6 @@ public fun Flow<CsvDataRow>.mapIntoCsvDataChunks(chunkSize: Int): Flow<Source> {
             }
             tempBuffer.writeString("\n")
         }
-        tempBuffer
+        tempBuffer.readByteArray()
     }
 }

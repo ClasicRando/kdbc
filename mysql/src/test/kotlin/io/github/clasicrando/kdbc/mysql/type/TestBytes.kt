@@ -6,6 +6,9 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.mysql.MySqlConnectionHelper
+import java.util.UUID
+import kotlin.test.assertEquals
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
@@ -13,9 +16,6 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import java.util.UUID
-import kotlin.test.assertEquals
-import kotlin.uuid.Uuid
 
 class TestBytes {
     @ParameterizedTest

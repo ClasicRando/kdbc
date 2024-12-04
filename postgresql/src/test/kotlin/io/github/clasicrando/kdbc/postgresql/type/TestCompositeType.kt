@@ -12,14 +12,14 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestCompositeType {
     data class CompositeType(val id: Int, val text: String, val timestamp: DateTime)

@@ -3,10 +3,10 @@ package io.github.clasicrando.kdbc.mysql.type
 import io.github.clasicrando.kdbc.mysql.buffer.writeLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.writeLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlinx.io.Sink
 import java.util.UUID
 import kotlin.reflect.typeOf
 import kotlin.uuid.Uuid
+import kotlinx.io.Sink
 
 /**
  * Implementation of a [MySqlTypeDescription] for the [ByteArray] type. Accepts BLOB, VARCHAR,
