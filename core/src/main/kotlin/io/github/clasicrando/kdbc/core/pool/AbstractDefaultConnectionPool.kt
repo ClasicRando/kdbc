@@ -236,8 +236,8 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
             }
         }
         connectionNeeded.close()
-        for (connection in connectionIds.values) {
-            connection.connection.close()
+        for (entry in connectionIds.values) {
+            invalidateConnection(entry)
         }
         logger.atTrace { message = "Canceling scope of connection pool" }
         cancel()
