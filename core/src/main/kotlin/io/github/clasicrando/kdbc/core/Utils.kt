@@ -4,13 +4,13 @@ import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.io.Source
 import java.io.InputStream
 import kotlin.reflect.KType
 import kotlin.reflect.full.withNullability
 import kotlin.time.Duration
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.io.Source
 
 public const val ZERO_BYTE: Byte = 0
 
@@ -231,4 +231,63 @@ public fun validateInt(value: Long): Int {
         )
     }
     return value.toInt()
+}
+
+private val nullStringBuilder = StringBuilder("\\N")
+
+private fun StringBuilder.buildOrNull(): String? {
+    if (this.compareTo(nullStringBuilder) == 0) {
+        return null
+    }
+    return this.toString()
+}
+
+/**
+ * Accepts a CSV row as [bytes] and the [expectedColumnCount] to parse the rows as an [Array] of
+ * nullable [String]s. In this context, null is a '\N' string and the newline character is always
+ * '\n'.
+ */
+public fun parseBytesAsCsvRow(bytes: ByteArray, expectedColumnCount: Int): Array<String?> {
+    val output = arrayOfNulls<String?>(expectedColumnCount)
+    val row = bytes.toString(charset = Charsets.UTF_8)
+    val charIter = row.iterator()
+
+    var index = 0
+    var lastChar = '\u0000'
+    val builder = StringBuilder()
+    var inQuote = false
+    while (charIter.hasNext()) {
+        val currentChar = charIter.next()
+        when (currentChar) {
+            ',' -> {
+                if (inQuote) {
+                    builder.append(currentChar)
+                } else {
+                    output[index++] = builder.buildOrNull()
+                    builder.clear()
+                }
+            }
+            '"' -> {
+                if (lastChar == '"') {
+                    builder.append(currentChar)
+                    inQuote = true
+                } else {
+                    inQuote = !inQuote
+                }
+            }
+            '\n' -> {
+                if (inQuote) {
+                    builder.append(currentChar)
+                } else {
+                    output[index++] = builder.buildOrNull()
+                    break
+                }
+            }
+            else -> {
+                builder.append(currentChar)
+            }
+        }
+        lastChar = currentChar
+    }
+    return output
 }

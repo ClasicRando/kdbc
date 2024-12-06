@@ -1,8 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
-import com.github.doyaaaaaken.kotlincsv.client.CsvReader
-import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
-import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.cache.LruCache
@@ -14,6 +11,7 @@ import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.normalizeWhitespace
+import io.github.clasicrando.kdbc.core.parseBytesAsCsvRow
 import io.github.clasicrando.kdbc.core.query.Query
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.RowParser
@@ -27,6 +25,7 @@ import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
+import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -55,13 +54,6 @@ import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
@@ -71,15 +63,19 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.Source
-import kotlinx.io.asInputStream
-import kotlinx.io.asOutputStream
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -704,20 +700,17 @@ internal constructor(
         copyInStatement: CopyStatement.TableFromCsv,
         data: Flow<CsvDataRow>,
     ): QueryResult {
-        val sink = Buffer()
-        val writer = csvWriter {
-            delimiter = copyInStatement.delimiter
-            quote { char = copyInStatement.quote }
-            lineTerminator = "\n"
-            nullCode = copyInStatement.nullString
-        }
         return copyIn(
-            copyInStatement = copyInStatement,
-            data =
-                data.chunked(size = CSV_ROW_BUFFER_SIZE).map { chunk ->
-                    writer.openAsync(sink.asOutputStream()) { writeRows(chunk.map { it.values }) }
-                    sink.readByteArray()
-                },
+            copyInStatement =
+                copyInStatement.copy(
+                    delimiter = ',',
+                    quote = '"',
+                    header = null,
+                    default = null,
+                    nullString = "",
+                    escape = '"',
+                ),
+            data = data.mapIntoCsvByteArrayChunks(chunkSize = CSV_ROW_BUFFER_SIZE),
         )
     }
 
@@ -821,24 +814,51 @@ internal constructor(
      * returned [Flow] is cold so if you want to avoid suspending the server message processor, you
      * should always try to process each item as soon as possible or collect the elements into a
      * [List].
+     *
+     * Although it's possible to specify the CSV/Text formatting options, because this method
+     * doesn't expose the data received from the server, all those options are defaulted to simplify
+     * handling on fetched data on the client side. This should not impact your experience executing
+     * this command so you can simplify your work by not supplying those parameters in the
+     * [CopyStatement.To] constructors.
      */
     public suspend fun copyOutRows(copyOutStatement: CopyStatement.To): Flow<DataRow> {
-        val fields =
+        val modifiedCopyStatement =
             when (copyOutStatement) {
+                is CopyStatement.QueryToBinary,
+                is CopyStatement.TableToBinary -> copyOutStatement
+                is CopyStatement.QueryToCsv,
+                is CopyStatement.QueryToText ->
+                    CopyStatement.QueryToCsv(
+                        query = copyOutStatement.query,
+                        header = CopyHeader.False,
+                        nullString = "\\N",
+                    )
+                is CopyStatement.TableToCsv,
+                is CopyStatement.TableToText ->
+                    CopyStatement.TableToCsv(
+                        schemaName = copyOutStatement.schemaName,
+                        tableName = copyOutStatement.tableName,
+                        columnNames = copyOutStatement.columnNames,
+                        header = CopyHeader.False,
+                        nullString = "\\N",
+                    )
+            }
+        val fields =
+            when (modifiedCopyStatement) {
                 is CopyStatement.CopyTable -> {
-                    val schemaName = copyOutStatement.schemaName.trim()
+                    val schemaName = modifiedCopyStatement.schemaName.trim()
                     val metadata =
                         query(CopyTableMetadata.QUERY)
-                            .bind(copyOutStatement.tableName)
+                            .bind(modifiedCopyStatement.tableName)
                             .bind(schemaName)
                             .fetchAll(this, CopyTableMetadata.Companion)
-                    CopyTableMetadata.getFields(copyOutStatement.format, metadata)
+                    CopyTableMetadata.getFields(modifiedCopyStatement.format, metadata)
                 }
                 is CopyStatement.CopyQuery -> {
                     val statement =
                         mutex.withLock {
                             val statement =
-                                getOrPrepareStatement(copyOutStatement.query, emptyList())
+                                getOrPrepareStatement(modifiedCopyStatement.query, emptyList())
                             releasePreparedStatement(statement)
                             statement
                         }
@@ -851,17 +871,22 @@ internal constructor(
             }
 
         var rowCount = 0L
-        val flow = copyOut(copyOutStatement)
-        return when (copyOutStatement) {
+        val flow = copyOut(modifiedCopyStatement)
+        return when (modifiedCopyStatement) {
             is CopyStatement.CopyText -> {
-                readTextData(
-                    flow = flow,
-                    fields = fields,
-                    delimiter = copyOutStatement.delimiter,
-                    quote = (copyOutStatement as? CopyStatement.CopyCsv)?.quote,
-                    escape = (copyOutStatement as? CopyStatement.CopyCsv)?.escape,
-                    header = copyOutStatement.header,
-                )
+                flow.map {
+                    val row = parseBytesAsCsvRow(bytes = it, expectedColumnCount = fields.size)
+                    PgDataRow(
+                        pgValues =
+                            Array(row.size) { i ->
+                                val rowData = row[i] ?: return@Array null
+                                val fieldData = fields[i]
+                                PgValue.Text(rowData, fieldData)
+                            },
+                        columnMapping = fields,
+                        typeCache = typeCache,
+                    )
+                }
             }
             else ->
                 flow.mapNotNull { row ->
@@ -1147,62 +1172,6 @@ internal constructor(
                     else -> row
                 }
             )
-        }
-
-        internal fun PgConnection.readTextData(
-            flow: Flow<ByteArray>,
-            fields: List<PgColumnDescription>,
-            delimiter: Char,
-            quote: Char?,
-            escape: Char?,
-            header: CopyHeader?,
-        ): Flow<DataRow> {
-            val reader = csvReader {
-                this.delimiter = delimiter
-                this.quoteChar = quote ?: '\u0000'
-                this.escapeChar = escape ?: '\u0000'
-            }
-            val tempBuffer = Buffer()
-            return flow {
-                var rowCount = 0
-                flow.collect {
-                    rowCount++
-                    tempBuffer.write(it)
-                    if (rowCount == CSV_ROW_BUFFER_SIZE) {
-                        readCsvSource(tempBuffer, reader, fields, typeCache, header)
-                        rowCount = 0
-                    }
-                }
-                if (!tempBuffer.exhausted()) {
-                    readCsvSource(tempBuffer, reader, fields, typeCache, header)
-                }
-            }
-        }
-
-        private suspend fun FlowCollector<DataRow>.readCsvSource(
-            tempBuffer: Source,
-            reader: CsvReader,
-            fields: List<PgColumnDescription>,
-            typeCache: PgTypeCache,
-            header: CopyHeader?,
-        ) {
-            reader.openAsync(tempBuffer.asInputStream()) {
-                val skip = if (header != null && header != CopyHeader.False) 1 else 0
-                for (row in this.readAllAsSequence().drop(skip)) {
-                    val dataRow =
-                        PgDataRow(
-                            pgValues =
-                                Array(row.size) { i ->
-                                    val rowData = row[i]
-                                    val fieldData = fields[i]
-                                    PgValue.Text(rowData, fieldData)
-                                },
-                            columnMapping = fields,
-                            typeCache = typeCache,
-                        )
-                    emit(dataRow)
-                }
-            }
         }
 
         /**

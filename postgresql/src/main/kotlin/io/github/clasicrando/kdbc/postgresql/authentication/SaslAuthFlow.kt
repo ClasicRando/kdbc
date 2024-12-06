@@ -4,6 +4,7 @@ import com.ongres.scram.client.ScramClient
 import com.ongres.scram.client.ScramSession
 import com.ongres.scram.common.stringprep.StringPreparations
 import io.github.clasicrando.kdbc.core.config.Kdbc
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.stream.PgStream
 import io.github.oshai.kotlinlogging.Level
@@ -142,7 +143,7 @@ internal suspend fun PgStream.saslAuthFlow(auth: Authentication.Sasl) {
         clientFinalProcessor.receiveServerFinalMessage(finalAuthMessage.saslData)
 
         this.receiveOkAuthMessage()
-    } catch (ex: PgAuthenticationError) {
+    } catch (ex: PgException) {
         throw ex
     } catch (ex: Exception) {
         this.log(Kdbc.detailedLogging) {

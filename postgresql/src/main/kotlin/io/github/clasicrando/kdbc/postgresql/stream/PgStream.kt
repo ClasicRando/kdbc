@@ -306,7 +306,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
                 )
             }
             is Authentication.Sasl -> this.saslAuthFlow(auth)
-            else -> throw PgException("Auth request type cannot be handled. $auth")
+            else -> throw PgAuthenticationError("Auth request type cannot be handled. $auth")
         }
     }
 

@@ -12,7 +12,7 @@ dependencies {
     api(project(":core"))
     implementation("com.ongres.scram:client:$scramClientVersion")
     // https://mvnrepository.com/artifact/com.github.doyaaaaaken/kotlin-csv
-    implementation("com.github.doyaaaaaken:kotlin-csv:$kotlinCsvVersion")
+    testImplementation("com.github.doyaaaaaken:kotlin-csv:$kotlinCsvVersion")
 }
 
 tasks.test {

@@ -5,7 +5,7 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 /** Postgresql specific [KdbcException] */
-public class PgException(message: String, ex: Exception? = null) : KdbcException(message, ex)
+public open class PgException(message: String, ex: Exception? = null) : KdbcException(message, ex)
 
 /**
  * Check the supplied boolean value and throw a [PgException] if the value is false. The exception
