@@ -99,6 +99,18 @@ internal constructor(
         logWithResource(logger, level, block)
     }
 
+    override suspend fun isValid(): Boolean {
+        return mutex.withLock {
+            stream.sendPacket(MysqlMessage.Ping)
+            try {
+                stream.receiveOk()
+            } catch (_: MySqlException) {
+                return false
+            }
+            return true
+        }
+    }
+
     /**
      * Collect all result sets sent from the server as a [Flow] of [Either] a [QueryResult] or a
      * [DataRow]. The flow will always be terminated with a [QueryResult].

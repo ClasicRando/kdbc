@@ -31,10 +31,32 @@ public data class PoolOptions(
      * [Duration] for how long a connection will stay idle within a connection pool before the pool
      * closes the connection (unless the [minConnections] count is the current held count). Must be
      * positive.
-     *
-     * This currently has no impact on the pool but will be used in future versions.
      */
-    val idleTime: Duration = 1.toDuration(DurationUnit.MINUTES),
+    val idleTimeout: Duration = 10.toDuration(DurationUnit.MINUTES),
+    /**
+     * [Duration] interval specifying how often idle connections are pinged to ensure they are not
+     * timed out by forces outside this library's control (e.g. infrastructure or database rules
+     * defining how long until an idle TCP connection is killed). Keep alive in this context has
+     * nothing to do with the TCP protocol's `keepalive` property and does not impact the
+     * [idleTimeout] property since that timeout is keep active even after a successful ping.
+     */
+    val idleKeepAliveInterval: Duration = 2.toDuration(DurationUnit.MINUTES),
+    /**
+     * True if connections should be validated before returning to the pool. By default, connections
+     * are always checked before being acquired from the pool but checking before returning to the
+     * pool ensures that broken connection does not lie in the pool taking up space.
+     */
+    val validateOnReturn: Boolean = true,
+    /**
+     * [Duration] for how long a connection should be used until retirement, regardless of the
+     * current state of the connection. This is to avoid stale connections living too long and will
+     * never impact an in-use connection since the check is performed when returning a connection to
+     * the pool.
+     *
+     * If your infrastructure provider or database server itself imposes a similar limitation, this
+     * value should be shorter to avoid possible conflicts.
+     */
+    val maxLifetime: Duration = 30.toDuration(DurationUnit.MINUTES),
     /** Optional parent scope that holds the connection pool's scope */
     val parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
 ) {
@@ -42,6 +64,10 @@ public data class PoolOptions(
         require(maxConnections > 0) { "Max connection count cannot be less than 1" }
         require(minConnections >= 0) { "Min connection count cannot be less than 0" }
         require(acquireTimeout.isPositive()) { "acquireTimeout pool option must be positive" }
-        require(idleTime.isPositive()) { "idleTime pool option must be positive" }
+        require(idleTimeout.isPositive()) { "idleTime pool option must be positive" }
+        require(idleTimeout.inWholeSeconds > 10) { "Idle timeout must be greater than " }
+        require(maxLifetime.inWholeSeconds > 30) {
+            "Max Lifetime of a connection must be greater than 30 seconds"
+        }
     }
 }

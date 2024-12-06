@@ -35,6 +35,7 @@ class TestAbstractDefaultConnectionPool {
                 val connectionId = Uuid.random()
                 val connection = mockk<Connection>(relaxed = true)
                 every { connection.resourceId } returns connectionId
+                every { connection.isConnected } returns true
                 connection
             }
         val options =
@@ -59,6 +60,7 @@ class TestAbstractDefaultConnectionPool {
                     val connectionId = Uuid.random()
                     val connection = mockk<Connection>(relaxed = true)
                     every { connection.resourceId } returns connectionId
+                    every { connection.isConnected } returns true
                     connection
                 }
             val options = PoolOptions(maxConnections = 1, minConnections = 0)
@@ -86,6 +88,7 @@ class TestAbstractDefaultConnectionPool {
                     val connectionId = Uuid.random()
                     val connection = mockk<Connection>(relaxed = true)
                     every { connection.resourceId } returns connectionId
+                    every { connection.isConnected } returns true
                     connection
                 }
             val options =
@@ -111,6 +114,7 @@ class TestAbstractDefaultConnectionPool {
                     val connectionId = Uuid.random()
                     val connection = mockk<Connection>(relaxed = true)
                     every { connection.resourceId } returns connectionId
+                    every { connection.isConnected } returns true
                     connection
                 }
             val options =
@@ -140,6 +144,7 @@ class TestAbstractDefaultConnectionPool {
                 val connectionId = Uuid.random()
                 val connection = mockk<Connection>(relaxed = true)
                 every { connection.resourceId } returns connectionId
+                every { connection.isConnected } returns true
                 connection
             }
         val options =
@@ -164,6 +169,7 @@ class TestAbstractDefaultConnectionPool {
                 val connectionId = Uuid.random()
                 val connection = mockk<Connection>(relaxed = true)
                 every { connection.resourceId } returns connectionId
+                every { connection.isConnected } returns true
                 connection
             }
         val options =

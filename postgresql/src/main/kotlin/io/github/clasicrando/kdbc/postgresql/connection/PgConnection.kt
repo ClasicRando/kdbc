@@ -81,6 +81,7 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
+import java.io.IOException
 
 private val logger = KotlinLogging.logger {}
 
@@ -145,6 +146,30 @@ internal constructor(
     override val isConnected: Boolean
         get() = stream.isConnected
 
+    override suspend fun isValid(): Boolean {
+        if (!isConnected) {
+            return false
+        }
+        return mutex.withLock {
+            try {
+                stream.writeToStream(PgMessage.Query(""))
+                stream.processMessageLoop { message ->
+                    when (message) {
+                        is PgMessage.ErrorResponse -> return false
+                        is PgMessage.ReadyForQuery -> Loop.Break
+                        else -> Loop.Continue
+                    }
+                }
+            } catch (ex: Exception) {
+                if (ex is KdbcException || ex is IOException) {
+                    return false
+                }
+                throw ex
+            }
+            return true
+        }
+    }
+
     override suspend fun begin() {
         try {
             query("BEGIN;").execute(this)
@@ -193,6 +218,12 @@ internal constructor(
                     this.message = "Attempted to ROLLBACK a connection not within a transaction"
                 }
             }
+        }
+    }
+
+    override suspend fun close() {
+        if (!pool.giveBack(this)) {
+            dispose()
         }
     }
 
@@ -572,12 +603,6 @@ internal constructor(
             stream.close()
         }
         preparedStatements.clear()
-    }
-
-    override suspend fun close() {
-        if (!pool.giveBack(this)) {
-            dispose()
-        }
     }
 
     /**

@@ -58,16 +58,15 @@ public interface Connection : UniqueResourceId, AutoCloseableAsync {
     public suspend fun rollback()
 
     /**
+     * Returns true if the connection is still valid to use. This should only be called by internal
+     * methods to that the connection can still be kept in a connection pool.
+     */
+    @InternalApi public suspend fun isValid(): Boolean
+
+    /**
      * Execute a single [Query] against this connection and returns the zero or more result sets as
      * a [Flow] of zero or more [DataRow]s followed by a [QueryResult] to indicate the end of the
      * current result.
-     *
-     * This sends the query to the database for execution and waits for all results to be sent to
-     * the client before returning. Although this may require buffering more resources on the
-     * client, it allows the connection state to be more consistent and not require the use of
-     * database cursors to buffer results. The operation is also non-blocking while waiting for the
-     * server response and will only resume processing results once the server replies so waiting
-     * for all the data should not hold back your application given enough concurrency bandwidth.
      */
     @InternalApi public suspend fun executeQuery(query: Query): Flow<Either<QueryResult, DataRow>>
 
@@ -75,20 +74,13 @@ public interface Connection : UniqueResourceId, AutoCloseableAsync {
      * Execute one or more [Query]s against this connection and returns a [Flow] of zero or more
      * [DataRow]s followed by a [QueryResult] to indicate the end of the current result.
      *
-     * This sends the queries to the database for execution and waits for all results to be sent to
-     * the client before returning. Although this may require buffering more resources on the
-     * client, it allows the connection state to be more consistent and not require the use of
-     * database cursors to buffer results. The operation is also non-blocking while waiting for the
-     * server response and will only resume processing results once the server replies so waiting
-     * for all the data should not hold back your application given enough concurrency bandwidth.
-     *
      * The actual implementation of the batching will vary from driver to driver and will fall back
-     * to simple sequential query execution if the database does not support query batching
-     * natively. Also, by default query batches are executed in isolation so if the second query
-     * fails the first query's action will be commited (if it modified the database). You can get
-     * around this by manually starting a transaction before executing the batch or consulting the
-     * specific driver to see if it permits a custom method that batches queries and handles the
-     * entire operation in a single transaction.
+     * to simple sequential query execution if the database or driver API does not support query
+     * batching natively. Also, by default query batches are executed in isolation so if the second
+     * query fails the first query's action will be commited (if it modified the database). You can
+     * get around this by supplying true to [withinTransaction] which specifies all operations are
+     * performed within a single transaction so calls after the first query will automatically
+     * rollback any changes made in previous queries.
      */
     @InternalApi
     public suspend fun executeQueryBatch(
