@@ -45,11 +45,6 @@ import io.github.clasicrando.kdbc.mysql.type.MysqlTypeInfo
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.IOException
-import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -60,6 +55,11 @@ import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import java.io.IOException
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -403,7 +403,7 @@ internal constructor(
         }
     }
 
-    private val lruCache =
+    private val preparedStatementCache =
         LruCache<String, MySqlPreparedStatement>(connectionOptions.statementCacheCapacity)
 
     /**
@@ -452,14 +452,19 @@ internal constructor(
         )
     }
 
-    /**  */
+    /**
+     * Check query cache for previously parsed statements of this [query]. If none are present then
+     * a new statement is prepared and returned. After preparing a new statement, the new statement
+     * is added to the cache and if any previously cached statement is ejected, that statement is
+     * closed.
+     */
     private suspend fun getOrPrepareStatement(query: String): MySqlPreparedStatement {
-        lruCache[query]?.let {
+        preparedStatementCache[query]?.let {
             return it
         }
 
         val statement = prepareStatement(query)
-        lruCache.insert(query, statement)?.let {
+        preparedStatementCache.insert(query, statement)?.let {
             stream.sendPacket(MysqlMessage.StatementClose(it.value.statementId))
         }
         return statement
@@ -525,7 +530,7 @@ internal constructor(
         } finally {
             stream.close()
         }
-        lruCache.clear()
+        preparedStatementCache.clear()
     }
 
     /**

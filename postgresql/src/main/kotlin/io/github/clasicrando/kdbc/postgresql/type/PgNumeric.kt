@@ -5,10 +5,9 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.toBigDecimalWithTraditionalScale
 import io.github.clasicrando.kdbc.core.traditionalScale
-import io.github.clasicrando.kdbc.postgresql.type.PgNumeric.NAN
+import kotlinx.io.Sink
 import kotlin.math.max
 import kotlin.math.pow
-import kotlinx.io.Sink
 
 internal const val SIGN_NAN: Short = 0xC0
 internal const val SIGN_POSITIVE: Short = 0x0000

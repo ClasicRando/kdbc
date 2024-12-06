@@ -4,6 +4,9 @@ import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.InvalidDateString
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.UtcOffset
+import kotlinx.io.Sink
 import java.time.OffsetTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -11,9 +14,6 @@ import java.time.format.DateTimeParseException
 import kotlin.reflect.typeOf
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
-import kotlinx.datetime.LocalTime
-import kotlinx.datetime.UtcOffset
-import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [LocalTime] type. This maps to the `time` type in

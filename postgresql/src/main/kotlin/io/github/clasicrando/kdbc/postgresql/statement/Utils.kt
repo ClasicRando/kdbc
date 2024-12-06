@@ -1,12 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.statement
 
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
-import kotlin.reflect.KType
 import kotlinx.io.Sink
+import kotlin.reflect.KType
 
 /**
  * Encode the supplied [queryParameter] in this [Sink], looking up the type definition in the
@@ -23,7 +23,7 @@ internal fun Sink.encodeValue(queryParameter: QueryParameter, typeCache: PgTypeC
 internal fun <T : Any> Sink.encodeValue(value: T?, type: KType, typeCache: PgTypeCache) {
     val description =
         typeCache.getTypeDescription<Any>(type)
-            ?: throw KdbcException("Could not find type description for $type")
+            ?: throw PgException("Could not find type description for $type")
     encodeValue(value, description)
 }
 

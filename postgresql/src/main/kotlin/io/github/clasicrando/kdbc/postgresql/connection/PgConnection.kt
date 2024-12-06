@@ -3,15 +3,15 @@ package io.github.clasicrando.kdbc.postgresql.connection
 import com.github.doyaaaaaken.kotlincsv.client.CsvReader
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
-import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.cache.LruCache
 import io.github.clasicrando.kdbc.core.chunked
 import io.github.clasicrando.kdbc.core.chunkedBytes
 import io.github.clasicrando.kdbc.core.config.Kdbc
+import io.github.clasicrando.kdbc.core.connection.AbstractConnection
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
-import io.github.clasicrando.kdbc.core.exceptions.UnexpectedTransactionState
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.normalizeWhitespace
 import io.github.clasicrando.kdbc.core.query.Query
@@ -35,6 +35,7 @@ import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.clasicrando.kdbc.postgresql.copy.CopyTableMetadata
 import io.github.clasicrando.kdbc.postgresql.copy.PgBinaryCopyRow
 import io.github.clasicrando.kdbc.postgresql.copy.PgCopyEncodeBuffer
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.message.MessageTarget
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.TransactionStatus
@@ -54,14 +55,6 @@ import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.typeOf
-import kotlinx.atomicfu.AtomicBoolean
-import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
@@ -71,7 +64,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
 import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.Source
@@ -82,6 +74,12 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -102,11 +100,7 @@ internal constructor(
     internal val pool: PgConnectionPool,
     /** Type registry for connection. Used to decode data rows returned by the server. */
     @PublishedApi internal val typeCache: PgTypeCache = pool.typeCache,
-) : DefaultUniqueResourceId(), Connection {
-    private val _inTransaction: AtomicBoolean = atomic(false)
-    override val inTransaction: Boolean
-        get() = _inTransaction.value
-
+) : AbstractConnection() {
     private var pendingReaderForQueryCount = 0
 
     /**
@@ -121,7 +115,8 @@ internal constructor(
      * statement. This is not thread safe, therefore it should only be accessed after querying
      * running has been disabled to ensure a single thread/coroutine is accessing the contents.
      */
-    private val preparedStatements: MutableMap<String, PgPreparedStatement> = mutableMapOf()
+    private val preparedStatements: LruCache<String, PgPreparedStatement> =
+        LruCache(connectOptions.statementCacheCapacity)
 
     /** ID of the next prepared statement executed. Incremented after each statement is created */
     private var nextStatementId = 1
@@ -170,57 +165,6 @@ internal constructor(
         }
     }
 
-    override suspend fun begin() {
-        try {
-            query("BEGIN;").execute(this)
-            if (!_inTransaction.compareAndSet(expect = false, update = true)) {
-                throw UnexpectedTransactionState(inTransaction = true)
-            }
-        } catch (ex: OutOfMemoryError) {
-            throw ex
-        } catch (ex: UnexpectedTransactionState) {
-            throw ex
-        } catch (ex: Throwable) {
-            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
-                try {
-                    rollback()
-                } catch (ex2: Throwable) {
-                    log(Level.WARN) {
-                        message =
-                            "Error while trying to rollback. " + "BEGIN called while in transaction"
-                        cause = ex2
-                    }
-                    ex.addSuppressed(ex2)
-                }
-            }
-            throw ex
-        }
-    }
-
-    override suspend fun commit() {
-        try {
-            query("COMMIT;").execute(this)
-        } finally {
-            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
-                log(Level.WARN) {
-                    this.message = "Attempted to COMMIT a connection not within a transaction"
-                }
-            }
-        }
-    }
-
-    override suspend fun rollback() {
-        try {
-            query("ROLLBACK;").execute(this)
-        } finally {
-            if (!_inTransaction.compareAndSet(expect = true, update = false)) {
-                log(Level.WARN) {
-                    this.message = "Attempted to ROLLBACK a connection not within a transaction"
-                }
-            }
-        }
-    }
-
     override suspend fun close() {
         if (!pool.giveBack(this)) {
             dispose()
@@ -241,6 +185,11 @@ internal constructor(
         batch: List<Query>,
         withinTransaction: Boolean,
     ): Flow<Either<QueryResult, DataRow>> {
+        if (withinTransaction && inTransaction) {
+            throw PgException(
+                "Cannot sent query batch within transaction if a transaction is already open"
+            )
+        }
         return pipelineQueries(syncAll = !withinTransaction, queries = batch)
     }
 
@@ -393,16 +342,12 @@ internal constructor(
         }
     }
 
-    /**
-     * Prepare the specified [statement] by requesting the server parse and describe the prepared
-     * statement. The messages received from the server are then handled to populate data within the
-     * [statement].
-     */
+    /** Create a [PgPreparedStatement] using the [query] and [parameterTypes] */
     private suspend fun executeStatementPrepare(
         query: String,
         parameterTypes: List<Int>,
-        statement: PgPreparedStatement,
-    ) {
+    ): PgPreparedStatement {
+        val statement = PgPreparedStatement(query, nextStatementId++)
         stream.writeManyToStream(
             PgMessage.Parse(
                 preparedStatementName = statement.statementName,
@@ -420,18 +365,12 @@ internal constructor(
                 is PgMessage.ErrorResponse -> {
                     throw GeneralPostgresError(message)
                 }
-                is PgMessage.ParseComplete -> {
-                    statement.prepared = true
-                    Loop.Continue
-                }
+                is PgMessage.ParseComplete -> Loop.Continue
                 is PgMessage.RowDescription -> {
                     statement.resultMetadata = message.fields.map { it.copy(formatCode = 1) }
                     Loop.Continue
                 }
-                is PgMessage.ParameterDescription -> {
-                    statement.parameterTypeOids = message.parameterDataTypes
-                    Loop.Continue
-                }
+                is PgMessage.ParameterDescription -> Loop.Continue
                 is PgMessage.NoData -> {
                     statement.resultMetadata = emptyList()
                     Loop.Continue
@@ -443,37 +382,7 @@ internal constructor(
                 else -> logUnexpectedMessage(message)
             }
         }
-    }
-
-    /**
-     * Remove the oldest [PgPreparedStatement] in [preparedStatements]. If any statement has a null
-     * [PgPreparedStatement.lastExecuted] then that statement is preferentially removed since the
-     * statement was never executed.
-     */
-    private suspend fun removeOldestPreparedStatement() {
-        val neverExecuted = preparedStatements.values.find { it.lastExecuted == null }
-        if (neverExecuted != null) {
-            releasePreparedStatement(neverExecuted)
-            return
-        }
-        val oldestQuery =
-            preparedStatements.values
-                .asSequence()
-                .filter { it.lastExecuted != null }
-                .maxBy { it.lastExecuted!! }
-        releasePreparedStatement(oldestQuery)
-    }
-
-    /**
-     * Check the prepared statement cache to ensure the capacity is not exceeded. Continuously
-     * removes statements until the cache is the right size. Once that condition is met, a new entry
-     * is added to the cache for the current [query].
-     */
-    private suspend fun getOrCachePreparedStatement(query: String): PgPreparedStatement {
-        while (preparedStatements.size >= connectOptions.statementCacheCapacity) {
-            removeOldestPreparedStatement()
-        }
-        return preparedStatements.getOrPut(query) { PgPreparedStatement(query, nextStatementId++) }
+        return statement
     }
 
     /**
@@ -486,29 +395,20 @@ internal constructor(
      * @throws IllegalArgumentException if the number of [parameters] does not match the number of
      *   parameters required by the query
      */
-    private suspend fun prepareStatement(
+    private suspend fun getOrPrepareStatement(
         query: String,
         parameters: List<QueryParameter>,
     ): PgPreparedStatement {
-        val statement = getOrCachePreparedStatement(query)
-
-        require(statement.paramCount == parameters.size) {
-            """
-            Query does not have the correct number of parameters. Expected ${statement.paramCount}, got ${parameters.size}
-
-            ${query.trim().replaceIndent("            ")}
-            """
-                .trimIndent()
+        preparedStatements[query]?.let {
+            return it
         }
 
-        if (!statement.prepared) {
+        val statement =
             executeStatementPrepare(
                 query = query,
                 parameterTypes = parameters.map { typeCache.getTypeHint(it).oid },
-                statement = statement,
             )
-        }
-
+        preparedStatements.insert(query, statement)?.let { releasePreparedStatement(it.value) }
         return statement
     }
 
@@ -537,15 +437,14 @@ internal constructor(
         if (sendSync) {
             writeSync()
         }
-        statement.lastExecuted = Clock.System.now()
     }
 
     /**
      * Send a query to the postgres database using the extended query protocol. This goes through
-     * the process of preparing the query (see [prepareStatement]) before then executing with the
-     * provided parameters. The database then responds with zero or more results that are captured
-     * as a [Flow] of zero or more [DataRow]s followed by a [QueryResult] to denote the end of a
-     * result.
+     * the process of preparing the query (see [getOrPrepareStatement]) before then executing with
+     * the provided parameters. The database then responds with zero or more results that are
+     * captured as a [Flow] of zero or more [DataRow]s followed by a [QueryResult] to denote the end
+     * of a result.
      *
      * [postgres
      * docs](https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY)
@@ -562,7 +461,7 @@ internal constructor(
 
         return mutex.withLock {
             waitUntilReady()
-            val statement = prepareStatement(query, parameters)
+            val statement = getOrPrepareStatement(query, parameters)
             executePreparedStatement(statement, parameters)
             flow { collectResult(statement = statement) }
         }
@@ -581,7 +480,6 @@ internal constructor(
         )
         writeSync()
         waitUntilReady()
-        preparedStatements.remove(preparedStatement.query)
     }
 
     /**
@@ -652,7 +550,7 @@ internal constructor(
             val statements =
                 Array(queries.size) { i ->
                     val query = queries[i]
-                    prepareStatement(query = query.sql, parameters = query.parameters)
+                    getOrPrepareStatement(query = query.sql, parameters = query.parameters)
                 }
             for (i in statements.indices) {
                 val statement = statements[i]
@@ -939,14 +837,15 @@ internal constructor(
                 is CopyStatement.CopyQuery -> {
                     val statement =
                         mutex.withLock {
-                            val statement = prepareStatement(copyOutStatement.query, emptyList())
+                            val statement =
+                                getOrPrepareStatement(copyOutStatement.query, emptyList())
                             releasePreparedStatement(statement)
                             statement
                         }
                     statement.resultMetadata
                 }
                 else ->
-                    throw KdbcException(
+                    throw PgException(
                         "Received an invalid `CopyStatement.To`. This should never happen"
                     )
             }
@@ -1076,7 +975,7 @@ internal constructor(
     ): PgTypeDescription<T> {
         val verifiedOid =
             checkCompositeDbTypeByName(type)
-                ?: throw KdbcException(
+                ?: throw PgException(
                     "Could not verify the composite type name '$type' in the database"
                 )
 
@@ -1156,7 +1055,7 @@ internal constructor(
     ): PgTypeDescription<E> {
         val verifiedOid =
             checkEnumDbTypeByName(type)
-                ?: throw KdbcException(
+                ?: throw PgException(
                     "Could not verify the composite type name '$type' in the database"
                 )
 
@@ -1196,7 +1095,7 @@ internal constructor(
         val innerType = kClass.primaryConstructor!!.parameters.first().type
         val innerTypeDescription =
             typeCache.getTypeDescription<Any>(innerType)
-                ?: throw KdbcException("Could not find type description for inner type $innerType")
+                ?: throw PgException("Could not find type description for inner type $innerType")
         return ValueTypeDescription(kClass, kType, innerTypeDescription)
     }
 
@@ -1393,7 +1292,7 @@ internal constructor(
             try {
                 connection = PgConnection(connectOptions, stream, pool)
                 if (!connection.isConnected) {
-                    throw KdbcException("Could not initialize connection")
+                    throw PgException("Could not initialize connection")
                 }
                 return connection
             } catch (ex: Exception) {

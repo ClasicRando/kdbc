@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import java.time.temporal.ChronoUnit
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import java.time.temporal.ChronoUnit
 
 public sealed interface Bound<T> {
     public data class Included<T>(val value: T) : Bound<T>

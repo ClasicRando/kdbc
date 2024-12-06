@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.postgresql.type.PgInet.Ipv4
-import io.github.clasicrando.kdbc.postgresql.type.PgInet.Ipv6
+import io.github.clasicrando.kdbc.postgresql.type.PgInet.Companion.fromInetAddress
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress

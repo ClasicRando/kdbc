@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.datetime.tryFromString
-import io.github.clasicrando.kdbc.postgresql.type.PgTimeTz.Companion.equals
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.UtcOffset
 

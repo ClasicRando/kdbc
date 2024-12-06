@@ -1,14 +1,14 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
+import kotlinx.io.Sink
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.full.valueParameters
-import kotlinx.io.Sink
 
 @Suppress("UNCHECKED_CAST")
 internal class ValueTypeDescription<T : Any, I : Any>(
@@ -42,13 +42,13 @@ internal class ValueTypeDescription<T : Any, I : Any>(
         try {
             valueClassConstructor.call(innerTypeDescription.decodeBytes(value))
         } catch (ex: IllegalArgumentException) {
-            throw KdbcException(message = "Could not construct value class", suppressed = ex)
+            throw PgException(message = "Could not construct value class", ex = ex)
         }
 
     override fun decodeText(value: PgValue.Text): T =
         try {
             valueClassConstructor.call(innerTypeDescription.decodeText(value))
         } catch (ex: IllegalArgumentException) {
-            throw KdbcException(message = "Could not construct value class", suppressed = ex)
+            throw PgException(message = "Could not construct value class", ex = ex)
         }
 }

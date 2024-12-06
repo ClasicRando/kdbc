@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlinx.io.Sink
 import java.util.UUID
 import kotlin.reflect.typeOf
 import kotlin.uuid.Uuid
-import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [Uuid] type. This maps to the `uuid` type in a

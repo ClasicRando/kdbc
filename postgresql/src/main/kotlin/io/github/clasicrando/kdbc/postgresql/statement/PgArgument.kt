@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.statement
 
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.query.QueryParameter
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
 
@@ -17,7 +17,7 @@ internal class PgArgument(
         parameter = parameter,
         pgTypeDescription =
             typeCache.getTypeDescription(parameter.parameterType)
-                ?: throw KdbcException(
+                ?: throw PgException(
                     "Could not find type description for ${parameter.parameterType}"
                 ),
     )

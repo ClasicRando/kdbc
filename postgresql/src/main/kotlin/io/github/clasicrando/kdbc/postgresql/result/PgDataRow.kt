@@ -3,10 +3,10 @@ package io.github.clasicrando.kdbc.postgresql.result
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.ensureNonNull
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgType
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
@@ -54,7 +54,7 @@ internal class PgDataRow(
         val nonNullType = type.ensureNonNull()
         val typeDescription =
             typeCache.getTypeDescription<Any>(nonNullType)
-                ?: throw KdbcException("Could not find type description for $nonNullType")
+                ?: throw PgException("Could not find type description for $nonNullType")
         if (typeDescription.dbType.oid == pgType.oid) {
             return decode(index, typeDescription)
         }
@@ -87,7 +87,7 @@ internal class PgDataRow(
                         0.toShort() -> PgValue.Text(buffer.slice(length), columnType)
                         1.toShort() -> PgValue.Binary(buffer.slice(length), columnType)
                         else ->
-                            throw KdbcException(
+                            throw PgException(
                                 "Invalid format code from row description. Got $formatCode"
                             )
                     }

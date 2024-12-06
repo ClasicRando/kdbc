@@ -1,5 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.copy
 
+import io.github.clasicrando.kdbc.postgresql.copy.CopyHeader.Match
+
+
 /**
  * Variations describing if the copy data includes a header. If the [Match] value is used and the
  * copy operation is a COPY FROM, the header needs to match the table definition exactly with name

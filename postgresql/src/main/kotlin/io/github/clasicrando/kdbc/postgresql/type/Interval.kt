@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlin.reflect.typeOf
-import kotlin.time.Duration
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import kotlinx.datetime.DateTimePeriod
 import kotlinx.io.Sink
+import kotlin.reflect.typeOf
+import kotlin.time.Duration
 
 private const val MINUTES_PER_HOUR = 60L
 private const val SECONDS_PER_MINUTE = 60L
@@ -199,7 +199,7 @@ internal object PgIntervalTypeDescription :
                     currentNumber = 0
                     break
                 }
-                else -> throw KdbcException("Unexpected character in interval: '$currentChar'")
+                else -> throw PgException("Unexpected character in interval: '$currentChar'")
             }
         }
 

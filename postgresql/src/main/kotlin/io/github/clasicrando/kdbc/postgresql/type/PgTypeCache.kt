@@ -7,6 +7,7 @@ import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.reflect.KType
 
@@ -31,7 +32,7 @@ internal class PgTypeCache {
     @Suppress("UNCHECKED_CAST")
     fun <T : Any> getTypeDescription(kType: KType): PgTypeDescription<T>? {
         val typeDescription =
-            typeDescriptions[kType] ?: throw KdbcException("No type description for $kType")
+            typeDescriptions[kType] ?: throw PgException("No type description for $kType")
         return typeDescription as? PgTypeDescription<T>
     }
 
@@ -67,7 +68,7 @@ internal class PgTypeCache {
         val oid = typeDescription.dbType.oid
         val arrayTypeOid =
             checkArrayDbTypeByOid(connection, oid)
-                ?: throw KdbcException("Could not verify the array type for element oid = $oid")
+                ?: throw PgException("Could not verify the array type for element oid = $oid")
         addArrayTypeDescriptions(
             arrayType = PgType.fromOid(arrayTypeOid),
             typeDescription = typeDescription,

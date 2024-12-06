@@ -3,15 +3,15 @@ package io.github.clasicrando.kdbc.postgresql.type
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.datetime.DateTime
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlin.reflect.KTypeProjection
-import kotlin.reflect.full.createType
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.io.Sink
+import kotlin.reflect.KTypeProjection
+import kotlin.reflect.full.createType
 
 private const val ZERO_RANGE_FLAGS = 0x00
 
@@ -164,7 +164,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
             ')' -> Bound.Excluded(value)
             '[',
             ']' -> Bound.Included(value)
-            else -> throw KdbcException("Expected bound character but found '$char'")
+            else -> throw PgException("Expected bound character but found '$char'")
         }
 
     /**

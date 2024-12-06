@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.message.encoders
 
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import kotlinx.io.Sink
 
@@ -33,7 +34,7 @@ internal object PgMessageEncoders {
             is PgMessage.CopyDone -> CodeOnlyMessageEncoder.encode(message, buffer)
             is PgMessage.CopyFail -> CopyFailEncoder.encode(message, buffer)
             is PgMessage.CancelRequest -> CancelRequestEncoder.encode(message, buffer)
-            else -> throw KdbcException("Message $message cannot be encoded")
+            else -> throw PgException("Message $message cannot be encoded")
         }
     }
 }

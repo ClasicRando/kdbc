@@ -2,10 +2,10 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlin.reflect.typeOf
 import kotlinx.io.Sink
 import kotlinx.io.writeDouble
 import kotlinx.io.writeFloat
+import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [PgTypeDescription] for the [Short] type. This maps to the `int2`/`smallint`
