@@ -4,9 +4,9 @@ import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.type.PgPolygon.Companion.makeBoundBox
+import kotlin.reflect.typeOf
 import kotlinx.io.Sink
 import kotlinx.io.writeDouble
-import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [PgTypeDescription] for the [PgPoint] type. This maps to the `point` type in

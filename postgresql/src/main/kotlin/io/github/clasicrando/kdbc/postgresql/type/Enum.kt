@@ -4,9 +4,9 @@ import io.github.clasicrando.kdbc.core.annotations.Rename
 import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlin.reflect.KType
 import kotlinx.io.Sink
 import kotlinx.io.writeString
-import kotlin.reflect.KType
 
 /** Implementation of [PgTypeDescription] for custom enum types in a postgresql database */
 internal class EnumTypeDescription<E : Enum<E>>(pgType: PgType, kType: KType, values: Array<E>) :

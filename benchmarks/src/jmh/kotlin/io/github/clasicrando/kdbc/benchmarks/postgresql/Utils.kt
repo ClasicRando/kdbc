@@ -10,10 +10,8 @@ import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.oshai.kotlinlogging.Level
 import java.sql.DriverManager
 import java.sql.ResultSet
+import java.time.LocalDateTime
 import kotlin.uuid.Uuid
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.io.asOutputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
@@ -141,7 +139,7 @@ fun createBenchmarkCsv(outputPath: Path) {
     IOUtils.sink(outputPath, append = false).buffered().use { sink ->
         csvWriter().open(sink.asOutputStream()) {
             for (i in 1..50000) {
-                val currentTimestamp = Clock.System.now().toLocalDateTime(TimeZone.UTC)
+                val currentTimestamp = LocalDateTime.now()
                 writeRow(
                     i,
                     "$i Value",
@@ -220,8 +218,8 @@ fun extractPostDataClassListFromResultSet(resultSet: ResultSet): List<PostDataCl
             PostDataClass(
                 resultSet.getInt(1),
                 resultSet.getString(2),
-                resultSet.getObject(3, java.time.LocalDateTime::class.java),
-                resultSet.getObject(4, java.time.LocalDateTime::class.java),
+                resultSet.getObject(3, LocalDateTime::class.java),
+                resultSet.getObject(4, LocalDateTime::class.java),
                 resultSet.getInt(5),
                 resultSet.getInt(6),
                 resultSet.getInt(7),

@@ -13,12 +13,9 @@ import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import java.time.LocalDateTime
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
@@ -78,16 +75,13 @@ class TestPgArrayType {
 
         val description =
             object :
-                ArrayTypeDescription<Instant>(
+                ArrayTypeDescription<LocalDateTime>(
                     pgType = PgType.TimestampArray,
-                    innerType = InstantTypeDescription,
+                    innerType = LocalDateTimeTypeDescription,
                 ) {}
         val result = description.decode(pgValue)
 
-        Assertions.assertIterableEquals(
-            listOf(LocalDateTime(2023, 1, 1, 22, 2, 59).toInstant(TimeZone.UTC)),
-            result,
-        )
+        Assertions.assertIterableEquals(listOf(LocalDateTime.of(2023, 1, 1, 22, 2, 59)), result)
     }
 
     @Test
@@ -117,31 +111,15 @@ class TestPgArrayType {
         }
     }
 
-    private suspend fun decodeTest(isExtended: Boolean) {
-        val expectedResult = listOf(1, 2, 3, 4)
-        val query = "SELECT ARRAY[1,2,3,4]::int[]"
-        if (isExtended) {
-                PgConnectionHelper.defaultConnection()
-            } else {
-                PgConnectionHelper.defaultConnectionWithForcedSimple()
-            }
-            .use { conn ->
-                val ints = query(query).fetchScalar<List<Int>>(conn)
-                Assertions.assertIterableEquals(expectedResult, ints)
-            }
-    }
-
     @Test
     @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
     fun `decode should return int list when simple querying postgresql int array`(): Unit =
         runBlocking {
-            decodeTest(isExtended = false)
-        }
-
-    @Test
-    @Timeout(value = DEFAULT_KDBC_TEST_TIMEOUT)
-    fun `decode should return int list when extended querying postgresql int array`(): Unit =
-        runBlocking {
-            decodeTest(isExtended = true)
+            val expectedResult = listOf(1, 2, 3, 4)
+            val query = "SELECT ARRAY[1,2,3,4]::int[]"
+            PgConnectionHelper.defaultConnectionWithForcedSimple().use { conn ->
+                val ints = query(query).fetchScalar<List<Int>>(conn)
+                Assertions.assertIterableEquals(expectedResult, ints)
+            }
         }
 }

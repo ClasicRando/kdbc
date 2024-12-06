@@ -9,6 +9,7 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.time.ZoneOffset
 import kotlin.reflect.KType
 
 private val logger = KotlinLogging.logger {}
@@ -20,9 +21,9 @@ private val logger = KotlinLogging.logger {}
  * using [AtomicMutableMap]s for the lookup maps.
  */
 @PublishedApi
-internal class PgTypeCache {
+internal class PgTypeCache(zoneOffset: ZoneOffset) {
     private val typeDescriptions: MutableMap<KType, PgTypeDescription<*>> =
-        AtomicMutableMap(baseTypes)
+        AtomicMutableMap(getBaseTypes(zoneOffset))
 
     /**
      * Return the custom type description for the provided [kType]
@@ -91,35 +92,27 @@ internal class PgTypeCache {
     }
 
     companion object {
-        val baseTypes: Map<KType, PgTypeDescription<*>> =
-            listOf(
+        fun getBaseTypes(zoneOffset: ZoneOffset): Map<KType, PgTypeDescription<*>> {
+            val offsetDateTimeDescription = OffsetDateTimeTypeDescription(zoneOffset)
+            val instantDescription = InstantTypeDescription(zoneOffset)
+            val timeZoneTzDescription = TsTzRangeTypeDescription(zoneOffset)
+            return listOf(
                     BigDecimalTypeDescription,
                     *createArrayDescriptions(PgType.NumericArray, BigDecimalTypeDescription),
-                    JBigDecimalTypeDescription,
-                    *createArrayDescriptions(PgType.NumericArray, JBigDecimalTypeDescription),
                     BoolTypeDescription,
                     *createArrayDescriptions(PgType.BoolArray, BoolTypeDescription),
                     ByteaTypeDescription,
                     *createArrayDescriptions(PgType.ByteaArray, ByteaTypeDescription),
                     CharTypeDescription,
                     *createArrayDescriptions(PgType.CharArray, CharTypeDescription),
-                    LocalDateTypeDescription,
-                    *createArrayDescriptions(PgType.DateArray, LocalDateTypeDescription),
                     JLocalDateTypeDescription,
                     *createArrayDescriptions(PgType.DateArray, JLocalDateTypeDescription),
-                    InstantTypeDescription,
-                    *createArrayDescriptions(PgType.TimestampArray, InstantTypeDescription),
                     LocalDateTimeTypeDescription,
                     *createArrayDescriptions(PgType.TimestampArray, LocalDateTimeTypeDescription),
-                    DateTimeTypeDescription,
-                    *createArrayDescriptions(PgType.TimestamptzArray, DateTimeTypeDescription),
-                    OffsetDateTimeTypeDescription,
-                    *createArrayDescriptions(
-                        PgType.TimestamptzArray,
-                        OffsetDateTimeTypeDescription,
-                    ),
-                    DateTimePeriodTypeDescription,
-                    *createArrayDescriptions(PgType.IntervalArray, DateTimePeriodTypeDescription),
+                    offsetDateTimeDescription,
+                    *createArrayDescriptions(PgType.TimestamptzArray, offsetDateTimeDescription),
+                    instantDescription,
+                    *createArrayDescriptions(PgType.TimestamptzArray, instantDescription),
                     PgIntervalTypeDescription,
                     *createArrayDescriptions(PgType.IntervalArray, PgIntervalTypeDescription),
                     PointTypeDescription,
@@ -162,20 +155,12 @@ internal class PgTypeCache {
                     *createArrayDescriptions(PgType.Int4RangeArray, Int4RangeTypeDescription),
                     TsRangeTypeDescription,
                     *createArrayDescriptions(PgType.TsRangeArray, TsRangeTypeDescription),
-                    JTsRangeTypeDescription,
-                    *createArrayDescriptions(PgType.TsRangeArray, JTsRangeTypeDescription),
-                    TsTzRangeTypeDescription,
-                    *createArrayDescriptions(PgType.TstzRangeArray, TsTzRangeTypeDescription),
-                    JTsTzRangeTypeDescription,
-                    *createArrayDescriptions(PgType.TstzRangeArray, JTsTzRangeTypeDescription),
+                    timeZoneTzDescription,
+                    *createArrayDescriptions(PgType.TstzRangeArray, timeZoneTzDescription),
                     DateRangeTypeDescription,
                     *createArrayDescriptions(PgType.DateRangeArray, DateRangeTypeDescription),
-                    JDateRangeTypeDescription,
-                    *createArrayDescriptions(PgType.DateRangeArray, JDateRangeTypeDescription),
                     NumRangeTypeDescription,
                     *createArrayDescriptions(PgType.NumRangeArray, NumRangeTypeDescription),
-                    JNumRangeTypeDescription,
-                    *createArrayDescriptions(PgType.NumRangeArray, JNumRangeTypeDescription),
                     VarcharTypeDescription,
                     object :
                         ArrayTypeDescription<String>(
@@ -205,10 +190,6 @@ internal class PgTypeCache {
                     },
                     LocalTimeTypeDescription,
                     *createArrayDescriptions(PgType.TimeArray, LocalTimeTypeDescription),
-                    JLocalTimeTypeDescription,
-                    *createArrayDescriptions(PgType.TimeArray, JLocalTimeTypeDescription),
-                    PgTimeTzTypeDescription,
-                    *createArrayDescriptions(PgType.TimetzArray, PgTimeTzTypeDescription),
                     OffsetTimeTypeDescription,
                     *createArrayDescriptions(PgType.TimetzArray, OffsetTimeTypeDescription),
                     UuidTypeDescription,
@@ -217,6 +198,7 @@ internal class PgTypeCache {
                     *createArrayDescriptions(PgType.UuidArray, JUuidTypeDescription),
                 )
                 .associateBy { it.kType }
+        }
 
         /** Query to fetch the OID of the array type with an inner type matching the OID supplied */
         private val pgArrayTypeByInnerOid =

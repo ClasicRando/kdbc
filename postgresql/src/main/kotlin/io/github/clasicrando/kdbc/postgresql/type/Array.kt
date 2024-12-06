@@ -4,10 +4,10 @@ import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
-import kotlinx.io.Sink
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.withNullability
+import kotlinx.io.Sink
 
 /** Dummy [PgColumnDescription] to create a [PgValue.Text] instance for text decoding */
 private val dummyFieldDescription =

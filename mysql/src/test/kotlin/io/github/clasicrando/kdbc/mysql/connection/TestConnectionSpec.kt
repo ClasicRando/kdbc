@@ -9,8 +9,6 @@ import org.junit.jupiter.api.Test
 class TestConnectionSpec {
     @Test
     fun `isValid should return true for connection`(): Unit = runBlocking {
-        MySqlConnectionHelper.defaultConnection().use {
-            assertTrue(it.isValid())
-        }
+        MySqlConnectionHelper.defaultConnection().use { assertTrue(it.isValid()) }
     }
 }

@@ -4,11 +4,12 @@ import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.isZeroOrInfinite
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.network.tls.TLSConfigBuilder
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
+import java.time.ZoneOffset
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /** Connection options for a postgresql database */
 @Serializable
@@ -65,6 +66,12 @@ public data class PgConnectOptions(
      * which is public.
      */
     val currentSchema: String? = null,
+    /**
+     * Timezone offset to use when retrieving timezone aware types from the database. The connection
+     * itself will always use UTC but when [java.time.OffsetDateTime] is requested, this offset will
+     * be applied before returning the value. The default value is [ZoneOffset.UTC].
+     */
+    @Transient public val timeZoneOffset: ZoneOffset = ZoneOffset.UTC,
     /**
      * TLS Config builder action to modify the config provided to the ktor socket creator. This is
      * only used if the server supports TLS and the socket used to create the database connection is

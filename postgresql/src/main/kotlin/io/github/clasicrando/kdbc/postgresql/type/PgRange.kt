@@ -1,9 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.minus
-import kotlinx.datetime.plus
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 public sealed interface Bound<T> {
@@ -91,35 +88,6 @@ public fun PgRange<Long>.toLongRange(): LongRange? {
 public fun PgRange<LocalDate>.toDateRange(): ClosedRange<LocalDate>? {
     val startDate =
         when (this.lower) {
-            is Bound.Excluded -> lower.value.plus(1, DateTimeUnit.DAY)
-            is Bound.Included -> lower.value
-            is Bound.Unbounded -> return null
-        }
-    val endDateInclusive =
-        when (this.upper) {
-            is Bound.Excluded -> upper.value.minus(1, DateTimeUnit.DAY)
-            is Bound.Included -> upper.value
-            is Bound.Unbounded -> return null
-        }
-    return object : ClosedRange<LocalDate> {
-        override val start: LocalDate = startDate
-        override val endInclusive: LocalDate = endDateInclusive
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is ClosedRange<*>) return false
-            return this.start == other.start && this.endInclusive == other.endInclusive
-        }
-
-        override fun toString(): String {
-            return "$start..$endInclusive"
-        }
-    }
-}
-
-public fun PgRange<java.time.LocalDate>.toJDateRange(): ClosedRange<java.time.LocalDate>? {
-    val startDate =
-        when (this.lower) {
             is Bound.Excluded -> lower.value.plus(1, ChronoUnit.DAYS)
             is Bound.Included -> lower.value
             is Bound.Unbounded -> return null
@@ -130,9 +98,9 @@ public fun PgRange<java.time.LocalDate>.toJDateRange(): ClosedRange<java.time.Lo
             is Bound.Included -> upper.value
             is Bound.Unbounded -> return null
         }
-    return object : ClosedRange<java.time.LocalDate> {
-        override val start: java.time.LocalDate = startDate
-        override val endInclusive: java.time.LocalDate = endDateInclusive
+    return object : ClosedRange<LocalDate> {
+        override val start: LocalDate = startDate
+        override val endInclusive: LocalDate = endDateInclusive
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

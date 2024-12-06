@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import kotlin.reflect.typeOf
 import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.readByteArray
-import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [PgTypeDescription] for [ByteArray]. This maps to the `bytea` type in a

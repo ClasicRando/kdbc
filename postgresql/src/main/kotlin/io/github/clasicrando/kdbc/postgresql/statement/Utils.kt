@@ -5,8 +5,8 @@ import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
-import kotlinx.io.Sink
 import kotlin.reflect.KType
+import kotlinx.io.Sink
 
 /**
  * Encode the supplied [queryParameter] in this [Sink], looking up the type definition in the

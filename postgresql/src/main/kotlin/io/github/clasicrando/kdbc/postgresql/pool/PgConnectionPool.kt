@@ -19,7 +19,7 @@ public class PgConnectionPool(connectOptions: PgConnectOptions, poolOptions: Poo
         poolOptions = poolOptions,
         provider = PgConnectionProvider(connectOptions),
     ) {
-    internal val typeCache = PgTypeCache()
+    internal val typeCache = PgTypeCache(connectOptions.timeZoneOffset)
     internal val selectorManager = SelectorManager(dispatcher = this.coroutineContext)
 
     override suspend fun disposeConnection(connection: PgConnection) {

@@ -5,7 +5,6 @@ plugins {
 
 val scramClientVersion: String by project
 val kotlinCsvVersion: String by project
-val serializationJsonVersion: String by project
 val trustStorePath: String? by project
 val trustStorePassword: String? by project
 
@@ -14,8 +13,6 @@ dependencies {
     implementation("com.ongres.scram:client:$scramClientVersion")
     // https://mvnrepository.com/artifact/com.github.doyaaaaaken/kotlin-csv
     implementation("com.github.doyaaaaaken:kotlin-csv:$kotlinCsvVersion")
-    // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationJsonVersion")
 }
 
 tasks.test {

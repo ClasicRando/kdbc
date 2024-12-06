@@ -1,17 +1,18 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
-import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
-import kotlinx.io.Sink
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
+import kotlinx.io.Sink
 
 private const val ZERO_RANGE_FLAGS = 0x00
 
@@ -229,52 +230,28 @@ public typealias Int4Range = PgRange<Int>
 internal object Int4RangeTypeDescription :
     BaseRangeTypeDescription<Int>(pgType = PgType.Int4Range, typeDescription = IntTypeDescription)
 
-public typealias TsRange = PgRange<Instant>
+public typealias TsRange = PgRange<LocalDateTime>
 
 /**
  * Implementation of a [PgTypeDescription] for the [TsRange] type. This maps to the `tsrange` type
  * in a postgresql database.
  */
 internal object TsRangeTypeDescription :
-    BaseRangeTypeDescription<Instant>(
-        pgType = PgType.TsRange,
-        typeDescription = InstantTypeDescription,
-    )
-
-public typealias JTsRange = PgRange<java.time.LocalDateTime>
-
-/**
- * Implementation of a [PgTypeDescription] for the [JTsRange] type. This maps to the `tsrange` type
- * in a postgresql database.
- */
-internal object JTsRangeTypeDescription :
-    BaseRangeTypeDescription<java.time.LocalDateTime>(
+    BaseRangeTypeDescription<LocalDateTime>(
         pgType = PgType.TsRange,
         typeDescription = LocalDateTimeTypeDescription,
     )
 
-public typealias TsTzRange = PgRange<DateTime>
+public typealias TsTzRange = PgRange<OffsetDateTime>
 
 /**
  * Implementation of a [PgTypeDescription] for the [TsTzRange] type. This maps to the `tstzrange`
  * type in a postgresql database.
  */
-internal object TsTzRangeTypeDescription :
-    BaseRangeTypeDescription<DateTime>(
+internal class TsTzRangeTypeDescription(zoneOffset: ZoneOffset) :
+    BaseRangeTypeDescription<OffsetDateTime>(
         pgType = PgType.TstzRange,
-        typeDescription = DateTimeTypeDescription,
-    )
-
-public typealias JTsTzRange = PgRange<java.time.OffsetDateTime>
-
-/**
- * Implementation of a [PgTypeDescription] for the [JTsTzRange] type. This maps to the `tstzrange`
- * type in a postgresql database.
- */
-internal object JTsTzRangeTypeDescription :
-    BaseRangeTypeDescription<java.time.OffsetDateTime>(
-        pgType = PgType.TstzRange,
-        typeDescription = OffsetDateTimeTypeDescription,
+        typeDescription = OffsetDateTimeTypeDescription(zoneOffset),
     )
 
 public typealias DateRange = PgRange<LocalDate>
@@ -285,18 +262,6 @@ public typealias DateRange = PgRange<LocalDate>
  */
 internal object DateRangeTypeDescription :
     BaseRangeTypeDescription<LocalDate>(
-        pgType = PgType.DateRange,
-        typeDescription = LocalDateTypeDescription,
-    )
-
-public typealias JDateRange = PgRange<java.time.LocalDate>
-
-/**
- * Implementation of a [PgTypeDescription] for the [JDateRange] type. This maps to the `daterange`
- * type in a postgresql database.
- */
-internal object JDateRangeTypeDescription :
-    BaseRangeTypeDescription<java.time.LocalDate>(
         pgType = PgType.DateRange,
         typeDescription = JLocalDateTypeDescription,
     )
@@ -311,16 +276,4 @@ internal object NumRangeTypeDescription :
     BaseRangeTypeDescription<BigDecimal>(
         pgType = PgType.NumRange,
         typeDescription = BigDecimalTypeDescription,
-    )
-
-public typealias JNumRange = PgRange<java.math.BigDecimal>
-
-/**
- * Implementation of a [PgTypeDescription] for the [JNumRange] type. This maps to the `numrange`
- * type in a postgresql database.
- */
-internal object JNumRangeTypeDescription :
-    BaseRangeTypeDescription<java.math.BigDecimal>(
-        pgType = PgType.NumRange,
-        typeDescription = JBigDecimalTypeDescription,
     )

@@ -26,16 +26,14 @@ public interface ConnectionPool<C : Connection> : CoroutineScope {
      * INTERNALLY and is called implicitly when a pool [Connection] is closed. Returns true if the
      * [Connection] was actually part of the pool and was returned. Otherwise, return false.
      */
-    @InternalApi
-    public suspend fun giveBack(connection: C): Boolean
+    @InternalApi public suspend fun giveBack(connection: C): Boolean
 
     /**
      * Initialize resources within the pool. This involves validating the connection options given
      * to the pool can create valid connections and the pool is pre-populated with the desired
      * number of minimum connections required.
      */
-    @InternalApi
-    public suspend fun initialize(): Boolean
+    @InternalApi public suspend fun initialize(): Boolean
 
     /** Close the connection pool and all connections that are associated with the pool */
     public suspend fun close()

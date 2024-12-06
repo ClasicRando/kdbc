@@ -3,8 +3,8 @@ package io.github.clasicrando.kdbc.postgresql.type
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import kotlin.reflect.typeOf
+import kotlinx.io.Sink
 
 /** Implementation of a [PgTypeDescription] for the [PgMacAddress] type */
 internal object MacAddressTypeDescription :

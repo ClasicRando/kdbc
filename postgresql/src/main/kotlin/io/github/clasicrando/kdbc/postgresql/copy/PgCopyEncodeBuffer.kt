@@ -2,9 +2,9 @@ package io.github.clasicrando.kdbc.postgresql.copy
 
 import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
-import kotlinx.io.Buffer
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
+import kotlinx.io.Buffer
 
 public class PgCopyEncodeBuffer internal constructor(private val typeCache: PgTypeCache) :
     AutoCloseable {
