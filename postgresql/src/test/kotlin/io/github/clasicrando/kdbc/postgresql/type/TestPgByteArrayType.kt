@@ -7,6 +7,7 @@ import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
@@ -22,7 +23,7 @@ class TestPgByteArrayType {
             pgType = PgType.Bytea,
             dataTypeSize = 0,
             typeModifier = 0,
-            formatCode = 0,
+            formatCode = PgFormatCode.Text,
         )
 
     private val ints = IntArray(256) { it }

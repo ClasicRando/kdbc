@@ -68,8 +68,14 @@ public data class PgConnectOptions(
     val currentSchema: String? = null,
     /**
      * Timezone offset to use when retrieving timezone aware types from the database. The connection
-     * itself will always use UTC but when [java.time.OffsetDateTime] is requested, this offset will
-     * be applied before returning the value. The default value is [ZoneOffset.UTC].
+     * itself will always use UTC but when [java.time.OffsetDateTime] or [java.time.Instant] is
+     * requested, this offset will be applied before returning the value.
+     *
+     * Note that this value is not applied to [java.time.OffsetTime] (the `timetz` type) because
+     * postgres stores the value internally with an offset in seconds from UTC so further processing
+     * is not required.
+     *
+     * The default value is [ZoneOffset.UTC].
      */
     @Transient public val timeZoneOffset: ZoneOffset = ZoneOffset.UTC,
     /**
@@ -159,6 +165,7 @@ public data class PgConnectOptions(
             "database=$database, statementLogLevel=$statementLogLevel, queryTimeout=$queryTimeout, " +
             "statementCacheCapacity=$statementCacheCapacity, " +
             "useExtendedProtocolForSimpleQueries=$useExtendedProtocolForSimpleQueries, " +
-            "extraFloatDigits=$extraFloatDigits, sslMode=$sslMode, currentSchema=$currentSchema)"
+            "extraFloatDigits=$extraFloatDigits, sslMode=$sslMode, currentSchema=$currentSchema" +
+            "timeZoneOffset=$timeZoneOffset)"
     }
 }

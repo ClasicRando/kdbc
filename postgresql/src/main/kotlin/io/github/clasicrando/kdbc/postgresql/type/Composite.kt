@@ -74,8 +74,8 @@ internal class BaseCompositeTypeDescription<T : Any>(
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the
      *   [CompositeTypeDefinition.fromRow] method throws an exception
      */
-    private fun decodeAsDataRow(attributes: PgDataRow, typeData: PgColumnDescription): T =
-        try {
+    private fun decodeAsDataRow(attributes: PgDataRow, typeData: PgColumnDescription): T {
+        return try {
             compositeTypeDefinition.fromRow(attributes)
         } catch (ex: Exception) {
             columnDecodeError(
@@ -85,6 +85,7 @@ internal class BaseCompositeTypeDescription<T : Any>(
                 cause = ex,
             )
         }
+    }
 
     /**
      * Decode the binary [value] as an [Array] of [PgValue]s that are used in a call to the

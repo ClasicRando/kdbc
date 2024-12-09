@@ -113,12 +113,8 @@ private suspend fun MySqlStream.createAuthResponse(
             PasswordHelper.encryptPasswordSha1(password, authPluginData)
         AuthPlugin.CachingSha2Password ->
             PasswordHelper.encryptPasswordSha256(password, authPluginData)
-        AuthPlugin.Sha256Password -> {
-            if (isTls) {
-                return password.toByteArray().plus(0)
-            }
-            encryptRsa(0x01, password, authPluginData)
-        }
+        AuthPlugin.Sha256Password if isTls -> password.toByteArray().plus(0)
+        AuthPlugin.Sha256Password -> encryptRsa(0x01, password, authPluginData)
         AuthPlugin.MySqlClearPassword -> password.toByteArray().plus(0)
     }
 }

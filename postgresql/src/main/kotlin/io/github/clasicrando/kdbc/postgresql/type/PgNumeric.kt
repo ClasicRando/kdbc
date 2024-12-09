@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import kotlinx.io.Sink
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.math.max
 import kotlin.math.pow
-import kotlinx.io.Sink
 
 internal const val SIGN_NAN: Short = 0xC0
 internal const val SIGN_POSITIVE: Short = 0x0000
@@ -28,8 +28,8 @@ internal sealed class PgNumeric {
      * @param sign Sign of the number. 1 of 3 values: 0x0000 -> positive, 0x4000 -> negative, 0xC0
      *   -> NAN (not representable by [BigDecimal] but implemented for mapping to postgres type)
      * @param digits Base 10_000 values that represent the number
-     * @param weight Represents the number of digits before the decimal point plus 1. [weight] can
-     *   be less than zero.
+     * @param weight Represents the number of digits before the decimal point minus 1. [weight] can
+     *   be less than zero when there is no whole part of the number
      * @param scale Represents the number of digits after the decimal point. This must always be
      *   greater than 0.
      */
@@ -47,8 +47,7 @@ internal sealed class PgNumeric {
      *
      * For [PgNumeric.NAN], all values are 0 (with no digits) expect for the sign which is 0xC0.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1068)
+     * [code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1068)
      */
     internal fun encodeToBuffer(buffer: Sink) {
         when (this) {
@@ -71,40 +70,60 @@ internal sealed class PgNumeric {
     }
 
     /**
-     * !!Disclaimer!! This code is taken mostly as-is from the postgres jdbc driver (with some
-     * modifications during the conversion to kotlin code). I hope to find a better cross-platform
-     * solution to remove this java dependency.
+     * Converts a [PgNumeric] to an equivalent [BigDecimal] value for binary decoding. Code is taken
+     * essentially verbatim from the pgjdbc codebase with modifications to conform to Kotlin.
      *
-     * [pgjdbc
-     * code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L124)
+     * Copyright (c) 1997, PostgreSQL Global Development Group
+     * All rights reserved.
+     *
+     * Redistribution and use in source and binary forms, with or without
+     * modification, are permitted provided that the following conditions are met:
+     *
+     * 1. Redistributions of source code must retain the above copyright notice,
+     *    this list of conditions and the following disclaimer.
+     * 2. Redistributions in binary form must reproduce the above copyright notice,
+     *    this list of conditions and the following disclaimer in the documentation
+     *    and/or other materials provided with the distribution.
+     *
+     * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+     * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+     * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+     * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+     * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+     * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+     * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+     * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+     * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+     * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+     * POSSIBILITY OF SUCH DAMAGE.
+     *
+     * [code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L124)
      */
     internal fun toBigDecimal(): BigDecimal {
-        val number =
-            when (this) {
-                NAN -> error("BigDecimal does not support Nan values")
-                is Number -> this
-            }
+        if (this !is Number) {
+            error("BigDecimal does not support Nan values")
+        }
 
         // 0 based number of 4 decimal digits (i.e. 2-byte shorts) before the decimal
         // a value <= 0 indicates an absolute value < 1.
-        var weight: Short = number.weight
+        var weight: Short = this.weight
 
         require((scale.toInt() and NUMERIC_DSCALE_MASK) == scale.toInt()) {
             "invalid scale in \"numeric\" value"
         }
 
-        if (number.digits.isEmpty()) {
+        if (this.digits.isEmpty()) {
             return BigDecimal(BigInteger.ZERO, scale.toInt())
         }
 
         var idx = 0
 
-        var d: Short = number.digits[idx]
+        var d: Short = this.digits[idx]
 
         // if the absolute value is (0, 1), then leading '0' values
         // do not matter for the unscaledInt, but trailing 0s do
         if (weight < 0) {
-            assert(scale > 0)
+            check(scale > 0)
             var effectiveScale = scale.toInt()
             // adjust weight to determine how many leading 0s after the decimal
             // before the provided values/digits actually begin
@@ -116,15 +135,15 @@ internal sealed class PgNumeric {
             var i = 1
             // typically there should not be leading 0 short values, as it is more
             // efficient to represent that in the weight value
-            while (i < number.digits.size && d.toInt() == 0) {
+            while (i < this.digits.size && d.toInt() == 0) {
                 // each leading 0 value removes 4 from the effective scale
                 effectiveScale -= 4
                 idx++
-                d = number.digits[idx]
+                d = this.digits[idx]
                 i++
             }
 
-            assert(effectiveScale > 0)
+            check(effectiveScale > 0)
             if (effectiveScale >= 4) {
                 effectiveScale -= 4
             } else {
@@ -138,12 +157,12 @@ internal sealed class PgNumeric {
             // operations on the long are much faster
             var unscaledBI: BigInteger? = null
             var unscaledInt = d.toLong()
-            while (i < number.digits.size) {
+            while (i < this.digits.size) {
                 if (i == 4 && effectiveScale > 2) {
                     unscaledBI = BigInteger.valueOf(unscaledInt)
                 }
                 idx++
-                d = number.digits[idx]
+                d = this.digits[idx]
                 // if effective scale is at least 4, then all 4 digits should be used
                 // and the existing number needs to be shifted 4
                 if (effectiveScale >= 4) {
@@ -197,12 +216,12 @@ internal sealed class PgNumeric {
             var unscaledBI: BigInteger? = null
             var unscaledInt = d.toLong()
             // loop over all of the len shorts to process as the unscaled int
-            for (i in 1..<number.digits.size) {
+            for (i in 1..<this.digits.size) {
                 if (i == 4) {
                     unscaledBI = BigInteger.valueOf(unscaledInt)
                 }
                 idx++
-                d = number.digits[idx]
+                d = this.digits[idx]
                 if (unscaledBI == null) {
                     unscaledInt *= 10000
                     unscaledInt += d.toLong()
@@ -222,7 +241,7 @@ internal sealed class PgNumeric {
             }
             // the difference between len and weight (adjusted from 0 based) becomes the scale for
             // BigDecimal
-            val bigDecScale = (number.digits.size - (weight + 1)) * 4
+            val bigDecScale = (this.digits.size - (weight + 1)) * 4
             // string representation always results in a BigDecimal with scale of 0
             // the binary representation, where weight and len can infer trailing 0s, can result in
             // a negative scale
@@ -244,12 +263,12 @@ internal sealed class PgNumeric {
         // maintain the effective values to massage as we process through values
         var effectiveWeight = weight.toInt()
         var effectiveScale = scale.toInt()
-        for (i in 1..<number.digits.size) {
+        for (i in 1..<this.digits.size) {
             if (i == 4) {
                 unscaledBI = BigInteger.valueOf(unscaledInt)
             }
             idx++
-            d = number.digits[idx]
+            d = this.digits[idx]
             // first process effective weight down to 0
             if (effectiveWeight > 0) {
                 --effectiveWeight
@@ -329,8 +348,7 @@ internal sealed class PgNumeric {
          * Depending on the third [Short] read (the sign value), the number is either read as a
          * [NAN] or all the values are packed into a [Number].
          *
-         * [pg source
-         * code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1153)
+         * [code](https://github.com/postgres/postgres/blob/a6c21887a9f0251fa2331ea3ad0dd20b31c4d11d/src/backend/utils/adt/numeric.c#L1153)
          */
         internal fun fromBytes(buffer: ByteReadBuffer): PgNumeric {
             val numDigits = buffer.readShort()
@@ -347,12 +365,35 @@ internal sealed class PgNumeric {
         }
 
         /**
-         * !!Disclaimer!! This code is taken mostly as-is from the postgres jdbc driver (with some
-         * modifications during the conversion to kotlin code). I hope to find a better
-         * cross-platform solution to remove this java dependency.
+         * Converts a [BigDecimal] to an equivalent [PgNumeric] value for binary decoding. Code is
+         * taken essentially verbatim from the pgjdbc codebase with modifications to conform to
+         * Kotlin.
          *
-         * [pgjdbc
-         * code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L382)
+         * Copyright (c) 1997, PostgreSQL Global Development Group
+         * All rights reserved.
+         *
+         * Redistribution and use in source and binary forms, with or without
+         * modification, are permitted provided that the following conditions are met:
+         *
+         * 1. Redistributions of source code must retain the above copyright notice,
+         *    this list of conditions and the following disclaimer.
+         * 2. Redistributions in binary form must reproduce the above copyright notice,
+         *    this list of conditions and the following disclaimer in the documentation
+         *    and/or other materials provided with the distribution.
+         *
+         * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+         * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+         * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+         * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+         * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+         * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+         * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+         * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+         * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+         * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+         * POSSIBILITY OF SUCH DAMAGE.
+         *
+         * [code](https://github.com/pgjdbc/pgjdbc/blob/a4089461cacc5e6f0168ab95bf2ff7d253de8336/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L382)
          */
         internal fun fromBigDecimal(bigDecimal: BigDecimal): PgNumeric {
             val shorts = mutableListOf<Short>()
@@ -431,9 +472,7 @@ internal sealed class PgNumeric {
                 if (BigInteger.ZERO.equals(wholes)) {
                     weight -= segments
                 } else {
-                    for (i in 0..<segments) {
-                        shorts.add(0)
-                    }
+                    (0..<segments).forEach { shorts.add(0) }
                 }
             }
             while (BigInteger.ZERO != wholes) {

@@ -2,9 +2,11 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
+import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
-import kotlinx.io.Sink
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 private const val MINUTES_PER_HOUR = 60L
 private const val SECONDS_PER_MINUTE = 60L
@@ -21,13 +23,25 @@ private const val MICROSECONDS_PER_HOUR = MINUTES_PER_HOUR * MICROSECONDS_PER_MI
 public data class PgInterval(val months: Int, val days: Int, val microseconds: Long)
 
 /**
+ * Convert a [PgInterval] to a [Duration]
+ *
+ * @throws IllegalStateException if the months property is > 0 since [Duration] does not natively
+ *   support months
+ */
+public fun PgInterval.toDuration(): Duration {
+    check(months > 0) { "Duration does not support months as part of the duration" }
+    return this.days.toDuration(DurationUnit.DAYS) +
+        this.microseconds.toDuration(DurationUnit.MICROSECONDS)
+}
+
+/**
  * Convert the duration to a postgres `interval`. Some precision is loss during the conversion if
  * nanoseconds are present. Max precision is microseconds.
  *
  * @throws IllegalStateException if the number of days exceeds [Int.MAX_VALUE]
  */
-public fun Duration.toPgInterval(): PgInterval =
-    this.toComponents { days, hours, minutes, seconds, nanoseconds ->
+public fun Duration.toPgInterval(): PgInterval {
+    return this.toComponents { days, hours, minutes, seconds, nanoseconds ->
         check(days <= Int.MAX_VALUE) { "Number of days cannot exceed ${Int.MAX_VALUE}" }
         PgInterval(
             months = 0,
@@ -39,6 +53,7 @@ public fun Duration.toPgInterval(): PgInterval =
                     kotlin.math.floor(nanoseconds / NANOSECONDS_PER_MICROSECOND).toLong(),
         )
     }
+}
 
 internal object PgIntervalTypeDescription :
     PgTypeDescription<PgInterval>(dbType = PgType.Interval, kType = typeOf<PgInterval>()) {
@@ -104,16 +119,15 @@ internal object PgIntervalTypeDescription :
                     currentNumber = 0
                     scale = 1
                 }
+                'M' if afterT -> {
+                    minute = currentNumber * scale
+                    currentNumber = 0
+                    scale = 1
+                }
                 'M' -> {
-                    if (afterT) {
-                        minute = currentNumber * scale
-                        currentNumber = 0
-                        scale = 1
-                    } else {
-                        month = currentNumber * scale
-                        currentNumber = 0
-                        scale = 1
-                    }
+                    month = currentNumber * scale
+                    currentNumber = 0
+                    scale = 1
                 }
                 'W' -> {
                     week = currentNumber * scale

@@ -21,8 +21,7 @@ internal object LocalTimeTypeDescription :
     /**
      * Writes the number of microseconds since the start of the day.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1521)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1521)
      */
     override fun encode(value: LocalTime, buffer: Sink) {
         val microSeconds =
@@ -34,8 +33,7 @@ internal object LocalTimeTypeDescription :
      * Read a [Long] value as the microseconds from the start of the data and use that to construct
      * a [LocalTime] by multiplying the [Long] value by 1000 and calling [LocalTime.ofNanoOfDay].
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1547)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1547)
      */
     override fun decodeBytes(value: PgValue.Binary): LocalTime {
         val microSeconds = value.bytes.readLong()
@@ -45,18 +43,18 @@ internal object LocalTimeTypeDescription :
     /**
      * Parse the [String] value as a [LocalTime]
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1501)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1501)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      *   parsed into a [LocalTime]
      */
-    override fun decodeText(value: PgValue.Text): LocalTime =
-        try {
+    override fun decodeText(value: PgValue.Text): LocalTime {
+        return try {
             LocalTime.parse(value.text)
         } catch (ex: DateTimeParseException) {
             columnDecodeError<LocalTime>(type = value.typeData, cause = ex)
         }
+    }
 }
 
 private val offsetTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ssX")
@@ -72,8 +70,7 @@ internal object OffsetTimeTypeDescription :
      * seconds offset from UTC. Since postgres treats west of UTC as positive, the
      * [ZoneOffset.totalSeconds] values must be negated before writing (it treats east as positive).
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2335)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2335)
      */
     override fun encode(value: OffsetTime, buffer: Sink) {
         LocalTimeTypeDescription.encode(value.toLocalTime(), buffer)
@@ -82,10 +79,10 @@ internal object OffsetTimeTypeDescription :
     }
 
     /**
-     * TODO
+     * The bytes of this type are the same as [LocalTime] with a final [Int] describing the offset
+     * from UTC as it is stored.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2371)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2371)
      */
     override fun decodeBytes(value: PgValue.Binary): OffsetTime {
         val localTime = LocalTimeTypeDescription.decodeBytes(value)
@@ -96,8 +93,7 @@ internal object OffsetTimeTypeDescription :
     /**
      * Parse the [String] value as a [OffsetTime]
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2314)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2314)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      *   parsed into a [LocalTime]

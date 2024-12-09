@@ -7,7 +7,6 @@ import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.io.Source
-import java.io.InputStream
 import kotlin.reflect.KType
 import kotlin.reflect.full.withNullability
 import kotlin.time.Duration
@@ -136,23 +135,6 @@ public fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteAr
 }
 
 /**
- * Chunk an [InputStream] into many [ByteArray]s with at most [size] bytes in each array. The final
- * array might have less than [size] if the total number of bytes is not equally divisible by
- * [size].
- */
-public fun InputStream.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> {
-    return generateSequence {
-        val bytes = ByteArray(size)
-        when (val bytesRead = this.read(bytes)) {
-            -1,
-            0 -> null
-            bytes.size -> bytes
-            else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
-        }
-    }
-}
-
-/**
  * Utility method to replace all whitespace 1 or more times with a single space.
  *
  * Equivalent to
@@ -191,13 +173,11 @@ public fun splitQuery(query: String): List<String> = buildList {
                 inQuote = !inQuote
                 builder.append(char)
             }
-            ';' ->
-                if (inQuote) {
-                    builder.append(char)
-                } else {
-                    add(builder.toString())
-                    builder.clear()
-                }
+            ';' if inQuote -> builder.append(char)
+            ';' -> {
+                add(builder.toString())
+                builder.clear()
+            }
             else -> builder.append(char)
         }
     }
@@ -259,33 +239,25 @@ public fun parseBytesAsCsvRow(bytes: ByteArray, expectedColumnCount: Int): Array
     while (charIter.hasNext()) {
         val currentChar = charIter.next()
         when (currentChar) {
+            ',' if inQuote -> builder.append(currentChar)
             ',' -> {
-                if (inQuote) {
-                    builder.append(currentChar)
-                } else {
-                    output[index++] = builder.buildOrNull()
-                    builder.clear()
-                }
+                inQuote = false
+                output[index++] = builder.buildOrNull()
+                builder.clear()
             }
-            '"' -> {
-                if (lastChar == '"') {
-                    builder.append(currentChar)
-                    inQuote = true
-                } else {
-                    inQuote = !inQuote
-                }
-            }
-            '\n' -> {
-                if (inQuote) {
-                    builder.append(currentChar)
-                } else {
-                    output[index++] = builder.buildOrNull()
-                    break
-                }
-            }
-            else -> {
+            '"' if lastChar == ',' -> inQuote = true
+            '"' if lastChar == '"' -> {
                 builder.append(currentChar)
+                inQuote = true
             }
+            '"' -> error("Found unescaped qualifier in row: $row")
+            '\n' if inQuote -> builder.append(currentChar)
+            '\n' -> {
+                inQuote = false
+                output[index++] = builder.buildOrNull()
+                break
+            }
+            else -> builder.append(currentChar)
         }
         lastChar = currentChar
     }

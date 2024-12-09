@@ -31,8 +31,9 @@ internal object PointTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1868)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgPoint =
-        PgPoint(x = value.bytes.readDouble(), y = value.bytes.readDouble())
+    override fun decodeBytes(value: PgValue.Binary): PgPoint {
+        return PgPoint(x = value.bytes.readDouble(), y = value.bytes.readDouble())
+    }
 
     /**
      * Extracts 2 [Double] values for the [PgPoint.x] and [PgPoint.y] coordinates from the [String]
@@ -90,12 +91,13 @@ internal object LineTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1061)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgLine =
-        PgLine(
+    override fun decodeBytes(value: PgValue.Binary): PgLine {
+        return PgLine(
             a = value.bytes.readDouble(),
             b = value.bytes.readDouble(),
             c = value.bytes.readDouble(),
         )
+    }
 
     /**
      * Extracts 3 [Double] values for the [PgLine.a], [PgLine.b] and [PgLine.c] values from the
@@ -158,11 +160,12 @@ internal object LineSegmentTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2111)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgLineSegment =
-        PgLineSegment(
+    override fun decodeBytes(value: PgValue.Binary): PgLineSegment {
+        return PgLineSegment(
             point1 = PointTypeDescription.decodeBytes(value),
             point2 = PointTypeDescription.decodeBytes(value),
         )
+    }
 
     /**
      * Extracts 2 [PgPoint] values the 2 points that define the bounds of the line segment. The
@@ -211,11 +214,12 @@ internal object BoxTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L501)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgBox =
-        PgBox(
+    override fun decodeBytes(value: PgValue.Binary): PgBox {
+        return PgBox(
             high = PointTypeDescription.decodeBytes(value),
             low = PointTypeDescription.decodeBytes(value),
         )
+    }
 
     /**
      * Extracts 2 [PgPoint] values that define the bounds of the box. The format of the string
@@ -400,11 +404,12 @@ internal object CircleTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4727)
      */
-    override fun decodeBytes(value: PgValue.Binary): PgCircle =
-        PgCircle(
+    override fun decodeBytes(value: PgValue.Binary): PgCircle {
+        return PgCircle(
             center = PointTypeDescription.decodeBytes(value),
             radius = value.bytes.readDouble(),
         )
+    }
 
     /**
      * The expected format is '<(x,y),r>' so the point component is extracted and passed to

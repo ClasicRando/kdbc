@@ -19,7 +19,9 @@ internal object SmallIntTypeDescription :
     }
 
     /** Read the first [Short] value from the buffer. */
-    override fun decodeBytes(value: PgValue.Binary): Short = value.bytes.readShort()
+    override fun decodeBytes(value: PgValue.Binary): Short {
+        return value.bytes.readShort()
+    }
 
     /**
      * Convert the [String] value into a [Short]
@@ -27,12 +29,13 @@ internal object SmallIntTypeDescription :
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value cannot
      *   be converted to a [Short]
      */
-    override fun decodeText(value: PgValue.Text): Short =
-        value.text.toShortOrNull()
+    override fun decodeText(value: PgValue.Text): Short {
+        return value.text.toShortOrNull()
             ?: columnDecodeError<Short>(
                 type = value.typeData,
                 reason = "Could not convert '${value.text}' into a Short",
             )
+    }
 }
 
 /**
@@ -50,7 +53,9 @@ internal object IntTypeDescription :
     }
 
     /** Read the first [Int] value from the buffer. */
-    override fun decodeBytes(value: PgValue.Binary): Int = value.bytes.readInt()
+    override fun decodeBytes(value: PgValue.Binary): Int {
+        return value.bytes.readInt()
+    }
 
     /**
      * Convert the [String] value into a [Int]
@@ -58,12 +63,13 @@ internal object IntTypeDescription :
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value cannot
      *   be converted to a [Int]
      */
-    override fun decodeText(value: PgValue.Text): Int =
-        value.text.toIntOrNull()
+    override fun decodeText(value: PgValue.Text): Int {
+        return value.text.toIntOrNull()
             ?: columnDecodeError<Int>(
                 type = value.typeData,
                 reason = "Could not convert '${value.text}' into a Int",
             )
+    }
 }
 
 /**
@@ -78,7 +84,9 @@ internal object BigIntTypeDescription :
     }
 
     /** Read the first [Long] value from the buffer. */
-    override fun decodeBytes(value: PgValue.Binary): Long = value.bytes.readLong()
+    override fun decodeBytes(value: PgValue.Binary): Long {
+        return value.bytes.readLong()
+    }
 
     /**
      * Convert the [String] value into a [Long]
@@ -86,12 +94,13 @@ internal object BigIntTypeDescription :
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value cannot
      *   be converted to a [Long]
      */
-    override fun decodeText(value: PgValue.Text): Long =
-        value.text.toLongOrNull()
+    override fun decodeText(value: PgValue.Text): Long {
+        return value.text.toLongOrNull()
             ?: columnDecodeError<Long>(
                 type = value.typeData,
                 reason = "Could not convert '${value.text}' into a Long",
             )
+    }
 }
 
 /**
@@ -106,7 +115,9 @@ internal object RealTypeDescription :
     }
 
     /** Read the first [Long] value from the buffer. */
-    override fun decodeBytes(value: PgValue.Binary): Float = value.bytes.readFloat()
+    override fun decodeBytes(value: PgValue.Binary): Float {
+        return value.bytes.readFloat()
+    }
 
     /**
      * Convert the [String] value into a [Float]
@@ -114,12 +125,13 @@ internal object RealTypeDescription :
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value cannot
      *   be converted to a [Float]
      */
-    override fun decodeText(value: PgValue.Text): Float =
-        value.text.toFloatOrNull()
+    override fun decodeText(value: PgValue.Text): Float {
+        return value.text.toFloatOrNull()
             ?: columnDecodeError<Float>(
                 type = value.typeData,
                 reason = "Could not convert '${value.text}' into a Float",
             )
+    }
 }
 
 /**
@@ -134,7 +146,9 @@ internal object DoublePrecisionTypeDescription :
     }
 
     /** Read the first [Long] value from the buffer. */
-    override fun decodeBytes(value: PgValue.Binary): Double = value.bytes.readDouble()
+    override fun decodeBytes(value: PgValue.Binary): Double {
+        return value.bytes.readDouble()
+    }
 
     /**
      * Convert the [String] value into a [Double]
@@ -142,10 +156,11 @@ internal object DoublePrecisionTypeDescription :
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the [String] value cannot
      *   be converted to a [Double]
      */
-    override fun decodeText(value: PgValue.Text): Double =
-        value.text.toDoubleOrNull()
+    override fun decodeText(value: PgValue.Text): Double {
+        return value.text.toDoubleOrNull()
             ?: columnDecodeError<Double>(
                 type = value.typeData,
                 reason = "Could not convert '${value.text}' into a Double",
             )
+    }
 }

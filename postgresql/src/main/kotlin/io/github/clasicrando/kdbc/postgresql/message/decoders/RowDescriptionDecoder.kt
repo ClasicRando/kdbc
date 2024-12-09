@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.message.decoders
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.type.PgType
 
@@ -35,7 +36,7 @@ internal object RowDescriptionDecoder : PgMessageDecoder<PgMessage.RowDescriptio
                     pgType = PgType.fromOid(buffer.readInt()),
                     dataTypeSize = buffer.readShort(),
                     typeModifier = buffer.readInt(),
-                    formatCode = buffer.readShort(),
+                    formatCode = PgFormatCode.fromShort(buffer.readShort()),
                 )
             }
         return PgMessage.RowDescription(descriptions)

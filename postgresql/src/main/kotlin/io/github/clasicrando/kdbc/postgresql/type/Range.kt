@@ -3,8 +3,10 @@ package io.github.clasicrando.kdbc.postgresql.type
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
+import kotlinx.io.Sink
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -12,7 +14,6 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
-import kotlinx.io.Sink
 
 private const val ZERO_RANGE_FLAGS = 0x00
 
@@ -51,8 +52,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
      * [PgRange.upper] if either value is not [Bound.Unbounded]. Range flags as bitmask [Int] values
      * from for if the upper/lower bounds are inclusive or infinite (i.e. unbounded).
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L177)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L177)
      */
     final override fun encode(value: PgRange<T>, buffer: Sink) {
         var flags = ZERO_RANGE_FLAGS
@@ -109,8 +109,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
      *    [UPPER_BOUND_INCLUSIVE_RANGE_FLAG_MARK]. If yes, then the upper bound is [Bound.Included].
      *    Otherwise, the upper bound is [Bound.Excluded].
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L261)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L261)
      */
     final override fun decodeBytes(value: PgValue.Binary): PgRange<T> {
         var start: Bound<T> = Bound.Unbounded()
@@ -127,7 +126,11 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
             val lowerBoundPgValue =
                 PgValue.Binary(
                     bytes = value.bytes.slice(lowerBoundValueLength),
-                    typeData = PgColumnDescription.dummyDescription(typeDescription.dbType, 1),
+                    typeData =
+                        PgColumnDescription.dummyDescription(
+                            typeDescription.dbType,
+                            PgFormatCode.Binary,
+                        ),
                 )
 
             val lowerBoundValue = typeDescription.decodeBytes(lowerBoundPgValue)
@@ -144,7 +147,11 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
             val upperBoundPgValue =
                 PgValue.Binary(
                     bytes = value.bytes.slice(upperBoundValueLength),
-                    typeData = PgColumnDescription.dummyDescription(typeDescription.dbType, 1),
+                    typeData =
+                        PgColumnDescription.dummyDescription(
+                            typeDescription.dbType,
+                            PgFormatCode.Binary,
+                        ),
                 )
 
             val upperBoundValue = typeDescription.decodeBytes(upperBoundPgValue)
@@ -176,8 +183,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
      * [Bound.Unbounded]. After the 2 bounds have been decoded, combine into a new [PgRange]
      * instance.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L137)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L137)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the number of bounds in
      *   the range literal is > 2 or the inner [typeDescription] throws an error
@@ -263,7 +269,7 @@ public typealias DateRange = PgRange<LocalDate>
 internal object DateRangeTypeDescription :
     BaseRangeTypeDescription<LocalDate>(
         pgType = PgType.DateRange,
-        typeDescription = JLocalDateTypeDescription,
+        typeDescription = LocalDateTypeDescription,
     )
 
 public typealias NumRange = PgRange<BigDecimal>

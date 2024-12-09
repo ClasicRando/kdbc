@@ -1,17 +1,16 @@
 package io.github.clasicrando.kdbc.postgresql.copy
 
-private const val ONE = 1.toByte()
-private const val ZERO = 0.toByte()
+import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 
 /**
  * Postgresql copy format types. Currently only Text & CSV format are supported since binary
  * formatting is quite a bit harder and more volatile to change. The text based formats are still
  * very fast so needing the binary format is not likely.
  */
-public enum class CopyFormat(public val formatCode: Byte) {
-    Text(ZERO),
-    CSV(ZERO),
-    Binary(ONE);
+public enum class CopyFormat(public val formatCode: PgFormatCode) {
+    Text(PgFormatCode.Text),
+    CSV(PgFormatCode.Text),
+    Binary(PgFormatCode.Binary);
 
     override fun toString(): String {
         return when (this) {
@@ -28,8 +27,8 @@ public enum class CopyFormat(public val formatCode: Byte) {
 
         fun fromByte(byte: Byte): CopyFormat {
             return when (byte) {
-                ZERO -> Text
-                ONE -> Binary
+                0.toByte() -> Text
+                0.toByte() -> Binary
                 else -> error("Invalid copy format byte, must be 0 or 1")
             }
         }

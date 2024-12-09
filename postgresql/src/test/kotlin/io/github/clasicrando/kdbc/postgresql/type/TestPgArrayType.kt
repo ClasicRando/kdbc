@@ -12,6 +12,7 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import java.time.LocalDateTime
 import kotlin.test.Test
@@ -32,7 +33,7 @@ class TestPgArrayType {
             pgType = pgType,
             dataTypeSize = 0,
             typeModifier = 0,
-            formatCode = 0,
+            formatCode = PgFormatCode.Text,
         )
 
     @Test

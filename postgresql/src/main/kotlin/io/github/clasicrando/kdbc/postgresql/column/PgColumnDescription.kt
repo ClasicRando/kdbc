@@ -24,14 +24,18 @@ public data class PgColumnDescription(
      * -1 when the type does not need `atttypmod`.
      */
     val typeModifier: Int,
-    /** Format code of the field. Currently, this value will be either 0 (text) or 1 (binary). */
-    val formatCode: Short,
+    /** Format code of the field */
+    val formatCode: PgFormatCode,
 ) : ColumnMetadata {
     override val dataType: Int = pgType.oid
     override val typeName: String = fieldName
 
+    public fun withBinary(): PgColumnDescription {
+        return copy(formatCode = PgFormatCode.Binary)
+    }
+
     public companion object {
-        public fun dummyDescription(pgType: PgType, formatCode: Short): PgColumnDescription {
+        public fun dummyDescription(pgType: PgType, formatCode: PgFormatCode): PgColumnDescription {
             return PgColumnDescription(
                 fieldName = "",
                 tableOid = 0,

@@ -5,6 +5,7 @@ import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.ensureNonNull
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgType
@@ -83,13 +84,9 @@ internal class PgDataRow(
                         return@Array null
                     }
                     val columnType = columnMapping[it]
-                    when (val formatCode = columnType.formatCode) {
-                        0.toShort() -> PgValue.Text(buffer.slice(length), columnType)
-                        1.toShort() -> PgValue.Binary(buffer.slice(length), columnType)
-                        else ->
-                            throw PgException(
-                                "Invalid format code from row description. Got $formatCode"
-                            )
+                    when (columnType.formatCode) {
+                        PgFormatCode.Text -> PgValue.Text(buffer.slice(length), columnType)
+                        PgFormatCode.Binary -> PgValue.Binary(buffer.slice(length), columnType)
                     }
                 }
 

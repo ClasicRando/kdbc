@@ -26,9 +26,8 @@ internal object MacAddressTypeDescription :
      * in which case the [PgMacAddress.d] and [PgMacAddress.e] are not written since they are
      * placeholder values.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L140)
-     * [pg source code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac8.c#L253)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L140)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac8.c#L253)
      */
     override fun encode(value: PgMacAddress, buffer: Sink) {
         buffer.writeByte(value.a)
@@ -48,8 +47,7 @@ internal object MacAddressTypeDescription :
      * the buffer has 6 bytes then the 4th and 5th bytes that are required for a [PgMacAddress] are
      * filled in as 0xFF and 0xFE (follows the postgresql internal behaviour).
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L161)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L161)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the number of available
      *   bytes are not 6 or 8
@@ -77,14 +75,13 @@ internal object MacAddressTypeDescription :
     /**
      * Parse the provided [String] value using [PgMacAddress.fromString]
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L121)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L121)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the string is not
      *   formatted as expected
      */
-    override fun decodeText(value: PgValue.Text): PgMacAddress =
-        try {
+    override fun decodeText(value: PgValue.Text): PgMacAddress {
+        return try {
             PgMacAddress.fromString(value.text)
         } catch (ex: Exception) {
             columnDecodeError<PgMacAddress>(
@@ -93,4 +90,5 @@ internal object MacAddressTypeDescription :
                 cause = ex,
             )
         }
+    }
 }

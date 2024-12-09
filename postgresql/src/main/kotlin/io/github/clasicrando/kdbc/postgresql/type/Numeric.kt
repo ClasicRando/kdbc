@@ -24,11 +24,14 @@ internal object BigDecimalTypeDescription :
      * First decode the bytes using [PgNumeric.fromBytes] to get a [PgNumeric] which can be
      * converted to a [BigDecimal] using [PgNumeric.toBigDecimal].
      */
-    override fun decodeBytes(value: PgValue.Binary): BigDecimal =
-        PgNumeric.fromBytes(value.bytes).toBigDecimal()
+    override fun decodeBytes(value: PgValue.Binary): BigDecimal {
+        return PgNumeric.fromBytes(value.bytes).toBigDecimal()
+    }
 
     /**
      * When supplied in text format, a [BigDecimal] can be constructed directly from the [String].
      */
-    override fun decodeText(value: PgValue.Text): BigDecimal = BigDecimal(value.text)
+    override fun decodeText(value: PgValue.Text): BigDecimal {
+        return BigDecimal(value.text)
+    }
 }

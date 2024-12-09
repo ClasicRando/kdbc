@@ -41,11 +41,7 @@ private suspend fun Query.fetchFirstRow(connection: Connection): DataRow? {
     var first: DataRow? = null
     connection.executeQuery(this).collect { value ->
         when (value) {
-            is Either.Right -> {
-                if (first == null) {
-                    first = value.inner
-                }
-            }
+            is Either.Right if first == null -> first = value.inner
             else -> {}
         }
     }

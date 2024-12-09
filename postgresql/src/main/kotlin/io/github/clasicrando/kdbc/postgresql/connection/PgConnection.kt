@@ -24,10 +24,12 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
+import io.github.clasicrando.kdbc.core.splitQuery
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
 import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.copy.CopyHeader
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
@@ -54,6 +56,13 @@ import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
@@ -69,13 +78,6 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -313,31 +315,6 @@ internal constructor(
         }
     }
 
-    private fun splitQuery(query: String): List<String> = buildList {
-        val builder = StringBuilder()
-        var inQuote = false
-        val iter = query.iterator()
-        while (iter.hasNext()) {
-            when (val char = iter.nextChar()) {
-                '\'' -> {
-                    inQuote = !inQuote
-                    builder.append(char)
-                }
-                ';' ->
-                    if (inQuote) {
-                        builder.append(char)
-                    } else {
-                        add(builder.toString())
-                        builder.clear()
-                    }
-                else -> builder.append(char)
-            }
-        }
-        if (builder.isNotEmpty()) {
-            add(builder.toString())
-        }
-    }
-
     /** Create a [PgPreparedStatement] using the [query] and [parameterTypes] */
     private suspend fun executeStatementPrepare(
         query: String,
@@ -363,7 +340,7 @@ internal constructor(
                 }
                 is PgMessage.ParseComplete -> Loop.Continue
                 is PgMessage.RowDescription -> {
-                    statement.resultMetadata = message.fields.map { it.copy(formatCode = 1) }
+                    statement.resultMetadata = message.fields.map(PgColumnDescription::withBinary)
                     Loop.Continue
                 }
                 is PgMessage.ParameterDescription -> Loop.Continue
@@ -1244,7 +1221,7 @@ internal constructor(
                     pgType = PgType.fromOid(row.getAsNonNull("atttypid")),
                     dataTypeSize = row.getAsNonNull("attlen"),
                     typeModifier = row.getAsNonNull("atttypmod"),
-                    formatCode = 0,
+                    formatCode = PgFormatCode.Text,
                 )
         }
 

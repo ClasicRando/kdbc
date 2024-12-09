@@ -1,13 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
-import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.type.Json
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlin.reflect.typeOf
 import kotlinx.io.Sink
 import kotlinx.io.writeString
-import kotlinx.serialization.SerializationException
+import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [Json] type */
 internal object JsonTypeDescription :
@@ -21,8 +19,7 @@ internal object JsonTypeDescription :
      * the buffer. This assumes that it is always writing a jsonb type because postgres databases
      * appear to always call `jsonb_recv` when the format type is binary.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonb.c#L93)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonb.c#L93)
      */
     override fun encode(value: Json, buffer: Sink) {
         buffer.writeByte(1)
@@ -30,20 +27,12 @@ internal object JsonTypeDescription :
     }
 
     /**
-     * Create a new [Json] by reading the binary data as a [String] then parsing to a
-     * [kotlinx.serialization.json.JsonElement]. If the value is a `jsonb` then read the first byte
-     * to the get the jsonb version. Currently, the only accepted value is 1 and all other values
-     * will throw a [io.github.clasicrando.kdbc.core.column.ColumnDecodeError]. If the value is
-     * `json` then no header values are expected. After processing the possible header [Byte], the
-     * remaining bytes in the buffer are passed to a new [Json] instance.
+     * Create a new [Json] by reading the binary data and create a new [Json.Bytes] instance.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L136)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L136)
      *
-     * @throws SerializationException if the bytes are not valid JSON
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the JSONB format is not
-     *   version = 1 or the binary data cannot be decoded as a
-     *   [kotlinx.serialization.json.JsonElement]
+     *   version = 1
      */
     override fun decodeBytes(value: PgValue.Binary): Json {
         if (value.typeData.pgType.oid == PgType.JSONB) {
@@ -57,23 +46,73 @@ internal object JsonTypeDescription :
     }
 
     /**
-     * Attempt to parse the [String] value into a new [Json].
+     * Create a new [Json] by passing the text value into a new [Json.Text] instance.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L124)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/json.c#L124)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the header value
      */
-    override fun decodeText(value: PgValue.Text): Json =
-        try {
-            Json.Text(value.text)
-        } catch (ex: SerializationException) {
-            columnDecodeError<Json>(
-                type = value.typeData,
-                reason = "Could not parse the '${value.text}' into a json value",
-                cause = ex,
-            )
-        }
+    override fun decodeText(value: PgValue.Text): Json {
+        return Json.Text(value.text)
+    }
+}
+
+/** Implementation of a [PgTypeDescription] for the [Json.Bytes] type */
+internal object JsonBytesTypeDescription :
+    PgTypeDescription<Json.Bytes>(dbType = PgType.Jsonb, kType = typeOf<Json.Bytes>()) {
+    override fun isCompatible(dbType: PgType): Boolean {
+        return JsonTypeDescription.isCompatible(dbType)
+    }
+
+    /**
+     * Defers to [JsonTypeDescription.encode]
+     */
+    override fun encode(value: Json.Bytes, buffer: Sink) {
+        JsonTypeDescription.encode(value, buffer)
+    }
+
+    /**
+     * Defers to [JsonTypeDescription.decodeBytes]
+     */
+    override fun decodeBytes(value: PgValue.Binary): Json.Bytes {
+        return JsonTypeDescription.decodeBytes(value).asJson()
+    }
+
+    /**
+     * Defers to [JsonTypeDescription.decodeText]
+     */
+    override fun decodeText(value: PgValue.Text): Json.Bytes {
+        return JsonTypeDescription.decodeText(value).asJson()
+    }
+}
+
+/** Implementation of a [PgTypeDescription] for the [Json.Bytes] type */
+internal object JsonTextTypeDescription :
+    PgTypeDescription<Json.Text>(dbType = JsonTypeDescription.dbType, kType = typeOf<Json.Text>()) {
+    override fun isCompatible(dbType: PgType): Boolean {
+        return JsonTypeDescription.isCompatible(dbType)
+    }
+
+    /**
+     * Defers to [JsonTypeDescription.encode]
+     */
+    override fun encode(value: Json.Text, buffer: Sink) {
+        JsonTypeDescription.encode(value, buffer)
+    }
+
+    /**
+     * Defers to [JsonTypeDescription.decodeBytes]
+     */
+    override fun decodeBytes(value: PgValue.Binary): Json.Text {
+        return JsonTypeDescription.decodeBytes(value).asJson()
+    }
+
+    /**
+     * Defers to [JsonTypeDescription.decodeText]
+     */
+    override fun decodeText(value: PgValue.Text): Json.Text {
+        return JsonTypeDescription.decodeText(value).asJson()
+    }
 }
 
 /**
@@ -85,8 +124,7 @@ internal object JsonPathTypeDescription :
     /**
      * Writes the jsonpath version number (always 1) followed by the path as UTF8 text
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L113)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L113)
      */
     override fun encode(value: PgJsonPath, buffer: Sink) {
         buffer.writeByte(1)
@@ -97,8 +135,7 @@ internal object JsonPathTypeDescription :
      * Read the jsonpath version (verifying that it is 1) then read the remaining text as the
      * jsonpath value.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L145)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L145)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the jsonpath format is
      *   not version = 1
@@ -115,8 +152,9 @@ internal object JsonPathTypeDescription :
     /**
      * Simply return the text value
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L132)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L132)
      */
-    override fun decodeText(value: PgValue.Text): PgJsonPath = PgJsonPath(value.text)
+    override fun decodeText(value: PgValue.Text): PgJsonPath {
+        return PgJsonPath(value.text)
+    }
 }
