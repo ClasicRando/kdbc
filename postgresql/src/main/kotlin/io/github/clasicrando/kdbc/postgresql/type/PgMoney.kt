@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import com.ionspin.kotlin.bignum.decimal.BigDecimal
-import io.github.clasicrando.kdbc.core.traditionalScale
+import java.math.BigDecimal
 import kotlin.math.absoluteValue
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -20,10 +19,10 @@ import kotlinx.serialization.encoding.Encoder
 @Serializable(with = PgMoney.Companion::class)
 public class PgMoney internal constructor(internal val integer: Long) {
     /**
-     * Create a new [PgMoney] by passing the [double] to [BigDecimal.fromDouble] and constructing
-     * the [Long] value needed from that [BigDecimal].
+     * Create a new [PgMoney] by passing the [double] to [BigDecimal.valueOf] and constructing the
+     * [Long] value needed from that [BigDecimal].
      */
-    public constructor(double: Double) : this(BigDecimal.fromDouble(double))
+    public constructor(double: Double) : this(BigDecimal.valueOf(double))
 
     /**
      * Create a new [PgMoney] by converting the [decimal] value to a 2 scale [BigDecimal],
@@ -35,10 +34,10 @@ public class PgMoney internal constructor(internal val integer: Long) {
     public constructor(
         decimal: BigDecimal
     ) : this(
-        when (decimal.traditionalScale) {
-            0L -> (decimal.significand * 100).longValue()
-            1L -> (decimal.significand * 10).longValue()
-            2L -> decimal.significand.longValue()
+        when (decimal.scale()) {
+            0,
+            1,
+            2 -> decimal.multiply(ONE_HUNDRED).longValueExact()
             else ->
                 error(
                     "Money values cannot be constructed from decimal values with more than 2 " +
@@ -95,6 +94,7 @@ public class PgMoney internal constructor(internal val integer: Long) {
     override fun toString(): String = strRep
 
     public companion object : KSerializer<PgMoney> {
+        private val ONE_HUNDRED = BigDecimal("100")
         private val MONEY_REGEX = Regex("^-?\\$?\\d+(.\\d{1,2})?$")
 
         override val descriptor: SerialDescriptor =
@@ -123,8 +123,8 @@ public class PgMoney internal constructor(internal val integer: Long) {
                 """
                     .trimIndent()
             }
-            val long = BigDecimal.parseString(strMoney.replace("$", ""))
-            return PgMoney(long)
+            val decimal = BigDecimal(strMoney.replace("$", ""))
+            return PgMoney(decimal)
         }
     }
 }

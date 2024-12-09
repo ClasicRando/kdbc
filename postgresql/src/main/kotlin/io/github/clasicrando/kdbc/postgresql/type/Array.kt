@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
+import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
 import kotlin.reflect.KTypeProjection
@@ -18,7 +19,7 @@ private val dummyFieldDescription =
         dataTypeSize = 0,
         pgType = PgType.Unknown,
         typeModifier = 0,
-        formatCode = 1,
+        formatCode = PgFormatCode.Binary,
     )
 
 internal fun <T : Any> createArrayDescriptions(
@@ -128,7 +129,7 @@ internal abstract class ArrayTypeDescription<T : Any>(
                 dataTypeSize = 0,
                 pgType = PgType.fromOid(elementTypeOid),
                 typeModifier = 0,
-                formatCode = 1,
+                formatCode = PgFormatCode.Binary,
             )
         return List(length) {
             // Read length value but don't use it since a ReadBufferSlice cannot be constructed

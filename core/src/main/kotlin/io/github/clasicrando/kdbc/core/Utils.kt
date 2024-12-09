@@ -1,19 +1,15 @@
 package io.github.clasicrando.kdbc.core
 
-import com.ionspin.kotlin.bignum.decimal.BigDecimal
-import com.ionspin.kotlin.bignum.integer.BigInteger
-import com.ionspin.kotlin.bignum.integer.Sign
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
-import java.io.InputStream
-import kotlin.reflect.KType
-import kotlin.reflect.full.withNullability
-import kotlin.time.Duration
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.io.Source
+import kotlin.reflect.KType
+import kotlin.reflect.full.withNullability
+import kotlin.time.Duration
 
 public const val ZERO_BYTE: Byte = 0
 
@@ -139,81 +135,6 @@ public fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteAr
 }
 
 /**
- * Chunk an [InputStream] into many [ByteArray]s with at most [size] bytes in each array. The final
- * array might have less than [size] if the total number of bytes is not equally divisible by
- * [size].
- */
-public fun InputStream.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteArray> {
-    return generateSequence {
-        val bytes = ByteArray(size)
-        when (val bytesRead = this.read(bytes)) {
-            -1,
-            0 -> null
-            bytes.size -> bytes
-            else -> bytes.copyOfRange(fromIndex = 0, toIndex = bytesRead)
-        }
-    }
-}
-
-/**
- * Get the traditional scale of the [BigDecimal] by taking the number of digits after the decimal
- * place (in the simplified representation of the [BigDecimal]) and subtracting the
- * [BigDecimal.exponent] value.
- *
- * For example, if your [BigDecimal] is "25345.5265" then the simplified representation will be
- * "2.53455265E+4" so your number of digits after the decimal place are 8 and your exponent is 4
- * which calculates the traditional scale as 4 (i.e. the number of digits after the true decimal
- * place).
- */
-public inline val BigDecimal.traditionalScale: Long
-    get() = significand.numberOfDecimalDigits() - 1 - exponent
-
-/**
- * Construct a new [BigDecimal] from this [BigInteger] by calculating the expected simplified
- * representation exponent as the number of digits after the simplified representations decimal
- * place minus the specified traditional [scale].
- *
- * For example, if your [BigInteger] is "253455265" and your scale is 4, then the common
- * representation is "25345.5265" which means the simplified representation is "2.53455265E+4". This
- * is calculated because the number of digits after the eventual simplified representation is 8 and
- * the [scale] is 4 so the effective exponent in the simplified representation is 4.
- */
-public fun BigInteger.toBigDecimalWithTraditionalScale(scale: Short): BigDecimal {
-    return BigDecimal.fromBigIntegerWithExponent(
-        bigInteger = this,
-        exponent = this.numberOfDecimalDigits() - 1 - scale,
-    )
-}
-
-/**
- * Utility method to convert a [java.math.BigInteger] to a BigNum [BigInteger].
- *
- * Uses the [java.math.BigInteger.toByteArray] method to get the raw data of the integer value and
- * use that along with the [java.math.BigInteger.signum] value to construct a [BigInteger].
- */
-public fun java.math.BigInteger.toBigNum(): BigInteger {
-    return BigInteger.fromByteArray(
-        this.toByteArray(),
-        when (val sigNum = this.signum()) {
-            -1 -> Sign.NEGATIVE
-            0 -> Sign.ZERO
-            1 -> Sign.POSITIVE
-            else -> error("Unexpected BigInteger.signum(). Expected -1..1, found $sigNum")
-        },
-    )
-}
-
-/**
- * Utility method to convert a [java.math.BigDecimal] to a BigNum [BigDecimal].
- *
- * Uses [toBigNum] to convert the unscaled version of this decimal value to a [BigInteger], the uses
- * the scale to call [toBigDecimalWithTraditionalScale].
- */
-public fun java.math.BigDecimal.toBigNum(): BigDecimal {
-    return this.unscaledValue().toBigNum().toBigDecimalWithTraditionalScale(this.scale().toShort())
-}
-
-/**
  * Utility method to replace all whitespace 1 or more times with a single space.
  *
  * Equivalent to
@@ -252,13 +173,11 @@ public fun splitQuery(query: String): List<String> = buildList {
                 inQuote = !inQuote
                 builder.append(char)
             }
-            ';' ->
-                if (inQuote) {
-                    builder.append(char)
-                } else {
-                    add(builder.toString())
-                    builder.clear()
-                }
+            ';' if inQuote -> builder.append(char)
+            ';' -> {
+                add(builder.toString())
+                builder.clear()
+            }
             else -> builder.append(char)
         }
     }
@@ -292,4 +211,55 @@ public fun validateInt(value: Long): Int {
         )
     }
     return value.toInt()
+}
+
+private val nullStringBuilder = StringBuilder("\\N")
+
+private fun StringBuilder.buildOrNull(): String? {
+    if (this.compareTo(nullStringBuilder) == 0) {
+        return null
+    }
+    return this.toString()
+}
+
+/**
+ * Accepts a CSV row as [bytes] and the [expectedColumnCount] to parse the rows as an [Array] of
+ * nullable [String]s. In this context, null is a '\N' string and the newline character is always
+ * '\n'.
+ */
+public fun parseBytesAsCsvRow(bytes: ByteArray, expectedColumnCount: Int): Array<String?> {
+    val output = arrayOfNulls<String?>(expectedColumnCount)
+    val row = bytes.toString(charset = Charsets.UTF_8)
+    val charIter = row.iterator()
+
+    var index = 0
+    var lastChar = '\u0000'
+    val builder = StringBuilder()
+    var inQuote = false
+    while (charIter.hasNext()) {
+        val currentChar = charIter.next()
+        when (currentChar) {
+            ',' if inQuote -> builder.append(currentChar)
+            ',' -> {
+                inQuote = false
+                output[index++] = builder.buildOrNull()
+                builder.clear()
+            }
+            '"' if lastChar == ',' -> inQuote = true
+            '"' if lastChar == '"' -> {
+                builder.append(currentChar)
+                inQuote = true
+            }
+            '"' -> error("Found unescaped qualifier in row: $row")
+            '\n' if inQuote -> builder.append(currentChar)
+            '\n' -> {
+                inQuote = false
+                output[index++] = builder.buildOrNull()
+                break
+            }
+            else -> builder.append(currentChar)
+        }
+        lastChar = currentChar
+    }
+    return output
 }

@@ -30,36 +30,24 @@ public abstract class PgTypeDescription<T : Any>(
     }
 
     final override fun decode(value: PgValue): T {
-        return when (value) {
-            is PgValue.Binary -> {
-                try {
-                    decodeBytes(value)
-                } catch (ex: ColumnDecodeError) {
-                    throw ex
-                } catch (ex: Exception) {
-                    columnDecodeError(
-                        kType = kType,
-                        type = value.typeData,
-                        reason = "Failed to decode bytes for unexpected reason",
-                        cause = ex,
-                    )
-                } finally {
-                    value.bytes.reset()
-                }
+        return try {
+            when (value) {
+                is PgValue.Binary -> decodeBytes(value)
+                is PgValue.Text -> decodeText(value)
             }
-            is PgValue.Text ->
-                try {
-                    decodeText(value)
-                } catch (ex: ColumnDecodeError) {
-                    throw ex
-                } catch (ex: Exception) {
-                    columnDecodeError(
-                        kType = kType,
-                        type = value.typeData,
-                        reason = "Failed to decode bytes for unexpected reason",
-                        cause = ex,
-                    )
-                }
+        } catch (ex: ColumnDecodeError) {
+            throw ex
+        } catch (ex: Exception) {
+            columnDecodeError(
+                kType = kType,
+                type = value.typeData,
+                reason = "Failed to decode value for unexpected reason",
+                cause = ex,
+            )
+        } finally {
+            if (value is PgValue.Binary) {
+                value.bytes.reset()
+            }
         }
     }
 }

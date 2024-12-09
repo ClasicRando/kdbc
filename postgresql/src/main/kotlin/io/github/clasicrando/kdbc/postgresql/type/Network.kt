@@ -5,6 +5,7 @@ import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import java.net.Inet6Address
 import kotlin.reflect.typeOf
 import kotlinx.io.Sink
+import java.net.UnknownHostException
 
 private const val PGSQL_AF_INET: Byte = 2
 private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()
@@ -25,8 +26,7 @@ internal object NetworkAddressTypeDescription :
      * 4. [Byte] - The number of following bytes (IPV4 = 4, IPV6 = 16)
      * 5. [ByteArray] - bytes that represent the address
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L250)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L250)
      *
      * @throws IllegalStateException if the address does not contain the right number of bytes
      */
@@ -70,8 +70,7 @@ internal object NetworkAddressTypeDescription :
      * IPV6 addresses the number of bytes in the address array and length must be 16. With the
      * address array and prefix, the appropriate [PgInet] instance is created.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L292)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L292)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the binary value cannot
      *   be used to construct a [PgInet]
@@ -99,20 +98,20 @@ internal object NetworkAddressTypeDescription :
     /**
      * Attempt to parse the [String] into a [PgInet] using the [PgInet.parse] method.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L165)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/network.c#L165)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text value cannot be
      *   parsed into a [PgInet]
      */
-    override fun decodeText(value: PgValue.Text): PgInet =
-        try {
+    override fun decodeText(value: PgValue.Text): PgInet {
+        return try {
             PgInet.parse(value.text)
-        } catch (ex: Exception) {
+        } catch (ex: UnknownHostException) {
             columnDecodeError<PgInet>(
                 type = value.typeData,
                 reason = "Cannot parse a PgInet from '${value.text}'",
                 cause = ex,
             )
         }
+    }
 }

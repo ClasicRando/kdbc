@@ -4,7 +4,6 @@ import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.config.Kdbc
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.SizedMessage
 import io.github.clasicrando.kdbc.core.stream.ExitOfProcessingLoop
@@ -17,6 +16,7 @@ import io.github.clasicrando.kdbc.postgresql.authentication.saslAuthFlow
 import io.github.clasicrando.kdbc.postgresql.authentication.simplePasswordAuthFlow
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.message.decoders.PgMessageDecoders
 import io.github.clasicrando.kdbc.postgresql.message.encoders.PgMessageEncoders
@@ -306,7 +306,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
                 )
             }
             is Authentication.Sasl -> this.saslAuthFlow(auth)
-            else -> throw KdbcException("Auth request type cannot be handled. $auth")
+            else -> throw PgAuthenticationError("Auth request type cannot be handled. $auth")
         }
     }
 
@@ -317,9 +317,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
             'N'.code.toByte() -> false
             else -> {
                 val responseChar = response.toInt().toChar()
-                throw KdbcException(
-                    "Invalid response byte after SSL request. Byte = '$responseChar'"
-                )
+                throw PgException("Invalid response byte after SSL request. Byte = '$responseChar'")
             }
         }
     }

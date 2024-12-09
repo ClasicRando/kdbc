@@ -1,11 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
+import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
-import kotlinx.datetime.DateTimePeriod
-import kotlinx.io.Sink
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 private const val MINUTES_PER_HOUR = 60L
 private const val SECONDS_PER_MINUTE = 60L
@@ -16,63 +17,22 @@ private const val MICROSECONDS_PER_MINUTE = SECONDS_PER_MINUTE * MICROSECONDS_PE
 private const val MICROSECONDS_PER_HOUR = MINUTES_PER_HOUR * MICROSECONDS_PER_MINUTE
 
 /**
- * Extract the number of whole microseconds from this [DateTimePeriod] rounding down for fractional
- * nanoseconds present.
- */
-private fun DateTimePeriod.inWholeMicroSeconds(): Long =
-    this.hours * MICROSECONDS_PER_HOUR +
-        this.minutes * MICROSECONDS_PER_MINUTE +
-        this.seconds * MICROSECONDS_PER_SECOND +
-        kotlin.math.floor(this.nanoseconds / NANOSECONDS_PER_MICROSECOND).toLong()
-
-internal object DateTimePeriodTypeDescription :
-    PgTypeDescription<DateTimePeriod>(dbType = PgType.Interval, kType = typeOf<DateTimePeriod>()) {
-    /**
-     * Writes 3 values of the [DateTimePeriod] to represent the interval:
-     * 1. [Long] - whole micro seconds of the time portion
-     * 2. [Int] - number of days
-     * 3. [Int] - number of total months
-     *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L1007)
-     */
-    override fun encode(value: DateTimePeriod, buffer: Sink) {
-        buffer.writeLong(value.inWholeMicroSeconds())
-        buffer.writeInt(value.days)
-        buffer.writeInt(value.years * 12 + value.months)
-    }
-
-    /**
-     * Reads 3 values that represent the interval and pack them into a new [DateTimePeriod].
-     * 1. [Long] - whole micro seconds of the time portion
-     * 2. [Int] - number of days
-     * 3. [Int] - number of total months
-     *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L1032)
-     */
-    override fun decodeBytes(value: PgValue.Binary): DateTimePeriod {
-        val microSeconds = value.bytes.readLong()
-        val days = value.bytes.readInt()
-        val months = value.bytes.readInt()
-        return DateTimePeriod(months = months, days = days, nanoseconds = microSeconds * 1000)
-    }
-
-    /**
-     * Attempt to parse the [String] into a [DateTimePeriod]. The expected format is ISO-8601 (this
-     * is the interval format specified when connecting to the database).
-     *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L983)
-     */
-    override fun decodeText(value: PgValue.Text): DateTimePeriod = DateTimePeriod.parse(value.text)
-}
-
-/**
- * Custom postgres `interval` type for use instead of [DateTimePeriod]. Can be created from a
- * [Duration] but some precision loss and overflow can occur.
+ * Custom postgres `interval` type. Can be created from a [Duration] but some precision loss and
+ * overflow can occur.
  */
 public data class PgInterval(val months: Int, val days: Int, val microseconds: Long)
+
+/**
+ * Convert a [PgInterval] to a [Duration]
+ *
+ * @throws IllegalStateException if the months property is > 0 since [Duration] does not natively
+ *   support months
+ */
+public fun PgInterval.toDuration(): Duration {
+    check(months > 0) { "Duration does not support months as part of the duration" }
+    return this.days.toDuration(DurationUnit.DAYS) +
+        this.microseconds.toDuration(DurationUnit.MICROSECONDS)
+}
 
 /**
  * Convert the duration to a postgres `interval`. Some precision is loss during the conversion if
@@ -80,8 +40,8 @@ public data class PgInterval(val months: Int, val days: Int, val microseconds: L
  *
  * @throws IllegalStateException if the number of days exceeds [Int.MAX_VALUE]
  */
-public fun Duration.toPgInterval(): PgInterval =
-    this.toComponents { days, hours, minutes, seconds, nanoseconds ->
+public fun Duration.toPgInterval(): PgInterval {
+    return this.toComponents { days, hours, minutes, seconds, nanoseconds ->
         check(days <= Int.MAX_VALUE) { "Number of days cannot exceed ${Int.MAX_VALUE}" }
         PgInterval(
             months = 0,
@@ -93,11 +53,12 @@ public fun Duration.toPgInterval(): PgInterval =
                     kotlin.math.floor(nanoseconds / NANOSECONDS_PER_MICROSECOND).toLong(),
         )
     }
+}
 
 internal object PgIntervalTypeDescription :
     PgTypeDescription<PgInterval>(dbType = PgType.Interval, kType = typeOf<PgInterval>()) {
     /**
-     * Writes 3 values of the [DateTimePeriod] to represent the interval:
+     * Writes 3 values of the [PgInterval] to represent the interval:
      * 1. [Long] - whole micro seconds of the time portion
      * 2. [Int] - number of days
      * 3. [Int] - number of total months
@@ -112,7 +73,7 @@ internal object PgIntervalTypeDescription :
     }
 
     /**
-     * Reads 3 values that represent the interval and pack them into a new [DateTimePeriod].
+     * Reads 3 values that represent the interval and pack them into a new [PgInterval].
      * 1. [Long] - whole micro seconds of the time portion
      * 2. [Int] - number of days
      * 3. [Int] - number of total months
@@ -128,8 +89,8 @@ internal object PgIntervalTypeDescription :
     }
 
     /**
-     * Attempt to parse the [String] into a [DateTimePeriod]. The expected format is ISO-8601 (this
-     * is the interval format specified when connecting to the database).
+     * Attempt to parse the [String] into a [PgInterval]. The expected format is ISO-8601 (this is
+     * the interval format specified when connecting to the database).
      *
      * [pg source
      * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L983)
@@ -158,16 +119,15 @@ internal object PgIntervalTypeDescription :
                     currentNumber = 0
                     scale = 1
                 }
+                'M' if afterT -> {
+                    minute = currentNumber * scale
+                    currentNumber = 0
+                    scale = 1
+                }
                 'M' -> {
-                    if (afterT) {
-                        minute = currentNumber * scale
-                        currentNumber = 0
-                        scale = 1
-                    } else {
-                        month = currentNumber * scale
-                        currentNumber = 0
-                        scale = 1
-                    }
+                    month = currentNumber * scale
+                    currentNumber = 0
+                    scale = 1
                 }
                 'W' -> {
                     week = currentNumber * scale
@@ -199,7 +159,7 @@ internal object PgIntervalTypeDescription :
                     currentNumber = 0
                     break
                 }
-                else -> throw KdbcException("Unexpected character in interval: '$currentChar'")
+                else -> throw PgException("Unexpected character in interval: '$currentChar'")
             }
         }
 

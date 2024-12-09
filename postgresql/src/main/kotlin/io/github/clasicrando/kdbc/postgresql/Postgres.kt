@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql
 
 import io.github.clasicrando.kdbc.core.Database
+import io.github.clasicrando.kdbc.postgresql.Postgres.connection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.listen.PgListener

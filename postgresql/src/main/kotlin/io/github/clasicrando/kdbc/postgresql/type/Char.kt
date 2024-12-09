@@ -19,14 +19,14 @@ internal object CharTypeDescription :
     /**
      * Reads the first byte from the value buffer provided. If not bytes are remaining, returns 0
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/char.c#L105)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/char.c#L105)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text representation
      *   is too long
      */
-    override fun decodeBytes(value: PgValue.Binary): Byte =
-        if (value.bytes.remaining() > 0) value.bytes.readByte() else 0
+    override fun decodeBytes(value: PgValue.Binary): Byte {
+        return if (value.bytes.remaining() > 0) value.bytes.readByte() else 0
+    }
 
     /**
      * Converts the text into a [Byte] depending on the [String.length]:
@@ -36,14 +36,13 @@ internal object CharTypeDescription :
      * - when 0, return 0
      * - otherwise, thrown a [io.github.clasicrando.kdbc.core.column.ColumnDecodeError] is thrown
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/char.c#L64)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/char.c#L64)
      *
      * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the text representation
      *   is too long
      */
-    override fun decodeText(value: PgValue.Text): Byte =
-        when (value.text.length) {
+    override fun decodeText(value: PgValue.Text): Byte {
+        return when (value.text.length) {
             4 -> {
                 val first = value.text[1].code shl 6
                 val second = value.text[2].code shl 3
@@ -58,4 +57,5 @@ internal object CharTypeDescription :
                     reason = "Received invalid \"char\" text, '${value.text}'",
                 )
         }
+    }
 }

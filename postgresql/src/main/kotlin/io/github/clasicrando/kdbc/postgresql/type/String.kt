@@ -25,8 +25,12 @@ internal object VarcharTypeDescription :
     }
 
     /** Read the bytes as text using UFT8 encoding */
-    override fun decodeBytes(value: PgValue.Binary): String = value.bytes.readText()
+    override fun decodeBytes(value: PgValue.Binary): String {
+        return value.bytes.readText()
+    }
 
     /** Return the [PgValue.Text.text] value directly */
-    override fun decodeText(value: PgValue.Text): String = value.text
+    override fun decodeText(value: PgValue.Text): String {
+        return value.text
+    }
 }

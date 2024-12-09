@@ -14,7 +14,7 @@ public class ColumnDecodeError(
     cause: Throwable?,
 ) :
     KdbcException(
-        "Could not decode bytes into desired type. Actual Type: $typeName($dataType), " +
+        "Could not decode value into desired type. Actual Type: $typeName($dataType), " +
             "Column: '$columnName', " +
             "Desired Output: $decodeType" +
             if (reason.isNotBlank()) ", Reason: $reason" else "",

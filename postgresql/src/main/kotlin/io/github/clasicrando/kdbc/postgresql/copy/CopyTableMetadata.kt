@@ -62,7 +62,7 @@ internal data class CopyTableMetadata(
                     pgType = it.type,
                     dataTypeSize = it.columnLength,
                     typeModifier = 0,
-                    formatCode = copyFormat.formatCode.toShort(),
+                    formatCode = copyFormat.formatCode,
                 )
             }
         }

@@ -52,11 +52,9 @@ subprojects {
     val ktorVersion: String by project
     val kotlinVersion: String by project
     val serializationJsonVersion: String by project
-    val kotlinxDateTimeVersion: String by project
     val junitVersion: String by project
     val logbackVersion: String by project
     val mockkVersion: String by project
-    val bigNumVersion: String by project
 
     dependencies {
         implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
@@ -68,8 +66,6 @@ subprojects {
         implementation(kotlin("stdlib", version = kotlinVersion))
         implementation(kotlin("reflect", version = kotlinVersion))
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationJsonVersion")
-        implementation("org.jetbrains.kotlinx:kotlinx-datetime:$kotlinxDateTimeVersion")
-        implementation("com.ionspin.kotlin:bignum:$bigNumVersion")
 
         testImplementation(kotlin("test", version = kotlinVersion))
         testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")

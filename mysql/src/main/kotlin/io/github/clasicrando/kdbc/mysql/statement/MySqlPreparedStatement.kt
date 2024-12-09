@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.mysql.statement
 
 import io.github.clasicrando.kdbc.core.statement.PreparedStatement
 import io.github.clasicrando.kdbc.mysql.result.MySqlColumn
-import kotlinx.datetime.Instant
 
 /** MySQL implementation of a [PreparedStatement] */
 internal class MySqlPreparedStatement(
@@ -10,7 +9,4 @@ internal class MySqlPreparedStatement(
     override val statementId: Int,
     override val paramCount: Int,
     override val resultMetadata: List<MySqlColumn>,
-) : PreparedStatement {
-    override var prepared = true
-    override var lastExecuted: Instant? = null
-}
+) : PreparedStatement

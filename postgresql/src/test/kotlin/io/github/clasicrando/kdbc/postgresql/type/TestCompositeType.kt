@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.DEFAULT_KDBC_TEST_TIMEOUT
 import io.github.clasicrando.kdbc.core.annotations.Rename
-import io.github.clasicrando.kdbc.core.datetime.DateTime
 import io.github.clasicrando.kdbc.core.query.QueryParameter
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute
@@ -10,25 +9,27 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
+import io.github.clasicrando.kdbc.core.type.Json
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalTime
-import kotlinx.datetime.UtcOffset
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Timeout
 
 class TestCompositeType {
-    data class CompositeType(val id: Int, val text: String, val timestamp: DateTime)
+    data class CompositeType(val id: Int, val text: String, val timestamp: OffsetDateTime)
 
     data class CompositeTable(
         val id: Int,
         @Rename("record_order") val recordOrder: Int,
         @Rename("sub_id") val subId: Long,
-        @Rename("json_value") val jsonValue: PgJson?,
+        @Rename("json_value") val jsonValue: Json?,
     )
 
     data class CompositeDef(val id: Int, val text: String) {
@@ -169,10 +170,10 @@ class TestCompositeType {
                 id = 1,
                 text = "Composite Type",
                 timestamp =
-                    DateTime(
-                        date = LocalDate(2024, 2, 25),
-                        time = LocalTime(5, 25, 51),
-                        offset = UtcOffset(seconds = 0),
+                    OffsetDateTime.of(
+                        LocalDate.of(2024, 2, 25),
+                        LocalTime.of(5, 25, 51),
+                        ZoneOffset.ofTotalSeconds(0),
                     ),
             )
         private val table = CompositeTable(id = 1, recordOrder = 1, subId = 2930, jsonValue = null)

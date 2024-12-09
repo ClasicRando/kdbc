@@ -15,8 +15,7 @@ internal object ByteaTypeDescription :
     /**
      * Simply writes all bytes in the [ByteArray] to the buffer.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L471)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L471)
      */
     override fun encode(value: ByteArray, buffer: Sink) {
         buffer.write(value)
@@ -25,24 +24,25 @@ internal object ByteaTypeDescription :
     /**
      * Reads all available bytes in the value's buffer.
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L490)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L490)
      */
-    override fun decodeBytes(value: PgValue.Binary): ByteArray = value.bytes.readBytes()
+    override fun decodeBytes(value: PgValue.Binary): ByteArray {
+        return value.bytes.readBytes()
+    }
 
     /**
      * Decode the [String] as either a prefixed hex format value (using [decodeWithPrefix]) or an
      * escape format value (using [decodeWithoutPrefix]).
      *
-     * [pg source
-     * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L388)
+     * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L388)
      */
-    override fun decodeText(value: PgValue.Text): ByteArray =
-        if (value.text.startsWith(HEX_START)) {
+    override fun decodeText(value: PgValue.Text): ByteArray {
+        return if (value.text.startsWith(HEX_START)) {
             decodeWithPrefix(value.text)
         } else {
             decodeWithoutPrefix(value.text)
         }
+    }
 }
 
 /** Prefix for a hex format `bytea` value */

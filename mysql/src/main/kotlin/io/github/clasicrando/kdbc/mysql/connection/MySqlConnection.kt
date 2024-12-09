@@ -99,6 +99,18 @@ internal constructor(
         logWithResource(logger, level, block)
     }
 
+    override suspend fun isValid(): Boolean {
+        return mutex.withLock {
+            stream.sendPacket(MysqlMessage.Ping)
+            try {
+                stream.receiveOk()
+            } catch (_: MySqlException) {
+                return false
+            }
+            return true
+        }
+    }
+
     /**
      * Collect all result sets sent from the server as a [Flow] of [Either] a [QueryResult] or a
      * [DataRow]. The flow will always be terminated with a [QueryResult].
@@ -391,7 +403,7 @@ internal constructor(
         }
     }
 
-    private val lruCache =
+    private val preparedStatementCache =
         LruCache<String, MySqlPreparedStatement>(connectionOptions.statementCacheCapacity)
 
     /**
@@ -440,14 +452,19 @@ internal constructor(
         )
     }
 
-    /**  */
+    /**
+     * Check query cache for previously parsed statements of this [query]. If none are present then
+     * a new statement is prepared and returned. After preparing a new statement, the new statement
+     * is added to the cache and if any previously cached statement is ejected, that statement is
+     * closed.
+     */
     private suspend fun getOrPrepareStatement(query: String): MySqlPreparedStatement {
-        lruCache[query]?.let {
+        preparedStatementCache[query]?.let {
             return it
         }
 
         val statement = prepareStatement(query)
-        lruCache.insert(query, statement)?.let {
+        preparedStatementCache.insert(query, statement)?.let {
             stream.sendPacket(MysqlMessage.StatementClose(it.value.statementId))
         }
         return statement
@@ -513,7 +530,7 @@ internal constructor(
         } finally {
             stream.close()
         }
-        lruCache.clear()
+        preparedStatementCache.clear()
     }
 
     /**

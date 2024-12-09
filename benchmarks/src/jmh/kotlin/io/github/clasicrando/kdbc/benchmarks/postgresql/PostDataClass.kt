@@ -1,10 +1,12 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
+import java.time.LocalDateTime
+
 data class PostDataClass(
     val id: Int,
     val text: String,
-    val creationDate: java.time.LocalDateTime,
-    val lastChangeDate: java.time.LocalDateTime,
+    val creationDate: LocalDateTime,
+    val lastChangeDate: LocalDateTime,
     val counter1: Int?,
     val counter2: Int?,
     val counter3: Int?,

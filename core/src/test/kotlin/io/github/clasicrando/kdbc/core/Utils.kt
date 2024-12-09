@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.core
 
+import java.time.Instant
 import kotlin.random.Random
-import kotlinx.datetime.Clock
 
 val charPool: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
-val random = Random(Clock.System.now().epochSeconds)
+val random = Random(Instant.now().epochSecond)
 
 private fun <T> List<T>.randomItem(): T = this[random.nextInt(0, this.size)]
 

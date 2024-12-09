@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.core.splitAsCString
 import io.github.clasicrando.kdbc.postgresql.authentication.Authentication
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 
 /**
@@ -33,7 +33,7 @@ internal object AuthenticationMessageDecoder : PgMessageDecoder<PgMessage.Authen
                 }
                 11 -> Authentication.SaslContinue(buffer.readText())
                 12 -> Authentication.SaslFinal(saslData = buffer.readText())
-                else -> throw KdbcException("Unknown authentication method: $method")
+                else -> throw PgException("Unknown authentication method: $method")
             }
         return PgMessage.Authentication(auth)
     }
