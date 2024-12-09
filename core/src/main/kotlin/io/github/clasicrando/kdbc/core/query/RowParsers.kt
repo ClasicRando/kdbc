@@ -54,7 +54,7 @@ public object InstantRowParser : RowParser<Instant> {
 }
 
 /** Standard [RowParser] for rows with a single [LocalDateTime] field */
-public object JavaLocalDateTimeRowParser : RowParser<LocalDateTime> {
+public object LocalDateTimeRowParser : RowParser<LocalDateTime> {
     override fun fromRow(row: DataRow): LocalDateTime = row.getAsNonNull(0)
 }
 
