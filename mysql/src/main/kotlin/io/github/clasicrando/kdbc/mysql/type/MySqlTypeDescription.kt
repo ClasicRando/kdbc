@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.mysql.type
 
 import io.github.clasicrando.kdbc.core.column.ColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
+import io.github.clasicrando.kdbc.core.connection.IntBitFlags
 import io.github.clasicrando.kdbc.core.type.DbType
 import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
@@ -16,7 +17,7 @@ public abstract class MySqlTypeDescription<T : Any>(
     /** Kotlin type of [T] that is recognized by this type description */
     final override val kType: KType,
 ) : DbType<T, MySqlValue, MySqlType> {
-    public open val flags: ColumnFlags = ColumnFlags.BINARY
+    public open val flags: IntBitFlags = ColumnFlags.BINARY
 
     /** Decode the bytes provided into the type [T] */
     public abstract fun decodeBytes(value: MySqlValue.Binary): T

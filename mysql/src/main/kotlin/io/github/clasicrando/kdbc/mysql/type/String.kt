@@ -7,10 +7,10 @@ import io.github.clasicrando.kdbc.core.type.Json
 import io.github.clasicrando.kdbc.mysql.buffer.writeLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.writeStringLengthEncoded
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
+import kotlinx.io.Sink
 import java.math.BigDecimal
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
 
 /**
  * Implementation of a [MySqlTypeDescription] for the [String] type. Accepts BLOB, VARCHAR,

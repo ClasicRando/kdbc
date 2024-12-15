@@ -1,14 +1,14 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.IntBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
-import io.github.clasicrando.kdbc.mysql.message.Status
 
 /**
  * [MessageDecoder] for [MysqlMessage.Eof] packets. Starts with a 0xfe header followed by the number
- * of warnings (as a [Short]) and then the [Status] flags.
+ * of warnings (as a [Short]) and then the [io.github.clasicrando.kdbc.mysql.message.Status] flags.
  *
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_eof_packet.html)
  */
@@ -20,7 +20,7 @@ internal object EofDecoder : MessageDecoder<MysqlMessage.Eof, Unit> {
         }
 
         val warnings = buffer.readShortLe().toInt()
-        val status = Status(buffer.readShortLe())
+        val status = IntBitFlags(buffer.readShortLe())
         return MysqlMessage.Eof(warnings, status)
     }
 

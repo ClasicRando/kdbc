@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.message.encoders
 
+import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
-import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import kotlinx.io.DelicateIoApi
 import kotlinx.io.Sink
@@ -9,7 +9,7 @@ import kotlinx.io.writeToInternalBuffer
 
 internal object MySqlMessageEncoders {
     @OptIn(DelicateIoApi::class)
-    fun encode(message: MysqlMessage, buffer: Sink, capabilities: Capabilities) {
+    fun encode(message: MysqlMessage, buffer: Sink, capabilities: LongBitFlags) {
         when (message) {
             // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_auth_switch_response.html
             is MysqlMessage.AuthSwitchResponse -> buffer.write(message.bytes)

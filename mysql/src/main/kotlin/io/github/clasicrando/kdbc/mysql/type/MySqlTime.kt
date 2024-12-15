@@ -3,12 +3,12 @@ package io.github.clasicrando.kdbc.mysql.type
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
+import kotlinx.io.Sink
+import kotlinx.io.writeIntLe
 import kotlin.math.absoluteValue
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
-import kotlinx.io.Sink
-import kotlinx.io.writeIntLe
 
 /**
  * Format of time only related data returned from MySQL. This type allows going past a regular

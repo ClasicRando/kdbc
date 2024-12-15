@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.mysql.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.core.stream.Stream
@@ -68,7 +69,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             Capabilities.CLIENT_LOCAL_FILES +
             Capabilities.CLIENT_CONNECT_ATTRS +
             if (connectionOptions.database == null) {
-                Capabilities(0uL)
+                LongBitFlags(0L)
             } else {
                 Capabilities.CLIENT_CONNECT_WITH_DB
             }
@@ -227,7 +228,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      * Receive the next packet and decode using a [MessageDecoder] that has a context of
      * [Capabilities]
      */
-    suspend fun <M : MysqlMessage> receiveNext(decoder: MessageDecoder<M, Capabilities>): M {
+    suspend fun <M : MysqlMessage> receiveNext(decoder: MessageDecoder<M, LongBitFlags>): M {
         return decoder.decode(receiveNextPacket(), capabilities)
     }
 

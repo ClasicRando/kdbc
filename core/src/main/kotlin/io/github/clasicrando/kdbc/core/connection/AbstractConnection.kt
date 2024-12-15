@@ -24,7 +24,7 @@ public abstract class AbstractConnection : Connection {
     final override val inTransaction: Boolean
         get() = _inTransaction.value
 
-    protected val beginQuery: String = "BEGIN;"
+    protected open val beginQuery: String = "BEGIN;"
 
     final override suspend fun begin() {
         try {
@@ -53,7 +53,7 @@ public abstract class AbstractConnection : Connection {
         }
     }
 
-    protected val commitQuery: String = "COMMIT;"
+    protected open val commitQuery: String = "COMMIT;"
 
     final override suspend fun commit() {
         try {
@@ -67,7 +67,7 @@ public abstract class AbstractConnection : Connection {
         }
     }
 
-    protected val rollbackQuery: String = "ROLLBACK;"
+    protected open val rollbackQuery: String = "ROLLBACK;"
 
     final override suspend fun rollback() {
         try {

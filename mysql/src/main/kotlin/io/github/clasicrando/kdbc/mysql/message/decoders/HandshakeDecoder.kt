@@ -1,11 +1,12 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.IntBitFlags
+import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.authentication.AuthPlugin
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
-import io.github.clasicrando.kdbc.mysql.message.Status
 
 /**
  * [MessageDecoder] for [MysqlMessage.Handshake] packets. Provides initial details about the server,
@@ -21,11 +22,11 @@ internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> 
         val authPluginData1 = buffer.readBytes(8)
         buffer.readByte()
 
-        val capabilities1 = (buffer.readShortLe().toLong() and 0xff_ff).toULong()
+        val capabilities1 = buffer.readShortLe().toLong() and 0xff_ff
         val collation = buffer.readByte()
-        val status = Status(buffer.readShortLe())
+        val status = IntBitFlags(buffer.readShortLe())
         val capabilities2 = buffer.readShortLe().toLong() and 0xff_ff
-        var capabilities = Capabilities((capabilities2.toULong() shl 16) or capabilities1)
+        var capabilities = LongBitFlags((capabilities2 shl 16) or capabilities1)
         val authPluginDataLength =
             if (capabilities[Capabilities.CLIENT_PLUGIN_AUTH]) {
                 buffer.readByteAsInt()
@@ -39,7 +40,7 @@ internal object HandshakeDecoder : MessageDecoder<MysqlMessage.Handshake, Unit> 
             buffer.skip(4)
         } else {
             val capabilities3 = buffer.readIntLe().toLong() and 0xff_ff_ff_ff
-            capabilities += Capabilities(capabilities3.toULong() shl 32)
+            capabilities += LongBitFlags(capabilities3 shl 32)
         }
 
         val authPluginData2 =

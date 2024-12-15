@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.message.encoders
 
 import io.github.clasicrando.kdbc.core.buffer.writeCString
+import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.mysql.buffer.writeLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.writeLongLengthEncoded
@@ -17,11 +18,11 @@ import kotlinx.io.Sink
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_response.html#sect_protocol_connection_phase_packets_protocol_handshake_response41)
  */
 internal object HandshakeResponseEncoder :
-    MessageEncoder<MysqlMessage.HandshakeResponse, Capabilities> {
+    MessageEncoder<MysqlMessage.HandshakeResponse, LongBitFlags> {
     override fun encode(
         value: MysqlMessage.HandshakeResponse,
         buffer: Sink,
-        context: Capabilities,
+        context: LongBitFlags,
     ) {
         var capabilities = context
         if (value.authPlugin == null) {
