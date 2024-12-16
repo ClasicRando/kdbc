@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [PgMoney] type. This maps to the `money` type in
@@ -16,7 +16,7 @@ internal object MoneyTypeDescription :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/cash.c#L513)
      */
-    override fun encode(value: PgMoney, buffer: Sink) {
+    override fun encode(value: PgMoney, buffer: ByteWriteBuffer) {
         buffer.writeLong(value.integer)
     }
 

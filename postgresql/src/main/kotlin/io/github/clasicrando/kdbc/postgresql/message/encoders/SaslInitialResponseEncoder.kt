@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeCString
+import io.github.clasicrando.kdbc.core.buffer.writeString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.SaslInitialResponse]. This message is sent to provide the initial
@@ -19,12 +19,12 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SASLINITIALRESPONSE)
  */
 internal object SaslInitialResponseEncoder : PgMessageEncoder<PgMessage.SaslInitialResponse>() {
-    override fun encode(value: PgMessage.SaslInitialResponse, buffer: Sink) {
+    override fun encode(value: PgMessage.SaslInitialResponse, buffer: ByteWriteBuffer) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
+        buffer.writeLengthPrefixedAsInt(includeLength = true) {
             writeCString(value.mechanism)
             writeInt(value.saslData.length)
-            write(value.saslData.toByteArray(charset = Charsets.UTF_8))
+            writeString(value.saslData)
         }
     }
 }

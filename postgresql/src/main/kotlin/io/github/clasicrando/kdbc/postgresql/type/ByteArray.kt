@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlin.reflect.typeOf
 import kotlinx.io.Buffer
-import kotlinx.io.Sink
 import kotlinx.io.readByteArray
+import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [PgTypeDescription] for [ByteArray]. This maps to the `bytea` type in a
@@ -17,8 +17,8 @@ internal object ByteaTypeDescription :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/varlena.c#L471)
      */
-    override fun encode(value: ByteArray, buffer: Sink) {
-        buffer.write(value)
+    override fun encode(value: ByteArray, buffer: ByteWriteBuffer) {
+        buffer.writeBytes(value)
     }
 
     /**

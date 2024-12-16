@@ -1,10 +1,9 @@
 package io.github.clasicrando.kdbc.mysql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
-import kotlinx.io.Sink
-import kotlinx.io.writeIntLe
 import kotlin.math.absoluteValue
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -49,7 +48,7 @@ internal data class MySqlTime(
     }
 
     /** Encode this value into the supplied [sink] */
-    fun encode(sink: Sink) {
+    fun encode(sink: ByteWriteBuffer) {
         if (this == ZERO) {
             sink.writeByte(0)
             return

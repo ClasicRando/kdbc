@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.SslRequest]. This message is sent to request the start of
@@ -13,7 +13,7 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-SSLREQUEST)
  */
 internal object SslMessageEncoder : PgMessageEncoder<PgMessage.SslRequest>() {
-    override fun encode(value: PgMessage.SslRequest, buffer: Sink) {
+    override fun encode(value: PgMessage.SslRequest, buffer: ByteWriteBuffer) {
         buffer.writeInt(8)
         buffer.writeShort(1234)
         buffer.writeShort(5679)

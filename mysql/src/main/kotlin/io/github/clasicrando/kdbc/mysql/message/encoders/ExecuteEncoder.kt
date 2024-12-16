@@ -1,11 +1,10 @@
 package io.github.clasicrando.kdbc.mysql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
-import kotlinx.io.Sink
-import kotlinx.io.writeIntLe
 
 /**
  * [MessageEncoder] for [MysqlMessage.Execute]. Executes a prepared statement with the given bound
@@ -14,7 +13,11 @@ import kotlinx.io.writeIntLe
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_execute.html)
  */
 internal object ExecuteEncoder : MessageEncoder<MysqlMessage.Execute, LongBitFlags> {
-    override fun encode(value: MysqlMessage.Execute, buffer: Sink, context: LongBitFlags) {
+    override fun encode(
+        value: MysqlMessage.Execute,
+        buffer: ByteWriteBuffer,
+        context: LongBitFlags,
+    ) {
         buffer.writeByte(0x17)
         buffer.writeIntLe(value.statement)
         buffer.writeByte(0)
@@ -23,7 +26,7 @@ internal object ExecuteEncoder : MessageEncoder<MysqlMessage.Execute, LongBitFla
         if (value.arguments.inner.isNotEmpty()) {
             val arguments = value.arguments
             val innerArgs = arguments.inner
-            buffer.write(arguments.nullBitMap)
+            buffer.writeBytes(arguments.nullBitMap)
             buffer.writeByte(1)
 
             for (i in innerArgs.indices) {

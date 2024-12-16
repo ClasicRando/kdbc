@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import java.time.Instant
@@ -10,7 +11,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
 
 private const val SECONDS_TO_MICROSECONDS = 1_000_000
 private const val MICROSECONDS_TO_NANOSECONDS = 1_000
@@ -59,7 +59,7 @@ internal object LocalDateTimeTypeDescription :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L259)
      */
-    override fun encode(value: LocalDateTime, buffer: Sink) {
+    override fun encode(value: LocalDateTime, buffer: ByteWriteBuffer) {
         val durationSinceEpoch = postgresEpochLocalDateTime.until(value, ChronoUnit.MICROS)
         buffer.writeLong(durationSinceEpoch)
     }
@@ -108,7 +108,7 @@ internal class InstantTypeDescription(private val zoneOffset: ZoneOffset) :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L259)
      */
-    override fun encode(value: Instant, buffer: Sink) {
+    override fun encode(value: Instant, buffer: ByteWriteBuffer) {
         LocalDateTimeTypeDescription.encode(
             value = LocalDateTime.ofInstant(value, ZoneOffset.UTC),
             buffer = buffer,
@@ -158,7 +158,7 @@ internal class OffsetDateTimeTypeDescription(private val zoneOffset: ZoneOffset)
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L814)
      */
-    override fun encode(value: OffsetDateTime, buffer: Sink) {
+    override fun encode(value: OffsetDateTime, buffer: ByteWriteBuffer) {
         val localDateTime = value.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime()
         LocalDateTimeTypeDescription.encode(localDateTime, buffer)
     }

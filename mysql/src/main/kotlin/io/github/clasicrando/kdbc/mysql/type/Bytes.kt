@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.mysql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.mysql.buffer.writeLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.writeLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlinx.io.Sink
 import java.util.UUID
 import kotlin.reflect.typeOf
 import kotlin.uuid.Uuid
@@ -26,7 +26,7 @@ internal object ByteArrayTypeDescription :
     }
 
     /** Writes all bytes with length of the array encoded before the bytes */
-    override fun encode(value: ByteArray, buffer: Sink) {
+    override fun encode(value: ByteArray, buffer: ByteWriteBuffer) {
         buffer.writeLengthEncoded(value)
     }
 
@@ -53,7 +53,7 @@ internal object UuidTypeDescription :
     }
 
     /** Writes the UUID bytes with the length encoded */
-    override fun encode(value: Uuid, buffer: Sink) {
+    override fun encode(value: Uuid, buffer: ByteWriteBuffer) {
         buffer.writeLengthEncoded(value.toByteArray())
     }
 
@@ -80,7 +80,7 @@ internal object JUUIDTypeDescription :
     }
 
     /** Writes the UUID bytes with the length of 16 bytes encoded */
-    override fun encode(value: UUID, buffer: Sink) {
+    override fun encode(value: UUID, buffer: ByteWriteBuffer) {
         buffer.writeLongLengthEncoded(16L)
         buffer.writeLong(value.mostSignificantBits)
         buffer.writeLong(value.leastSignificantBits)

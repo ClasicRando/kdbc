@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
@@ -15,8 +15,8 @@ import kotlin.reflect.typeOf
 private val postgresEpochDateTime = LocalDate.of(2000, 1, 1)
 
 /**
- * Implementation of a [PgTypeDescription] for the [LocalDate] type. This maps to the
- * `date` type in a postgresql database.
+ * Implementation of a [PgTypeDescription] for the [LocalDate] type. This maps to the `date` type in
+ * a postgresql database.
  */
 internal object LocalDateTypeDescription :
     PgTypeDescription<LocalDate>(dbType = PgType.Date, kType = typeOf<LocalDate>()) {
@@ -26,7 +26,7 @@ internal object LocalDateTypeDescription :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L209)
      */
-    override fun encode(value: LocalDate, buffer: Sink) {
+    override fun encode(value: LocalDate, buffer: ByteWriteBuffer) {
         val difference = postgresEpochDateTime.until(value, ChronoUnit.DAYS)
         buffer.writeInt(difference.toInt())
     }

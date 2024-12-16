@@ -54,7 +54,7 @@ internal suspend fun MySqlStream.authFlow() {
             authResponse = authResponse,
             sessionProperties = connectionOptions.properties,
         )
-    this.writePacket(handshakeResponse)
+    this.writeMessage(handshakeResponse)
 
     while (true) {
         val packet = this.receiveNextPacket()
@@ -73,7 +73,7 @@ internal suspend fun MySqlStream.authFlow() {
                         password = connectionOptions.password ?: "",
                         authPluginData = switchRequest.data,
                     )
-                this.writePacket(MysqlMessage.AuthSwitchResponse(response))
+                this.writeMessage(MysqlMessage.AuthSwitchResponse(response))
             }
             else -> {
                 if (plugin != null && connectionOptions.password != null) {
@@ -136,7 +136,7 @@ private suspend fun MySqlStream.handleAuthResponse(
             0x03 -> return true
             0x04 -> {
                 val payload = encryptRsa(0x02, password, authPluginData)
-                writePacket(MysqlMessage.MultiByte(payload))
+                writeMessage(MysqlMessage.MultiByte(payload))
                 return false
             }
             else ->
@@ -162,7 +162,7 @@ private suspend fun MySqlStream.encryptRsa(
     if (isTls) {
         return password.toByteArray().plus(0)
     }
-    writePacket(MysqlMessage.SingleByte(byte))
+    writeMessage(MysqlMessage.SingleByte(byte))
     val bytes = receiveNextPacket()
     bytes.skip(1)
     return PasswordHelper.encryptWithPublicKey(

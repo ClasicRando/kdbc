@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Sink
 
 /** Common entry point for encoding frontend [PgMessage]s. */
 internal object PgMessageEncoders {
@@ -15,7 +15,7 @@ internal object PgMessageEncoders {
      * @throws KdbcException if the [message] provided does not have a corresponding
      *   [MessageEncoder]
      */
-    fun encode(message: PgMessage, buffer: Sink) {
+    fun encode(message: PgMessage, buffer: ByteWriteBuffer) {
         when (message) {
             is PgMessage.StartupMessage -> StartupEncoder.encode(message, buffer)
             is PgMessage.PasswordMessage -> PasswordEncoder.encode(message, buffer)

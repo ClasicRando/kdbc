@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.io.Sink
@@ -38,6 +39,12 @@ public interface Stream : UniqueResourceId, AutoCloseable, CoroutineScope {
     public suspend fun writeTo(block: suspend (Sink) -> Unit)
 
     /**
+     * Write bytes from the buffer to the stream. After the copy from buffer to stream is completed,
+     * the buffer will be reset and the stream will be flushed.
+     */
+    public suspend fun write(buffer: ByteWriteBuffer)
+
+    /**
      * Read a single [Byte] from the stream.
      *
      * This returns immediately if the stream has a single [Byte] available for read. Otherwise, it
@@ -63,4 +70,13 @@ public interface Stream : UniqueResourceId, AutoCloseable, CoroutineScope {
      * available. The bytes are then read into the buffer and returned.
      */
     public suspend fun readBuffer(count: Int): ByteReadBuffer
+
+    /**
+     * Read the required number of bytes as [count] into an existing [ByteWriteBuffer].
+     *
+     * This returns immediately if the stream has [count] bytes available. Otherwise, it suspends to
+     * read available bytes into the internal buffer until the required number of bytes is
+     * available. The bytes are then read into the buffer and returned.
+     */
+    public suspend fun readIntoBuffer(buffer: ByteWriteBuffer, count: Int)
 }

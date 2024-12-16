@@ -3,14 +3,16 @@ package io.github.clasicrando.kdbc.mysql.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.connection.LongBitFlags
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.core.stream.Stream
 import io.github.clasicrando.kdbc.mysql.authentication.authFlow
 import io.github.clasicrando.kdbc.mysql.buffer.read3ByteIntLe
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
-import io.github.clasicrando.kdbc.mysql.buffer.writePackets
+import io.github.clasicrando.kdbc.mysql.buffer.write3ByteIntLe
 import io.github.clasicrando.kdbc.mysql.connection.MySqlConnection
 import io.github.clasicrando.kdbc.mysql.connection.MySqlConnectionOptions
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
@@ -48,6 +50,8 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         private set
 
     private val waitingQueue = ArrayDeque<Waiting>()
+    val prePacketBuffer = ByteWriteBuffer(MAX_PACKET_SIZE * 4)
+    val packetReadingBuffer = ByteWriteBuffer(MAX_PACKET_SIZE * 4)
 
     /**
      * Current client capabilities. Initialized with certain values but gets updated to remove
@@ -66,13 +70,30 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             Capabilities.CLIENT_PLUGIN_AUTH +
             Capabilities.CLIENT_PS_MULTI_RESULTS +
             Capabilities.CLIENT_SSL +
-            Capabilities.CLIENT_LOCAL_FILES +
             Capabilities.CLIENT_CONNECT_ATTRS +
             if (connectionOptions.database == null) {
                 LongBitFlags(0L)
             } else {
                 Capabilities.CLIENT_CONNECT_WITH_DB
             }
+
+    fun resetSequenceId() {
+        sequenceId = 0
+    }
+
+    fun getAndIncrementSequenceId(): Byte {
+        val result = sequenceId
+        if (this.sequenceId >= 255) {
+            log(Level.WARN) {
+                this.message = "SequenceId overflowed. This will break your connection"
+            }
+            this.sequenceId = 0
+            throw KdbcException("Message sequenceId overflowed")
+        } else {
+            this.sequenceId = this.sequenceId + 1
+        }
+        return result.toByte()
+    }
 
     /** Replace the first entry in the queue with this new value */
     fun updateFirstWaiting(newWaiting: Waiting) {
@@ -130,7 +151,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             }
         }
 
-        writePacket(
+        writeMessage(
             MysqlMessage.SslRequest(maxPacketSize = MAX_PACKET_SIZE, characterSet = DEFAULT_CHARSET)
         )
 
@@ -143,7 +164,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         while (waitingQueue.isNotEmpty()) {
             while (waitingQueue.firstOrNull() == Waiting.Row) {
                 val packet = receiveNextPacket()
-                if (packet.peekNextAsInt() == 0xfe && packet.remaining() < 9) {
+                if (packet.peekNextAsInt() == 0xfe && packet.remaining < 9) {
                     val eof = EofDecoder.decode(packet, Unit)
                     removeFirstWaitingIfAny()
                     if (eof.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
@@ -167,36 +188,35 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         }
     }
 
-    /** Read the next packet for it's size and sequence ID, returning the full packet contents */
-    private suspend fun readRawPacket(): ByteReadBuffer {
+    /**
+     * Read the next packet for it's size and sequence ID, returning this packet's size that was
+     * read into the internal buffer
+     */
+    private suspend fun readRawPacketIntoBuffer(): Int {
         val header = innerStream.readBuffer(4)
         val packetSize = header.read3ByteIntLe()
         val sequenceId = header.readByteAsInt()
         this.sequenceId = if (sequenceId >= 255) 1 else sequenceId + 1
-        return innerStream.readBuffer(packetSize)
+        innerStream.readIntoBuffer(packetReadingBuffer, packetSize)
+        return packetSize
     }
 
     /**
      * Read the next packet and if the first packet's size reaches the maximum, keep reading packets
      * until the most recent packet's size is not the max packet size, combining each packet body
-     * into 1 final packet body is returned.
+     * into 1 final packet body that is returned.
      *
      * @throws MySqlException if the packet is an [MysqlMessage.Err] packet or the packet body is
      *   empty
      */
     suspend fun receiveNextPacket(): ByteReadBuffer {
-        var payload = readRawPacket()
-        if (payload.remaining() >= MAX_PACKET_SIZE) {
-            var lastRead = MAX_PACKET_SIZE
-            while (lastRead == MAX_PACKET_SIZE) {
-                val nextPayload = readRawPacket()
-                lastRead = nextPayload.remaining()
-                val nextBytes = nextPayload.readBytes()
-                payload = ByteReadBuffer(payload.readBytes().plus(nextBytes))
-            }
+        var lastRead = readRawPacketIntoBuffer()
+        while (lastRead >= MAX_PACKET_SIZE) {
+            lastRead = readRawPacketIntoBuffer()
         }
+        val payload = packetReadingBuffer.toReadBuffer()
 
-        if (payload.exhausted()) {
+        if (payload.isExhausted) {
             throw MySqlException("Received empty packet")
         }
 
@@ -236,9 +256,9 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      * Send this [message] to the server as the initial packet in a group of subsequent packets
      * (i.e. [sequenceId] is reset to 0)
      */
-    suspend fun sendPacket(message: MysqlMessage) {
-        sequenceId = 0
-        writePacket(message)
+    suspend fun writeInitialMessage(message: MysqlMessage) {
+        resetSequenceId()
+        writeMessage(message)
     }
 
     /**
@@ -246,12 +266,17 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      * or more packets. Each packet will have the next sequence ID and [sequenceId] will be updated
      * after all packets are written.
      */
-    suspend fun writePacket(message: MysqlMessage) {
-        innerStream.writeTo {
-            sequenceId =
-                it.writePackets(currentSequenceId = sequenceId) {
-                    MySqlMessageEncoders.encode(message, this, capabilities)
-                }
+    suspend fun writeMessage(message: MysqlMessage) {
+        MySqlMessageEncoders.encode(message, prePacketBuffer, capabilities)
+        innerStream.writeTo { sink ->
+            prePacketBuffer.useAsReadBuffer { readBuffer ->
+                do {
+                    val length = minOf(readBuffer.remaining, MAX_PACKET_SIZE - 4)
+                    sink.write3ByteIntLe(length.toInt())
+                    sink.writeByte(getAndIncrementSequenceId())
+                    readBuffer.transferToSink(sink, length)
+                } while (readBuffer.remaining > 0)
+            }
         }
     }
 
@@ -263,13 +288,15 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
 
     companion object {
         const val DEFAULT_CHARSET = 224.toByte()
-        const val MAX_PACKET_SIZE = 0xff_ff_ff
+        const val MAX_PACKET_SIZE = 4096
         const val TLS_REJECT_WARNING =
             "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
 
         suspend fun MySqlStream.setSessionVariables(options: List<String>) {
             try {
-                sendPacket(MysqlMessage.Query("SET ${options.joinToString(separator = ",")};"))
+                writeInitialMessage(
+                    MysqlMessage.Query("SET ${options.joinToString(separator = ",")};")
+                )
                 receiveOk()
             } catch (ex: Exception) {
                 throw MySqlException("Could not set session variables: $options", ex)

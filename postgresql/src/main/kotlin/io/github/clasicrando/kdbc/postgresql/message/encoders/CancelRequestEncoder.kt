@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.CancelRequest]. This message is sent as the only messages in a
@@ -16,7 +16,7 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-CANCELREQUEST)
  */
 internal object CancelRequestEncoder : PgMessageEncoder<PgMessage.CancelRequest>() {
-    override fun encode(value: PgMessage.CancelRequest, buffer: Sink) {
+    override fun encode(value: PgMessage.CancelRequest, buffer: ByteWriteBuffer) {
         buffer.writeInt(16)
         buffer.writeShort(1234)
         buffer.writeShort(5678)

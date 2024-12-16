@@ -24,6 +24,8 @@ public data class PgConnectOptions(
     val applicationName: String = "kdbc-driver",
     /** Timeout duration during initial TCP connection establishment */
     val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
+    /** Duration that a socket should wait during a read or write operation before timing out */
+    val socketTimeout: Duration = Duration.INFINITE,
     /** Password if the database instance requires a password */
     val password: String? = null,
     /**

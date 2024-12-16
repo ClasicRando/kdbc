@@ -1,13 +1,13 @@
 package io.github.clasicrando.kdbc.mysql.type
 
 import io.github.clasicrando.kdbc.core.annotations.Rename
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.type.Json
-import io.github.clasicrando.kdbc.mysql.buffer.writeLengthEncoded
+import io.github.clasicrando.kdbc.mysql.buffer.writeLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.writeStringLengthEncoded
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlinx.io.Sink
 import java.math.BigDecimal
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
@@ -29,7 +29,7 @@ internal object StringTypeDescription :
             dbType == MySqlType.Enum
     }
 
-    override fun encode(value: String, buffer: Sink) {
+    override fun encode(value: String, buffer: ByteWriteBuffer) {
         buffer.writeStringLengthEncoded(value)
     }
 
@@ -53,7 +53,7 @@ internal object BigDecimalTypeDescription :
         return dbType == MySqlType.NewDecimal || dbType == MySqlType.Decimal
     }
 
-    override fun encode(value: BigDecimal, buffer: Sink) {
+    override fun encode(value: BigDecimal, buffer: ByteWriteBuffer) {
         buffer.writeStringLengthEncoded(value.toPlainString())
     }
 
@@ -98,7 +98,7 @@ internal class EnumTypeDescription<E : Enum<E>>(kType: KType, values: Array<E>) 
     }
 
     /** Writes the [Enum.name] property as text to the argument buffer. */
-    override fun encode(value: E, buffer: Sink) {
+    override fun encode(value: E, buffer: ByteWriteBuffer) {
         StringTypeDescription.encode(value.name, buffer)
     }
 
@@ -148,8 +148,10 @@ internal object JsonTypeDescription :
     }
 
     /** Write value length encoded either as bytes or text */
-    override fun encode(value: Json, buffer: Sink) {
-        buffer.writeLengthEncoded { value.writeToBuffer(this) }
+    override fun encode(value: Json, buffer: ByteWriteBuffer) {
+        val bytes = value.asBytes()
+        buffer.writeLongLengthEncoded(bytes.size.toLong())
+        buffer.writeBytes(bytes)
     }
 
     /** Dump all bytes into [Json.Bytes] */
@@ -177,7 +179,7 @@ internal object JsonTextTypeDescription :
         return JsonTypeDescription.isCompatible(dbType)
     }
 
-    override fun encode(value: Json.Text, buffer: Sink) {
+    override fun encode(value: Json.Text, buffer: ByteWriteBuffer) {
         JsonTypeDescription.encode(value, buffer)
     }
 
@@ -204,7 +206,7 @@ internal object JsonBytesTypeDescription :
         return JsonTypeDescription.isCompatible(dbType)
     }
 
-    override fun encode(value: Json.Bytes, buffer: Sink) {
+    override fun encode(value: Json.Bytes, buffer: ByteWriteBuffer) {
         JsonTypeDescription.encode(value, buffer)
     }
 

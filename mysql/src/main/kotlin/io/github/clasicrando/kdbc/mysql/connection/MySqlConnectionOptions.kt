@@ -26,6 +26,8 @@ public data class MySqlConnectionOptions(
     public val applicationName: String = "kdbc-mysql-application",
     /** Timeout duration during initial TCP connection establishment */
     public val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
+    /** Duration that a socket should wait during a read or write operation before timing out */
+    val socketTimeout: Duration = Duration.INFINITE,
     /** Password if the database instance requires a password */
     public val password: String? = null,
     /**
@@ -115,6 +117,7 @@ public data class MySqlConnectionOptions(
         if (statementCacheCapacity != other.statementCacheCapacity) return false
         if (allowClearTextPlugin != other.allowClearTextPlugin) return false
         if (noEngineSubstitution != other.noEngineSubstitution) return false
+        if (pipeAsConcat != other.pipeAsConcat) return false
         if (rewriteBatchInsertQuery != other.rewriteBatchInsertQuery) return false
         if (host != other.host) return false
         if (username != other.username) return false
@@ -134,6 +137,7 @@ public data class MySqlConnectionOptions(
         result = 31 * result + statementCacheCapacity
         result = 31 * result + allowClearTextPlugin.hashCode()
         result = 31 * result + noEngineSubstitution.hashCode()
+        result = 31 * result + pipeAsConcat.hashCode()
         result = 31 * result + rewriteBatchInsertQuery.hashCode()
         result = 31 * result + host.hashCode()
         result = 31 * result + username.hashCode()

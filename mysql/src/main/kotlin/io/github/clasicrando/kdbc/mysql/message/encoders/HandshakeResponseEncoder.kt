@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.mysql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
@@ -8,7 +9,6 @@ import io.github.clasicrando.kdbc.mysql.buffer.writeLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.buffer.writeStringLengthEncoded
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
-import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [MysqlMessage.HandshakeResponse]. Sends the post TLS handshake (if TLS is
@@ -21,7 +21,7 @@ internal object HandshakeResponseEncoder :
     MessageEncoder<MysqlMessage.HandshakeResponse, LongBitFlags> {
     override fun encode(
         value: MysqlMessage.HandshakeResponse,
-        buffer: Sink,
+        buffer: ByteWriteBuffer,
         context: LongBitFlags,
     ) {
         var capabilities = context
@@ -38,7 +38,7 @@ internal object HandshakeResponseEncoder :
             buffer.writeLengthEncoded(value.authResponse ?: ByteArray(0))
         } else if (capabilities[Capabilities.CLIENT_SECURE_CONNECTION]) {
             buffer.writeByte(value.authResponse?.size?.toByte() ?: 0)
-            buffer.write(value.authResponse ?: ByteArray(0))
+            buffer.writeBytes(value.authResponse ?: ByteArray(0))
         } else {
             buffer.writeByte(0)
         }

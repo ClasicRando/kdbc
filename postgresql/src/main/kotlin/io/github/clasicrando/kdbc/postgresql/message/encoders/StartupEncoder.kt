@@ -1,10 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.StartupMessage]. This message is sent to initiate the startup of
@@ -21,8 +20,8 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-CLOSE)
  */
 internal object StartupEncoder : PgMessageEncoder<PgMessage.StartupMessage>() {
-    override fun encode(value: PgMessage.StartupMessage, buffer: Sink) {
-        buffer.writeLengthPrefixed(includeLength = true) {
+    override fun encode(value: PgMessage.StartupMessage, buffer: ByteWriteBuffer) {
+        buffer.writeLengthPrefixedAsInt(includeLength = true) {
             writeShort(3)
             writeShort(0)
             for ((k, v) in value.params) {

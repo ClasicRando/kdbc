@@ -25,13 +25,13 @@ internal object AuthSwitchRequestDecoder : MessageDecoder<MysqlMessage.AuthSwitc
             checkOrMySqlException(context) {
                 "Server expects mysql_clear_text_plugin but client has it disabled"
             }
-            if (buffer.exhausted()) {
+            if (buffer.isExhausted) {
                 return MysqlMessage.AuthSwitchRequest(plugin, ByteArray(0))
             }
         }
 
         checkOrMySqlException(buffer.request(21)) {
-            "Expected 21 bytes but found ${buffer.remaining()} bytes"
+            "Expected 21 bytes but found ${buffer.remaining} bytes"
         }
         val data = buffer.readBytes(20)
         buffer.readByte()

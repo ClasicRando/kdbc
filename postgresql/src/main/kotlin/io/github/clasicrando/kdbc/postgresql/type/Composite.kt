@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.annotations.Rename
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.core.ensureNonNull
 import io.github.clasicrando.kdbc.core.query.QueryParameter
@@ -14,7 +15,6 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
-import kotlinx.io.Sink
 
 /**
  * Base requirements for a type description of a Postgresql composite type. The type must define how
@@ -51,7 +51,7 @@ internal class BaseCompositeTypeDescription<T : Any>(
      *
      * @throws IllegalStateException if the number of
      */
-    override fun encode(value: T, buffer: Sink) {
+    override fun encode(value: T, buffer: ByteWriteBuffer) {
         val values = compositeTypeDefinition.extractValues(value)
         check(values.size == attributeMapping.size) {
             "Values found for composite class instance does not match the expected number. " +

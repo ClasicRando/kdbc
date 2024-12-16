@@ -96,7 +96,7 @@ internal sealed interface MysqlMessage {
 
     data object ResetSession : MysqlMessage
 
-    class LoadLocal(val source: Buffer) : MysqlMessage
+    class LoadLocal(val data: Buffer): MysqlMessage
 
     data object Empty : MysqlMessage
 }

@@ -1,6 +1,9 @@
 package io.github.clasicrando.kdbc.mysql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeDoubleLe
+import io.github.clasicrando.kdbc.core.buffer.writeFloatLe
 import io.github.clasicrando.kdbc.core.connection.IntBitFlags
 import io.github.clasicrando.kdbc.core.validateByte
 import io.github.clasicrando.kdbc.core.validateInt
@@ -8,12 +11,6 @@ import io.github.clasicrando.kdbc.core.validateShort
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlinx.io.Sink
-import kotlinx.io.writeDoubleLe
-import kotlinx.io.writeFloatLe
-import kotlinx.io.writeIntLe
-import kotlinx.io.writeLongLe
-import kotlinx.io.writeShortLe
 import kotlin.reflect.typeOf
 
 /**
@@ -34,7 +31,7 @@ internal object BooleanTypeDescription :
     }
 
     /** Writes 1 byte as 1 for true and 0 for false */
-    override fun encode(value: Boolean, buffer: Sink) {
+    override fun encode(value: Boolean, buffer: ByteWriteBuffer) {
         buffer.writeByte(if (value) 1 else 0)
     }
 
@@ -57,7 +54,7 @@ internal object TinyIntTypeDescription :
     MySqlTypeDescription<Byte>(dbType = MySqlType.Tiny, kType = typeOf<Byte>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = intCompatible(dbType)
 
-    override fun encode(value: Byte, buffer: Sink) {
+    override fun encode(value: Byte, buffer: ByteWriteBuffer) {
         buffer.writeByte(value)
     }
 
@@ -86,7 +83,7 @@ internal object ShortTypeDescription :
     MySqlTypeDescription<Short>(dbType = MySqlType.Short, kType = typeOf<Short>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = intCompatible(dbType)
 
-    override fun encode(value: Short, buffer: Sink) {
+    override fun encode(value: Short, buffer: ByteWriteBuffer) {
         buffer.writeShortLe(value)
     }
 
@@ -115,7 +112,7 @@ internal object IntegerTypeDescription :
     MySqlTypeDescription<Int>(dbType = MySqlType.Long, kType = typeOf<Int>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = intCompatible(dbType)
 
-    override fun encode(value: Int, buffer: Sink) {
+    override fun encode(value: Int, buffer: ByteWriteBuffer) {
         buffer.writeIntLe(value)
     }
 
@@ -144,7 +141,7 @@ internal object LongTypeDescription :
     MySqlTypeDescription<Long>(dbType = MySqlType.LongLong, kType = typeOf<Long>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = intCompatible(dbType)
 
-    override fun encode(value: Long, buffer: Sink) {
+    override fun encode(value: Long, buffer: ByteWriteBuffer) {
         buffer.writeLongLe(value)
     }
 
@@ -175,13 +172,13 @@ private fun intCompatible(dbType: MySqlType): Boolean {
  * [Long] with only have 2 bytes possibly populated.
  */
 private fun decodeInt(buffer: ByteReadBuffer): Long {
-    val byteCount = buffer.remaining()
+    val byteCount = buffer.remaining
     if (byteCount > 8) {
         throw MySqlException(
             "Expected integer value to be at most 8 bytes but found $byteCount bytes"
         )
     }
-    return buffer.readIntLe(buffer.remaining())
+    return buffer.readIntLe(buffer.remaining)
 }
 
 /** Implementation of a [MySqlTypeDescription] for the [Float] type. Accepts FLOAT and DOUBLE */
@@ -189,7 +186,7 @@ internal object FloatTypeDescription :
     MySqlTypeDescription<Float>(dbType = MySqlType.Float, kType = typeOf<Float>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = floatCompatible(dbType)
 
-    override fun encode(value: Float, buffer: Sink) {
+    override fun encode(value: Float, buffer: ByteWriteBuffer) {
         buffer.writeFloatLe(value)
     }
 
@@ -213,7 +210,7 @@ internal object DoubleTypeDescription :
     MySqlTypeDescription<Double>(dbType = MySqlType.Double, kType = typeOf<Double>()) {
     override fun isCompatible(dbType: MySqlType): Boolean = floatCompatible(dbType)
 
-    override fun encode(value: Double, buffer: Sink) {
+    override fun encode(value: Double, buffer: ByteWriteBuffer) {
         buffer.writeDoubleLe(value)
     }
 
@@ -240,7 +237,7 @@ private fun floatCompatible(dbType: MySqlType): Boolean {
  * @throws MySqlException if the number of bytes remaining in the buffer is not 4 or 8
  */
 private fun decodeFloat(buffer: ByteReadBuffer): Double {
-    return when (val length = buffer.remaining()) {
+    return when (val length = buffer.remaining) {
         4 -> buffer.readFloatLe().toDouble()
         8 -> buffer.readDoubleLe()
         else -> {

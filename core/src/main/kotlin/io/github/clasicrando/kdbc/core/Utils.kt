@@ -134,16 +134,16 @@ public fun Source.chunkedBytes(size: Int = DEFAULT_BUFFER_SIZE): Sequence<ByteAr
     }
 }
 
+private val whiteSpaceRegex = Regex("\\s+")
+
 /**
- * Utility method to replace all whitespace 1 or more times with a single space.
- *
- * Equivalent to
+ * Utility method to replace all whitespace 1 or more times with a single space. Equivalent to
  *
  * ```
- * string.replace(Regex("\\s+"), "")
+ * string.replace(Regex("\\s+"), "").trim()
  * ```
  */
-public fun String.normalizeWhitespace(): String = this.replace(Regex("\\s+"), " ")
+public fun String.normalizeWhitespace(): String = this.replace(whiteSpaceRegex, " ").trim()
 
 public const val DEFAULT_KDBC_TEST_TIMEOUT: Long = 60L
 

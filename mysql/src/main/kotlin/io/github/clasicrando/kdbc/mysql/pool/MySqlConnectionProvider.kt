@@ -18,7 +18,7 @@ internal class MySqlConnectionProvider(private val connectOptions: MySqlConnecti
     override suspend fun create(pool: ConnectionPool<MySqlConnection>): MySqlConnection {
         pool as MySqlConnectionPool
         val address = InetSocketAddress(connectOptions.host, connectOptions.port)
-        val stream = KtorStream(address, pool.selectorManager)
+        val stream = KtorStream(address, pool.selectorManager, connectOptions.socketTimeout)
         var mySqlStream: MySqlStream? = null
         try {
             mySqlStream = MySqlStream.connect(stream = stream, connectionOptions = connectOptions)

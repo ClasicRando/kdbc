@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import java.time.LocalTime
@@ -10,7 +11,6 @@ import java.time.format.DateTimeParseException
 import kotlin.reflect.typeOf
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
-import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [LocalTime] type. This maps to the `time` type in
@@ -23,7 +23,7 @@ internal object LocalTimeTypeDescription :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L1521)
      */
-    override fun encode(value: LocalTime, buffer: Sink) {
+    override fun encode(value: LocalTime, buffer: ByteWriteBuffer) {
         val microSeconds =
             value.toNanoOfDay().toDuration(DurationUnit.NANOSECONDS).inWholeMicroseconds
         buffer.writeLong(microSeconds)
@@ -72,7 +72,7 @@ internal object OffsetTimeTypeDescription :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/date.c#L2335)
      */
-    override fun encode(value: OffsetTime, buffer: Sink) {
+    override fun encode(value: OffsetTime, buffer: ByteWriteBuffer) {
         LocalTimeTypeDescription.encode(value.toLocalTime(), buffer)
         // Offset from postgres treats west of UTC as positive which is the opposite of UtcOffset
         buffer.writeInt(value.offset.totalSeconds * -1)

@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import java.util.UUID
 import kotlin.reflect.typeOf
 import kotlin.uuid.Uuid
-import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [Uuid] type. This maps to the `uuid` type in a
@@ -13,8 +13,8 @@ import kotlinx.io.Sink
 internal object UuidTypeDescription :
     PgTypeDescription<Uuid>(dbType = PgType.Uuid, kType = typeOf<Uuid>()) {
     /** Simply writes the bytes of the [Uuid] into the argument buffer */
-    override fun encode(value: Uuid, buffer: Sink) {
-        buffer.write(value.toByteArray())
+    override fun encode(value: Uuid, buffer: ByteWriteBuffer) {
+        buffer.writeBytes(value.toByteArray())
     }
 
     /** Read all bytes and pass to the [Uuid] constructor */
@@ -32,7 +32,7 @@ internal object UuidTypeDescription :
 internal object JUuidTypeDescription :
     PgTypeDescription<UUID>(dbType = PgType.Uuid, kType = typeOf<UUID>()) {
     /** Simply writes the bytes of the [Uuid] into the argument buffer */
-    override fun encode(value: UUID, buffer: Sink) {
+    override fun encode(value: UUID, buffer: ByteWriteBuffer) {
         buffer.writeLong(value.mostSignificantBits)
         buffer.writeLong(value.leastSignificantBits)
     }

@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
 
 /** Implementation of a [PgTypeDescription] for the [PgMacAddress] type */
 internal object MacAddressTypeDescription :
@@ -29,7 +29,7 @@ internal object MacAddressTypeDescription :
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac.c#L140)
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/mac8.c#L253)
      */
-    override fun encode(value: PgMacAddress, buffer: Sink) {
+    override fun encode(value: PgMacAddress, buffer: ByteWriteBuffer) {
         buffer.writeByte(value.a)
         buffer.writeByte(value.b)
         buffer.writeByte(value.c)
@@ -53,7 +53,7 @@ internal object MacAddressTypeDescription :
      *   bytes are not 6 or 8
      */
     override fun decodeBytes(value: PgValue.Binary): PgMacAddress {
-        val byteCount = value.bytes.remaining()
+        val byteCount = value.bytes.remaining
         checkOrColumnDecodeError<PgMacAddress>(
             check = byteCount == 6 || byteCount == 8,
             type = value.typeData,

@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import java.math.BigDecimal
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [BigDecimal] type. This maps to the `numeric`
@@ -16,7 +16,7 @@ internal object BigDecimalTypeDescription :
      * using [PgNumeric.encodeToBuffer]. To get a [PgNumeric], [PgNumeric.fromBigDecimal] is called
      * to convert the [BigDecimal] value to [PgNumeric].
      */
-    override fun encode(value: BigDecimal, buffer: Sink) {
+    override fun encode(value: BigDecimal, buffer: ByteWriteBuffer) {
         PgNumeric.fromBigDecimal(value).encodeToBuffer(buffer)
     }
 

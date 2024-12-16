@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.CopyData]. This message is sent to pass bytes as row data in a
@@ -14,9 +14,9 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYDATA)
  */
 internal object CopyDataEncoder : PgMessageEncoder<PgMessage.CopyData>() {
-    override fun encode(value: PgMessage.CopyData, buffer: Sink) {
+    override fun encode(value: PgMessage.CopyData, buffer: ByteWriteBuffer) {
         buffer.writeByte(value.code)
         buffer.writeInt(value.data.size + 4)
-        buffer.write(value.data)
+        buffer.writeBytes(value.data)
     }
 }

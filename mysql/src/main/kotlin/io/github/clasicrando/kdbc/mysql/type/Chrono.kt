@@ -1,12 +1,10 @@
 package io.github.clasicrando.kdbc.mysql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlinx.io.Sink
-import kotlinx.io.writeIntLe
-import kotlinx.io.writeShortLe
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -32,7 +30,7 @@ internal object LocalTimeTypeDescription :
      *
      * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_time)
      */
-    override fun encode(value: LocalTime, buffer: Sink) {
+    override fun encode(value: LocalTime, buffer: ByteWriteBuffer) {
         val length = value.encodedLength()
         buffer.writeByte(length)
         buffer.writeByte(0)
@@ -61,7 +59,7 @@ internal object LocalTimeTypeDescription :
 internal object DurationTypeDescription :
     MySqlTypeDescription<Duration>(dbType = MySqlType.Time, kType = typeOf<Duration>()) {
     /** Converts itself to a [MySqlTime] and encodes using that structure */
-    override fun encode(value: Duration, buffer: Sink) {
+    override fun encode(value: Duration, buffer: ByteWriteBuffer) {
         MySqlTime.fromDuration(value).encode(buffer)
     }
 
@@ -90,7 +88,7 @@ internal object LocalDateTypeDescription :
      *
      * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date)
      */
-    override fun encode(value: LocalDate, buffer: Sink) {
+    override fun encode(value: LocalDate, buffer: ByteWriteBuffer) {
         buffer.writeByte(4)
         buffer.encodeDate(value)
     }
@@ -133,7 +131,7 @@ internal object LocalDateTimeTypeDescription :
      *
      * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_value_date)
      */
-    override fun encode(value: LocalDateTime, buffer: Sink) {
+    override fun encode(value: LocalDateTime, buffer: ByteWriteBuffer) {
         val length = value.encodedLength()
         buffer.writeByte(length)
         buffer.encodeDate(value.toLocalDate())
@@ -181,7 +179,7 @@ internal class OffsetDateTimeTypeDescription(private val zoneOffset: ZoneOffset)
     }
 
     /** Changes the offset to [ZoneOffset.UTC] and encodes using [LocalDateTimeTypeDescription] */
-    override fun encode(value: OffsetDateTime, buffer: Sink) {
+    override fun encode(value: OffsetDateTime, buffer: ByteWriteBuffer) {
         LocalDateTimeTypeDescription.encode(
             value.atZoneSameInstant(ZoneOffset.UTC).toLocalDateTime(),
             buffer,
@@ -216,7 +214,7 @@ internal class InstantTypeDescription(private val zoneOffset: ZoneOffset) :
      * Calls [LocalDateTime.ofInstant] with [ZoneOffset.UTC] then encodes using
      * [LocalDateTimeTypeDescription]
      */
-    override fun encode(value: Instant, buffer: Sink) {
+    override fun encode(value: Instant, buffer: ByteWriteBuffer) {
         LocalDateTimeTypeDescription.encode(LocalDateTime.ofInstant(value, ZoneOffset.UTC), buffer)
     }
 
@@ -265,7 +263,7 @@ private fun LocalDateTime.encodedLength(): Byte {
  *
  * @throws io.github.clasicrando.kdbc.mysql.exceptions.MySqlException if the year exceeds a [Short]
  */
-private fun Sink.encodeDate(date: LocalDate) {
+private fun ByteWriteBuffer.encodeDate(date: LocalDate) {
     val year = date.year
     checkOrMySqlException(year in Short.MIN_VALUE..Short.MAX_VALUE) {
         "Year of date must be between ${Short.MIN_VALUE} and ${Short.MAX_VALUE} but found $year"
@@ -276,7 +274,7 @@ private fun Sink.encodeDate(date: LocalDate) {
 }
 
 /** Encode the [time], including the [microSecond] value if requested */
-private fun Sink.encodeTime(time: LocalTime, includeMicro: Boolean) {
+private fun ByteWriteBuffer.encodeTime(time: LocalTime, includeMicro: Boolean) {
     writeByte(time.hour.toByte())
     writeByte(time.minute.toByte())
     writeByte(time.second.toByte())
@@ -292,7 +290,7 @@ private fun Sink.encodeTime(time: LocalTime, includeMicro: Boolean) {
  *   the buffer has 3 or fewer bytes.
  */
 private fun ByteReadBuffer.decodeDate(): LocalDate {
-    val length = remaining()
+    val length = remaining
     checkOrMySqlException(length > 0) { "Found a zero date when trying to decode DATE value" }
     checkOrMySqlException(length >= 4) {
         "Require 4 bytes to decode a DATE value but only found $length"
@@ -315,6 +313,6 @@ private fun ByteReadBuffer.decodeTime(length: Int): LocalTime {
     val hour = readByteAsInt()
     val minute = readByteAsInt()
     val second = readByteAsInt()
-    val microSecond = if (length > 3) readIntLe(remaining()) else 0
+    val microSecond = if (length > 3) readIntLe(remaining) else 0
     return LocalTime.of(hour, minute, second, validateInt(microSecond))
 }

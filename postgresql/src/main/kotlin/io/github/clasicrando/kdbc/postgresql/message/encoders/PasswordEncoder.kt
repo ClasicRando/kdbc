@@ -1,9 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
-import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.PasswordMessage]. This message is sent to the backend when the
@@ -15,10 +14,10 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PASSWORDMESSAGE)
  */
 internal object PasswordEncoder : PgMessageEncoder<PgMessage.PasswordMessage>() {
-    override fun encode(value: PgMessage.PasswordMessage, buffer: Sink) {
+    override fun encode(value: PgMessage.PasswordMessage, buffer: ByteWriteBuffer) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
-            write(value.password)
+        buffer.writeLengthPrefixedAsInt(includeLength = true) {
+            writeBytes(value.password)
             writeByte(0)
         }
     }

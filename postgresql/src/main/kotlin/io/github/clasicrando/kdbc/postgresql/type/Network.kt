@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import java.net.Inet6Address
-import kotlin.reflect.typeOf
-import kotlinx.io.Sink
 import java.net.UnknownHostException
+import kotlin.reflect.typeOf
 
 private const val PGSQL_AF_INET: Byte = 2
 private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()
@@ -30,7 +30,7 @@ internal object NetworkAddressTypeDescription :
      *
      * @throws IllegalStateException if the address does not contain the right number of bytes
      */
-    override fun encode(value: PgInet, buffer: Sink) {
+    override fun encode(value: PgInet, buffer: ByteWriteBuffer) {
         when (val javaInetAddress = value.toInetAddress()) {
             is Inet6Address -> {
                 buffer.writeByte(PGSQL_AF_INET6)
@@ -41,7 +41,7 @@ internal object NetworkAddressTypeDescription :
                 check(address.size == 16) {
                     "Inet address must be 16 bytes. Found ${address.size} bytes"
                 }
-                buffer.write(address)
+                buffer.writeBytes(address)
             }
             else -> {
                 buffer.writeByte(PGSQL_AF_INET)
@@ -52,7 +52,7 @@ internal object NetworkAddressTypeDescription :
                 check(address.size == 4) {
                     "Inet address must be 4 bytes. Found ${address.size} bytes"
                 }
-                buffer.write(address)
+                buffer.writeBytes(address)
             }
         }
     }
@@ -76,7 +76,7 @@ internal object NetworkAddressTypeDescription :
      *   be used to construct a [PgInet]
      */
     override fun decodeBytes(value: PgValue.Binary): PgInet {
-        val remainingBytes = value.bytes.remaining()
+        val remainingBytes = value.bytes.remaining
         check(remainingBytes >= 8) { "Inet value must be at least 8 bytes. Found $remainingBytes" }
         val family = value.bytes.readByte()
         val prefix = value.bytes.readByte().toUByte()

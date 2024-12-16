@@ -2,6 +2,7 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -18,18 +19,21 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
+import io.ktor.utils.io.readInt
+import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Sink
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
 public class KtorStream(
     private val address: SocketAddress,
     private val selectorManager: SelectorManager,
+    private val socketTimeout: Duration,
 ) : DefaultUniqueResourceId(), Stream {
     private lateinit var connection: Connection
     private lateinit var socket: Socket
@@ -47,7 +51,9 @@ public class KtorStream(
         try {
             connection =
                 withTimeout(timeout) {
-                    aSocket(selectorManager).tcp().connect(address).connection()
+                    aSocket(selectorManager).tcp().connect(address) {
+                        this.socketTimeout = this@KtorStream.socketTimeout.inWholeMilliseconds
+                    }.connection()
                 }
             socket = connection.socket
             writeChannel = connection.output
@@ -86,6 +92,15 @@ public class KtorStream(
         }
     }
 
+    override suspend fun write(buffer: ByteWriteBuffer) {
+        check(isConnected) { "Cannot write to a stream that is not connected" }
+        try {
+            writeChannel.writeFully(value = buffer.buffer, startIndex = 0, endIndex = buffer.offset)
+        } finally {
+            writeChannel.flush()
+        }
+    }
+
     override suspend fun readByte(): Byte {
         check(isConnected) { "Cannot read from a stream that is not connected" }
         return readChannel.readByte()
@@ -93,14 +108,7 @@ public class KtorStream(
 
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        // As of version 3.0.1, KTOR has a bug where readInt could infinitely loop so read bytes
-        // and create an Int
-        val result =
-            ((readChannel.readByte().toInt() and 0xff shl 24) or
-                (readChannel.readByte().toInt() and 0xff shl 16) or
-                (readChannel.readByte().toInt() and 0xff shl 8) or
-                (readChannel.readByte().toInt() and 0xff))
-        return result
+        return readChannel.readInt()
     }
 
     override suspend fun readBuffer(count: Int): ByteReadBuffer {
@@ -108,6 +116,16 @@ public class KtorStream(
         val destination = ByteArray(count)
         readChannel.readFully(destination)
         return ByteReadBuffer(destination)
+    }
+
+    override suspend fun readIntoBuffer(buffer: ByteWriteBuffer, count: Int) {
+        check(isConnected) { "Cannot read from a stream that is not connected" }
+        readChannel.readFully(
+            out = buffer.buffer,
+            start = buffer.offset,
+            end = buffer.offset + count,
+        )
+        buffer.offset += count
     }
 
     override fun close() {

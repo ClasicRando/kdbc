@@ -88,7 +88,7 @@ internal sealed class PgMessage(val code: Byte) {
      * in, byte by byte.
      */
     class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage {
-        override val size: Int = data.size
+        override val size: Int = data.size + 4 + 1
     } // F & B
 
     /**

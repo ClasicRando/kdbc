@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
 
 /**
  * Implementation of a [PgTypeDescription] for the [Byte] type. This maps to the `"char"` type in a
@@ -12,7 +12,7 @@ import kotlinx.io.Sink
 internal object CharTypeDescription :
     PgTypeDescription<Byte>(dbType = PgType.Char, kType = typeOf<Byte>()) {
     /** Simply write the [Byte] value to the buffer */
-    override fun encode(value: Byte, buffer: Sink) {
+    override fun encode(value: Byte, buffer: ByteWriteBuffer) {
         buffer.writeByte(value)
     }
 
@@ -25,7 +25,7 @@ internal object CharTypeDescription :
      *   is too long
      */
     override fun decodeBytes(value: PgValue.Binary): Byte {
-        return if (value.bytes.remaining() > 0) value.bytes.readByte() else 0
+        return if (value.bytes.remaining > 0) value.bytes.readByte() else 0
     }
 
     /**

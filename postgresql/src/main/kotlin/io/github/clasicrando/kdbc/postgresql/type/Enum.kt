@@ -1,12 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.annotations.Rename
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeString
 import io.github.clasicrando.kdbc.core.column.ColumnMetadata
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.KType
-import kotlinx.io.Sink
-import kotlinx.io.writeString
 
 /** Implementation of [PgTypeDescription] for custom enum types in a postgresql database */
 internal class EnumTypeDescription<E : Enum<E>>(pgType: PgType, kType: KType, values: Array<E>) :
@@ -40,7 +40,7 @@ internal class EnumTypeDescription<E : Enum<E>>(pgType: PgType, kType: KType, va
      * [pg source
      * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/enum.c#L179)
      */
-    override fun encode(value: E, buffer: Sink) {
+    override fun encode(value: E, buffer: ByteWriteBuffer) {
         buffer.writeString(nameMap[value]!!)
     }
 

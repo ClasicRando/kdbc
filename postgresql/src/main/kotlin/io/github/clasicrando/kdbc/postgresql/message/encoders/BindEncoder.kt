@@ -1,11 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
 import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
-import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.Bind]. This message is sent to initiate the backend to bind
@@ -26,9 +25,9 @@ import kotlinx.io.Sink
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BIND)
  */
 internal object BindEncoder : PgMessageEncoder<PgMessage.Bind>() {
-    override fun encode(value: PgMessage.Bind, buffer: Sink) {
+    override fun encode(value: PgMessage.Bind, buffer: ByteWriteBuffer) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
+        buffer.writeLengthPrefixedAsInt(includeLength = true) {
             writeCString(value.portal ?: "")
             writeCString(value.statementName)
             writeShort(1)

@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeDouble
+import io.github.clasicrando.kdbc.core.buffer.writeFloat
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
-import kotlinx.io.writeDouble
-import kotlinx.io.writeFloat
 
 /**
  * Implementation of a [PgTypeDescription] for the [Short] type. This maps to the `int2`/`smallint`
@@ -14,7 +14,7 @@ import kotlinx.io.writeFloat
 internal object SmallIntTypeDescription :
     PgTypeDescription<Short>(dbType = PgType.Int2, kType = typeOf<Short>()) {
     /** Simply writes the [Short] value to the buffer */
-    override fun encode(value: Short, buffer: Sink) {
+    override fun encode(value: Short, buffer: ByteWriteBuffer) {
         buffer.writeShort(value)
     }
 
@@ -48,7 +48,7 @@ internal object IntTypeDescription :
         dbType == this.dbType || dbType == PgType.Oid
 
     /** Simply writes the [Int] value to the buffer */
-    override fun encode(value: Int, buffer: Sink) {
+    override fun encode(value: Int, buffer: ByteWriteBuffer) {
         buffer.writeInt(value)
     }
 
@@ -79,7 +79,7 @@ internal object IntTypeDescription :
 internal object BigIntTypeDescription :
     PgTypeDescription<Long>(dbType = PgType.Int8, kType = typeOf<Long>()) {
     /** Simply writes the [Long] value to the buffer */
-    override fun encode(value: Long, buffer: Sink) {
+    override fun encode(value: Long, buffer: ByteWriteBuffer) {
         buffer.writeLong(value)
     }
 
@@ -110,7 +110,7 @@ internal object BigIntTypeDescription :
 internal object RealTypeDescription :
     PgTypeDescription<Float>(dbType = PgType.Float4, kType = typeOf<Float>()) {
     /** Simply writes the [Float] value to the buffer */
-    override fun encode(value: Float, buffer: Sink) {
+    override fun encode(value: Float, buffer: ByteWriteBuffer) {
         buffer.writeFloat(value)
     }
 
@@ -141,7 +141,7 @@ internal object RealTypeDescription :
 internal object DoublePrecisionTypeDescription :
     PgTypeDescription<Double>(dbType = PgType.Float8, kType = typeOf<Double>()) {
     /** Simply writes the [Double] value to the buffer */
-    override fun encode(value: Double, buffer: Sink) {
+    override fun encode(value: Double, buffer: ByteWriteBuffer) {
         buffer.writeDouble(value)
     }
 

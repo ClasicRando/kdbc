@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
-import kotlinx.io.Sink
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -66,7 +66,7 @@ internal object PgIntervalTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/timestamp.c#L1007)
      */
-    override fun encode(value: PgInterval, buffer: Sink) {
+    override fun encode(value: PgInterval, buffer: ByteWriteBuffer) {
         buffer.writeLong(value.microseconds)
         buffer.writeInt(value.days)
         buffer.writeInt(value.months)

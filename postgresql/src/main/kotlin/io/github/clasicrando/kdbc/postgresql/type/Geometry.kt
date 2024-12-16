@@ -1,12 +1,12 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeDouble
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.type.PgPolygon.Companion.makeBoundBox
 import kotlin.reflect.typeOf
-import kotlinx.io.Sink
-import kotlinx.io.writeDouble
 
 /**
  * Implementation of a [PgTypeDescription] for the [PgPoint] type. This maps to the `point` type in
@@ -20,7 +20,7 @@ internal object PointTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1853)
      */
-    override fun encode(value: PgPoint, buffer: Sink) {
+    override fun encode(value: PgPoint, buffer: ByteWriteBuffer) {
         buffer.writeDouble(value.x)
         buffer.writeDouble(value.y)
     }
@@ -79,7 +79,7 @@ internal object LineTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1038)
      */
-    override fun encode(value: PgLine, buffer: Sink) {
+    override fun encode(value: PgLine, buffer: ByteWriteBuffer) {
         buffer.writeDouble(value.a)
         buffer.writeDouble(value.b)
         buffer.writeDouble(value.c)
@@ -149,7 +149,7 @@ internal object LineSegmentTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L2092)
      */
-    override fun encode(value: PgLineSegment, buffer: Sink) {
+    override fun encode(value: PgLineSegment, buffer: ByteWriteBuffer) {
         PointTypeDescription.encode(value.point1, buffer)
         PointTypeDescription.encode(value.point2, buffer)
     }
@@ -203,7 +203,7 @@ internal object BoxTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L466)
      */
-    override fun encode(value: PgBox, buffer: Sink) {
+    override fun encode(value: PgBox, buffer: ByteWriteBuffer) {
         PointTypeDescription.encode(value.high, buffer)
         PointTypeDescription.encode(value.low, buffer)
     }
@@ -259,7 +259,7 @@ internal object PathTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L1488)
      */
-    override fun encode(value: PgPath, buffer: Sink) {
+    override fun encode(value: PgPath, buffer: ByteWriteBuffer) {
         buffer.writeByte(if (value.isClosed) 1 else 0)
         buffer.writeInt(value.points.size)
         for (point in value.points) {
@@ -326,7 +326,7 @@ internal object PolygonTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L3475)
      */
-    override fun encode(value: PgPolygon, buffer: Sink) {
+    override fun encode(value: PgPolygon, buffer: ByteWriteBuffer) {
         buffer.writeInt(value.points.size)
         for (point in value.points) {
             PointTypeDescription.encode(point, buffer)
@@ -392,7 +392,7 @@ internal object CircleTypeDescription :
      * [pg source
      * code](https://github.com/postgres/postgres/blob/1fe66680c09b6cc1ed20236c84f0913a7b786bbc/src/backend/utils/adt/geo_ops.c#L4703)
      */
-    override fun encode(value: PgCircle, buffer: Sink) {
+    override fun encode(value: PgCircle, buffer: ByteWriteBuffer) {
         PointTypeDescription.encode(value.center, buffer)
         buffer.writeDouble(value.radius)
     }

@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
@@ -8,7 +9,6 @@ import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.withNullability
-import kotlinx.io.Sink
 
 /** Dummy [PgColumnDescription] to create a [PgValue.Text] instance for text decoding */
 private val dummyFieldDescription =
@@ -74,7 +74,7 @@ internal abstract class ArrayTypeDescription<T : Any>(
      *    [pg source
      *    code](https://github.com/postgres/postgres/blob/d57b7cc3338e9d9aa1d7c5da1b25a17c5a72dcce/src/backend/utils/adt/arrayfuncs.c#L1272)
      */
-    override fun encode(value: List<T?>, buffer: Sink) {
+    override fun encode(value: List<T?>, buffer: ByteWriteBuffer) {
         buffer.writeInt(1)
         buffer.writeInt(0)
         buffer.writeInt(innerType.dbType.oid)

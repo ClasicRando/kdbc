@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeString
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.type.Json
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import kotlinx.io.Sink
-import kotlinx.io.writeString
 import kotlin.reflect.typeOf
 
 /** Implementation of a [PgTypeDescription] for the [Json] type */
@@ -21,7 +21,7 @@ internal object JsonTypeDescription :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonb.c#L93)
      */
-    override fun encode(value: Json, buffer: Sink) {
+    override fun encode(value: Json, buffer: ByteWriteBuffer) {
         buffer.writeByte(1)
         value.writeToBuffer(buffer)
     }
@@ -64,23 +64,17 @@ internal object JsonBytesTypeDescription :
         return JsonTypeDescription.isCompatible(dbType)
     }
 
-    /**
-     * Defers to [JsonTypeDescription.encode]
-     */
-    override fun encode(value: Json.Bytes, buffer: Sink) {
+    /** Defers to [JsonTypeDescription.encode] */
+    override fun encode(value: Json.Bytes, buffer: ByteWriteBuffer) {
         JsonTypeDescription.encode(value, buffer)
     }
 
-    /**
-     * Defers to [JsonTypeDescription.decodeBytes]
-     */
+    /** Defers to [JsonTypeDescription.decodeBytes] */
     override fun decodeBytes(value: PgValue.Binary): Json.Bytes {
         return JsonTypeDescription.decodeBytes(value).asJson()
     }
 
-    /**
-     * Defers to [JsonTypeDescription.decodeText]
-     */
+    /** Defers to [JsonTypeDescription.decodeText] */
     override fun decodeText(value: PgValue.Text): Json.Bytes {
         return JsonTypeDescription.decodeText(value).asJson()
     }
@@ -93,23 +87,17 @@ internal object JsonTextTypeDescription :
         return JsonTypeDescription.isCompatible(dbType)
     }
 
-    /**
-     * Defers to [JsonTypeDescription.encode]
-     */
-    override fun encode(value: Json.Text, buffer: Sink) {
+    /** Defers to [JsonTypeDescription.encode] */
+    override fun encode(value: Json.Text, buffer: ByteWriteBuffer) {
         JsonTypeDescription.encode(value, buffer)
     }
 
-    /**
-     * Defers to [JsonTypeDescription.decodeBytes]
-     */
+    /** Defers to [JsonTypeDescription.decodeBytes] */
     override fun decodeBytes(value: PgValue.Binary): Json.Text {
         return JsonTypeDescription.decodeBytes(value).asJson()
     }
 
-    /**
-     * Defers to [JsonTypeDescription.decodeText]
-     */
+    /** Defers to [JsonTypeDescription.decodeText] */
     override fun decodeText(value: PgValue.Text): Json.Text {
         return JsonTypeDescription.decodeText(value).asJson()
     }
@@ -126,7 +114,7 @@ internal object JsonPathTypeDescription :
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/jsonpath.c#L113)
      */
-    override fun encode(value: PgJsonPath, buffer: Sink) {
+    override fun encode(value: PgJsonPath, buffer: ByteWriteBuffer) {
         buffer.writeByte(1)
         buffer.writeString(value.value)
     }

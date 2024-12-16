@@ -1,14 +1,9 @@
 package io.github.clasicrando.kdbc.mysql.buffer
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.validateInt
-import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
-import kotlinx.io.Buffer
-import kotlinx.io.DelicateIoApi
 import kotlinx.io.Sink
-import kotlinx.io.writeLongLe
-import kotlinx.io.writeShortLe
-import kotlinx.io.writeToInternalBuffer
 
 internal fun ByteReadBuffer.read3ByteIntLe(): Int {
     return (this.readByteAsInt() or (this.readByteAsInt() shl 8) or (this.readByteAsInt() shl 16))
@@ -65,7 +60,7 @@ internal fun ByteReadBuffer.readBytesLengthEncoded(): ByteArray {
  * - 0x010000..0xffffff -> write 0xfd then the length as 3 [Byte]s
  * - other values are written with 0xfe as the header and the entire [Long] value
  */
-internal fun Sink.writeLongLengthEncoded(value: Long) {
+internal fun ByteWriteBuffer.writeLongLengthEncoded(value: Long) {
     when (value) {
         in 0..250 -> writeByte(value.toByte())
         in 251..0xff_ff -> {
@@ -87,54 +82,24 @@ internal fun Sink.writeLongLengthEncoded(value: Long) {
  * Write a group of bytes where the size of the group is encoded using [writeLongLengthEncoded] and
  * the actual bytes are written as is.
  */
-internal fun Sink.writeLengthEncoded(bytes: ByteArray) {
+internal fun ByteWriteBuffer.writeLengthEncoded(bytes: ByteArray) {
     writeLongLengthEncoded(bytes.size.toLong())
-    write(bytes)
+    writeBytes(bytes)
 }
 
 /** Write a [String] as a group of bytes */
-internal fun Sink.writeStringLengthEncoded(string: String) {
+internal fun ByteWriteBuffer.writeStringLengthEncoded(string: String) {
     writeLengthEncoded(string.toByteArray())
+}
+
+internal fun ByteWriteBuffer.write3ByteIntLe(int: Int) {
+    writeByte((int and 0xff).toByte())
+    writeByte((int shr 8 and 0xff).toByte())
+    writeByte((int shr 16 and 0xff).toByte())
 }
 
 internal fun Sink.write3ByteIntLe(int: Int) {
     writeByte((int and 0xff).toByte())
     writeByte((int shr 8 and 0xff).toByte())
     writeByte((int shr 16 and 0xff).toByte())
-}
-
-private const val MAX_PACKET_DATA_LENGTH = MySqlStream.MAX_PACKET_SIZE.toLong() - 4
-
-@OptIn(DelicateIoApi::class)
-internal inline fun Sink.writeLengthEncoded(crossinline block: Sink.() -> Unit) {
-    val tempBuffer = Buffer()
-    block(tempBuffer)
-    this.writeToInternalBuffer { buf ->
-        buf.writeLongLengthEncoded(tempBuffer.size)
-        buf.write(tempBuffer, tempBuffer.size)
-    }
-}
-
-/**
- * Write data contents to [Sink], batching the written contents into packets that meet the size of
- * the MySQL spec. Returns the new packet sequence ID
- */
-@OptIn(DelicateIoApi::class)
-internal inline fun Sink.writePackets(
-    currentSequenceId: Int,
-    crossinline block: Sink.() -> Unit,
-): Int {
-    var tempSequenceId = currentSequenceId
-    val tempBuffer = Buffer()
-    block(tempBuffer)
-    do {
-        val length = minOf(tempBuffer.size, MAX_PACKET_DATA_LENGTH)
-        this.writeToInternalBuffer { buf ->
-            buf.write3ByteIntLe(length.toInt())
-            buf.writeByte(tempSequenceId.toByte())
-            buf.write(tempBuffer, length)
-        }
-        tempSequenceId = if (tempSequenceId >= 255) 1 else tempSequenceId + 1
-    } while (!tempBuffer.exhausted())
-    return tempSequenceId
 }

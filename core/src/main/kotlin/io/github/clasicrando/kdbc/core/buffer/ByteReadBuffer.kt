@@ -1,6 +1,8 @@
 package io.github.clasicrando.kdbc.core.buffer
 
 import io.github.clasicrando.kdbc.core.ZERO_BYTE
+import io.github.clasicrando.kdbc.core.exceptions.KdbcException
+import kotlinx.io.Sink
 
 /**
  * Buffer containing a fixed size [ByteArray] where reads against the buffer are always read
@@ -18,6 +20,14 @@ public class ByteReadBuffer(
     @PublishedApi internal val size: Int = innerBuffer.size,
 ) {
     @PublishedApi internal var position: Int = 0
+
+    /** Number of bytes remaining as readable within the buffer */
+    public inline val remaining: Int
+        get() = size - position
+
+    /** Number of bytes remaining as readable within the buffer */
+    public inline val isExhausted: Boolean
+        get() = remaining == 0
 
     /**
      * Create a sub slice of this [ByteReadBuffer], starting at the current position and having a
@@ -37,18 +47,6 @@ public class ByteReadBuffer(
         return slice
     }
 
-    /** Number of bytes remaining as readable within the buffer */
-    @Suppress("NOTHING_TO_INLINE")
-    public inline fun remaining(): Int {
-        return size - position
-    }
-
-    /** Returns true if the remaining bytes to read is 0 */
-    @Suppress("NOTHING_TO_INLINE")
-    public inline fun exhausted(): Boolean {
-        return remaining() == 0
-    }
-
     public fun skip(byteCount: Int) {
         checkRemaining(byteCount)
         position += byteCount
@@ -59,7 +57,7 @@ public class ByteReadBuffer(
      * remaining bytes meets or exceeds the requested number of bytes.
      */
     public fun request(byteCount: Int): Boolean {
-        return remaining() >= byteCount
+        return remaining >= byteCount
     }
 
     /**
@@ -70,8 +68,8 @@ public class ByteReadBuffer(
      * @throws [BufferExhausted] if the buffer does not have the required number of bytes available
      */
     private fun checkRemaining(required: Int) {
-        if (remaining() < required) {
-            throw BufferExhausted(requested = required, remaining = remaining())
+        if (remaining < required) {
+            throw BufferExhausted(requested = required, remaining = remaining)
         }
     }
 
@@ -260,11 +258,12 @@ public class ByteReadBuffer(
      *
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
-    public fun readBytes(length: Int = remaining()): ByteArray {
+    public fun readBytes(length: Int = remaining): ByteArray {
         checkRemaining(length)
         val start = offset + position
+        val result = this.innerBuffer.copyOfRange(start, start + length)
         position += length
-        return this.innerBuffer.copyOfRange(start, start + length)
+        return result
     }
 
     /**
@@ -273,7 +272,7 @@ public class ByteReadBuffer(
      *
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
-    public fun readText(length: Int = remaining()): String {
+    public fun readText(length: Int = remaining): String {
         return String(this.readBytes(length = length), charset = Charsets.UTF_8)
     }
 
@@ -288,7 +287,7 @@ public class ByteReadBuffer(
     public fun readCString(): String {
         val buffer = ArrayList<Byte>()
 
-        while (remaining() > 0) {
+        while (remaining > 0) {
             val nextByte = innerBuffer[offset + position++]
             if (nextByte == ZERO_BYTE) {
                 break
@@ -297,6 +296,28 @@ public class ByteReadBuffer(
             buffer.add(nextByte)
         }
         return String(bytes = buffer.toByteArray(), charset = Charsets.UTF_8)
+    }
+
+    public fun append(other: ByteReadBuffer): ByteReadBuffer {
+        if (this.offset != 0) {
+            throw KdbcException("Cannot append another buffer to a slice")
+        }
+        if (this.position != 0) {
+            throw KdbcException("Cannot append to buffer that has been read from")
+        }
+        if (this.innerBuffer.size.toLong() + other.innerBuffer.size.toLong() > Int.MAX_VALUE) {
+            throw KdbcException(
+                "Buffer overflow on append. Cannot append another read buffer when total size would exceed Int.MAX_VALUE"
+            )
+        }
+        return ByteReadBuffer(this.innerBuffer.plus(other.innerBuffer))
+    }
+
+    public fun transferToSink(sink: Sink, byteCount: Int) {
+        checkRemaining(byteCount)
+        val start = offset + position
+        sink.write(innerBuffer, start, start + byteCount)
+        position += byteCount
     }
 
     /** Reset this buffer to it's initial reading position so the value can be read again */

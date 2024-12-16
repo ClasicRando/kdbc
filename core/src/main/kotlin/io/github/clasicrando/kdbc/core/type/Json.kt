@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.core.type
 
-import kotlinx.io.Sink
-import kotlinx.io.writeString
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
+import io.github.clasicrando.kdbc.core.buffer.writeString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json as KotlinxJson
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.Json as KotlinxJson
 
 /** Wrapper for json data encoded as [Bytes] or [Text] */
 public sealed class Json {
@@ -15,15 +15,31 @@ public sealed class Json {
     }
 
     public class Text(public val text: String) : Json() {
+        /** Lazily initiated version of [text] where the characters are converted to UTF-8 bytes */
+        public val bytes: ByteArray by lazy { text.toByteArray() }
+
         override fun toString(): String {
             return "Json.Text(text='$text')"
         }
     }
 
+    /**
+     * Expose the JSON value as a [ByteArray]. If the value is [Json.Text], the [Json.Text.bytes]
+     * property is accessed whereupon first call the [Json.Text.text] value is converted to UTF-8
+     * bytes. This means that the first call has a cost but any subsequent call will reference the
+     * previously computed value.
+     */
+    public fun asBytes(): ByteArray {
+        return when (this) {
+            is Bytes -> bytes
+            is Text -> bytes
+        }
+    }
+
     /** Write the underlining JSON value to the [buffer] */
-    public fun writeToBuffer(buffer: Sink) {
+    public fun writeToBuffer(buffer: ByteWriteBuffer) {
         when (this) {
-            is Bytes -> buffer.write(bytes)
+            is Bytes -> buffer.writeBytes(bytes)
             is Text -> buffer.writeString(text)
         }
     }

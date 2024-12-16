@@ -1,12 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
-import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
-import kotlinx.io.Sink
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -54,7 +53,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
      *
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L177)
      */
-    final override fun encode(value: PgRange<T>, buffer: Sink) {
+    final override fun encode(value: PgRange<T>, buffer: ByteWriteBuffer) {
         var flags = ZERO_RANGE_FLAGS
 
         flags =
@@ -77,17 +76,17 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
 
         when (value.lower) {
             is Bound.Excluded ->
-                buffer.writeLengthPrefixed { typeDescription.encode(value.lower.value, this) }
+                buffer.writeLengthPrefixedAsInt { typeDescription.encode(value.lower.value, this) }
             is Bound.Included ->
-                buffer.writeLengthPrefixed { typeDescription.encode(value.lower.value, this) }
+                buffer.writeLengthPrefixedAsInt { typeDescription.encode(value.lower.value, this) }
             is Bound.Unbounded -> {}
         }
 
         when (value.upper) {
             is Bound.Excluded ->
-                buffer.writeLengthPrefixed { typeDescription.encode(value.upper.value, this) }
+                buffer.writeLengthPrefixedAsInt { typeDescription.encode(value.upper.value, this) }
             is Bound.Included ->
-                buffer.writeLengthPrefixed { typeDescription.encode(value.upper.value, this) }
+                buffer.writeLengthPrefixedAsInt { typeDescription.encode(value.upper.value, this) }
             is Bound.Unbounded -> {}
         }
     }

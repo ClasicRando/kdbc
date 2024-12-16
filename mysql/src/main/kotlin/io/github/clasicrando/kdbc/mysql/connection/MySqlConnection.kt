@@ -1,11 +1,9 @@
 package io.github.clasicrando.kdbc.mysql.connection
 
 import io.github.clasicrando.kdbc.core.cache.LruCache
-import io.github.clasicrando.kdbc.core.chunkedBytes
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.AbstractConnection
 import io.github.clasicrando.kdbc.core.connection.Connection
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.normalizeWhitespace
 import io.github.clasicrando.kdbc.core.query.Query
@@ -15,13 +13,9 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.splitQuery
-import io.github.clasicrando.kdbc.core.statement.CsvDataRow
-import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
-import io.github.clasicrando.kdbc.mysql.load.LoadLocalFileStatement
-import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import io.github.clasicrando.kdbc.mysql.message.Status
 import io.github.clasicrando.kdbc.mysql.message.decoders.BinaryRowDecoder
@@ -46,19 +40,10 @@ import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.io.Buffer
-import kotlinx.io.Source
-import kotlinx.io.asSource
-import kotlinx.io.buffered
-import java.io.IOException
-import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
@@ -101,7 +86,7 @@ internal constructor(
 
     override suspend fun isValid(): Boolean {
         return mutex.withLock {
-            stream.sendPacket(MysqlMessage.Ping)
+            stream.writeInitialMessage(MysqlMessage.Ping)
             try {
                 stream.receiveOk()
             } catch (_: MySqlException) {
@@ -148,7 +133,7 @@ internal constructor(
                 var rowCount = 0L
                 while (true) {
                     val rowPacket = stream.receiveNextPacket()
-                    if (rowPacket.peekNextAsInt() == 0xfe && rowPacket.remaining() < 9) {
+                    if (rowPacket.peekNextAsInt() == 0xfe && rowPacket.remaining < 9) {
                         val eof = EofDecoder.decode(rowPacket)
                         emit(Either.Left(QueryResult(rowCount, "")))
 
@@ -191,12 +176,12 @@ internal constructor(
             if (query.parameters.isNotEmpty()) {
                 val statement = getOrPrepareStatement(query.sql)
                 val args = MySqlArguments(query.parameters.map { MySqlArgument(it, typeCache) })
-                stream.sendPacket(
+                stream.writeInitialMessage(
                     MysqlMessage.Execute(statement = statement.statementId, arguments = args)
                 )
                 isBinaryEncoding = true
             } else {
-                stream.sendPacket(MysqlMessage.Query(sql = query.sql))
+                stream.writeInitialMessage(MysqlMessage.Query(sql = query.sql))
             }
             stream.addLastWaiting(Waiting.Result)
 
@@ -244,165 +229,6 @@ internal constructor(
         }
     }
 
-    /**
-     * Issue a `LOAD DATA LOCAL` command to copy all data found when reading the [file] to the
-     * server.
-     *
-     * A consideration for local loading is that once data has been sent to the server, it cannot be
-     * aborted. This means that if you want to allow rolling back inserts where the client failed
-     * part way through a read (or just generally to be safer) you should override the
-     * [withTransaction] flag to true to wrap the entire operation in a transaction.
-     *
-     * @throws KdbcException if local loading is not supported by the server, the initial request
-     *   response has an unexpected header or a general KDBC exception
-     */
-    public suspend fun loadLocalFile(
-        statement: LoadLocalFileStatement,
-        file: Path,
-        withTransaction: Boolean = false,
-    ): QueryResult {
-        return Files.newInputStream(file).use { loadLocalFile(statement, it, withTransaction) }
-    }
-
-    /**
-     * Issue a `LOAD DATA LOCAL` command to copy all [InputStream] data to the server.
-     *
-     * A consideration for local loading is that once data has been sent to the server, it cannot be
-     * aborted. This means that if you want to allow rolling back inserts where the client failed
-     * part way through a read (or just generally to be safer) you should override the
-     * [withTransaction] flag to true to wrap the entire operation in a transaction.
-     *
-     * @throws KdbcException if local loading is not supported by the server, the initial request
-     *   response has an unexpected header or a general KDBC exception
-     */
-    public suspend fun loadLocalFile(
-        statement: LoadLocalFileStatement,
-        inputStream: InputStream,
-        withTransaction: Boolean = false,
-    ): QueryResult {
-        return loadLocalFile(statement, inputStream.asSource().buffered(), withTransaction)
-    }
-
-    /**
-     * Issue a `LOAD DATA LOCAL` command to copy all [Source] data to the server.
-     *
-     * A consideration for local loading is that once data has been sent to the server, it cannot be
-     * aborted. This means that if you want to allow rolling back inserts where the client failed
-     * part way through a read (or just generally to be safer) you should override the
-     * [withTransaction] flag to true to wrap the entire operation in a transaction.
-     *
-     * @throws KdbcException if local loading is not supported by the server, the initial request
-     *   response has an unexpected header or a general KDBC exception
-     */
-    public suspend fun loadLocalFile(
-        statement: LoadLocalFileStatement,
-        source: Source,
-        withTransaction: Boolean = false,
-    ): QueryResult {
-        return loadLocalInternal(statement, source.chunkedBytes().asFlow(), withTransaction)
-    }
-
-    /**
-     * Issue a `LOAD DATA LOCAL` command to copy all [CsvDataRow]s to the server.
-     *
-     * A consideration for local loading is that once data has been sent to the server, it cannot be
-     * aborted. This means that if you want to allow rolling back inserts where the client failed
-     * part way through a read (or just generally to be safer) you should override the
-     * [withTransaction] flag to true to wrap the entire operation in a transaction.
-     *
-     * @throws KdbcException if local loading is not supported by the server, the initial request
-     *   response has an unexpected header or a general KDBC exception
-     */
-    public suspend fun loadLocalData(
-        statement: LoadLocalFileStatement,
-        data: Flow<CsvDataRow>,
-        withTransaction: Boolean = false,
-    ): QueryResult {
-        return loadLocalInternal(
-            statement =
-                statement.copy(
-                    characterSet = "utf8mb4",
-                    delimiter = ',',
-                    quoteChar = '"',
-                    newline = "\n",
-                    skipLines = 0,
-                ),
-            data = data.mapIntoCsvByteArrayChunks(CSV_ROW_BUFFER_SIZE),
-            withTransaction = withTransaction,
-        )
-    }
-
-    /**
-     * Issue a `LOAD DATA LOCAL` command to copy all the [data] contents to the server.
-     *
-     * A consideration for local loading is that once data has been sent to the server, it cannot be
-     * aborted. This means that if you want to allow rolling back inserts where the client failed
-     * part way through a read (or just generally to be safer) you should override the
-     * [withTransaction] flag to true to wrap the entire operation in a transaction.
-     *
-     * @throws KdbcException if local loading is not supported by the server, the initial request
-     *   response has an unexpected header or a general KDBC exception
-     */
-    private suspend fun loadLocalInternal(
-        statement: LoadLocalFileStatement,
-        data: Flow<ByteArray>,
-        withTransaction: Boolean = false,
-    ): QueryResult {
-        checkOrMySqlException(stream.capabilities[Capabilities.CLIENT_LOCAL_FILES]) {
-            "Server does not support local load commands"
-        }
-        val query = statement.toQuery()
-
-        if (withTransaction) {
-            begin()
-        }
-
-        log(connectionOptions.statementLogLevel) {
-            message = "Sending query: ${query.normalizeWhitespace()}"
-        }
-        try {
-            stream.sendPacket(MysqlMessage.Query(sql = query))
-            stream.addLastWaiting(Waiting.Result)
-            val response = stream.receiveNextPacket()
-            val firstByte = response.readByteAsInt()
-            checkOrMySqlException(firstByte == 0xFB) {
-                "LOAD LOCAL response is supposed to be 0xFB but found 0x${firstByte.toHexString()}"
-            }
-
-            var error: Exception? = null
-            try {
-                val tempBuffer = Buffer()
-                data.collect {
-                    if (tempBuffer.size + it.size > COPY_BUFFER_SIZE) {
-                        stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))
-                    }
-                    tempBuffer.write(it)
-                }
-                if (!tempBuffer.exhausted()) {
-                    stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))
-                }
-            } catch (ex: Exception) {
-                error = ex
-                throw ex
-            } finally {
-                if (error !is IOException) {
-                    stream.writePacket(MysqlMessage.Empty)
-                }
-            }
-            val ok = stream.receiveOk()
-            stream.removeFirstWaitingIfAny()
-            if (withTransaction) {
-                commit()
-            }
-            return QueryResult(rowsAffected = ok.affectedRows, message = "LOAD DATA done")
-        } catch (ex: Throwable) {
-            if (withTransaction && ex !is IOException) {
-                rollback()
-            }
-            throw ex
-        }
-    }
-
     private val preparedStatementCache =
         LruCache<String, MySqlPreparedStatement>(connectionOptions.statementCacheCapacity)
 
@@ -431,7 +257,7 @@ internal constructor(
      * response to the statement prepare request.
      */
     private suspend fun prepareStatement(query: String): MySqlPreparedStatement {
-        stream.sendPacket(MysqlMessage.Prepare(query))
+        stream.writeInitialMessage(MysqlMessage.Prepare(query))
         val prepareOk = stream.receiveNext(PrepareOkDecoder)
         if (prepareOk.params > 0) {
             (1..prepareOk.params).forEach { stream.receiveNext(ColumnDefinitionDecoder) }
@@ -465,7 +291,7 @@ internal constructor(
 
         val statement = prepareStatement(query)
         preparedStatementCache.insert(query, statement)?.let {
-            stream.sendPacket(MysqlMessage.StatementClose(it.value.statementId))
+            stream.writeInitialMessage(MysqlMessage.StatementClose(it.value.statementId))
         }
         return statement
     }
@@ -519,7 +345,7 @@ internal constructor(
     internal suspend fun dispose() {
         try {
             if (stream.isConnected) {
-                stream.writePacket(MysqlMessage.Quit)
+                stream.writeMessage(MysqlMessage.Quit)
                 log(Kdbc.detailedLogging) { this.message = "Successfully sent QUIT message" }
             }
         } catch (ex: Exception) {
@@ -553,8 +379,6 @@ internal constructor(
     }
 
     internal companion object {
-        private const val COPY_BUFFER_SIZE = MySqlStream.MAX_PACKET_SIZE - 4
-        private const val CSV_ROW_BUFFER_SIZE = 2000
         private val INSERT_VALUES_REGEX =
             Regex(
                 "^INSERT\\s+INTO\\s+([0-9a-z_$]+(?:\\.[0-9a-z_$]+)?)\\(([0-9a-z_$]+(,[0-9a-z_$]+)*)\\)\\s*" +
