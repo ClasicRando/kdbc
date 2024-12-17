@@ -15,10 +15,6 @@ internal class PgArgument(
         typeCache: PgTypeCache,
     ) : this(
         parameter = parameter,
-        pgTypeDescription =
-            typeCache.getTypeDescription(parameter.parameterType)
-                ?: throw PgException(
-                    "Could not find type description for ${parameter.parameterType}"
-                ),
+        pgTypeDescription = typeCache.getTypeDescription(parameter.parameterType),
     )
 }

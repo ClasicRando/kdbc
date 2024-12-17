@@ -55,6 +55,10 @@ public fun Duration.toPgInterval(): PgInterval {
     }
 }
 
+/**
+ * Implementation of a [PgTypeDescription] for the [PgInterval] type. Maps to the `interval`
+ * postgresql type.
+ */
 internal object PgIntervalTypeDescription :
     PgTypeDescription<PgInterval>(dbType = PgType.Interval, kType = typeOf<PgInterval>()) {
     /**
@@ -199,5 +203,24 @@ internal object PgIntervalTypeDescription :
                     millisecond * MICROSECONDS_PER_MILLISECOND +
                     microsecond,
         )
+    }
+}
+
+/**
+ * Implementation of a [PgTypeDescription] for the [Duration] type. Maps to the `interval`
+ * postgresql type. Internally all methods defer to [PgIntervalTypeDescription].
+ */
+internal object DurationTypeDescription :
+    PgTypeDescription<Duration>(dbType = PgType.Interval, kType = typeOf<Duration>()) {
+    override fun encode(value: Duration, buffer: ByteWriteBuffer) {
+        PgIntervalTypeDescription.encode(value.toPgInterval(), buffer)
+    }
+
+    override fun decodeBytes(value: PgValue.Binary): Duration {
+        return PgIntervalTypeDescription.decodeBytes(value).toDuration()
+    }
+
+    override fun decodeText(value: PgValue.Text): Duration {
+        return PgIntervalTypeDescription.decodeText(value).toDuration()
     }
 }

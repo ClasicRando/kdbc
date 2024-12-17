@@ -7,17 +7,12 @@ import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.io.Sink
 
-private const val RESOURCE_TYPE = "Stream"
-
 /**
  * Interface describing how an asynchronous stream should operate for database connections. The
  * implementation will depend on the platform and compilation target but each method will suspend
  * during IO operation to yield control of the otherwise blocked thread.
  */
 public interface Stream : UniqueResourceId, AutoCloseable, CoroutineScope {
-    override val resourceType: String
-        get() = RESOURCE_TYPE
-
     /** Returns true if the stream is still connected to the host */
     public val isConnected: Boolean
 

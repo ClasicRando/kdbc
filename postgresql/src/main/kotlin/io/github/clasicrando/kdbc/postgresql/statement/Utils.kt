@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.postgresql.statement
 
 import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
 import io.github.clasicrando.kdbc.core.query.QueryParameter
-import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
 import kotlinx.io.Sink
@@ -21,9 +20,7 @@ internal fun ByteWriteBuffer.encodeValue(queryParameter: QueryParameter, typeCac
  * [typeCache]
  */
 internal fun <T : Any> ByteWriteBuffer.encodeValue(value: T?, type: KType, typeCache: PgTypeCache) {
-    val description =
-        typeCache.getTypeDescription<Any>(type)
-            ?: throw PgException("Could not find type description for $type")
+    val description = typeCache.getTypeDescription<Any>(type)
     encodeValue(value, description)
 }
 

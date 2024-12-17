@@ -37,7 +37,7 @@ public class KtorStream(
 ) : DefaultUniqueResourceId(), Stream {
     private lateinit var connection: Connection
     private lateinit var socket: Socket
-    private lateinit var writeChannel: ByteWriteChannel
+    @PublishedApi internal lateinit var writeChannel: ByteWriteChannel
     private lateinit var readChannel: ByteReadChannel
 
     override val isConnected: Boolean
@@ -46,14 +46,19 @@ public class KtorStream(
     override var coroutineContext: CoroutineContext = SupervisorJob()
         private set
 
+    override val resourceType: String = "KtorStream"
+
     override suspend fun connect(timeout: Duration) {
         require(timeout.isPositive()) { "Timeout must be positive" }
         try {
             connection =
                 withTimeout(timeout) {
-                    aSocket(selectorManager).tcp().connect(address) {
-                        this.socketTimeout = this@KtorStream.socketTimeout.inWholeMilliseconds
-                    }.connection()
+                    aSocket(selectorManager)
+                        .tcp()
+                        .connect(address) {
+                            this.socketTimeout = this@KtorStream.socketTimeout.inWholeMilliseconds
+                        }
+                        .connection()
                 }
             socket = connection.socket
             writeChannel = connection.output
@@ -82,49 +87,85 @@ public class KtorStream(
         readChannel = connection.input
     }
 
-    @OptIn(InternalAPI::class)
-    override suspend fun writeTo(block: suspend (Sink) -> Unit) {
+    private suspend inline fun useWriteChannelFlushing(
+        crossinline block: suspend (ByteWriteChannel) -> Unit
+    ) {
         check(isConnected) { "Cannot write to a stream that is not connected" }
+        var error: Exception? = null
         try {
-            block(writeChannel.writeBuffer)
+            block(writeChannel)
+        } catch (ex: Exception) {
+            error = ex
         } finally {
-            writeChannel.flush()
+            if (error == null) {
+                try {
+                    writeChannel.flush()
+                } catch (ex: Exception) {
+                    error = ex
+                }
+            }
+        }
+
+        if (error != null) {
+            throw StreamWriteError(error)
         }
     }
 
+    @OptIn(InternalAPI::class)
+    override suspend fun writeTo(block: suspend (Sink) -> Unit) {
+        useWriteChannelFlushing { block(it.writeBuffer) }
+    }
+
     override suspend fun write(buffer: ByteWriteBuffer) {
-        check(isConnected) { "Cannot write to a stream that is not connected" }
-        try {
-            writeChannel.writeFully(value = buffer.buffer, startIndex = 0, endIndex = buffer.offset)
-        } finally {
-            writeChannel.flush()
+        useWriteChannelFlushing {
+            try {
+                it.writeFully(value = buffer.innerBuffer, startIndex = 0, endIndex = buffer.offset)
+            } finally {
+                buffer.reset()
+            }
         }
     }
 
     override suspend fun readByte(): Byte {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        return readChannel.readByte()
+        return try {
+            readChannel.readByte()
+        } catch (ex: Exception) {
+            throw StreamReadError(ex)
+        }
     }
 
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        return readChannel.readInt()
+        return try {
+            readChannel.readInt()
+        } catch (ex: Exception) {
+            throw StreamReadError(ex)
+        }
     }
 
     override suspend fun readBuffer(count: Int): ByteReadBuffer {
         check(isConnected) { "Cannot read from a stream that is not connected" }
         val destination = ByteArray(count)
-        readChannel.readFully(destination)
+        try {
+            readChannel.readFully(destination)
+        } catch (ex: Exception) {
+            throw StreamReadError(ex)
+        }
         return ByteReadBuffer(destination)
     }
 
     override suspend fun readIntoBuffer(buffer: ByteWriteBuffer, count: Int) {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        readChannel.readFully(
-            out = buffer.buffer,
-            start = buffer.offset,
-            end = buffer.offset + count,
-        )
+        try {
+            readChannel.readFully(
+                out = buffer.innerBuffer,
+                start = buffer.offset,
+                end = buffer.offset + count,
+            )
+        } catch (ex: Exception) {
+            throw StreamReadError(ex)
+        }
         buffer.offset += count
     }
 

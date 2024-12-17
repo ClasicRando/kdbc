@@ -1094,7 +1094,6 @@ internal constructor(
         val innerType = kClass.primaryConstructor!!.parameters.first().type
         val innerTypeDescription =
             typeCache.getTypeDescription<Any>(innerType)
-                ?: throw PgException("Could not find type description for inner type $innerType")
         return ValueTypeDescription(kClass, kType, innerTypeDescription)
     }
 

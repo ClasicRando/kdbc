@@ -53,9 +53,7 @@ internal class PgDataRow(
     override fun get(index: Int, type: KType): Any? {
         val pgType = getPgType(index)
         val nonNullType = type.ensureNonNull()
-        val typeDescription =
-            typeCache.getTypeDescription<Any>(nonNullType)
-                ?: throw PgException("Could not find type description for $nonNullType")
+        val typeDescription = typeCache.getTypeDescription<Any>(nonNullType)
         if (typeDescription.dbType.oid == pgType.oid) {
             return decode(index, typeDescription)
         }

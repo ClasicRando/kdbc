@@ -31,10 +31,11 @@ internal class PgTypeCache(zoneOffset: ZoneOffset) {
      * @throws KdbcException if the [kType] cannot be found in the lookup table
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Any> getTypeDescription(kType: KType): PgTypeDescription<T>? {
+    fun <T : Any> getTypeDescription(kType: KType): PgTypeDescription<T> {
         val typeDescription =
             typeDescriptions[kType] ?: throw PgException("No type description for $kType")
         return typeDescription as? PgTypeDescription<T>
+            ?: throw PgException("Could not cast type description found")
     }
 
     /** Add a custom [typeDescription] to the lookup tables */
@@ -85,9 +86,7 @@ internal class PgTypeCache(zoneOffset: ZoneOffset) {
     @Suppress("UNCHECKED_CAST")
     fun getTypeHint(parameter: QueryParameter): PgType {
         val parameterValue = parameter.value ?: return PgType.Unspecified
-        val description =
-            typeDescriptions[parameter.parameterType] as? PgTypeDescription<Any>
-                ?: return PgType.Unspecified
+        val description = getTypeDescription<Any>(parameter.parameterType)
         return description.getActualType(parameterValue)
     }
 

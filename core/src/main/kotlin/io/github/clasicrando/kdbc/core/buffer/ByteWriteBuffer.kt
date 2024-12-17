@@ -5,7 +5,7 @@ import kotlinx.io.Buffer
 import kotlinx.io.readTo
 
 public class ByteWriteBuffer(@PublishedApi internal val capacity: Int) {
-    @PublishedApi internal val buffer: ByteArray = ByteArray(capacity)
+    @PublishedApi internal val innerBuffer: ByteArray = ByteArray(capacity)
     @PublishedApi internal var offset: Int = 0
 
     public inline val isEmpty: Boolean
@@ -25,59 +25,59 @@ public class ByteWriteBuffer(@PublishedApi internal val capacity: Int) {
 
     public fun writeByte(byte: Byte) {
         checkRemaining(1)
-        buffer[offset++] = byte
+        innerBuffer[offset++] = byte
     }
 
     public fun writeShort(short: Short) {
         checkRemaining(2)
-        buffer[offset++] = (short.toInt() ushr 8 and 0xff).toByte()
-        buffer[offset++] = (short.toInt() and 0xff).toByte()
+        innerBuffer[offset++] = (short.toInt() ushr 8 and 0xff).toByte()
+        innerBuffer[offset++] = (short.toInt() and 0xff).toByte()
     }
 
     public fun writeShortLe(short: Short) {
         checkRemaining(2)
-        buffer[offset++] = (short.toInt() and 0xff).toByte()
-        buffer[offset++] = (short.toInt() ushr 8 and 0xff).toByte()
+        innerBuffer[offset++] = (short.toInt() and 0xff).toByte()
+        innerBuffer[offset++] = (short.toInt() ushr 8 and 0xff).toByte()
     }
 
     public fun writeInt(int: Int) {
         checkRemaining(4)
-        buffer[offset++] = (int ushr 24 and 0xff).toByte()
-        buffer[offset++] = (int ushr 16 and 0xff).toByte()
-        buffer[offset++] = (int ushr 8 and 0xff).toByte()
-        buffer[offset++] = (int and 0xff).toByte()
+        innerBuffer[offset++] = (int ushr 24 and 0xff).toByte()
+        innerBuffer[offset++] = (int ushr 16 and 0xff).toByte()
+        innerBuffer[offset++] = (int ushr 8 and 0xff).toByte()
+        innerBuffer[offset++] = (int and 0xff).toByte()
     }
 
     public fun writeIntLe(int: Int) {
         checkRemaining(4)
-        buffer[offset++] = (int and 0xff).toByte()
-        buffer[offset++] = (int ushr 8 and 0xff).toByte()
-        buffer[offset++] = (int ushr 16 and 0xff).toByte()
-        buffer[offset++] = (int ushr 24 and 0xff).toByte()
+        innerBuffer[offset++] = (int and 0xff).toByte()
+        innerBuffer[offset++] = (int ushr 8 and 0xff).toByte()
+        innerBuffer[offset++] = (int ushr 16 and 0xff).toByte()
+        innerBuffer[offset++] = (int ushr 24 and 0xff).toByte()
     }
 
     public fun writeLong(long: Long) {
         checkRemaining(8)
-        buffer[offset++] = (long ushr 56 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 48 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 40 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 32 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 24 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 16 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 8 and 0xffL).toByte()
-        buffer[offset++] = (long and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 56 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 48 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 40 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 32 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 24 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 16 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 8 and 0xffL).toByte()
+        innerBuffer[offset++] = (long and 0xffL).toByte()
     }
 
     public fun writeLongLe(long: Long) {
         checkRemaining(8)
-        buffer[offset++] = (long and 0xffL).toByte()
-        buffer[offset++] = (long ushr 8 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 16 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 24 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 32 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 40 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 48 and 0xffL).toByte()
-        buffer[offset++] = (long ushr 56 and 0xffL).toByte()
+        innerBuffer[offset++] = (long and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 8 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 16 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 24 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 32 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 40 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 48 and 0xffL).toByte()
+        innerBuffer[offset++] = (long ushr 56 and 0xffL).toByte()
     }
 
     public fun writeBytes(bytes: ByteArray) {
@@ -85,7 +85,7 @@ public class ByteWriteBuffer(@PublishedApi internal val capacity: Int) {
             return
         }
         checkRemaining(bytes.size)
-        bytes.copyInto(buffer, destinationOffset = offset)
+        bytes.copyInto(innerBuffer, destinationOffset = offset)
         offset += bytes.size
     }
 
@@ -98,7 +98,7 @@ public class ByteWriteBuffer(@PublishedApi internal val capacity: Int) {
         }
 
         checkRemaining(buffer.size.toInt())
-        buffer.readTo(sink = this.buffer, startIndex = offset, endIndex = offset + buffer.size.toInt())
+        buffer.readTo(sink = this.innerBuffer, startIndex = offset, endIndex = offset + buffer.size.toInt())
         offset += buffer.size.toInt()
     }
 
@@ -118,22 +118,22 @@ public class ByteWriteBuffer(@PublishedApi internal val capacity: Int) {
 
     public inline fun <T> useAsReadBuffer(block: (ByteReadBuffer) -> T): T {
         return try {
-            block(ByteReadBuffer(innerBuffer = buffer, offset = 0, size = offset))
+            block(ByteReadBuffer(innerBuffer = innerBuffer, offset = 0, size = offset))
         } finally {
             reset()
         }
     }
 
     public fun toReadBuffer(): ByteReadBuffer {
-        val result = ByteReadBuffer(buffer.copyOfRange(fromIndex = 0, toIndex = offset))
+        val result = ByteReadBuffer(innerBuffer.copyOfRange(fromIndex = 0, toIndex = offset))
         reset()
         return result
     }
 
     public fun copy(other: ByteWriteBuffer) {
         checkRemaining(other.bytesWritten)
-        other.buffer.copyInto(
-            destination = this.buffer,
+        other.innerBuffer.copyInto(
+            destination = this.innerBuffer,
             destinationOffset = this.offset,
             startIndex = 0,
             endIndex = other.offset,

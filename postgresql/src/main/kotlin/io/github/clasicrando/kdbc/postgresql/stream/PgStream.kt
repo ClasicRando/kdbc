@@ -218,7 +218,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend inline fun writeToStream(message: PgMessage) {
         PgMessageEncoders.encode(message, writeBuffer)
-        writeInternalBufferToStream()
+        stream.write(writeBuffer)
     }
 
     /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
@@ -226,7 +226,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
         for (message in messages) {
             PgMessageEncoders.encode(message, writeBuffer)
         }
-        writeInternalBufferToStream()
+        stream.write(writeBuffer)
     }
 
     /**
@@ -237,20 +237,12 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     suspend fun <M> writeManyToStream(flow: Flow<M>) where M : PgMessage, M : SizedMessage {
         flow.collect { message ->
             if (message.size > writeBuffer.remaining) {
-                writeInternalBufferToStream()
+                stream.write(writeBuffer)
             }
             PgMessageEncoders.encode(message, writeBuffer)
         }
         if (!writeBuffer.isEmpty) {
-            writeInternalBufferToStream()
-        }
-    }
-
-    suspend fun writeInternalBufferToStream() {
-        try {
             stream.write(writeBuffer)
-        } finally{
-            writeBuffer.reset()
         }
     }
 
