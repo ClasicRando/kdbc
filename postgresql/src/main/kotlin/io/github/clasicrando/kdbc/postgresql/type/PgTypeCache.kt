@@ -114,6 +114,8 @@ internal class PgTypeCache(zoneOffset: ZoneOffset) {
                     *createArrayDescriptions(PgType.TimestamptzArray, instantDescription),
                     PgIntervalTypeDescription,
                     *createArrayDescriptions(PgType.IntervalArray, PgIntervalTypeDescription),
+                    DurationTypeDescription,
+                    *createArrayDescriptions(PgType.IntervalArray, DurationTypeDescription),
                     PointTypeDescription,
                     *createArrayDescriptions(PgType.PointArray, PointTypeDescription),
                     LineTypeDescription,

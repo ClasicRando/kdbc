@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.statement
 
 import io.github.clasicrando.kdbc.core.query.QueryParameter
-import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
 

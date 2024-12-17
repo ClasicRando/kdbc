@@ -7,7 +7,6 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
-import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgType
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
