@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.peekNextAsInt
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
@@ -76,7 +75,7 @@ internal object BinaryRowDecoder : MessageDecoder<MysqlMessage.BinaryRow, List<M
                             throw MySqlException("Unreachable! Found null type for non-null value")
                     }
 
-                MySqlValue.Binary(ByteReadBuffer(buffer.readByteArray(size)), context[i])
+                MySqlValue.Binary(buffer.readByteArray(size), context[i])
             }
         return MysqlMessage.BinaryRow(values)
     }

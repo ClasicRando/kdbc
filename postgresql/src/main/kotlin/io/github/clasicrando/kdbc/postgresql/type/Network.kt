@@ -76,7 +76,7 @@ internal object NetworkAddressTypeDescription :
      *   be used to construct a [PgInet]
      */
     override fun decodeBytes(value: PgValue.Binary): PgInet {
-        val remainingBytes = value.bytes.remaining()
+        val remainingBytes = value.bytes.remaining
         check(remainingBytes >= 8) { "Inet value must be at least 8 bytes. Found $remainingBytes" }
         val family = value.bytes.readByte()
         val prefix = value.bytes.readByte().toUByte()

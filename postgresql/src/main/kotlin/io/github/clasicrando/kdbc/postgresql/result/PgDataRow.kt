@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.result
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.ensureNonNull
 import io.github.clasicrando.kdbc.core.result.DataRow
@@ -13,6 +12,7 @@ import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
 import io.ktor.utils.io.core.readBytes
 import kotlinx.io.Buffer
+import kotlinx.io.readString
 import kotlin.reflect.KType
 
 /** Postgresql specific implementation for a [DataRow] */
@@ -86,10 +86,17 @@ internal class PgDataRow(
                         return@Array null
                     }
                     val columnType = columnMapping[it]
-                    val byteReadBuffer = ByteReadBuffer(buffer.readBytes(count = length))
                     when (columnType.formatCode) {
-                        PgFormatCode.Text -> PgValue.Text(byteReadBuffer, columnType)
-                        PgFormatCode.Binary -> PgValue.Binary(byteReadBuffer, columnType)
+                        PgFormatCode.Text ->
+                            PgValue.Text(
+                                text = buffer.readString(byteCount = length.toLong()),
+                                typeData = columnType,
+                            )
+                        PgFormatCode.Binary ->
+                            PgValue.Binary(
+                                bytes = buffer.readBytes(count = length),
+                                typeData = columnType,
+                            )
                     }
                 }
 

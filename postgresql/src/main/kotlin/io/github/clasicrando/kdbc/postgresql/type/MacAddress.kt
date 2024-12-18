@@ -53,7 +53,7 @@ internal object MacAddressTypeDescription :
      *   bytes are not 6 or 8
      */
     override fun decodeBytes(value: PgValue.Binary): PgMacAddress {
-        val byteCount = value.bytes.remaining()
+        val byteCount = value.bytes.remaining
         checkOrColumnDecodeError<PgMacAddress>(
             check = byteCount == 6 || byteCount == 8,
             type = value.typeData,

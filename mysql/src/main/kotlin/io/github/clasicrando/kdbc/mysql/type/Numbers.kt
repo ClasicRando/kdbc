@@ -174,13 +174,13 @@ private fun intCompatible(dbType: MySqlType): Boolean {
  * [Long] with only have 2 bytes possibly populated.
  */
 private fun decodeInt(buffer: ByteReadBuffer): Long {
-    val byteCount = buffer.remaining()
+    val byteCount = buffer.remaining
     if (byteCount > 8) {
         throw MySqlException(
             "Expected integer value to be at most 8 bytes but found $byteCount bytes"
         )
     }
-    return buffer.readIntLe(buffer.remaining())
+    return buffer.readIntLe(buffer.remaining)
 }
 
 /** Implementation of a [MySqlTypeDescription] for the [Float] type. Accepts FLOAT and DOUBLE */
@@ -239,7 +239,7 @@ private fun floatCompatible(dbType: MySqlType): Boolean {
  * @throws MySqlException if the number of bytes remaining in the buffer is not 4 or 8
  */
 private fun decodeFloat(buffer: ByteReadBuffer): Double {
-    return when (val length = buffer.remaining()) {
+    return when (val length = buffer.remaining) {
         4 -> buffer.readFloatLe().toDouble()
         8 -> buffer.readDoubleLe()
         else -> {

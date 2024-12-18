@@ -292,7 +292,7 @@ private fun Sink.encodeTime(time: LocalTime, includeMicro: Boolean) {
  *   the buffer has 3 or fewer bytes.
  */
 private fun ByteReadBuffer.decodeDate(): LocalDate {
-    val length = remaining()
+    val length = remaining
     checkOrMySqlException(length > 0) { "Found a zero date when trying to decode DATE value" }
     checkOrMySqlException(length >= 4) {
         "Require 4 bytes to decode a DATE value but only found $length"
@@ -315,6 +315,6 @@ private fun ByteReadBuffer.decodeTime(length: Int): LocalTime {
     val hour = readByteAsInt()
     val minute = readByteAsInt()
     val second = readByteAsInt()
-    val microSecond = if (length > 3) readIntLe(remaining()) else 0
+    val microSecond = if (length > 3) readIntLe(remaining) else 0
     return LocalTime.of(hour, minute, second, validateInt(microSecond))
 }

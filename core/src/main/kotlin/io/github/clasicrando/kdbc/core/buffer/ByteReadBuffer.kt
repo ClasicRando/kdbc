@@ -38,29 +38,10 @@ public class ByteReadBuffer(
     }
 
     /** Number of bytes remaining as readable within the buffer */
-    @Suppress("NOTHING_TO_INLINE")
-    public inline fun remaining(): Int {
-        return size - position
-    }
+    public inline val remaining: Int get() = size - position
 
     /** Returns true if the remaining bytes to read is 0 */
-    @Suppress("NOTHING_TO_INLINE")
-    public inline fun exhausted(): Boolean {
-        return remaining() == 0
-    }
-
-    public fun skip(byteCount: Int) {
-        checkRemaining(byteCount)
-        position += byteCount
-    }
-
-    /**
-     * Request the availability of a set number of bytes in the buffer. Returns true if the
-     * remaining bytes meets or exceeds the requested number of bytes.
-     */
-    public fun request(byteCount: Int): Boolean {
-        return remaining() >= byteCount
-    }
+    public inline val exhausted: Boolean get() = remaining == 0
 
     /**
      * Check to confirm that the required number of bytes are available within the buffer. If the
@@ -70,28 +51,9 @@ public class ByteReadBuffer(
      * @throws [BufferExhausted] if the buffer does not have the required number of bytes available
      */
     private fun checkRemaining(required: Int) {
-        if (remaining() < required) {
-            throw BufferExhausted(requested = required, remaining = remaining())
+        if (remaining < required) {
+            throw BufferExhausted(requested = required, remaining = remaining)
         }
-    }
-
-    /**
-     * View the next available [Byte] within the buffer without consuming the value.
-     *
-     * @throws BufferExhausted if the buffer has been exhausted
-     */
-    public fun peekNext(): Byte {
-        checkRemaining(1)
-        return innerBuffer[offset + position]
-    }
-
-    /**
-     * View the next available [Byte] within the buffer without consuming the value.
-     *
-     * @throws BufferExhausted if the buffer has been exhausted
-     */
-    public fun peekNextAsInt(): Int {
-        return peekNext().toInt() and 0xff
     }
 
     /**
@@ -260,7 +222,7 @@ public class ByteReadBuffer(
      *
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
-    public fun readBytes(length: Int = remaining()): ByteArray {
+    public fun readBytes(length: Int = remaining): ByteArray {
         checkRemaining(length)
         val start = offset + position
         position += length
@@ -273,7 +235,7 @@ public class ByteReadBuffer(
      *
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
-    public fun readText(length: Int = remaining()): String {
+    public fun readText(length: Int = remaining): String {
         return String(this.readBytes(length = length), charset = Charsets.UTF_8)
     }
 
@@ -288,7 +250,7 @@ public class ByteReadBuffer(
     public fun readCString(): String {
         val buffer = ArrayList<Byte>()
 
-        while (remaining() > 0) {
+        while (!exhausted) {
             val nextByte = innerBuffer[offset + position++]
             if (nextByte == ZERO_BYTE) {
                 break

@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.buffer.peekNextAsInt
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.buffer.readBytesLengthEncoded
@@ -25,9 +24,7 @@ internal object TextRowDecoder : MessageDecoder<MysqlMessage.TextRow, List<MySql
                     buffer.readByte()
                     return@Array null
                 }
-
-                val bytes = buffer.readBytesLengthEncoded()
-                MySqlValue.Text(ByteReadBuffer(bytes), context[i])
+                MySqlValue.Text(buffer.readBytesLengthEncoded(), context[i])
             }
         return MysqlMessage.TextRow(values)
     }
