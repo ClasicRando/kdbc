@@ -1,8 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.readCString
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Buffer
 
 /**
  * [MessageDecoder] for [PgMessage.NotificationResponse]. This message is sent when the frontend has
@@ -15,7 +16,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-NOTIFICATIONRESPONSE)
  */
 internal object NotificationResponseDecoder : PgMessageDecoder<PgMessage.NotificationResponse>() {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.NotificationResponse {
+    override fun decode(buffer: Buffer): PgMessage.NotificationResponse {
         return PgMessage.NotificationResponse(
             buffer.readInt(),
             buffer.readCString(),

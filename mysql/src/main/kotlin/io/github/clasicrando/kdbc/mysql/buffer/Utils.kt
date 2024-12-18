@@ -1,14 +1,18 @@
 package io.github.clasicrando.kdbc.mysql.buffer
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
 import kotlinx.io.Buffer
 import kotlinx.io.Sink
+import kotlinx.io.readByteArray
+import kotlinx.io.readLongLe
+import kotlinx.io.readShortLe
+import kotlinx.io.readString
 import kotlinx.io.writeLongLe
 import kotlinx.io.writeShortLe
 
-internal fun ByteReadBuffer.read3ByteIntLe(): Int {
+internal fun Buffer.read3ByteIntLe(): Int {
     return (this.readByteAsInt() or (this.readByteAsInt() shl 8) or (this.readByteAsInt() shl 16))
 }
 
@@ -20,7 +24,7 @@ internal fun ByteReadBuffer.read3ByteIntLe(): Int {
  * - 0xfe, read 8 more bytes
  * - other values indicate that the first byte is the length
  */
-internal fun ByteReadBuffer.readLongLengthEncoded(): Long {
+internal fun Buffer.readLongLengthEncoded(): Long {
     val length = readByteAsInt()
     return when (length) {
         0xfc -> readShortLe().toLong() and 0xff_ff
@@ -37,9 +41,9 @@ internal fun ByteReadBuffer.readLongLengthEncoded(): Long {
  * readString(byteCount = readLongLengthEncoded())
  * ```
  */
-internal fun ByteReadBuffer.readStringLengthEncoded(): String {
+internal fun Buffer.readStringLengthEncoded(): String {
     val length = readLongLengthEncoded()
-    return readText(length = validateInt(length))
+    return readString(byteCount = length)
 }
 
 /**
@@ -51,9 +55,9 @@ internal fun ByteReadBuffer.readStringLengthEncoded(): String {
  * with an extra check to ensure the length is an int since a [ByteArray]'s size is capped to
  * [Int.MAX_VALUE].
  */
-internal fun ByteReadBuffer.readBytesLengthEncoded(): ByteArray {
+internal fun Buffer.readBytesLengthEncoded(): ByteArray {
     val length = readLongLengthEncoded()
-    return readBytes(validateInt(length))
+    return readByteArray(validateInt(length))
 }
 
 /**

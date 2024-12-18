@@ -143,7 +143,7 @@ internal sealed class PgMessage(val code: Byte) {
      * Backend message sent with the [DATA_ROW_CODE] header [Byte]. Contains the row data of a
      * single query result in [rowBuffer].
      */
-    data class DataRow(val rowBuffer: ByteReadBuffer) : PgMessage(DATA_ROW_CODE) // B
+    data class DataRow(val rowBuffer: Buffer) : PgMessage(DATA_ROW_CODE) // B
 
     /**
      * Frontend message sent with the [DESCRIBE_CODE] header [Byte]. Contains the [target] of the

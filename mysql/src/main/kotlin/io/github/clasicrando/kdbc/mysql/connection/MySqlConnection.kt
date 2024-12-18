@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.connection
 
+import io.github.clasicrando.kdbc.core.buffer.peekNextAsInt
+import io.github.clasicrando.kdbc.core.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.core.cache.LruCache
 import io.github.clasicrando.kdbc.core.chunkedBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
@@ -148,7 +150,7 @@ internal constructor(
                 var rowCount = 0L
                 while (true) {
                     val rowPacket = stream.receiveNextPacket()
-                    if (rowPacket.peekNextAsInt() == 0xfe && rowPacket.remaining() < 9) {
+                    if (rowPacket.peekNextAsInt() == 0xfe && rowPacket.size < 9) {
                         val eof = EofDecoder.decode(rowPacket)
                         emit(Either.Left(QueryResult(rowCount, "")))
 

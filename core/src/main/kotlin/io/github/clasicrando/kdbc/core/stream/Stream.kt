@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.io.Buffer
 import kotlin.time.Duration
@@ -53,11 +52,11 @@ public interface Stream : UniqueResourceId, AutoCloseable, CoroutineScope {
     public suspend fun readInt(): Int
 
     /**
-     * Read the required number of bytes as [count] into a [ByteReadBuffer] and return that buffer.
+     * Read the required number of bytes as [count] into a [Buffer] and return that buffer.
      *
      * This returns immediately if the stream has [count] bytes available. Otherwise, it suspends to
      * read available bytes into the internal buffer until the required number of bytes is
      * available. The bytes are then read into the buffer and returned.
      */
-    public suspend fun readBuffer(count: Int): ByteReadBuffer
+    public suspend fun read(count: Int): Buffer
 }

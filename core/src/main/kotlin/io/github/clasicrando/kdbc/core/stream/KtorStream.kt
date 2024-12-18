@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -16,8 +15,8 @@ import io.ktor.network.tls.tls
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readByte
-import io.ktor.utils.io.readFully
 import io.ktor.utils.io.readInt
+import io.ktor.utils.io.readPacket
 import io.ktor.utils.io.writePacket
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
@@ -96,11 +95,9 @@ public class KtorStream(
         return readChannel.readInt()
     }
 
-    override suspend fun readBuffer(count: Int): ByteReadBuffer {
+    override suspend fun read(count: Int): Buffer {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        val destination = ByteArray(count)
-        readChannel.readFully(destination)
-        return ByteReadBuffer(destination)
+        return readChannel.readPacket(count) as Buffer
     }
 
     override fun close() {

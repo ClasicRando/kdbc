@@ -1,7 +1,6 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.Loop
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.cache.LruCache
 import io.github.clasicrando.kdbc.core.chunked
 import io.github.clasicrando.kdbc.core.chunkedBuffer
@@ -71,7 +70,6 @@ import kotlinx.io.Source
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
-import kotlinx.io.readByteArray
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -869,10 +867,9 @@ internal constructor(
             else ->
                 flow.mapNotNull { row ->
                     val buffer = getBinaryBuffer(rowCount = ++rowCount, row = row)
-                    if (buffer.readShort().toInt() == -1) {
+                    if (buffer.peek().readShort().toInt() == -1) {
                         return@mapNotNull null
                     }
-                    buffer.reset()
 
                     PgDataRow.fromBuffer(
                         buffer = buffer,
@@ -1142,14 +1139,14 @@ internal constructor(
         private val pgBinaryCopyTrailerBuffer = Buffer().apply { write(pgBinaryCopyTrailer) }
 
         /**
-         * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row,
-         * the first 19 bytes should be ignored since they are the binary copy's file header.
+         * Put the [row] data into a [Buffer]. Has a special case where for the first row, the first
+         * 19 bytes should be ignored since they are the binary copy's file header.
          */
-        internal fun getBinaryBuffer(rowCount: Long, row: Buffer): ByteReadBuffer {
+        internal fun getBinaryBuffer(rowCount: Long, row: Buffer): Buffer {
             if (rowCount == 1L) {
                 row.skip(19)
             }
-            return ByteReadBuffer(row.readByteArray())
+            return row
         }
 
         /**

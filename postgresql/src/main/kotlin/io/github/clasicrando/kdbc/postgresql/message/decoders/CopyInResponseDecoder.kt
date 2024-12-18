@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Buffer
 
 /**
  * [MessageDecoder] for [PgMessage.CopyInResponse]. This message is sent to signify the backend has
@@ -16,7 +16,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYINRESPONSE)
  */
 internal object CopyInResponseDecoder : PgMessageDecoder<PgMessage.CopyInResponse>() {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.CopyInResponse {
+    override fun decode(buffer: Buffer): PgMessage.CopyInResponse {
         val copyFormat = CopyFormat.fromByte(buffer.readByte())
         val columnCount = buffer.readShort().toInt()
         val columnFormats = List(columnCount) { CopyFormat.fromByte(buffer.readByte()) }

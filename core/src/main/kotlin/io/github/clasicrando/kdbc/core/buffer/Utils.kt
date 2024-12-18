@@ -1,6 +1,9 @@
 package io.github.clasicrando.kdbc.core.buffer
 
+import kotlinx.io.Buffer
 import kotlinx.io.Sink
+import kotlinx.io.Source
+import kotlinx.io.readString
 import kotlinx.io.writeString
 
 /**
@@ -12,4 +15,27 @@ public fun Sink.writeCString(text: CharSequence?) {
         writeString(text)
     }
     writeByte(0)
+}
+
+public fun Source.readCString(): String {
+    var byteCount = 0L
+    val peek = this.peek()
+    while (peek.readByte() != 0.toByte()) {
+        byteCount++
+    }
+    val result = this.readString(byteCount)
+    skip(1)
+    return result
+}
+
+public fun ByteArray.intoBuffer(): Buffer {
+    return Buffer().apply { write(this@intoBuffer) }
+}
+
+public fun Source.readByteAsInt(): Int {
+    return readByte().toInt() and 0xff
+}
+
+public fun Source.peekNextAsInt(): Int {
+    return this.peek().readByteAsInt()
 }

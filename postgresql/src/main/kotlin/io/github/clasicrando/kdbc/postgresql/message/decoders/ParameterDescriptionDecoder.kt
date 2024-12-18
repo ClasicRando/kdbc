@@ -1,8 +1,8 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Buffer
 
 /**
  * [MessageDecoder] for [PgMessage.ParameterDescription]. This message is sent as a response when
@@ -14,7 +14,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-PARAMETERDESCRIPTION)
  */
 internal object ParameterDescriptionDecoder : PgMessageDecoder<PgMessage.ParameterDescription>() {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.ParameterDescription {
+    override fun decode(buffer: Buffer): PgMessage.ParameterDescription {
         val parameterCount = buffer.readShort()
         val parameterTypes = List(parameterCount.toInt()) { buffer.readInt() }
         return PgMessage.ParameterDescription(parameterTypes)

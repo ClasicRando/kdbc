@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.authentication
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.peekNextAsInt
+import io.github.clasicrando.kdbc.core.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
@@ -10,6 +11,8 @@ import io.github.clasicrando.kdbc.mysql.message.decoders.OkDecoder
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream.Companion.DEFAULT_CHARSET
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream.Companion.MAX_PACKET_SIZE
+import kotlinx.io.Buffer
+import kotlinx.io.readByteArray
 
 /**
  * Move through the authentication flow for a MySQL connection. The steps are:
@@ -126,7 +129,7 @@ private suspend fun MySqlStream.createAuthResponse(
  */
 private suspend fun MySqlStream.handleAuthResponse(
     authPlugin: AuthPlugin,
-    packet: ByteReadBuffer,
+    packet: Buffer,
     password: String,
     authPluginData: ByteArray,
 ): Boolean {
@@ -166,7 +169,7 @@ private suspend fun MySqlStream.encryptRsa(
     val bytes = receiveNextPacket()
     bytes.skip(1)
     return PasswordHelper.encryptWithPublicKey(
-        publicKeyBytes = bytes.readBytes(),
+        publicKeyBytes = bytes.readByteArray(),
         passwordCStringBytes = password.toByteArray().plus(0),
         authPluginData = authPluginData,
     )

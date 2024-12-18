@@ -1,11 +1,13 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.core.splitAsCString
 import io.github.clasicrando.kdbc.postgresql.authentication.Authentication
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Buffer
+import kotlinx.io.readByteArray
+import kotlinx.io.readString
 
 /**
  * [MessageDecoder] for [PgMessage.Authentication] messages. All authentication message contents
@@ -16,7 +18,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [here](https://www.postgresql.org/docs/current/protocol-message-formats.html)
  */
 internal object AuthenticationMessageDecoder : PgMessageDecoder<PgMessage.Authentication>() {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.Authentication {
+    override fun decode(buffer: Buffer): PgMessage.Authentication {
         val auth: Authentication =
             when (val method = buffer.readInt()) {
                 0 -> Authentication.Ok
@@ -24,15 +26,15 @@ internal object AuthenticationMessageDecoder : PgMessageDecoder<PgMessage.Authen
                 // found
                 //                2 ->
                 3 -> Authentication.CleartextPassword
-                5 -> Authentication.Md5Password(salt = buffer.readBytes(4))
+                5 -> Authentication.Md5Password(salt = buffer.readByteArray(4))
                 //                7 -> Authentication.Gss
                 //                8 -> Authentication.KerberosV5
                 10 -> {
-                    val bytes = buffer.readBytes()
+                    val bytes = buffer.readByteArray()
                     Authentication.Sasl(bytes.splitAsCString())
                 }
-                11 -> Authentication.SaslContinue(buffer.readText())
-                12 -> Authentication.SaslFinal(saslData = buffer.readText())
+                11 -> Authentication.SaslContinue(buffer.readString())
+                12 -> Authentication.SaslFinal(saslData = buffer.readString())
                 else -> throw PgException("Unknown authentication method: $method")
             }
         return PgMessage.Authentication(auth)

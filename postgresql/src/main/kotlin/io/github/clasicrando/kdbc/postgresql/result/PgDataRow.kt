@@ -11,6 +11,8 @@ import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import io.github.clasicrando.kdbc.postgresql.type.PgType
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
+import io.ktor.utils.io.core.readBytes
+import kotlinx.io.Buffer
 import kotlin.reflect.KType
 
 /** Postgresql specific implementation for a [DataRow] */
@@ -72,7 +74,7 @@ internal class PgDataRow(
 
     internal companion object {
         fun fromBuffer(
-            buffer: ByteReadBuffer,
+            buffer: Buffer,
             columnMapping: List<PgColumnDescription>,
             typeCache: PgTypeCache,
         ): PgDataRow {
@@ -84,9 +86,10 @@ internal class PgDataRow(
                         return@Array null
                     }
                     val columnType = columnMapping[it]
+                    val byteReadBuffer = ByteReadBuffer(buffer.readBytes(count = length))
                     when (columnType.formatCode) {
-                        PgFormatCode.Text -> PgValue.Text(buffer.slice(length), columnType)
-                        PgFormatCode.Binary -> PgValue.Binary(buffer.slice(length), columnType)
+                        PgFormatCode.Text -> PgValue.Text(byteReadBuffer, columnType)
+                        PgFormatCode.Binary -> PgValue.Binary(byteReadBuffer, columnType)
                     }
                 }
 

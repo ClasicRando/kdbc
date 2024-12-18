@@ -2,7 +2,8 @@ package io.github.clasicrando.kdbc.mysql.stream
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.SslMode
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.buffer.peekNextAsInt
+import io.github.clasicrando.kdbc.core.buffer.readByteAsInt
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.core.stream.Stream
@@ -145,7 +146,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         while (waitingQueue.isNotEmpty()) {
             while (waitingQueue.firstOrNull() == Waiting.Row) {
                 val packet = receiveNextPacket()
-                if (packet.peekNextAsInt() == 0xfe && packet.remaining() < 9) {
+                if (packet.peekNextAsInt() == 0xfe && packet.size < 9) {
                     val eof = EofDecoder.decode(packet, Unit)
                     removeFirstWaitingIfAny()
                     if (eof.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
@@ -170,12 +171,12 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
     }
 
     /** Read the next packet for it's size and sequence ID, returning the full packet contents */
-    private suspend fun readRawPacket(): ByteReadBuffer {
-        val header = innerStream.readBuffer(4)
+    private suspend fun readRawPacket(): Buffer {
+        val header = innerStream.read(4)
         val packetSize = header.read3ByteIntLe()
         val sequenceId = header.readByteAsInt()
         this.sequenceId = if (sequenceId >= 255) 1 else sequenceId + 1
-        return innerStream.readBuffer(packetSize)
+        return innerStream.read(packetSize)
     }
 
     /**
@@ -186,15 +187,14 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      * @throws MySqlException if the packet is an [MysqlMessage.Err] packet or the packet body is
      *   empty
      */
-    suspend fun receiveNextPacket(): ByteReadBuffer {
+    suspend fun receiveNextPacket(): Buffer {
         var payload = readRawPacket()
-        if (payload.remaining() >= MAX_PACKET_SIZE) {
-            var lastRead = MAX_PACKET_SIZE
-            while (lastRead == MAX_PACKET_SIZE) {
+        if (payload.size >= MAX_PACKET_SIZE) {
+            var lastRead = MAX_PACKET_SIZE.toLong()
+            while (lastRead == MAX_PACKET_SIZE.toLong()) {
                 val nextPayload = readRawPacket()
-                lastRead = nextPayload.remaining()
-                val nextBytes = nextPayload.readBytes()
-                payload = ByteReadBuffer(payload.readBytes().plus(nextBytes))
+                lastRead = nextPayload.size
+                payload.transferFrom(nextPayload)
             }
         }
 
@@ -216,7 +216,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      * Read the number of columns from this [packet] as a length encoded integer and skip that
      * number of packets
      */
-    private suspend fun skipResultMetadata(packet: ByteReadBuffer) {
+    private suspend fun skipResultMetadata(packet: Buffer) {
         val columnsCount = packet.readLongLengthEncoded()
         (1..columnsCount).forEach { receiveNextPacket() }
     }

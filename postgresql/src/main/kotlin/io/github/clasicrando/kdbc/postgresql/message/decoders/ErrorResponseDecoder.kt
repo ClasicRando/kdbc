@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.message.decoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Buffer
 
 /**
  * [io.github.clasicrando.kdbc.core.message.MessageDecoder] for [PgMessage.ErrorResponse]. This
@@ -13,7 +13,7 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-ERRORRESPONSE)
  */
 internal object ErrorResponseDecoder : InformationResponseDecoder<PgMessage.ErrorResponse>() {
-    override fun decode(buffer: ByteReadBuffer): PgMessage.ErrorResponse {
+    override fun decode(buffer: Buffer): PgMessage.ErrorResponse {
         val informationResponse = decodeToInformationResponse(buffer)
         return PgMessage.ErrorResponse(informationResponse)
     }

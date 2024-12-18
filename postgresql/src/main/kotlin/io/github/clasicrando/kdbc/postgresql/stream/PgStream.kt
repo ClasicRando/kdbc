@@ -69,7 +69,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     suspend fun receiveNextServerMessage(): PgMessage {
         val format = stream.readByte()
         val size = stream.readInt()
-        val buffer = stream.readBuffer(size - 4)
+        val buffer = stream.read(size - 4)
         val rawMessage = RawMessage(format = format, size = size, contents = buffer)
         return PgMessageDecoders.decode(rawMessage)
     }
