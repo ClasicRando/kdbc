@@ -4,11 +4,9 @@ import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.mysql.stream.MySqlStream
 import kotlinx.io.Buffer
-import kotlinx.io.DelicateIoApi
 import kotlinx.io.Sink
 import kotlinx.io.writeLongLe
 import kotlinx.io.writeShortLe
-import kotlinx.io.writeToInternalBuffer
 
 internal fun ByteReadBuffer.read3ByteIntLe(): Int {
     return (this.readByteAsInt() or (this.readByteAsInt() shl 8) or (this.readByteAsInt() shl 16))
@@ -105,35 +103,29 @@ internal fun Sink.write3ByteIntLe(int: Int) {
 
 private const val MAX_PACKET_DATA_LENGTH = MySqlStream.MAX_PACKET_SIZE.toLong() - 4
 
-@OptIn(DelicateIoApi::class)
 internal inline fun Sink.writeLengthEncoded(crossinline block: Sink.() -> Unit) {
     val tempBuffer = Buffer()
     block(tempBuffer)
-    this.writeToInternalBuffer { buf ->
-        buf.writeLongLengthEncoded(tempBuffer.size)
-        buf.write(tempBuffer, tempBuffer.size)
-    }
+    this.writeLongLengthEncoded(tempBuffer.size)
+    this.transferFrom(tempBuffer)
 }
 
 /**
  * Write data contents to [Sink], batching the written contents into packets that meet the size of
  * the MySQL spec. Returns the new packet sequence ID
  */
-@OptIn(DelicateIoApi::class)
-internal inline fun Sink.writePackets(
+internal inline fun Buffer.writePackets(
     currentSequenceId: Int,
-    crossinline block: Sink.() -> Unit,
+    crossinline block: Buffer.() -> Unit,
 ): Int {
     var tempSequenceId = currentSequenceId
     val tempBuffer = Buffer()
     block(tempBuffer)
     do {
         val length = minOf(tempBuffer.size, MAX_PACKET_DATA_LENGTH)
-        this.writeToInternalBuffer { buf ->
-            buf.write3ByteIntLe(length.toInt())
-            buf.writeByte(tempSequenceId.toByte())
-            buf.write(tempBuffer, length)
-        }
+        this.write3ByteIntLe(length.toInt())
+        this.writeByte(tempSequenceId.toByte())
+        this.write(tempBuffer, length)
         tempSequenceId = if (tempSequenceId >= 255) 1 else tempSequenceId + 1
     } while (!tempBuffer.exhausted())
     return tempSequenceId

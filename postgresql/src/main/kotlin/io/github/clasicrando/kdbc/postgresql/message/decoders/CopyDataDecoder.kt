@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.postgresql.message.decoders
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Buffer
 
 /**
  * [MessageDecoder] for [PgMessage.CopyData]. This message is sent from the backend during a `COPY
@@ -13,6 +14,6 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  */
 internal object CopyDataDecoder : PgMessageDecoder<PgMessage.CopyData>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.CopyData {
-        return PgMessage.CopyData(buffer.readBytes())
+        return PgMessage.CopyData(Buffer().apply { write(buffer.readBytes()) })
     }
 }

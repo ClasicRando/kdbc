@@ -15,15 +15,16 @@ import io.ktor.network.sockets.isClosed
 import io.ktor.network.tls.tls
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
-import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
+import io.ktor.utils.io.readInt
+import io.ktor.utils.io.writePacket
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
-import kotlinx.io.Sink
+import kotlinx.io.Buffer
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -76,11 +77,10 @@ public class KtorStream(
         readChannel = connection.input
     }
 
-    @OptIn(InternalAPI::class)
-    override suspend fun writeTo(block: suspend (Sink) -> Unit) {
+    override suspend fun writeBuffer(buffer: Buffer) {
         check(isConnected) { "Cannot write to a stream that is not connected" }
         try {
-            block(writeChannel.writeBuffer)
+            writeChannel.writePacket(buffer)
         } finally {
             writeChannel.flush()
         }
@@ -93,14 +93,7 @@ public class KtorStream(
 
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        // As of version 3.0.1, KTOR has a bug where readInt could infinitely loop so read bytes
-        // and create an Int
-        val result =
-            ((readChannel.readByte().toInt() and 0xff shl 24) or
-                (readChannel.readByte().toInt() and 0xff shl 16) or
-                (readChannel.readByte().toInt() and 0xff shl 8) or
-                (readChannel.readByte().toInt() and 0xff))
-        return result
+        return readChannel.readInt()
     }
 
     override suspend fun readBuffer(count: Int): ByteReadBuffer {

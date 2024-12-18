@@ -6,6 +6,7 @@ import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.copy.CopyFormat
 import io.github.clasicrando.kdbc.postgresql.message.information.InformationResponse
 import io.github.clasicrando.kdbc.postgresql.statement.PgArgument
+import kotlinx.io.Buffer
 
 /**
  * Specified frontend and backend messages that can be sent to and received from the database
@@ -87,8 +88,8 @@ internal sealed class PgMessage(val code: Byte) {
      * represent any chunk of the total data copied since the backend parsing the data as it comes
      * in, byte by byte.
      */
-    class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage {
-        override val size: Int = data.size
+    class CopyData(val data: Buffer) : PgMessage(COPY_DATA_CODE), SizedMessage {
+        override val size: Int = data.size.toInt() + 5
     } // F & B
 
     /**

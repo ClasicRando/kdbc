@@ -1,7 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.connection
 
 import io.github.clasicrando.kdbc.core.cache.LruCache
-import io.github.clasicrando.kdbc.core.chunkedBytes
+import io.github.clasicrando.kdbc.core.chunkedBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.AbstractConnection
 import io.github.clasicrando.kdbc.core.connection.Connection
@@ -16,7 +16,7 @@ import io.github.clasicrando.kdbc.core.result.Either
 import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.splitQuery
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
-import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
+import io.github.clasicrando.kdbc.core.statement.mapIntoCsvBufferChunks
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
@@ -45,11 +45,6 @@ import io.github.clasicrando.kdbc.mysql.type.MysqlTypeInfo
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.IOException
-import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -60,6 +55,11 @@ import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import java.io.IOException
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -299,7 +299,7 @@ internal constructor(
         source: Source,
         withTransaction: Boolean = false,
     ): QueryResult {
-        return loadLocalInternal(statement, source.chunkedBytes().asFlow(), withTransaction)
+        return loadLocalInternal(statement, source.chunkedBuffer().asFlow(), withTransaction)
     }
 
     /**
@@ -327,7 +327,7 @@ internal constructor(
                     newline = "\n",
                     skipLines = 0,
                 ),
-            data = data.mapIntoCsvByteArrayChunks(CSV_ROW_BUFFER_SIZE),
+            data = data.mapIntoCsvBufferChunks(CSV_ROW_BUFFER_SIZE),
             withTransaction = withTransaction,
         )
     }
@@ -345,7 +345,7 @@ internal constructor(
      */
     private suspend fun loadLocalInternal(
         statement: LoadLocalFileStatement,
-        data: Flow<ByteArray>,
+        data: Flow<Buffer>,
         withTransaction: Boolean = false,
     ): QueryResult {
         checkOrMySqlException(stream.capabilities[Capabilities.CLIENT_LOCAL_FILES]) {
@@ -376,7 +376,7 @@ internal constructor(
                     if (tempBuffer.size + it.size > COPY_BUFFER_SIZE) {
                         stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))
                     }
-                    tempBuffer.write(it)
+                    tempBuffer.transferFrom(it)
                 }
                 if (!tempBuffer.exhausted()) {
                     stream.writePacket(MysqlMessage.LoadLocal(tempBuffer))
@@ -385,7 +385,7 @@ internal constructor(
                 error = ex
                 throw ex
             } finally {
-                if (error !is IOException) {
+                if (error !is IOException && isConnected) {
                     stream.writePacket(MysqlMessage.Empty)
                 }
             }

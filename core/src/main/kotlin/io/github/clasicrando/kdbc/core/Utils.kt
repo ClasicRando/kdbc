@@ -6,7 +6,9 @@ import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.io.Buffer
 import kotlinx.io.Source
+import kotlinx.io.readString
 import kotlin.reflect.KType
 import kotlin.reflect.full.withNullability
 import kotlin.time.Duration
@@ -116,7 +118,22 @@ public fun <T> Flow<T>.chunked(size: Int): Flow<List<T>> = flow {
     }
 }
 
-private const val DEFAULT_BUFFER_SIZE = 2048
+private const val DEFAULT_BUFFER_SIZE = 4096
+
+/**
+ * Chunk a [Source] into many [ByteArray]s with at most [size] bytes in each array. The final array
+ * might have less than [size] if the total number of bytes is not equally divisible by [size].
+ */
+public fun Source.chunkedBuffer(size: Long = DEFAULT_BUFFER_SIZE.toLong()): Sequence<Buffer> {
+    return generateSequence {
+        val bytes = Buffer()
+        when (this.readAtMostTo(bytes, size)) {
+            -1L,
+            0L -> null
+            else -> bytes
+        }
+    }
+}
 
 /**
  * Chunk a [Source] into many [ByteArray]s with at most [size] bytes in each array. The final array
@@ -227,9 +244,9 @@ private fun StringBuilder.buildOrNull(): String? {
  * nullable [String]s. In this context, null is a '\N' string and the newline character is always
  * '\n'.
  */
-public fun parseBytesAsCsvRow(bytes: ByteArray, expectedColumnCount: Int): Array<String?> {
+public fun parseBytesAsCsvRow(bytes: Buffer, expectedColumnCount: Int): Array<String?> {
     val output = arrayOfNulls<String?>(expectedColumnCount)
-    val row = bytes.toString(charset = Charsets.UTF_8)
+    val row = bytes.readString()
     val charIter = row.iterator()
 
     var index = 0

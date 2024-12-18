@@ -16,7 +16,7 @@ import kotlinx.io.Sink
 internal object CopyDataEncoder : PgMessageEncoder<PgMessage.CopyData>() {
     override fun encode(value: PgMessage.CopyData, buffer: Sink) {
         buffer.writeByte(value.code)
-        buffer.writeInt(value.data.size + 4)
-        buffer.write(value.data)
+        buffer.writeInt(value.data.size.toInt() + 4)
+        buffer.transferFrom(value.data)
     }
 }

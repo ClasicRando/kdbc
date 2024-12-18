@@ -26,6 +26,34 @@ public interface CsvDataRow {
  * Convert a [Flow] of [CsvDataRow] into a [Flow] of [ByteArray] by chunking the original flow and
  * mapping each chunk into a single buffer of the CSV data from that chunk.
  */
+public fun Flow<CsvDataRow>.mapIntoCsvBufferChunks(chunkSize: Int): Flow<Buffer> {
+    return this.chunked(size = chunkSize).map { chunk ->
+        val tempBuffer = Buffer()
+        for (row in chunk) {
+            val values = row.values
+            for (i in values.indices) {
+                if (i > 0) {
+                    tempBuffer.writeString(",")
+                }
+                val value = values[i]?.toString() ?: ""
+                if (value.any { ch -> ch == '"' || ch == ',' || ch == '\n' || ch == '\r' }) {
+                    tempBuffer.writeString("\"")
+                    tempBuffer.writeString(value.replace("\"", "\"\""))
+                    tempBuffer.writeString("\"")
+                } else {
+                    tempBuffer.writeString(value)
+                }
+            }
+            tempBuffer.writeString("\n")
+        }
+        tempBuffer
+    }
+}
+
+/**
+ * Convert a [Flow] of [CsvDataRow] into a [Flow] of [ByteArray] by chunking the original flow and
+ * mapping each chunk into a single buffer of the CSV data from that chunk.
+ */
 public fun Flow<CsvDataRow>.mapIntoCsvByteArrayChunks(chunkSize: Int): Flow<ByteArray> {
     return this.chunked(size = chunkSize).map { chunk ->
         val tempBuffer = Buffer()

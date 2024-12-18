@@ -4,7 +4,7 @@ import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.cache.LruCache
 import io.github.clasicrando.kdbc.core.chunked
-import io.github.clasicrando.kdbc.core.chunkedBytes
+import io.github.clasicrando.kdbc.core.chunkedBuffer
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.connection.AbstractConnection
 import io.github.clasicrando.kdbc.core.connection.Connection
@@ -26,7 +26,7 @@ import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.splitQuery
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
-import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
+import io.github.clasicrando.kdbc.core.statement.mapIntoCsvBufferChunks
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
@@ -56,13 +56,6 @@ import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
@@ -72,12 +65,20 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.io.Buffer
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -557,7 +558,7 @@ internal constructor(
      * messages, the expected [PgMessage.ErrorResponse] received from the server will be treated as
      * a result message and not an error.
      */
-    private suspend fun copyInInternal(copyQuery: String, data: Flow<ByteArray>): QueryResult {
+    private suspend fun copyInInternal(copyQuery: String, data: Flow<Buffer>): QueryResult {
         waitUntilReady()
         log(connectOptions.statementLogLevel) {
             message = "Sending query: ${copyQuery.normalizeWhitespace()}"
@@ -619,7 +620,7 @@ internal constructor(
      */
     public suspend fun copyIn(
         copyInStatement: CopyStatement.From,
-        data: Flow<ByteArray>,
+        data: Flow<Buffer>,
     ): QueryResult {
         checkConnected()
 
@@ -640,7 +641,7 @@ internal constructor(
      */
     public suspend fun copyIn(copyInStatement: CopyStatement.From, source: Source): QueryResult {
         require(copyInStatement is CopyStatement.CopyText)
-        return copyIn(copyInStatement = copyInStatement, data = source.chunkedBytes().asFlow())
+        return copyIn(copyInStatement = copyInStatement, data = source.chunkedBuffer().asFlow())
     }
 
     /**
@@ -687,7 +688,7 @@ internal constructor(
                     nullString = "",
                     escape = '"',
                 ),
-            data = data.mapIntoCsvByteArrayChunks(chunkSize = CSV_ROW_BUFFER_SIZE),
+            data = data.mapIntoCsvBufferChunks(chunkSize = CSV_ROW_BUFFER_SIZE),
         )
     }
 
@@ -706,22 +707,22 @@ internal constructor(
         copyInStatement: CopyStatement.TableFromBinary,
         data: Flow<PgBinaryCopyRow>,
     ): QueryResult {
-        val buffer = PgCopyEncodeBuffer(typeCache = typeCache)
+        val encodeBuffer = PgCopyEncodeBuffer(typeCache = typeCache)
         return this.copyIn(
             copyInStatement = copyInStatement,
             data =
-                flow<ByteArray> {
-                    emit(pgBinaryCopyHeader)
+                flow<Buffer> {
+                    emit(pgBinaryCopyHeaderBuffer)
                     val mappedFlow =
                         data.chunked(size = CSV_ROW_BUFFER_SIZE).map { chunk ->
                             for (row in chunk) {
-                                buffer.innerBuffer.writeShort(row.valueCount)
-                                row.encodeValues(buffer)
+                                encodeBuffer.innerBuffer.writeShort(row.valueCount)
+                                row.encodeValues(encodeBuffer)
                             }
-                            buffer.innerBuffer.readByteArray()
+                            encodeBuffer.innerBuffer
                         }
                     emitAll(mappedFlow)
-                    emit(pgBinaryCopyTrailer)
+                    emit(pgBinaryCopyTrailerBuffer)
                 },
         )
     }
@@ -733,7 +734,7 @@ internal constructor(
      * 3. Process all incoming messages by yielding a [Sequence] of [ByteArray] instances from
      *    [PgMessage.CopyData] messages. Exit the loop when [PgMessage.ReadyForQuery] is received.
      */
-    private suspend fun copyOutInternal(copyQuery: String): Flow<ByteArray> {
+    private suspend fun copyOutInternal(copyQuery: String): Flow<Buffer> {
         waitUntilReady()
         log(connectOptions.statementLogLevel) {
             message = "Sending query: ${copyQuery.normalizeWhitespace()}"
@@ -764,7 +765,7 @@ internal constructor(
         }
     }
 
-    public suspend fun copyOut(copyOutStatement: CopyStatement.To): Flow<ByteArray> {
+    private suspend fun copyOut(copyOutStatement: CopyStatement.To): Flow<Buffer> {
         checkConnected()
         return mutex.withLock { copyOutInternal(copyOutStatement.toQuery()) }
     }
@@ -774,7 +775,7 @@ internal constructor(
      * each row returned from the query to the [sink] supplied
      */
     public suspend fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
-        copyOut(copyOutStatement).collect(sink::write)
+        copyOut(copyOutStatement).collect(sink::transferFrom)
     }
 
     /**
@@ -1130,6 +1131,7 @@ internal constructor(
                 0,
                 0,
             )
+        private val pgBinaryCopyHeaderBuffer = Buffer().apply { write(pgBinaryCopyHeader) }
 
         /**
          * Magic trailer value required before the end of a binary COPY operation
@@ -1137,18 +1139,17 @@ internal constructor(
          * [docs](https://www.postgresql.org/docs/current/sql-copy.html)
          */
         private val pgBinaryCopyTrailer = byteArrayOf(-1, -1)
+        private val pgBinaryCopyTrailerBuffer = Buffer().apply { write(pgBinaryCopyTrailer) }
 
         /**
          * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row,
          * the first 19 bytes should be ignored since they are the binary copy's file header.
          */
-        internal fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer {
-            return ByteReadBuffer(
-                when {
-                    rowCount == 1L -> row.copyOfRange(fromIndex = 19, toIndex = row.size)
-                    else -> row
-                }
-            )
+        internal fun getBinaryBuffer(rowCount: Long, row: Buffer): ByteReadBuffer {
+            if (rowCount == 1L) {
+                row.skip(19)
+            }
+            return ByteReadBuffer(row.readByteArray())
         }
 
         /**

@@ -23,6 +23,7 @@ import io.github.clasicrando.kdbc.mysql.message.encoders.MySqlMessageEncoders
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import kotlinx.io.Buffer
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "MySqlStream"
@@ -47,6 +48,8 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         private set
 
     private val waitingQueue = ArrayDeque<Waiting>()
+
+    private val writeBuffer = Buffer()
 
     /**
      * Current client capabilities. Initialized with certain values but gets updated to remove
@@ -246,12 +249,11 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      * after all packets are written.
      */
     suspend fun writePacket(message: MysqlMessage) {
-        innerStream.writeTo {
-            sequenceId =
-                it.writePackets(currentSequenceId = sequenceId) {
-                    MySqlMessageEncoders.encode(message, this, capabilities)
-                }
-        }
+        sequenceId =
+            writeBuffer.writePackets(currentSequenceId = sequenceId) {
+                MySqlMessageEncoders.encode(message, this, capabilities)
+            }
+        innerStream.writeBuffer(writeBuffer)
     }
 
     override fun close() {

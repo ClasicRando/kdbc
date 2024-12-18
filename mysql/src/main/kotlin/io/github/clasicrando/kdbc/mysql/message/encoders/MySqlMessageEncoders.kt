@@ -5,7 +5,6 @@ import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import kotlinx.io.DelicateIoApi
 import kotlinx.io.Sink
-import kotlinx.io.writeToInternalBuffer
 
 internal object MySqlMessageEncoders {
     @OptIn(DelicateIoApi::class)
@@ -27,8 +26,7 @@ internal object MySqlMessageEncoders {
             // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_reset_connection.html
             is MysqlMessage.ResetSession -> buffer.writeByte(0x1f)
             // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_local_infile_data.html
-            is MysqlMessage.LoadLocal ->
-                buffer.writeToInternalBuffer { it.write(message.source, message.source.size) }
+            is MysqlMessage.LoadLocal -> buffer.transferFrom(message.source)
             is MysqlMessage.Empty -> {} // write nothing
             else -> throw MySqlException("Could not match encoder to message: $message")
         }

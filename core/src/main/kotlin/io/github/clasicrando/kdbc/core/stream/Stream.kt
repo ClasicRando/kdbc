@@ -2,9 +2,9 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.io.Sink
+import kotlinx.io.Buffer
+import kotlin.time.Duration
 
 private const val RESOURCE_TYPE = "Stream"
 
@@ -31,11 +31,8 @@ public interface Stream : UniqueResourceId, AutoCloseable, CoroutineScope {
 
     public suspend fun upgradeTls(timeout: Duration)
 
-    /**
-     * Write bytes to the supplied [Sink]. This exposes the socket's write buffer which is flushed
-     * after the write operation is complete.
-     */
-    public suspend fun writeTo(block: suspend (Sink) -> Unit)
+    /** Write bytes from the supplied [buffer] to the stream. */
+    public suspend fun writeBuffer(buffer: Buffer)
 
     /**
      * Read a single [Byte] from the stream.

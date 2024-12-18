@@ -24,11 +24,11 @@ import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import kotlin.math.floor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.io.Buffer
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgStream"
@@ -50,6 +50,8 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
 
     /** [ReceiveChannel] used to store all server notifications that have not been processed */
     val notifications: ReceiveChannel<PgNotification> = notificationsChannel
+
+    private val writeBuffer = Buffer()
 
     /**
      * Created a log message at the specified [level], applying the [block] to the
@@ -214,17 +216,17 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
-    suspend inline fun writeToStream(message: PgMessage) {
-        stream.writeTo { sink -> PgMessageEncoders.encode(message, sink) }
+    suspend fun writeToStream(message: PgMessage) {
+        PgMessageEncoders.encode(message, writeBuffer)
+        stream.writeBuffer(writeBuffer)
     }
 
     /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
     suspend fun writeManyToStream(vararg messages: PgMessage) {
-        stream.writeTo { sink ->
-            for (message in messages) {
-                PgMessageEncoders.encode(message, sink)
-            }
+        for (message in messages) {
+            PgMessageEncoders.encode(message, writeBuffer)
         }
+        stream.writeBuffer(writeBuffer)
     }
 
     /**
@@ -233,18 +235,14 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
      * a single write to the database server.
      */
     suspend fun <M> writeManyToStream(flow: Flow<M>) where M : PgMessage, M : SizedMessage {
-        var maxBatchSize = 1
-        val batch = ArrayList<M>()
         flow.collect { message ->
-            batch.add(message)
-            if (maxBatchSize == batch.size) {
-                maxBatchSize = floor(WRITE_MANY_BUFFER_SIZE / message.size).toInt()
-                stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
-                batch.clear()
+            if (message.size + writeBuffer.size > WRITE_MANY_BUFFER_SIZE) {
+                stream.writeBuffer(writeBuffer)
             }
+            PgMessageEncoders.encode(message, writeBuffer)
         }
-        if (batch.isNotEmpty()) {
-            stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
+        if (!writeBuffer.exhausted()) {
+            stream.writeBuffer(writeBuffer)
         }
     }
 
@@ -344,7 +342,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     companion object {
-        private const val WRITE_MANY_BUFFER_SIZE = 4096.0
+        private const val WRITE_MANY_BUFFER_SIZE = 4096L
         private const val TLS_REJECT_WARNING =
             "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
 
