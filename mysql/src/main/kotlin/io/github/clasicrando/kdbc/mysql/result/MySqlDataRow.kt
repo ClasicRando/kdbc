@@ -4,9 +4,26 @@ import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
 import io.github.clasicrando.kdbc.core.ensureNonNull
 import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
+import io.github.clasicrando.kdbc.mysql.type.BigDecimalTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.BooleanTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.ByteArrayTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.IntegerTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.LocalDateTimeTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.LocalDateTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.LocalTimeTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.LongTypeDescription
 import io.github.clasicrando.kdbc.mysql.type.MySqlTypeCache
 import io.github.clasicrando.kdbc.mysql.type.MySqlTypeDescription
 import io.github.clasicrando.kdbc.mysql.type.MysqlTypeInfo
+import io.github.clasicrando.kdbc.mysql.type.ShortTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.StringTypeDescription
+import io.github.clasicrando.kdbc.mysql.type.TinyIntTypeDescription
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.OffsetDateTime
 import kotlin.reflect.KType
 
 /**
@@ -35,21 +52,77 @@ internal class MySqlDataRow(
             )
     }
 
-    override fun get(index: Int, type: KType): Any? {
+    private fun <T : Any> tryDecode(index: Int, typeDescription: MySqlTypeDescription<T>): T? {
         val mySqlType = getMySqlType(index)
-        val nonNullType = type.ensureNonNull()
-        val typeDescription = typeCache.getTypeDescription<Any>(nonNullType)
         if (typeDescription.dbType.inner == mySqlType.type.inner) {
             return decode(index, typeDescription)
         }
         checkOrColumnDecodeError(
             check = typeDescription.isCompatible(mySqlType.type),
-            kType = nonNullType,
+            kType = typeDescription.kType,
             type = columns[index],
         ) {
             "Actual column type is not compatible with required type"
         }
         return decode(index, typeDescription)
+    }
+
+    override fun get(index: Int, type: KType): Any? {
+        val nonNullType = type.ensureNonNull()
+        val typeDescription = typeCache.getTypeDescription<Any>(nonNullType)
+        return tryDecode(index, typeDescription)
+    }
+
+    override fun getBoolean(index: Int): Boolean? {
+        return tryDecode(index, BooleanTypeDescription)
+    }
+
+    override fun getByte(index: Int): Byte? {
+        return tryDecode(index, TinyIntTypeDescription)
+    }
+
+    override fun getShort(index: Int): Short? {
+        return tryDecode(index, ShortTypeDescription)
+    }
+
+    override fun getInt(index: Int): Int? {
+        return tryDecode(index, IntegerTypeDescription)
+    }
+
+    override fun getLong(index: Int): Long? {
+        return tryDecode(index, LongTypeDescription)
+    }
+
+    override fun getLocalTime(index: Int): LocalTime? {
+        return tryDecode(index, LocalTimeTypeDescription)
+    }
+
+    override fun getLocalDate(index: Int): LocalDate? {
+        return tryDecode(index, LocalDateTypeDescription)
+    }
+
+    override fun getLocalDateTime(index: Int): LocalDateTime? {
+        return tryDecode(index, LocalDateTimeTypeDescription)
+    }
+
+    override fun getInstant(index: Int): Instant? {
+        return tryDecode(index, typeCache.instantTypeDescription)
+    }
+
+    override fun getOffsetDateTime(index: Int): OffsetDateTime? {
+        return tryDecode(index, typeCache.offsetDateTimeTypeDescription)
+    }
+
+    override fun getBigDecimal(index: Int): BigDecimal? {
+        return tryDecode(index, BigDecimalTypeDescription)
+    }
+
+    override fun getBytes(index: Int): ByteArray? {
+        return tryDecode(index, ByteArrayTypeDescription)
+    }
+
+    override fun getString(index: Int): String? {
+        return tryDecode(index, StringTypeDescription)
     }
 
     /**

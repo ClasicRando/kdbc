@@ -7,12 +7,29 @@ import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
+import io.github.clasicrando.kdbc.postgresql.type.BigDecimalTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.BigIntTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.BoolTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.ByteaTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.CharTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.IntTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.LocalDateTimeTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.LocalDateTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.LocalTimeTypeDescription
 import io.github.clasicrando.kdbc.postgresql.type.PgType
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeCache
 import io.github.clasicrando.kdbc.postgresql.type.PgTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.SmallIntTypeDescription
+import io.github.clasicrando.kdbc.postgresql.type.VarcharTypeDescription
 import io.ktor.utils.io.core.readBytes
 import kotlinx.io.Buffer
 import kotlinx.io.readString
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.OffsetDateTime
 import kotlin.reflect.KType
 
 /** Postgresql specific implementation for a [DataRow] */
@@ -43,6 +60,22 @@ internal class PgDataRow(
         return deserializer.decode(pgValue)
     }
 
+    private fun <T : Any> tryDecode(index: Int, typeDescription: PgTypeDescription<T>): T? {
+        val pgType = getPgType(index)
+        if (typeDescription.dbType.oid == pgType.oid) {
+            return decode(index, typeDescription)
+        }
+        val pgValue = pgValues[index] ?: return null
+        checkOrColumnDecodeError(
+            check = typeDescription.isCompatible(pgType),
+            kType = typeDescription.kType,
+            type = pgValue.typeData,
+        ) {
+            "Actual column type is not compatible with required type"
+        }
+        return decode(index, typeDescription)
+    }
+
     override fun indexFromColumn(column: String): Int {
         val result = columnMapping.indexOfFirst { c -> c.fieldName == column }
         if (result >= 0) {
@@ -53,23 +86,63 @@ internal class PgDataRow(
     }
 
     override fun get(index: Int, type: KType): Any? {
-        val pgType = getPgType(index)
         val nonNullType = type.ensureNonNull()
         val typeDescription =
             typeCache.getTypeDescription<Any>(nonNullType)
                 ?: throw PgException("Could not find type description for $nonNullType")
-        if (typeDescription.dbType.oid == pgType.oid) {
-            return decode(index, typeDescription)
-        }
-        val pgValue = pgValues[index] ?: return null
-        checkOrColumnDecodeError(
-            check = typeDescription.isCompatible(pgType),
-            kType = nonNullType,
-            type = pgValue.typeData,
-        ) {
-            "Actual column type is not compatible with required type"
-        }
-        return decode(index, typeDescription)
+        return tryDecode(index, typeDescription)
+    }
+
+    override fun getBoolean(index: Int): Boolean? {
+        return tryDecode(index, BoolTypeDescription)
+    }
+
+    override fun getByte(index: Int): Byte? {
+        return tryDecode(index, CharTypeDescription)
+    }
+
+    override fun getShort(index: Int): Short? {
+        return tryDecode(index, SmallIntTypeDescription)
+    }
+
+    override fun getInt(index: Int): Int? {
+        return tryDecode(index, IntTypeDescription)
+    }
+
+    override fun getLong(index: Int): Long? {
+        return tryDecode(index, BigIntTypeDescription)
+    }
+
+    override fun getLocalTime(index: Int): LocalTime? {
+        return tryDecode(index, LocalTimeTypeDescription)
+    }
+
+    override fun getLocalDate(index: Int): LocalDate? {
+        return tryDecode(index, LocalDateTypeDescription)
+    }
+
+    override fun getLocalDateTime(index: Int): LocalDateTime? {
+        return tryDecode(index, LocalDateTimeTypeDescription)
+    }
+
+    override fun getInstant(index: Int): Instant? {
+        return tryDecode(index, typeCache.instantDescription)
+    }
+
+    override fun getOffsetDateTime(index: Int): OffsetDateTime? {
+        return tryDecode(index, typeCache.offsetDateTimeDescription)
+    }
+
+    override fun getBigDecimal(index: Int): BigDecimal? {
+        return tryDecode(index, BigDecimalTypeDescription)
+    }
+
+    override fun getBytes(index: Int): ByteArray? {
+        return tryDecode(index, ByteaTypeDescription)
+    }
+
+    override fun getString(index: Int): String? {
+        return tryDecode(index, VarcharTypeDescription)
     }
 
     internal companion object {

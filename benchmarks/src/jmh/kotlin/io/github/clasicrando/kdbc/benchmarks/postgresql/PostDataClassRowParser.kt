@@ -2,25 +2,26 @@ package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.core.query.RowParser
 import io.github.clasicrando.kdbc.core.result.DataRow
-import io.github.clasicrando.kdbc.core.result.getAs
-import io.github.clasicrando.kdbc.core.result.getAsNonNull
+import io.github.clasicrando.kdbc.core.result.getIntNonNull
+import io.github.clasicrando.kdbc.core.result.getLocalDateTimeNonNull
+import io.github.clasicrando.kdbc.core.result.getStringNonNull
 
 object PostDataClassRowParser : RowParser<PostDataClass> {
     override fun fromRow(row: DataRow): PostDataClass {
         return PostDataClass(
-            row.getAsNonNull(0),
-            row.getAsNonNull(1),
-            row.getAsNonNull(2),
-            row.getAsNonNull(3),
-            row.getAs(4),
-            row.getAs(5),
-            row.getAs(6),
-            row.getAs(7),
-            row.getAs(8),
-            row.getAs(9),
-            row.getAs(10),
-            row.getAs(11),
-            row.getAs(12),
+            row.getIntNonNull(0),
+            row.getStringNonNull(1),
+            row.getLocalDateTimeNonNull(2),
+            row.getLocalDateTimeNonNull(3),
+            row.getInt(4),
+            row.getInt(5),
+            row.getInt(6),
+            row.getInt(7),
+            row.getInt(8),
+            row.getInt(9),
+            row.getInt(10),
+            row.getInt(11),
+            row.getInt(12),
         )
     }
 }

@@ -22,6 +22,8 @@ private val logger = KotlinLogging.logger {}
  */
 @PublishedApi
 internal class PgTypeCache(zoneOffset: ZoneOffset) {
+    val offsetDateTimeDescription = OffsetDateTimeTypeDescription(zoneOffset)
+    val instantDescription = InstantTypeDescription(zoneOffset)
     private val typeDescriptions: MutableMap<KType, PgTypeDescription<*>> =
         AtomicMutableMap(getBaseTypes(zoneOffset))
 
@@ -91,119 +93,117 @@ internal class PgTypeCache(zoneOffset: ZoneOffset) {
         return description.getActualType(parameterValue)
     }
 
-    companion object {
-        fun getBaseTypes(zoneOffset: ZoneOffset): Map<KType, PgTypeDescription<*>> {
-            val offsetDateTimeDescription = OffsetDateTimeTypeDescription(zoneOffset)
-            val instantDescription = InstantTypeDescription(zoneOffset)
-            val timeZoneTzDescription = TsTzRangeTypeDescription(zoneOffset)
-            return listOf(
-                    BigDecimalTypeDescription,
-                    *createArrayDescriptions(PgType.NumericArray, BigDecimalTypeDescription),
-                    BoolTypeDescription,
-                    *createArrayDescriptions(PgType.BoolArray, BoolTypeDescription),
-                    ByteaTypeDescription,
-                    *createArrayDescriptions(PgType.ByteaArray, ByteaTypeDescription),
-                    CharTypeDescription,
-                    *createArrayDescriptions(PgType.CharArray, CharTypeDescription),
-                    LocalDateTypeDescription,
-                    *createArrayDescriptions(PgType.DateArray, LocalDateTypeDescription),
-                    LocalDateTimeTypeDescription,
-                    *createArrayDescriptions(PgType.TimestampArray, LocalDateTimeTypeDescription),
-                    offsetDateTimeDescription,
-                    *createArrayDescriptions(PgType.TimestamptzArray, offsetDateTimeDescription),
-                    instantDescription,
-                    *createArrayDescriptions(PgType.TimestamptzArray, instantDescription),
-                    PgIntervalTypeDescription,
-                    *createArrayDescriptions(PgType.IntervalArray, PgIntervalTypeDescription),
-                    PointTypeDescription,
-                    *createArrayDescriptions(PgType.PointArray, PointTypeDescription),
-                    LineTypeDescription,
-                    *createArrayDescriptions(PgType.LineArray, LineTypeDescription),
-                    LineSegmentTypeDescription,
-                    *createArrayDescriptions(PgType.LineSegmentArray, LineSegmentTypeDescription),
-                    BoxTypeDescription,
-                    *createArrayDescriptions(PgType.BoxArray, BoxTypeDescription),
-                    PathTypeDescription,
-                    *createArrayDescriptions(PgType.PathArray, PathTypeDescription),
-                    PolygonTypeDescription,
-                    *createArrayDescriptions(PgType.PolygonArray, PolygonTypeDescription),
-                    CircleTypeDescription,
-                    *createArrayDescriptions(PgType.CircleArray, CircleTypeDescription),
-                    JsonTypeDescription,
-                    *createArrayDescriptions(PgType.JsonArray, JsonTypeDescription),
-                    JsonBytesTypeDescription,
-                    *createArrayDescriptions(PgType.JsonArray, JsonBytesTypeDescription),
-                    JsonTextTypeDescription,
-                    *createArrayDescriptions(PgType.JsonArray, JsonTextTypeDescription),
-                    JsonPathTypeDescription,
-                    *createArrayDescriptions(PgType.JsonpathArray, JsonPathTypeDescription),
-                    MacAddressTypeDescription,
-                    *createArrayDescriptions(PgType.MacaddrArray, MacAddressTypeDescription),
-                    MoneyTypeDescription,
-                    *createArrayDescriptions(PgType.MoneyArray, MoneyTypeDescription),
-                    NetworkAddressTypeDescription,
-                    *createArrayDescriptions(PgType.InetArray, NetworkAddressTypeDescription),
-                    SmallIntTypeDescription,
-                    *createArrayDescriptions(PgType.Int2Array, SmallIntTypeDescription),
-                    IntTypeDescription,
-                    *createArrayDescriptions(PgType.Int4Array, IntTypeDescription),
-                    BigIntTypeDescription,
-                    *createArrayDescriptions(PgType.Int8Array, BigIntTypeDescription),
-                    RealTypeDescription,
-                    *createArrayDescriptions(PgType.Float4Array, RealTypeDescription),
-                    DoublePrecisionTypeDescription,
-                    *createArrayDescriptions(PgType.Float8Array, DoublePrecisionTypeDescription),
-                    Int8RangeTypeDescription,
-                    *createArrayDescriptions(PgType.Int8RangeArray, Int8RangeTypeDescription),
-                    Int4RangeTypeDescription,
-                    *createArrayDescriptions(PgType.Int4RangeArray, Int4RangeTypeDescription),
-                    TsRangeTypeDescription,
-                    *createArrayDescriptions(PgType.TsRangeArray, TsRangeTypeDescription),
-                    timeZoneTzDescription,
-                    *createArrayDescriptions(PgType.TstzRangeArray, timeZoneTzDescription),
-                    DateRangeTypeDescription,
-                    *createArrayDescriptions(PgType.DateRangeArray, DateRangeTypeDescription),
-                    NumRangeTypeDescription,
-                    *createArrayDescriptions(PgType.NumRangeArray, NumRangeTypeDescription),
-                    VarcharTypeDescription,
-                    object :
-                        ArrayTypeDescription<String>(
-                            pgType = PgType.Varchar,
-                            innerType = VarcharTypeDescription,
-                            innerNullable = true,
-                        ) {
-                        override fun isCompatible(dbType: PgType): Boolean =
-                            dbType == PgType.TextArray ||
-                                dbType == PgType.VarcharArray ||
-                                dbType == PgType.XmlArray ||
-                                dbType == PgType.NameArray ||
-                                dbType == PgType.BpcharArray
-                    },
-                    object :
-                        ArrayTypeDescription<String>(
-                            pgType = PgType.Varchar,
-                            innerType = VarcharTypeDescription,
-                            innerNullable = false,
-                        ) {
-                        override fun isCompatible(dbType: PgType): Boolean =
-                            dbType == PgType.TextArray ||
-                                dbType == PgType.VarcharArray ||
-                                dbType == PgType.XmlArray ||
-                                dbType == PgType.NameArray ||
-                                dbType == PgType.BpcharArray
-                    },
-                    LocalTimeTypeDescription,
-                    *createArrayDescriptions(PgType.TimeArray, LocalTimeTypeDescription),
-                    OffsetTimeTypeDescription,
-                    *createArrayDescriptions(PgType.TimetzArray, OffsetTimeTypeDescription),
-                    UuidTypeDescription,
-                    *createArrayDescriptions(PgType.UuidArray, UuidTypeDescription),
-                    JUuidTypeDescription,
-                    *createArrayDescriptions(PgType.UuidArray, JUuidTypeDescription),
-                )
-                .associateBy { it.kType }
-        }
+    fun getBaseTypes(zoneOffset: ZoneOffset): Map<KType, PgTypeDescription<*>> {
+        val timeZoneTzDescription = TsTzRangeTypeDescription(zoneOffset)
+        return listOf(
+            BigDecimalTypeDescription,
+            *createArrayDescriptions(PgType.NumericArray, BigDecimalTypeDescription),
+            BoolTypeDescription,
+            *createArrayDescriptions(PgType.BoolArray, BoolTypeDescription),
+            ByteaTypeDescription,
+            *createArrayDescriptions(PgType.ByteaArray, ByteaTypeDescription),
+            CharTypeDescription,
+            *createArrayDescriptions(PgType.CharArray, CharTypeDescription),
+            LocalDateTypeDescription,
+            *createArrayDescriptions(PgType.DateArray, LocalDateTypeDescription),
+            LocalDateTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimestampArray, LocalDateTimeTypeDescription),
+            offsetDateTimeDescription,
+            *createArrayDescriptions(PgType.TimestamptzArray, offsetDateTimeDescription),
+            instantDescription,
+            *createArrayDescriptions(PgType.TimestamptzArray, instantDescription),
+            PgIntervalTypeDescription,
+            *createArrayDescriptions(PgType.IntervalArray, PgIntervalTypeDescription),
+            PointTypeDescription,
+            *createArrayDescriptions(PgType.PointArray, PointTypeDescription),
+            LineTypeDescription,
+            *createArrayDescriptions(PgType.LineArray, LineTypeDescription),
+            LineSegmentTypeDescription,
+            *createArrayDescriptions(PgType.LineSegmentArray, LineSegmentTypeDescription),
+            BoxTypeDescription,
+            *createArrayDescriptions(PgType.BoxArray, BoxTypeDescription),
+            PathTypeDescription,
+            *createArrayDescriptions(PgType.PathArray, PathTypeDescription),
+            PolygonTypeDescription,
+            *createArrayDescriptions(PgType.PolygonArray, PolygonTypeDescription),
+            CircleTypeDescription,
+            *createArrayDescriptions(PgType.CircleArray, CircleTypeDescription),
+            JsonTypeDescription,
+            *createArrayDescriptions(PgType.JsonArray, JsonTypeDescription),
+            JsonBytesTypeDescription,
+            *createArrayDescriptions(PgType.JsonArray, JsonBytesTypeDescription),
+            JsonTextTypeDescription,
+            *createArrayDescriptions(PgType.JsonArray, JsonTextTypeDescription),
+            JsonPathTypeDescription,
+            *createArrayDescriptions(PgType.JsonpathArray, JsonPathTypeDescription),
+            MacAddressTypeDescription,
+            *createArrayDescriptions(PgType.MacaddrArray, MacAddressTypeDescription),
+            MoneyTypeDescription,
+            *createArrayDescriptions(PgType.MoneyArray, MoneyTypeDescription),
+            NetworkAddressTypeDescription,
+            *createArrayDescriptions(PgType.InetArray, NetworkAddressTypeDescription),
+            SmallIntTypeDescription,
+            *createArrayDescriptions(PgType.Int2Array, SmallIntTypeDescription),
+            IntTypeDescription,
+            *createArrayDescriptions(PgType.Int4Array, IntTypeDescription),
+            BigIntTypeDescription,
+            *createArrayDescriptions(PgType.Int8Array, BigIntTypeDescription),
+            RealTypeDescription,
+            *createArrayDescriptions(PgType.Float4Array, RealTypeDescription),
+            DoublePrecisionTypeDescription,
+            *createArrayDescriptions(PgType.Float8Array, DoublePrecisionTypeDescription),
+            Int8RangeTypeDescription,
+            *createArrayDescriptions(PgType.Int8RangeArray, Int8RangeTypeDescription),
+            Int4RangeTypeDescription,
+            *createArrayDescriptions(PgType.Int4RangeArray, Int4RangeTypeDescription),
+            TsRangeTypeDescription,
+            *createArrayDescriptions(PgType.TsRangeArray, TsRangeTypeDescription),
+            timeZoneTzDescription,
+            *createArrayDescriptions(PgType.TstzRangeArray, timeZoneTzDescription),
+            DateRangeTypeDescription,
+            *createArrayDescriptions(PgType.DateRangeArray, DateRangeTypeDescription),
+            NumRangeTypeDescription,
+            *createArrayDescriptions(PgType.NumRangeArray, NumRangeTypeDescription),
+            VarcharTypeDescription,
+            object :
+                ArrayTypeDescription<String>(
+                    pgType = PgType.Varchar,
+                    innerType = VarcharTypeDescription,
+                    innerNullable = true,
+                ) {
+                override fun isCompatible(dbType: PgType): Boolean =
+                    dbType == PgType.TextArray ||
+                        dbType == PgType.VarcharArray ||
+                        dbType == PgType.XmlArray ||
+                        dbType == PgType.NameArray ||
+                        dbType == PgType.BpcharArray
+            },
+            object :
+                ArrayTypeDescription<String>(
+                    pgType = PgType.Varchar,
+                    innerType = VarcharTypeDescription,
+                    innerNullable = false,
+                ) {
+                override fun isCompatible(dbType: PgType): Boolean =
+                    dbType == PgType.TextArray ||
+                        dbType == PgType.VarcharArray ||
+                        dbType == PgType.XmlArray ||
+                        dbType == PgType.NameArray ||
+                        dbType == PgType.BpcharArray
+            },
+            LocalTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimeArray, LocalTimeTypeDescription),
+            OffsetTimeTypeDescription,
+            *createArrayDescriptions(PgType.TimetzArray, OffsetTimeTypeDescription),
+            UuidTypeDescription,
+            *createArrayDescriptions(PgType.UuidArray, UuidTypeDescription),
+            JUuidTypeDescription,
+            *createArrayDescriptions(PgType.UuidArray, JUuidTypeDescription),
+        )
+            .associateBy { it.kType }
+    }
 
+    companion object {
         /** Query to fetch the OID of the array type with an inner type matching the OID supplied */
         private val pgArrayTypeByInnerOid =
             """
