@@ -109,10 +109,8 @@ private const val MAX_PACKET_DATA_LENGTH = MySqlStream.MAX_PACKET_SIZE.toLong() 
 internal inline fun Sink.writeLengthEncoded(crossinline block: Sink.() -> Unit) {
     val tempBuffer = Buffer()
     block(tempBuffer)
-    this.writeToInternalBuffer { buf ->
-        buf.writeLongLengthEncoded(tempBuffer.size)
-        buf.write(tempBuffer, tempBuffer.size)
-    }
+    this.writeLongLengthEncoded(tempBuffer.size)
+    tempBuffer.transferTo(this)
 }
 
 /**

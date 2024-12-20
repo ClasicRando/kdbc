@@ -35,7 +35,7 @@ internal object BindEncoder : PgMessageEncoder<PgMessage.Bind>() {
             writeShort(1)
             writeShort(value.arguments.size.toShort())
             for (arg in value.arguments) {
-                this.encodeValue(arg.parameter.value, arg.pgTypeDescription)
+                this.encodeValue(arg.parameter, arg.pgTypeDescription)
             }
             writeShort(1)
             writeShort(1)

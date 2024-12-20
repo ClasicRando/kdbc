@@ -1,9 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.buffer
 
 import kotlinx.io.Buffer
-import kotlinx.io.DelicateIoApi
 import kotlinx.io.Sink
-import kotlinx.io.writeToInternalBuffer
 
 /**
  * Write to this buffer, keeping track of the number of bytes written within the [block] to prefix
@@ -22,7 +20,6 @@ import kotlinx.io.writeToInternalBuffer
  *
  * @throws IllegalStateException if the number of bytes written exceeds [Int.MAX_VALUE]
  */
-@OptIn(DelicateIoApi::class)
 internal inline fun Sink.writeLengthPrefixed(
     includeLength: Boolean = false,
     block: Sink.() -> Unit,
@@ -32,6 +29,5 @@ internal inline fun Sink.writeLengthPrefixed(
     val length = tempBuffer.size + if (includeLength) 4 else 0
     check(length in 0..Int.MAX_VALUE)
     writeInt(length.toInt())
-    this.writeToInternalBuffer { it.write(tempBuffer, tempBuffer.size) }
-    transferFrom(tempBuffer)
+    tempBuffer.transferTo(this)
 }

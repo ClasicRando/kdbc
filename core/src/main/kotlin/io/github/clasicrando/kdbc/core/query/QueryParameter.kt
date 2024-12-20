@@ -12,4 +12,8 @@ public inline fun <reified T> QueryParameter(value: T?): QueryParameter {
  * Simple data class wrapping a query parameter's [value] and the type data about that parameter's
  * value as a [KType]
  */
-public data class QueryParameter(val value: Any?, val parameterType: KType)
+public data class QueryParameter(val value: Any?, val parameterType: KType) {
+    override fun toString(): String {
+        return "QueryParameter(parameterType=$parameterType)"
+    }
+}

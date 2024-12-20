@@ -39,7 +39,7 @@ internal object ExecuteEncoder : MessageEncoder<MysqlMessage.Execute, Capabiliti
             }
             for (i in innerArgs.indices) {
                 val arg = innerArgs[i]
-                val argValue = arg.value.value
+                val argValue = arg.value
                 if (argValue != null) {
                     arg.typeDescription.encode(argValue, buffer)
                 }

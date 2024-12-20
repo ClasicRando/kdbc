@@ -56,13 +56,6 @@ import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.typeOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
@@ -78,6 +71,14 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.collections.map
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -240,9 +241,7 @@ internal constructor(
         var columnMapping = statement?.resultMetadata ?: emptyList()
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> {
-                    throw GeneralPostgresError(message)
-                }
+                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
                 is PgMessage.RowDescription -> {
                     statement?.resultMetadata = message.fields
                     columnMapping = message.fields
@@ -302,7 +301,7 @@ internal constructor(
         if (connectOptions.useExtendedProtocolForSimpleQueries && !query.contains('$')) {
             val queries = splitQuery(query)
             if (queries.size == 1) {
-                return sendExtendedQuery(query, listOf())
+                return sendExtendedQuery(query, emptyList())
             }
         }
 
@@ -335,9 +334,7 @@ internal constructor(
         writeSync()
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> {
-                    throw GeneralPostgresError(message)
-                }
+                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
                 is PgMessage.ParseComplete -> Loop.Continue
                 is PgMessage.RowDescription -> {
                     statement.resultMetadata = message.fields.map(PgColumnDescription::withBinary)
@@ -365,12 +362,12 @@ internal constructor(
      * [executePreparedStatement] is called to populate the [PgPreparedStatement] with the required
      * data.
      *
-     * @throws IllegalArgumentException if the number of [parameters] does not match the number of
+     * @throws IllegalArgumentException if the number of [args] does not match the number of
      *   parameters required by the query
      */
     private suspend fun getOrPrepareStatement(
         query: String,
-        parameters: List<QueryParameter>,
+        args: List<PgArgument>,
     ): PgPreparedStatement {
         preparedStatements[query]?.let {
             return it
@@ -379,7 +376,12 @@ internal constructor(
         val statement =
             executeStatementPrepare(
                 query = query,
-                parameterTypes = parameters.map { typeCache.getTypeHint(it).oid },
+                parameterTypes = args.map {
+                    if (it.parameter == null) {
+                        return@map PgType.UNSPECIFIED
+                    }
+                    it.pgTypeDescription.getActualType(it.parameter).oid
+                },
             )
         preparedStatements.insert(query, statement)?.let { releasePreparedStatement(it.value) }
         return statement
@@ -394,15 +396,14 @@ internal constructor(
      */
     private suspend fun executePreparedStatement(
         statement: PgPreparedStatement,
-        parameters: List<QueryParameter>,
+        parameters: List<PgArgument>,
         sendSync: Boolean = true,
     ) {
-        val arguments = parameters.map { PgArgument(it, typeCache) }
         stream.writeManyToStream(
             PgMessage.Bind(
                 portal = null,
                 statementName = statement.statementName,
-                arguments = arguments,
+                arguments = parameters,
             ),
             PgMessage.Execute(portalName = null, maxRowCount = 0),
             PgMessage.Close(MessageTarget.Portal, null),
@@ -432,10 +433,11 @@ internal constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
 
+        val args = mapParameters(parameters)
         return mutex.withLock {
             waitUntilReady()
-            val statement = getOrPrepareStatement(query, parameters)
-            executePreparedStatement(statement, parameters)
+            val statement = getOrPrepareStatement(query, args)
+            executePreparedStatement(statement, args)
             flow { collectResult(statement = statement) }
         }
     }
@@ -523,18 +525,20 @@ internal constructor(
             val statements =
                 Array(queries.size) { i ->
                     val query = queries[i]
-                    getOrPrepareStatement(query = query.sql, parameters = query.parameters)
+                    val args = mapParameters(query.parameters)
+                    val statement = getOrPrepareStatement(query = query.sql, args = args)
+                    statement to args
                 }
             for (i in statements.indices) {
-                val statement = statements[i]
+                val (statement, args) = statements[i]
                 executePreparedStatement(
                     statement = statement,
-                    parameters = queries[i].parameters,
+                    parameters = args,
                     sendSync = syncAll || i == queries.size - 1,
                 )
             }
             flow {
-                for (statement in statements) {
+                for ((statement, _) in statements) {
                     collectResult(statement = statement)
                 }
             }
@@ -579,9 +583,7 @@ internal constructor(
         var completeMessage: PgMessage.CommandComplete? = null
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> {
-                    throw GeneralPostgresError(message)
-                }
+                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
                 is PgMessage.CommandComplete -> {
                     completeMessage = message
                     Loop.Continue
@@ -745,9 +747,7 @@ internal constructor(
         return flow {
             stream.processMessageLoop { message ->
                 when (message) {
-                    is PgMessage.ErrorResponse -> {
-                        throw GeneralPostgresError(message)
-                    }
+                    is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
                     is PgMessage.CopyData -> {
                         emit(message.data)
                         Loop.Continue
@@ -888,6 +888,14 @@ internal constructor(
      */
     public suspend fun notify(channelName: String, payload: String) {
         query("SELECT pg_notify($1, $2)").bind(channelName).bind(payload).execute(this)
+    }
+
+    private fun mapParameters(params: List<QueryParameter>): List<PgArgument> {
+        return if (params.isEmpty()) {
+            emptyList()
+        } else {
+            params.map { PgArgument.of(it, typeCache) }
+        }
     }
 
     /**
@@ -1095,9 +1103,7 @@ internal constructor(
     ): PgTypeDescription<T> {
         require(kClass.isValue) { "Type must be a value type to create wrapper type description" }
         val innerType = kClass.primaryConstructor!!.parameters.first().type
-        val innerTypeDescription =
-            typeCache.getTypeDescription<Any>(innerType)
-                ?: throw PgException("Could not find type description for inner type $innerType")
+        val innerTypeDescription = typeCache.getTypeDescription<Any>(innerType)
         return ValueTypeDescription(kClass, kType, innerTypeDescription)
     }
 

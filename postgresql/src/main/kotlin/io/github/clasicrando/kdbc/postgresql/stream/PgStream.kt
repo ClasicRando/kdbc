@@ -24,11 +24,11 @@ import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import kotlin.math.floor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.io.Buffer
 
 private val logger = KotlinLogging.logger {}
 private const val RESOURCE_TYPE = "PgStream"
@@ -233,18 +233,15 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
      * a single write to the database server.
      */
     suspend fun <M> writeManyToStream(flow: Flow<M>) where M : PgMessage, M : SizedMessage {
-        var maxBatchSize = 1
-        val batch = ArrayList<M>()
+        val tempBuffer = Buffer()
         flow.collect { message ->
-            batch.add(message)
-            if (maxBatchSize == batch.size) {
-                maxBatchSize = floor(WRITE_MANY_BUFFER_SIZE / message.size).toInt()
-                stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
-                batch.clear()
+            if (tempBuffer.size + message.size >= WRITE_MANY_BUFFER_SIZE) {
+                stream.writeTo { sink -> tempBuffer.transferTo(sink) }
             }
+            PgMessageEncoders.encode(message, tempBuffer)
         }
-        if (batch.isNotEmpty()) {
-            stream.writeTo { sink -> batch.forEach { PgMessageEncoders.encode(it, sink) } }
+        if (!tempBuffer.exhausted()) {
+            stream.writeTo { sink -> tempBuffer.transferTo(sink) }
         }
     }
 
@@ -344,7 +341,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     companion object {
-        private const val WRITE_MANY_BUFFER_SIZE = 4096.0
+        private const val WRITE_MANY_BUFFER_SIZE = 4096
         private const val TLS_REJECT_WARNING =
             "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
 

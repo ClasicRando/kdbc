@@ -27,8 +27,8 @@ public enum class CopyFormat(public val formatCode: PgFormatCode) {
 
         fun fromByte(byte: Byte): CopyFormat {
             return when (byte) {
-                0.toByte() -> Text
-                0.toByte() -> Binary
+                PgFormatCode.Text.code.toByte() -> Text
+                PgFormatCode.Binary.code.toByte() -> Binary
                 else -> error("Invalid copy format byte, must be 0 or 1")
             }
         }

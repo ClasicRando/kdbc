@@ -190,7 +190,7 @@ internal constructor(
             var isBinaryEncoding = false
             if (query.parameters.isNotEmpty()) {
                 val statement = getOrPrepareStatement(query.sql)
-                val args = MySqlArguments(query.parameters.map { MySqlArgument(it, typeCache) })
+                val args = MySqlArguments(query.parameters.map { MySqlArgument.of(it, typeCache) })
                 stream.sendPacket(
                     MysqlMessage.Execute(statement = statement.statementId, arguments = args)
                 )
