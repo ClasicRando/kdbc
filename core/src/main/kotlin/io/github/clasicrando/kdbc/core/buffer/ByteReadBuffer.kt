@@ -19,6 +19,14 @@ public class ByteReadBuffer(
 ) {
     @PublishedApi internal var position: Int = 0
 
+    /** Number of bytes remaining as readable within the buffer */
+    public inline val remaining: Int
+        get() = size - position
+
+    /** Returns true if the remaining bytes to read is 0 */
+    public inline val isExhausted: Boolean
+        get() = remaining == 0
+
     /**
      * Create a sub slice of this [ByteReadBuffer], starting at the current position and having a
      * size as the specified [length].
@@ -59,7 +67,7 @@ public class ByteReadBuffer(
      * remaining bytes meets or exceeds the requested number of bytes.
      */
     public fun request(byteCount: Int): Boolean {
-        return remaining() >= byteCount
+        return remaining >= byteCount
     }
 
     /**
@@ -70,8 +78,8 @@ public class ByteReadBuffer(
      * @throws [BufferExhausted] if the buffer does not have the required number of bytes available
      */
     private fun checkRemaining(required: Int) {
-        if (remaining() < required) {
-            throw BufferExhausted(requested = required, remaining = remaining())
+        if (remaining < required) {
+            throw BufferExhausted(requested = required, remaining = remaining)
         }
     }
 
@@ -260,7 +268,7 @@ public class ByteReadBuffer(
      *
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
-    public fun readBytes(length: Int = remaining()): ByteArray {
+    public fun readBytes(length: Int = remaining): ByteArray {
         checkRemaining(length)
         val start = offset + position
         position += length
@@ -273,7 +281,7 @@ public class ByteReadBuffer(
      *
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
-    public fun readText(length: Int = remaining()): String {
+    public fun readText(length: Int = remaining): String {
         return String(this.readBytes(length = length), charset = Charsets.UTF_8)
     }
 

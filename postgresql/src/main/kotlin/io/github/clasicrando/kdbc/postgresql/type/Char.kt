@@ -25,7 +25,7 @@ internal object CharTypeDescription :
      *   is too long
      */
     override fun decodeBytes(value: PgValue.Binary): Byte {
-        return if (value.bytes.remaining() > 0) value.bytes.readByte() else 0
+        return if (value.bytes.remaining > 0) value.bytes.readByte() else 0
     }
 
     /**

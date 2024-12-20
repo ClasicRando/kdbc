@@ -148,7 +148,7 @@ internal constructor(
                 var rowCount = 0L
                 while (true) {
                     val rowPacket = stream.receiveNextPacket()
-                    if (rowPacket.peekNextAsInt() == 0xfe && rowPacket.remaining() < 9) {
+                    if (rowPacket.peekNextAsInt() == 0xfe && rowPacket.remaining < 9) {
                         val eof = EofDecoder.decode(rowPacket)
                         emit(Either.Left(QueryResult(rowCount, "")))
 

@@ -15,7 +15,7 @@ import io.github.clasicrando.kdbc.postgresql.message.information.InformationResp
 internal abstract class InformationResponseDecoder<T : PgMessage> : PgMessageDecoder<T>() {
     fun decodeToInformationResponse(buffer: ByteReadBuffer): InformationResponse {
         val map = buildMap {
-            while (!buffer.exhausted()) {
+            while (!buffer.isExhausted) {
                 val kind = buffer.readByte()
                 if (kind != ZERO_BYTE) {
                     put(kind, buffer.readCString())

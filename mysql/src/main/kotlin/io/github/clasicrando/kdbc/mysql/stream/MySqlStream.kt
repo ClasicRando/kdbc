@@ -142,7 +142,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         while (waitingQueue.isNotEmpty()) {
             while (waitingQueue.firstOrNull() == Waiting.Row) {
                 val packet = receiveNextPacket()
-                if (packet.peekNextAsInt() == 0xfe && packet.remaining() < 9) {
+                if (packet.peekNextAsInt() == 0xfe && packet.remaining < 9) {
                     val eof = EofDecoder.decode(packet, Unit)
                     removeFirstWaitingIfAny()
                     if (eof.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
@@ -185,17 +185,17 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      */
     suspend fun receiveNextPacket(): ByteReadBuffer {
         var payload = readRawPacket()
-        if (payload.remaining() >= MAX_PACKET_SIZE) {
+        if (payload.remaining >= MAX_PACKET_SIZE) {
             var lastRead = MAX_PACKET_SIZE
             while (lastRead == MAX_PACKET_SIZE) {
                 val nextPayload = readRawPacket()
-                lastRead = nextPayload.remaining()
+                lastRead = nextPayload.remaining
                 val nextBytes = nextPayload.readBytes()
                 payload = ByteReadBuffer(payload.readBytes().plus(nextBytes))
             }
         }
 
-        if (payload.exhausted()) {
+        if (payload.isExhausted) {
             throw MySqlException("Received empty packet")
         }
 
