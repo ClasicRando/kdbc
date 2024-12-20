@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.core.buffer
 
 import io.github.clasicrando.kdbc.core.ZERO_BYTE
+import kotlinx.io.Sink
 
 /**
  * Buffer containing a fixed size [ByteArray] where reads against the buffer are always read
@@ -45,16 +46,26 @@ public class ByteReadBuffer(
         return slice
     }
 
-    /** Number of bytes remaining as readable within the buffer */
-    @Suppress("NOTHING_TO_INLINE")
-    public inline fun remaining(): Int {
-        return size - position
-    }
-
-    /** Returns true if the remaining bytes to read is 0 */
-    @Suppress("NOTHING_TO_INLINE")
-    public inline fun exhausted(): Boolean {
-        return remaining() == 0
+    /**
+     * Adds the bytes stored within each buffer into a new [ByteReadBuffer]. The current position
+     * within the buffer does not impact this operation but if this or the other buffer is a slice,
+     * only that portion of that buffer gets copied.
+     */
+    public operator fun plus(other: ByteReadBuffer): ByteReadBuffer {
+        val newBuffer = ByteArray(this.size + other.size)
+        innerBuffer.copyInto(
+            destination = newBuffer,
+            destinationOffset = 0,
+            startIndex = this.offset,
+            endIndex = this.offset + this.size,
+        )
+        other.innerBuffer.copyInto(
+            destination = newBuffer,
+            destinationOffset = this.size,
+            startIndex = other.offset,
+            endIndex = other.offset + other.size,
+        )
+        return ByteReadBuffer(newBuffer)
     }
 
     public fun skip(byteCount: Int) {
@@ -269,6 +280,9 @@ public class ByteReadBuffer(
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
     public fun readBytes(length: Int = remaining): ByteArray {
+        if (length == remaining && position == 0 && offset == 0 && size == innerBuffer.size) {
+            return innerBuffer.copyOf()
+        }
         checkRemaining(length)
         val start = offset + position
         position += length
@@ -282,6 +296,9 @@ public class ByteReadBuffer(
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
     public fun readText(length: Int = remaining): String {
+        if (length == remaining && position == 0 && offset == 0 && size == innerBuffer.size) {
+            return String(innerBuffer, charset = Charsets.UTF_8)
+        }
         return String(this.readBytes(length = length), charset = Charsets.UTF_8)
     }
 
@@ -294,17 +311,26 @@ public class ByteReadBuffer(
      * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
      */
     public fun readCString(): String {
-        val buffer = ArrayList<Byte>()
+        val start = offset + position
+        var localOffset = 0
 
-        while (remaining() > 0) {
-            val nextByte = innerBuffer[offset + position++]
-            if (nextByte == ZERO_BYTE) {
+        while (remaining > 0) {
+            if (innerBuffer[start + localOffset++] == ZERO_BYTE) {
                 break
             }
-
-            buffer.add(nextByte)
         }
-        return String(bytes = buffer.toByteArray(), charset = Charsets.UTF_8)
+        val result = String(bytes = readBytes(localOffset - 1), charset = Charsets.UTF_8)
+        skip(1)
+        return result
+    }
+
+    /** Write the entire remaining portion of the buffer to a [sink] */
+    public fun transferToSink(sink: Sink) {
+        sink.write(
+            source = innerBuffer,
+            startIndex = offset + position,
+            endIndex = offset + remaining + position,
+        )
     }
 
     /** Reset this buffer to it's initial reading position so the value can be read again */

@@ -190,8 +190,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             while (lastRead == MAX_PACKET_SIZE) {
                 val nextPayload = readRawPacket()
                 lastRead = nextPayload.remaining
-                val nextBytes = nextPayload.readBytes()
-                payload = ByteReadBuffer(payload.readBytes().plus(nextBytes))
+                payload += nextPayload
             }
         }
 

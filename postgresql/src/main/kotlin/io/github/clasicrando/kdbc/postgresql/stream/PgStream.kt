@@ -114,8 +114,8 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
      * specific message but also need to ensure error messages are captured and provided as the
      * failure [Result] option. For example, when starting a `COPY TO` operation,
      * [PgMessage.CopyOutResponse] must be found before continuing to a message processor for
-     * [PgMessage.CopyData] messages. You can wait for that message or errors, proceeding if the
-     * [Result] is successful.
+     * [PgMessage.CopyServerData] messages. You can wait for that message or errors, proceeding if
+     * the [Result] is successful.
      */
     suspend inline fun <reified T : PgMessage> waitForOrError(): T {
         while (isConnected) {

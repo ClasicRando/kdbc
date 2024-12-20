@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.core
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
@@ -227,9 +228,9 @@ private fun StringBuilder.buildOrNull(): String? {
  * nullable [String]s. In this context, null is a '\N' string and the newline character is always
  * '\n'.
  */
-public fun parseBytesAsCsvRow(bytes: ByteArray, expectedColumnCount: Int): Array<String?> {
+public fun parseBytesAsCsvRow(bytes: ByteReadBuffer, expectedColumnCount: Int): Array<String?> {
     val output = arrayOfNulls<String?>(expectedColumnCount)
-    val row = bytes.toString(charset = Charsets.UTF_8)
+    val row = bytes.readText()
     val charIter = row.iterator()
 
     var index = 0

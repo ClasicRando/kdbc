@@ -74,7 +74,6 @@ import kotlinx.io.readByteArray
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import kotlin.collections.map
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
@@ -376,12 +375,13 @@ internal constructor(
         val statement =
             executeStatementPrepare(
                 query = query,
-                parameterTypes = args.map {
-                    if (it.parameter == null) {
-                        return@map PgType.UNSPECIFIED
-                    }
-                    it.pgTypeDescription.getActualType(it.parameter).oid
-                },
+                parameterTypes =
+                    args.map {
+                        if (it.parameter == null) {
+                            return@map PgType.UNSPECIFIED
+                        }
+                        it.pgTypeDescription.getActualType(it.parameter).oid
+                    },
             )
         preparedStatements.insert(query, statement)?.let { releasePreparedStatement(it.value) }
         return statement
@@ -549,7 +549,7 @@ internal constructor(
      * Internal method for executing a `COPY IN` command. Steps are:
      * 1. Execute the [copyQuery]
      * 2. Wait for a [PgMessage.CopyInResponse] exiting if a [PgMessage.ErrorResponse] is received
-     * 3. Write all elements in the [data] sequence as [PgMessage.CopyData] to the backend
+     * 3. Write all elements in the [data] sequence as [PgMessage.CopyClientData] to the backend
      * 4. Writing a [PgMessage.CopyDone] message to instruct the backend to parse the data sent
      * 5. Collect the result messages
      * 6. Process the [TransactionStatus] response from the backend
@@ -557,9 +557,9 @@ internal constructor(
      * 8. Return a [QueryResult] with the number of rows impacted and message sent from the backend
      *
      * Any unexpected errors during result collection will be aggregated and thrown before
-     * returning. However, if an exception is thrown while sending/creating [PgMessage.CopyData]
-     * messages, the expected [PgMessage.ErrorResponse] received from the server will be treated as
-     * a result message and not an error.
+     * returning. However, if an exception is thrown while sending/creating
+     * [PgMessage.CopyClientData] messages, the expected [PgMessage.ErrorResponse] received from the
+     * server will be treated as a result message and not an error.
      */
     private suspend fun copyInInternal(copyQuery: String, data: Flow<ByteArray>): QueryResult {
         waitUntilReady()
@@ -571,7 +571,7 @@ internal constructor(
         pendingReaderForQueryCount++
 
         try {
-            stream.writeManyToStream(data.map { PgMessage.CopyData(it) })
+            stream.writeManyToStream(data.map { PgMessage.CopyClientData(it) })
             stream.writeToStream(PgMessage.CopyDone)
         } catch (ex: Exception) {
             if (stream.isConnected) {
@@ -735,7 +735,7 @@ internal constructor(
      * 3. Process all incoming messages by yielding a [Sequence] of [ByteArray] instances from
      *    [PgMessage.CopyData] messages. Exit the loop when [PgMessage.ReadyForQuery] is received.
      */
-    private suspend fun copyOutInternal(copyQuery: String): Flow<ByteArray> {
+    private suspend fun copyOutInternal(copyQuery: String): Flow<ByteReadBuffer> {
         waitUntilReady()
         log(connectOptions.statementLogLevel) {
             message = "Sending query: ${copyQuery.normalizeWhitespace()}"
@@ -748,7 +748,7 @@ internal constructor(
             stream.processMessageLoop { message ->
                 when (message) {
                     is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
-                    is PgMessage.CopyData -> {
+                    is PgMessage.CopyServerData -> {
                         emit(message.data)
                         Loop.Continue
                     }
@@ -764,7 +764,7 @@ internal constructor(
         }
     }
 
-    public suspend fun copyOut(copyOutStatement: CopyStatement.To): Flow<ByteArray> {
+    public suspend fun copyOut(copyOutStatement: CopyStatement.To): Flow<ByteReadBuffer> {
         checkConnected()
         return mutex.withLock { copyOutInternal(copyOutStatement.toQuery()) }
     }
@@ -774,7 +774,7 @@ internal constructor(
      * each row returned from the query to the [sink] supplied
      */
     public suspend fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
-        copyOut(copyOutStatement).collect(sink::write)
+        copyOut(copyOutStatement).collect { it.transferToSink(sink) }
     }
 
     /**
@@ -1148,13 +1148,14 @@ internal constructor(
          * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row,
          * the first 19 bytes should be ignored since they are the binary copy's file header.
          */
-        internal fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer {
-            return ByteReadBuffer(
-                when {
-                    rowCount == 1L -> row.copyOfRange(fromIndex = 19, toIndex = row.size)
-                    else -> row
+        internal fun getBinaryBuffer(rowCount: Long, row: ByteReadBuffer): ByteReadBuffer {
+            return when (rowCount) {
+                1L -> {
+                    row.skip(19)
+                    row.slice(row.remaining)
                 }
-            )
+                else -> row
+            }
         }
 
         /**
