@@ -1,5 +1,11 @@
 package io.github.clasicrando.kdbc.core.query
 
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.OffsetDateTime
 import kotlin.reflect.typeOf
 
 /** API to perform a single query against a database */
@@ -56,94 +62,110 @@ public class Query(public val sql: String) {
     }
 }
 
+/** Create a [Query] with the supplied [sql] */
 public fun query(sql: String): Query = Query(sql)
 
 private val booleanType = typeOf<Boolean>()
 
+/** Bind a [Boolean] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: Boolean?): Query {
     return bind(QueryParameter(parameter, booleanType))
 }
 
 private val byteType = typeOf<Byte>()
 
+/** Bind a [Byte] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: Byte?): Query {
     return bind(QueryParameter(parameter, byteType))
 }
 
 private val shortType = typeOf<Short>()
 
+/** Bind a [Short] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: Short?): Query {
     return bind(QueryParameter(parameter, shortType))
 }
 
 private val intType = typeOf<Int>()
 
+/** Bind a [Int] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: Int?): Query {
     return bind(QueryParameter(parameter, intType))
 }
 
 private val longType = typeOf<Long>()
 
+/** Bind a [Long] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: Long?): Query {
     return bind(QueryParameter(parameter, longType))
 }
 
 private val floatType = typeOf<Float>()
 
+/** Bind a [Float] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: Float?): Query {
     return bind(QueryParameter(parameter, floatType))
 }
 
 private val doubleType = typeOf<Double>()
 
+/** Bind a [Double] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: Double?): Query {
     return bind(QueryParameter(parameter, doubleType))
 }
 
-private val localTimeType = typeOf<java.time.LocalTime>()
+private val localTimeType = typeOf<LocalTime>()
 
-public fun Query.bind(parameter: java.time.LocalTime?): Query {
+/** Bind a [LocalTime] parameter to this [Query]. Returns the current [Query] instance */
+public fun Query.bind(parameter: LocalTime?): Query {
     return bind(QueryParameter(parameter, localTimeType))
 }
 
-private val localDateType = typeOf<java.time.LocalDate>()
+private val localDateType = typeOf<LocalDate>()
 
-public fun Query.bind(parameter: java.time.LocalDate?): Query {
+/** Bind a [LocalDate] parameter to this [Query]. Returns the current [Query] instance */
+public fun Query.bind(parameter: LocalDate?): Query {
     return bind(QueryParameter(parameter, localDateType))
 }
 
-private val localDateTimeType = typeOf<java.time.LocalDateTime>()
+private val localDateTimeType = typeOf<LocalDateTime>()
 
-public fun Query.bind(parameter: java.time.LocalDateTime?): Query {
+/** Bind a [LocalDateTime] parameter to this [Query]. Returns the current [Query] instance */
+public fun Query.bind(parameter: LocalDateTime?): Query {
     return bind(QueryParameter(parameter, localDateTimeType))
 }
 
-private val instantType = typeOf<java.time.Instant>()
+private val instantType = typeOf<Instant>()
 
-public fun Query.bind(parameter: java.time.Instant?): Query {
+/** Bind a [Instant] parameter to this [Query]. Returns the current [Query] instance */
+public fun Query.bind(parameter: Instant?): Query {
     return bind(QueryParameter(parameter, instantType))
 }
 
-private val offsetDateTimeType = typeOf<java.time.OffsetDateTime>()
+private val offsetDateTimeType = typeOf<OffsetDateTime>()
 
-public fun Query.bind(parameter: java.time.OffsetDateTime?): Query {
+/** Bind a [OffsetDateTime] parameter to this [Query]. Returns the current [Query] instance */
+public fun Query.bind(parameter: OffsetDateTime?): Query {
     return bind(QueryParameter(parameter, offsetDateTimeType))
 }
 
-private val bigDecimalType = typeOf<java.math.BigDecimal>()
+private val bigDecimalType = typeOf<BigDecimal>()
 
-public fun Query.bind(parameter: java.math.BigDecimal?): Query {
+/** Bind a [BigDecimal] parameter to this [Query]. Returns the current [Query] instance */
+public fun Query.bind(parameter: BigDecimal?): Query {
     return bind(QueryParameter(parameter, bigDecimalType))
 }
 
 private val byteArrayType = typeOf<ByteArray>()
 
+/** Bind a [ByteArray] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: ByteArray?): Query {
     return bind(QueryParameter(parameter, byteArrayType))
 }
 
 private val stringType = typeOf<String>()
 
+/** Bind a [String] parameter to this [Query]. Returns the current [Query] instance */
 public fun Query.bind(parameter: String?): Query {
     return bind(QueryParameter(parameter, stringType))
 }

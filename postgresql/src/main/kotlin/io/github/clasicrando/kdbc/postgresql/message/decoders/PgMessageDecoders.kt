@@ -33,7 +33,7 @@ internal object PgMessageDecoders {
             PgMessage.CLOSE_COMPLETE_CODE -> PgMessage.CloseComplete
             PgMessage.COPY_IN_RESPONSE_CODE -> CopyInResponseDecoder.decode(contents)
             PgMessage.COPY_OUT_RESPONSE_CODE -> CopyOutResponseDecoder.decode(contents)
-            PgMessage.COPY_DATA_CODE -> CopyDataDecoder.decode(contents)
+            PgMessage.COPY_DATA_CODE -> CopyServerDataDecoder.decode(contents)
             PgMessage.COPY_DONE_CODE -> PgMessage.CopyDone
             PgMessage.NOTIFICATION_RESPONSE_CODE -> NotificationResponseDecoder.decode(contents)
             PgMessage.PARAMETER_DESCRIPTION_CODE -> ParameterDescriptionDecoder.decode(contents)
