@@ -57,6 +57,10 @@ public value class IntBitFlags(internal val flags: Int) {
     public fun asInt(): Int {
         return flags
     }
+
+    public companion object {
+        public val ZERO: IntBitFlags = IntBitFlags(0)
+    }
 }
 
 /**
@@ -110,5 +114,9 @@ public value class LongBitFlags(internal val flags: Long) {
      */
     public fun highInt(): Int {
         return (flags shr 32 and 0xff_ff_ff_ff).toInt()
+    }
+
+    public companion object {
+        public val ZERO: LongBitFlags = LongBitFlags(0)
     }
 }

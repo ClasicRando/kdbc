@@ -12,6 +12,9 @@ import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 class TestRange {
     @ParameterizedTest
@@ -229,13 +232,13 @@ class TestRange {
             listOf(
                     Int4Range(Bound.Included(LOWER_INT), Bound.Included(UPPER_INT)),
                     Int4Range(Bound.Included(LOWER_INT), Bound.Excluded(UPPER_INT)),
-                    Int4Range(Bound.Included(LOWER_INT), Bound.Unbounded()),
+                    Int4Range(Bound.Included(LOWER_INT), Bound.unbounded()),
                     Int4Range(Bound.Excluded(LOWER_INT), Bound.Included(UPPER_INT)),
                     Int4Range(Bound.Excluded(LOWER_INT), Bound.Excluded(UPPER_INT)),
-                    Int4Range(Bound.Excluded(LOWER_INT), Bound.Unbounded()),
-                    Int4Range(Bound.Unbounded(), Bound.Included(3)),
-                    Int4Range(Bound.Unbounded(), Bound.Excluded(3)),
-                    Int4Range(Bound.Unbounded(), Bound.Unbounded()),
+                    Int4Range(Bound.Excluded(LOWER_INT), Bound.unbounded()),
+                    Int4Range(Bound.unbounded(), Bound.Included(3)),
+                    Int4Range(Bound.unbounded(), Bound.Excluded(3)),
+                    Int4Range(Bound.unbounded(), Bound.unbounded()),
                 )
                 .map { INT4RANGE_TYPE_NAME to it }
                 .stream()
@@ -249,19 +252,19 @@ class TestRange {
             listOf(
                     Int8Range(Bound.Included(LOWER_LONG), Bound.Included(UPPER_LONG)),
                     Int8Range(Bound.Included(LOWER_LONG), Bound.Excluded(UPPER_LONG)),
-                    Int8Range(Bound.Included(LOWER_LONG), Bound.Unbounded()),
+                    Int8Range(Bound.Included(LOWER_LONG), Bound.unbounded()),
                     Int8Range(Bound.Excluded(LOWER_LONG), Bound.Included(UPPER_LONG)),
                     Int8Range(Bound.Excluded(LOWER_LONG), Bound.Excluded(UPPER_LONG)),
-                    Int8Range(Bound.Excluded(LOWER_LONG), Bound.Unbounded()),
-                    Int8Range(Bound.Unbounded(), Bound.Included(UPPER_LONG)),
-                    Int8Range(Bound.Unbounded(), Bound.Excluded(UPPER_LONG)),
-                    Int8Range(Bound.Unbounded(), Bound.Unbounded()),
+                    Int8Range(Bound.Excluded(LOWER_LONG), Bound.unbounded()),
+                    Int8Range(Bound.unbounded(), Bound.Included(UPPER_LONG)),
+                    Int8Range(Bound.unbounded(), Bound.Excluded(UPPER_LONG)),
+                    Int8Range(Bound.unbounded(), Bound.unbounded()),
                 )
                 .map { INT8RANGE_TYPE_NAME to it }
                 .stream()
 
-        private val lowerBigDecimal = BigDecimal.valueOf(1L)
-        private val upperBigDecimal = BigDecimal.valueOf(3L)
+        private val lowerBigDecimal: BigDecimal = BigDecimal.valueOf(1L)
+        private val upperBigDecimal: BigDecimal = BigDecimal.valueOf(3L)
         private const val NUMRANGE_TYPE_NAME = "numrange"
 
         @JvmStatic
@@ -269,19 +272,19 @@ class TestRange {
             listOf(
                     Bound.Included(lowerBigDecimal) to Bound.Included(upperBigDecimal),
                     Bound.Included(lowerBigDecimal) to Bound.Excluded(upperBigDecimal),
-                    Bound.Included(lowerBigDecimal) to Bound.Unbounded(),
+                    Bound.Included(lowerBigDecimal) to Bound.unbounded(),
                     Bound.Excluded(lowerBigDecimal) to Bound.Included(upperBigDecimal),
                     Bound.Excluded(lowerBigDecimal) to Bound.Excluded(upperBigDecimal),
-                    Bound.Excluded(lowerBigDecimal) to Bound.Unbounded(),
-                    Bound.Unbounded<BigDecimal>() to Bound.Included(upperBigDecimal),
-                    Bound.Unbounded<BigDecimal>() to Bound.Excluded(upperBigDecimal),
-                    Bound.Unbounded<BigDecimal>() to Bound.Unbounded(),
+                    Bound.Excluded(lowerBigDecimal) to Bound.unbounded(),
+                    Bound.unbounded<BigDecimal>() to Bound.Included(upperBigDecimal),
+                    Bound.unbounded<BigDecimal>() to Bound.Excluded(upperBigDecimal),
+                    Bound.unbounded<BigDecimal>() to Bound.unbounded(),
                 )
                 .map { NUMRANGE_TYPE_NAME to NumRange(it.first, it.second) }
                 .stream()
 
-        private val lowerTimestamp = java.time.LocalDate.of(2024, 1, 1).atStartOfDay()
-        private val upperTimestamp = java.time.LocalDate.of(2024, 2, 1).atStartOfDay()
+        private val lowerTimestamp: LocalDateTime = LocalDate.of(2024, 1, 1).atStartOfDay()
+        private val upperTimestamp: LocalDateTime = LocalDate.of(2024, 2, 1).atStartOfDay()
         private const val TSRANGE_TYPE_NAME = "tsrange"
 
         @JvmStatic
@@ -289,25 +292,25 @@ class TestRange {
             listOf(
                     Bound.Included(lowerTimestamp) to Bound.Included(upperTimestamp),
                     Bound.Included(lowerTimestamp) to Bound.Excluded(upperTimestamp),
-                    Bound.Included(lowerTimestamp) to Bound.Unbounded(),
+                    Bound.Included(lowerTimestamp) to Bound.unbounded(),
                     Bound.Excluded(lowerTimestamp) to Bound.Included(upperTimestamp),
                     Bound.Excluded(lowerTimestamp) to Bound.Excluded(upperTimestamp),
-                    Bound.Excluded(lowerTimestamp) to Bound.Unbounded(),
-                    Bound.Unbounded<java.time.LocalDateTime>() to Bound.Included(upperTimestamp),
-                    Bound.Unbounded<java.time.LocalDateTime>() to Bound.Excluded(upperTimestamp),
-                    Bound.Unbounded<java.time.LocalDateTime>() to Bound.Unbounded(),
+                    Bound.Excluded(lowerTimestamp) to Bound.unbounded(),
+                    Bound.unbounded<LocalDateTime>() to Bound.Included(upperTimestamp),
+                    Bound.unbounded<LocalDateTime>() to Bound.Excluded(upperTimestamp),
+                    Bound.unbounded<LocalDateTime>() to Bound.unbounded(),
                 )
                 .map { TSRANGE_TYPE_NAME to TsRange(it.first, it.second) }
                 .stream()
 
-        private val lowerTimestampTz =
-            java.time.OffsetDateTime.of(
-                java.time.LocalDate.of(2024, 1, 1).atStartOfDay(),
+        private val lowerTimestampTz: OffsetDateTime =
+            OffsetDateTime.of(
+                LocalDate.of(2024, 1, 1).atStartOfDay(),
                 ZoneOffset.UTC,
             )
-        private val upperTimestampTz =
-            java.time.OffsetDateTime.of(
-                java.time.LocalDate.of(2024, 2, 1).atStartOfDay(),
+        private val upperTimestampTz: OffsetDateTime =
+            OffsetDateTime.of(
+                LocalDate.of(2024, 2, 1).atStartOfDay(),
                 ZoneOffset.UTC,
             )
         private const val TSTZRANGE_TYPE_NAME = "tstzrange"
@@ -317,19 +320,19 @@ class TestRange {
             listOf(
                     Bound.Included(lowerTimestampTz) to Bound.Included(upperTimestampTz),
                     Bound.Included(lowerTimestampTz) to Bound.Excluded(upperTimestampTz),
-                    Bound.Included(lowerTimestampTz) to Bound.Unbounded(),
+                    Bound.Included(lowerTimestampTz) to Bound.unbounded(),
                     Bound.Excluded(lowerTimestampTz) to Bound.Included(upperTimestampTz),
                     Bound.Excluded(lowerTimestampTz) to Bound.Excluded(upperTimestampTz),
-                    Bound.Excluded(lowerTimestampTz) to Bound.Unbounded(),
-                    Bound.Unbounded<java.time.OffsetDateTime>() to Bound.Included(upperTimestampTz),
-                    Bound.Unbounded<java.time.OffsetDateTime>() to Bound.Excluded(upperTimestampTz),
-                    Bound.Unbounded<java.time.OffsetDateTime>() to Bound.Unbounded(),
+                    Bound.Excluded(lowerTimestampTz) to Bound.unbounded(),
+                    Bound.unbounded<OffsetDateTime>() to Bound.Included(upperTimestampTz),
+                    Bound.unbounded<OffsetDateTime>() to Bound.Excluded(upperTimestampTz),
+                    Bound.unbounded<OffsetDateTime>() to Bound.unbounded(),
                 )
                 .map { TSTZRANGE_TYPE_NAME to TsTzRange(it.first, it.second) }
                 .stream()
 
-        private val lowerDate = java.time.LocalDate.of(2024, 1, 1)
-        private val upperDate = java.time.LocalDate.of(2024, 2, 1)
+        private val lowerDate: LocalDate = LocalDate.of(2024, 1, 1)
+        private val upperDate: LocalDate = LocalDate.of(2024, 2, 1)
         private const val DATERANGE_TYPE_NAME = "daterange"
 
         @JvmStatic
@@ -337,13 +340,13 @@ class TestRange {
             listOf(
                     Bound.Included(lowerDate) to Bound.Included(upperDate),
                     Bound.Included(lowerDate) to Bound.Excluded(upperDate),
-                    Bound.Included(lowerDate) to Bound.Unbounded(),
+                    Bound.Included(lowerDate) to Bound.unbounded(),
                     Bound.Excluded(lowerDate) to Bound.Included(upperDate),
                     Bound.Excluded(lowerDate) to Bound.Excluded(upperDate),
-                    Bound.Excluded(lowerDate) to Bound.Unbounded(),
-                    Bound.Unbounded<java.time.LocalDate>() to Bound.Included(upperDate),
-                    Bound.Unbounded<java.time.LocalDate>() to Bound.Excluded(upperDate),
-                    Bound.Unbounded<java.time.LocalDate>() to Bound.Unbounded(),
+                    Bound.Excluded(lowerDate) to Bound.unbounded(),
+                    Bound.unbounded<LocalDate>() to Bound.Included(upperDate),
+                    Bound.unbounded<LocalDate>() to Bound.Excluded(upperDate),
+                    Bound.unbounded<LocalDate>() to Bound.unbounded(),
                 )
                 .map { DATERANGE_TYPE_NAME to DateRange(it.first, it.second) }
                 .stream()

@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
 import io.github.clasicrando.kdbc.core.column.checkOrColumnDecodeError
+import io.github.clasicrando.kdbc.core.connection.IntBitFlags
 import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
@@ -15,20 +16,16 @@ import java.time.ZoneOffset
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 
-private const val ZERO_RANGE_FLAGS = 0x00
-
 // https://github.com/postgres/postgres/blob/master/src/include/utils/rangetypes.h#L38-L45
-private const val EMPTY_RANGE_FLAG_MASK = 0x01
-private const val LOWER_BOUND_INCLUSIVE_RANGE_FLAG_MASK = 0x02
-private const val UPPER_BOUND_INCLUSIVE_RANGE_FLAG_MARK = 0x04
-private const val LOWER_BOUND_INFINITE_RANGE_FLAG_MASK = 0x08
-private const val UPPER_BOUND_INFINITE_RANGE_FLAG_MASK = 0x10
+private val EMPTY_RANGE_FLAG_MASK = IntBitFlags(0x01)
+private val LOWER_BOUND_INCLUSIVE_RANGE_FLAG_MASK = IntBitFlags(0x02)
+private val UPPER_BOUND_INCLUSIVE_RANGE_FLAG_MARK = IntBitFlags(0x04)
+private val LOWER_BOUND_INFINITE_RANGE_FLAG_MASK = IntBitFlags(0x08)
+private val UPPER_BOUND_INFINITE_RANGE_FLAG_MASK = IntBitFlags(0x10)
 
 // private const val lowerBoundNullRangeFlagMask = 0x20
 // private const val upperBoundNullRangeFlagMask = 0x40
 // private const val containEmptyRangeFlagMask = 0x80
-
-private fun rangeFlagContains(flags: Int, mask: Int): Boolean = (mask and flags) == mask
 
 /**
  * Base implementation of a [PgTypeDescription] for [PgRange] types that map to the respective range
@@ -55,25 +52,23 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L177)
      */
     final override fun encode(value: PgRange<T>, buffer: Sink) {
-        var flags = ZERO_RANGE_FLAGS
+        var flags = IntBitFlags.ZERO
 
-        flags =
-            flags or
-                when (value.lower) {
-                    is Bound.Excluded -> ZERO_RANGE_FLAGS
-                    is Bound.Included -> LOWER_BOUND_INCLUSIVE_RANGE_FLAG_MASK
-                    is Bound.Unbounded -> LOWER_BOUND_INFINITE_RANGE_FLAG_MASK
-                }
+        flags +=
+            when (value.lower) {
+                is Bound.Excluded -> IntBitFlags.ZERO
+                is Bound.Included -> LOWER_BOUND_INCLUSIVE_RANGE_FLAG_MASK
+                is Bound.Unbounded -> LOWER_BOUND_INFINITE_RANGE_FLAG_MASK
+            }
 
-        flags =
-            flags or
-                when (value.upper) {
-                    is Bound.Excluded -> ZERO_RANGE_FLAGS
-                    is Bound.Included -> UPPER_BOUND_INCLUSIVE_RANGE_FLAG_MARK
-                    is Bound.Unbounded -> UPPER_BOUND_INFINITE_RANGE_FLAG_MASK
-                }
+        flags +=
+            when (value.upper) {
+                is Bound.Excluded -> IntBitFlags.ZERO
+                is Bound.Included -> UPPER_BOUND_INCLUSIVE_RANGE_FLAG_MARK
+                is Bound.Unbounded -> UPPER_BOUND_INFINITE_RANGE_FLAG_MASK
+            }
 
-        buffer.writeByte(flags.toByte())
+        buffer.writeByte(flags.asByte())
 
         when (value.lower) {
             is Bound.Excluded ->
@@ -112,16 +107,16 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
      * [code](https://github.com/postgres/postgres/blob/874d817baa160ca7e68bee6ccc9fc1848c56e750/src/backend/utils/adt/rangetypes.c#L261)
      */
     final override fun decodeBytes(value: PgValue.Binary): PgRange<T> {
-        var start: Bound<T> = Bound.Unbounded()
-        var end: Bound<T> = Bound.Unbounded()
+        var start: Bound<T> = Bound.Unbounded(this.typeDescription.kType)
+        var end: Bound<T> = Bound.Unbounded(this.typeDescription.kType)
 
-        val flags = value.bytes.readByte().toInt()
+        val flags = IntBitFlags(value.bytes.readByte())
 
-        if (rangeFlagContains(flags, EMPTY_RANGE_FLAG_MASK)) {
+        if (flags[EMPTY_RANGE_FLAG_MASK]) {
             return PgRange(start, end)
         }
 
-        if (!rangeFlagContains(flags, LOWER_BOUND_INFINITE_RANGE_FLAG_MASK)) {
+        if (!flags[LOWER_BOUND_INFINITE_RANGE_FLAG_MASK]) {
             val lowerBoundValueLength = value.bytes.readInt()
             val lowerBoundPgValue =
                 PgValue.Binary(
@@ -135,14 +130,14 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
 
             val lowerBoundValue = typeDescription.decodeBytes(lowerBoundPgValue)
             start =
-                if (rangeFlagContains(flags, LOWER_BOUND_INCLUSIVE_RANGE_FLAG_MASK)) {
+                if (flags[LOWER_BOUND_INCLUSIVE_RANGE_FLAG_MASK]) {
                     Bound.Included(lowerBoundValue)
                 } else {
                     Bound.Excluded(lowerBoundValue)
                 }
         }
 
-        if (!rangeFlagContains(flags, UPPER_BOUND_INFINITE_RANGE_FLAG_MASK)) {
+        if (!flags[UPPER_BOUND_INFINITE_RANGE_FLAG_MASK]) {
             val upperBoundValueLength = value.bytes.readInt()
             val upperBoundPgValue =
                 PgValue.Binary(
@@ -156,7 +151,7 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
 
             val upperBoundValue = typeDescription.decodeBytes(upperBoundPgValue)
             end =
-                if (rangeFlagContains(flags, UPPER_BOUND_INCLUSIVE_RANGE_FLAG_MARK)) {
+                if (flags[UPPER_BOUND_INCLUSIVE_RANGE_FLAG_MARK]) {
                     Bound.Included(upperBoundValue)
                 } else {
                     Bound.Excluded(upperBoundValue)
@@ -204,18 +199,16 @@ internal abstract class BaseRangeTypeDescription<T : Any>(
                 val text = PgValue.Text(it, value.typeData)
                 val lowerBoundValue = typeDescription.decodeText(text)
                 decodeBound(lower, lowerBoundValue)
-            } ?: Bound.Unbounded()
+            } ?: Bound.Unbounded(this.typeDescription.kType)
         val end =
             bounds.getOrNull(1)?.let {
                 val text = PgValue.Text(it, value.typeData)
                 val upperBoundValue = typeDescription.decodeText(text)
                 decodeBound(upper, upperBoundValue)
-            } ?: Bound.Unbounded()
+            } ?: Bound.Unbounded(this.typeDescription.kType)
         return PgRange(lower = start, upper = end)
     }
 }
-
-public typealias Int8Range = PgRange<Long>
 
 /**
  * Implementation of a [PgTypeDescription] for the [Int8Range] type. This maps to the `int8range`
@@ -227,16 +220,12 @@ internal object Int8RangeTypeDescription :
         typeDescription = BigIntTypeDescription,
     )
 
-public typealias Int4Range = PgRange<Int>
-
 /**
  * Implementation of a [PgTypeDescription] for the [Int4Range] type. This maps to the `int4range`
  * type in a postgresql database.
  */
 internal object Int4RangeTypeDescription :
     BaseRangeTypeDescription<Int>(pgType = PgType.Int4Range, typeDescription = IntTypeDescription)
-
-public typealias TsRange = PgRange<LocalDateTime>
 
 /**
  * Implementation of a [PgTypeDescription] for the [TsRange] type. This maps to the `tsrange` type
@@ -248,8 +237,6 @@ internal object TsRangeTypeDescription :
         typeDescription = LocalDateTimeTypeDescription,
     )
 
-public typealias TsTzRange = PgRange<OffsetDateTime>
-
 /**
  * Implementation of a [PgTypeDescription] for the [TsTzRange] type. This maps to the `tstzrange`
  * type in a postgresql database.
@@ -260,8 +247,6 @@ internal class TsTzRangeTypeDescription(zoneOffset: ZoneOffset) :
         typeDescription = OffsetDateTimeTypeDescription(zoneOffset),
     )
 
-public typealias DateRange = PgRange<LocalDate>
-
 /**
  * Implementation of a [PgTypeDescription] for the [DateRange] type. This maps to the `daterange`
  * type in a postgresql database.
@@ -271,8 +256,6 @@ internal object DateRangeTypeDescription :
         pgType = PgType.DateRange,
         typeDescription = LocalDateTypeDescription,
     )
-
-public typealias NumRange = PgRange<BigDecimal>
 
 /**
  * Implementation of a [PgTypeDescription] for the [NumRange] type. This maps to the `numrange` type
