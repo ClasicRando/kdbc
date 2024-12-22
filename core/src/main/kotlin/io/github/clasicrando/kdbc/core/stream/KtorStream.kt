@@ -33,6 +33,7 @@ private val logger = KotlinLogging.logger {}
 public class KtorStream(
     private val address: SocketAddress,
     private val selectorManager: SelectorManager,
+    private val socketTimeout: Duration,
 ) : DefaultUniqueResourceId(), Stream {
     private lateinit var connection: Connection
     private lateinit var socket: Socket
@@ -52,7 +53,9 @@ public class KtorStream(
         try {
             connection =
                 withTimeout(timeout) {
-                    aSocket(selectorManager).tcp().connect(address).connection()
+                    aSocket(selectorManager).tcp().connect(address) {
+                        this.socketTimeout = this@KtorStream.socketTimeout.inWholeMilliseconds
+                    }.connection()
                 }
             socket = connection.socket
             writeChannel = connection.output

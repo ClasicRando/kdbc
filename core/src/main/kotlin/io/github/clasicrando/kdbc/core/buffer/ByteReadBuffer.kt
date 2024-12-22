@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.core.buffer
 
-import io.github.clasicrando.kdbc.core.ZERO_BYTE
 import kotlinx.io.Sink
 
 /**
@@ -19,6 +18,9 @@ public class ByteReadBuffer(
     @PublishedApi internal val size: Int = innerBuffer.size,
 ) {
     @PublishedApi internal var position: Int = 0
+
+    /** True if this buffer is a slice of another buffer */
+    public val isSlice: Boolean = offset != 0 || size != innerBuffer.size
 
     /** Number of bytes remaining as readable within the buffer */
     public inline val remaining: Int
@@ -293,7 +295,7 @@ public class ByteReadBuffer(
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
     public fun readText(length: Int = remaining): String {
-        if (length == remaining && position == 0 && offset == 0 && size == innerBuffer.size) {
+        if (length == remaining && position == 0 && !isSlice) {
             position += length
             return String(innerBuffer, charset = Charsets.UTF_8)
         }
@@ -309,13 +311,15 @@ public class ByteReadBuffer(
      * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
      */
     public fun readCString(): String {
+        var remaining = this.remaining
         val start = offset + position
         var localOffset = 0
 
         while (remaining > 0) {
-            if (innerBuffer[start + localOffset++] == ZERO_BYTE) {
+            if (innerBuffer[start + localOffset++] == 0.toByte()) {
                 break
             }
+            remaining--
         }
         val result = String(bytes = readBytes(localOffset - 1), charset = Charsets.UTF_8)
         skip(1)

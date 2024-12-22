@@ -18,7 +18,7 @@ internal class PgConnectionProvider(private val connectOptions: PgConnectOptions
     override suspend fun create(pool: ConnectionPool<PgConnection>): PgConnection {
         pool as PgConnectionPool
         val address = InetSocketAddress(connectOptions.host, connectOptions.port)
-        val stream = KtorStream(address, pool.selectorManager)
+        val stream = KtorStream(address, pool.selectorManager, connectOptions.socketTimeout)
         var pgStream: PgStream? = null
         try {
             pgStream = PgStream.connect(stream = stream, connectOptions = connectOptions)

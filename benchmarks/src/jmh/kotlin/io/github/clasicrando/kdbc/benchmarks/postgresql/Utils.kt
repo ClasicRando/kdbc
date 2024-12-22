@@ -20,6 +20,8 @@ import org.apache.commons.dbcp2.PoolableConnection
 import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 import org.postgresql.jdbc.PgConnection as JdbcPgConnection
 
 val jdbcQuerySingle =
@@ -202,6 +204,7 @@ val kdbcConnectOptions =
         database = "postgres",
         applicationName = "KdbcTests${Uuid.random()}",
         statementLogLevel = Level.TRACE,
+        socketTimeout = 10.toDuration(DurationUnit.SECONDS),
     )
 
 val poolOptions = PoolOptions(maxConnections = 10, minConnections = 8)

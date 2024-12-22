@@ -23,6 +23,7 @@ object PgConnectionHelper {
             applicationName = "KdbcTests",
             sslMode = SslMode.Disable,
             statementLogLevel = Level.INFO,
+            socketTimeout = 10.toDuration(DurationUnit.SECONDS),
         )
 
     fun defaultPool(): PgConnectionPool = PgConnectionPool(defaultConnectOptions, PoolOptions())

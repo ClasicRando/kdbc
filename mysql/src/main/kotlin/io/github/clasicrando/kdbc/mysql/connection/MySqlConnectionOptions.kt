@@ -26,6 +26,8 @@ public data class MySqlConnectionOptions(
     public val applicationName: String = "kdbc-mysql-application",
     /** Timeout duration during initial TCP connection establishment */
     public val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
+    /** Duration that a socket should wait during a read or write operation before timing out */
+    val socketTimeout: Duration = Duration.INFINITE,
     /** Password if the database instance requires a password */
     public val password: String? = null,
     /**
