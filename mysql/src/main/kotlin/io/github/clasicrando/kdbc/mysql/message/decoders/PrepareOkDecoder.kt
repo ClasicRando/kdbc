@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
-import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 
 /**
@@ -14,8 +14,8 @@ import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
  *
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response_ok)
  */
-internal object PrepareOkDecoder : MessageDecoder<MysqlMessage.PrepareOk, Capabilities> {
-    override fun decode(buffer: ByteReadBuffer, context: Capabilities): MysqlMessage.PrepareOk {
+internal object PrepareOkDecoder : MessageDecoder<MysqlMessage.PrepareOk, LongBitFlags> {
+    override fun decode(buffer: ByteReadBuffer, context: LongBitFlags): MysqlMessage.PrepareOk {
         val status = buffer.readByteAsInt()
         checkOrMySqlException(status == 0x00) {
             "Expected PrepareOk status to be 0x00 but found 0x${status.toHexString()}"

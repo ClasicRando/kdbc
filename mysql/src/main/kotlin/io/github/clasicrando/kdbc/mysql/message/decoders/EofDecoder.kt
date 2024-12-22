@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.IntBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
@@ -20,7 +21,7 @@ internal object EofDecoder : MessageDecoder<MysqlMessage.Eof, Unit> {
         }
 
         val warnings = buffer.readShortLe().toInt()
-        val status = Status(buffer.readShortLe())
+        val status = IntBitFlags(buffer.readShortLe())
         return MysqlMessage.Eof(warnings, status)
     }
 

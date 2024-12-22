@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.mysql.message.encoders
 
+import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
@@ -14,12 +15,12 @@ import kotlinx.io.writeIntLe
  *
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_ssl_request.html)
  */
-internal object SslRequestEncoder : MessageEncoder<MysqlMessage.SslRequest, Capabilities> {
+internal object SslRequestEncoder : MessageEncoder<MysqlMessage.SslRequest, LongBitFlags> {
     private val EMPTY_19_BYTES = ByteArray(19)
     private val EMPTY_4_BYTES = ByteArray(4)
 
-    override fun encode(value: MysqlMessage.SslRequest, buffer: Sink, context: Capabilities) {
-        context.writeAsIntLe(buffer)
+    override fun encode(value: MysqlMessage.SslRequest, buffer: Sink, context: LongBitFlags) {
+        buffer.writeIntLe(context.lowInt())
         buffer.writeIntLe(value.maxPacketSize)
         buffer.writeByte(value.characterSet)
 
@@ -28,7 +29,7 @@ internal object SslRequestEncoder : MessageEncoder<MysqlMessage.SslRequest, Capa
         if (!context[Capabilities.CLIENT_MYSQL]) {
             buffer.write(EMPTY_4_BYTES)
         } else {
-            buffer.writeIntLe((context.flags shr 32).toInt())
+            buffer.writeIntLe(context.highInt())
         }
     }
 }
