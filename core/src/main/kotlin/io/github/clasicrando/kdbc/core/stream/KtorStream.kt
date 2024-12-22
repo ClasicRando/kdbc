@@ -19,12 +19,14 @@ import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
 import io.ktor.utils.io.readInt
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.Sink
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
+
+private const val RESOURCE_TYPE = "KtorStream"
 
 private val logger = KotlinLogging.logger {}
 
@@ -36,6 +38,8 @@ public class KtorStream(
     private lateinit var socket: Socket
     private lateinit var writeChannel: ByteWriteChannel
     private lateinit var readChannel: ByteReadChannel
+
+    override val resourceType: String = RESOURCE_TYPE
 
     override val isConnected: Boolean
         get() = this::connection.isInitialized && !socket.isClosed
@@ -56,10 +60,6 @@ public class KtorStream(
             coroutineContext =
                 socket.coroutineContext + SupervisorJob(parent = socket.coroutineContext.job)
         } catch (ex: Exception) {
-            logWithResource(logger, Kdbc.detailedLogging) {
-                message = "Failed to connect to $address"
-                cause = ex
-            }
             throw StreamConnectError(address, ex)
         }
         logWithResource(logger, Kdbc.detailedLogging) {
@@ -80,28 +80,52 @@ public class KtorStream(
     @OptIn(InternalAPI::class)
     override suspend fun writeTo(block: suspend (Sink) -> Unit) {
         check(isConnected) { "Cannot write to a stream that is not connected" }
+        var error: Exception? = null
         try {
             block(writeChannel.writeBuffer)
+        } catch (ex: Exception) {
+            error = ex
         } finally {
-            writeChannel.flush()
+            if (error == null) {
+                try {
+                    writeChannel.flush()
+                } catch (ex: Exception) {
+                    error = ex
+                }
+            }
+        }
+
+        if (error != null) {
+            throw StreamWriteError(error)
         }
     }
 
     override suspend fun readByte(): Byte {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        return readChannel.readByte()
+        return try {
+            readChannel.readByte()
+        } catch (ex: Exception) {
+            throw StreamReadError(ex)
+        }
     }
 
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        val result = readChannel.readInt()
-        return result
+        return try {
+            readChannel.readInt()
+        } catch (ex: Exception) {
+            throw StreamReadError(ex)
+        }
     }
 
     override suspend fun readBuffer(count: Int): ByteReadBuffer {
         check(isConnected) { "Cannot read from a stream that is not connected" }
         val destination = ByteArray(count)
-        readChannel.readFully(destination)
+        try {
+            readChannel.readFully(destination)
+        } catch (ex: Exception) {
+            throw StreamReadError(ex)
+        }
         return ByteReadBuffer(destination)
     }
 
