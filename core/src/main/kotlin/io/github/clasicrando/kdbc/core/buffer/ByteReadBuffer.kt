@@ -280,9 +280,6 @@ public class ByteReadBuffer(
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
     public fun readBytes(length: Int = remaining): ByteArray {
-        if (length == remaining && position == 0 && offset == 0 && size == innerBuffer.size) {
-            return innerBuffer.copyOf()
-        }
         checkRemaining(length)
         val start = offset + position
         position += length
@@ -297,6 +294,7 @@ public class ByteReadBuffer(
      */
     public fun readText(length: Int = remaining): String {
         if (length == remaining && position == 0 && offset == 0 && size == innerBuffer.size) {
+            position += length
             return String(innerBuffer, charset = Charsets.UTF_8)
         }
         return String(this.readBytes(length = length), charset = Charsets.UTF_8)
