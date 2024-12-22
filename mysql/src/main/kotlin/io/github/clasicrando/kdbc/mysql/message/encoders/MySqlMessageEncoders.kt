@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.mysql.message.encoders
 
 import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
-import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
 import kotlinx.io.Sink
 

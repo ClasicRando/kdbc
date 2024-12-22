@@ -7,7 +7,6 @@ import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.authentication.AuthPlugin
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
-import io.github.clasicrando.kdbc.mysql.message.Status
 
 /**
  * [MessageDecoder] for [MysqlMessage.Handshake] packets. Provides initial details about the server,

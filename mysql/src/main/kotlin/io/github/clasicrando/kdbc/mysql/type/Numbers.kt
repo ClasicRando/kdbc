@@ -1,19 +1,20 @@
 package io.github.clasicrando.kdbc.mysql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.IntBitFlags
 import io.github.clasicrando.kdbc.core.validateByte
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.core.validateShort
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlin.reflect.typeOf
 import kotlinx.io.Sink
 import kotlinx.io.writeDoubleLe
 import kotlinx.io.writeFloatLe
 import kotlinx.io.writeIntLe
 import kotlinx.io.writeLongLe
 import kotlinx.io.writeShortLe
+import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [MySqlTypeDescription] for the [Boolean] type. Accepts TINY, SHORT, INT24,
@@ -21,7 +22,7 @@ import kotlinx.io.writeShortLe
  */
 internal object BooleanTypeDescription :
     MySqlTypeDescription<Boolean>(dbType = MySqlType.Tiny, kType = typeOf<Boolean>()) {
-    override val flags: ColumnFlags = ColumnFlags.BINARY + ColumnFlags.UNSIGNED
+    override val flags: IntBitFlags = ColumnFlags.BINARY + ColumnFlags.UNSIGNED
 
     override fun isCompatible(dbType: MySqlType): Boolean {
         return dbType == MySqlType.Tiny ||
