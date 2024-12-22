@@ -22,7 +22,7 @@ public abstract class PgTypeDescription<T : Any>(
     public abstract fun decodeText(value: PgValue.Text): T
 
     override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == this.dbType
+        return dbType.oid == this.dbType.oid
     }
 
     override fun getActualType(value: T): PgType {

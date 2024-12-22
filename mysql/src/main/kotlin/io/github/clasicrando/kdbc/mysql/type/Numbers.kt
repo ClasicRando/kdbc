@@ -161,11 +161,11 @@ internal object LongTypeDescription :
 
 /** Returns true if [dbType] is TINY, SHORT, INT24, LONG or LONGLONG */
 private fun intCompatible(dbType: MySqlType): Boolean {
-    return dbType == MySqlType.Tiny ||
-        dbType == MySqlType.Short ||
-        dbType == MySqlType.Long ||
-        dbType == MySqlType.LongLong ||
-        dbType == MySqlType.Int24
+    return dbType.inner == MySqlType.Tiny.inner ||
+        dbType.inner == MySqlType.Short.inner ||
+        dbType.inner == MySqlType.Long.inner ||
+        dbType.inner == MySqlType.LongLong.inner ||
+        dbType.inner == MySqlType.Int24.inner
 }
 
 /**

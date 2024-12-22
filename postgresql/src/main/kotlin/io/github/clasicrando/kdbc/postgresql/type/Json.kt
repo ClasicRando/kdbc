@@ -11,7 +11,7 @@ import kotlin.reflect.typeOf
 internal object JsonTypeDescription :
     PgTypeDescription<Json>(dbType = PgType.Jsonb, kType = typeOf<Json>()) {
     override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == this.dbType || dbType == PgType.Json
+        return dbType.oid == this.dbType.oid || dbType.oid == PgType.JSON
     }
 
     /**

@@ -10,7 +10,7 @@ import kotlinx.io.Sink
 internal object MacAddressTypeDescription :
     PgTypeDescription<PgMacAddress>(dbType = PgType.Macaddr, kType = typeOf<PgMacAddress>()) {
     override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == this.dbType || dbType == PgType.Macaddr8
+        return dbType.oid == this.dbType.oid || dbType.oid == PgType.MACADDR8
     }
 
     override fun getActualType(value: PgMacAddress): PgType {

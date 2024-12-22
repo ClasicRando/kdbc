@@ -15,14 +15,14 @@ import kotlinx.io.Sink
 internal object ByteArrayTypeDescription :
     MySqlTypeDescription<ByteArray>(dbType = MySqlType.Blob, kType = typeOf<ByteArray>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Blob ||
-            dbType == MySqlType.Varchar ||
-            dbType == MySqlType.TinyBlob ||
-            dbType == MySqlType.MediumBlob ||
-            dbType == MySqlType.LongBlob ||
-            dbType == MySqlType.String ||
-            dbType == MySqlType.VarString ||
-            dbType == MySqlType.Enum
+        return dbType.inner == MySqlType.Blob.inner ||
+            dbType.inner == MySqlType.Varchar.inner ||
+            dbType.inner == MySqlType.TinyBlob.inner ||
+            dbType.inner == MySqlType.MediumBlob.inner ||
+            dbType.inner == MySqlType.LongBlob.inner ||
+            dbType.inner == MySqlType.String.inner ||
+            dbType.inner == MySqlType.VarString.inner ||
+            dbType.inner == MySqlType.Enum.inner
     }
 
     /** Writes all bytes with length of the array encoded before the bytes */

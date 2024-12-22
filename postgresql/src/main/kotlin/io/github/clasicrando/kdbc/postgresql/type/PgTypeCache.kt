@@ -156,12 +156,13 @@ internal class PgTypeCache(zoneOffset: ZoneOffset) {
                         innerType = VarcharTypeDescription,
                         innerNullable = true,
                     ) {
-                    override fun isCompatible(dbType: PgType): Boolean =
-                        dbType == PgType.TextArray ||
-                            dbType == PgType.VarcharArray ||
-                            dbType == PgType.XmlArray ||
-                            dbType == PgType.NameArray ||
-                            dbType == PgType.BpcharArray
+                    override fun isCompatible(dbType: PgType): Boolean {
+                        return dbType.oid == PgType.TEXT_ARRAY ||
+                            dbType.oid == PgType.VARCHAR_ARRAY ||
+                            dbType.oid == PgType.XML_ARRAY ||
+                            dbType.oid == PgType.NAME_ARRAY ||
+                            dbType.oid == PgType.BPCHAR_ARRAY
+                    }
                 },
                 object :
                     ArrayTypeDescription<String>(
@@ -169,12 +170,13 @@ internal class PgTypeCache(zoneOffset: ZoneOffset) {
                         innerType = VarcharTypeDescription,
                         innerNullable = false,
                     ) {
-                    override fun isCompatible(dbType: PgType): Boolean =
-                        dbType == PgType.TextArray ||
-                            dbType == PgType.VarcharArray ||
-                            dbType == PgType.XmlArray ||
-                            dbType == PgType.NameArray ||
-                            dbType == PgType.BpcharArray
+                    override fun isCompatible(dbType: PgType): Boolean {
+                        return dbType.oid == PgType.TEXT_ARRAY ||
+                            dbType.oid == PgType.VARCHAR_ARRAY ||
+                            dbType.oid == PgType.XML_ARRAY ||
+                            dbType.oid == PgType.NAME_ARRAY ||
+                            dbType.oid == PgType.BPCHAR_ARRAY
+                    }
                 },
                 LocalTimeTypeDescription,
                 *createArrayDescriptions(PgType.TimeArray, LocalTimeTypeDescription),

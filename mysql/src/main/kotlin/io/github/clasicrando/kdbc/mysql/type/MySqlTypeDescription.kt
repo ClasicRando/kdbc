@@ -26,7 +26,7 @@ public abstract class MySqlTypeDescription<T : Any>(
     public abstract fun decodeText(value: MySqlValue.Text): T
 
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == this.dbType
+        return dbType.inner == this.dbType.inner
     }
 
     override fun getActualType(value: T): MySqlType {

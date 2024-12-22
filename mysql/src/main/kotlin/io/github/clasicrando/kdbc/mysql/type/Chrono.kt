@@ -124,7 +124,7 @@ internal object LocalDateTimeTypeDescription :
     private val formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss[.S]")
 
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+        return dbType.inner == MySqlType.Timestamp.inner || dbType.inner == MySqlType.Datetime.inner
     }
 
     /**
@@ -177,7 +177,7 @@ internal class OffsetDateTimeTypeDescription(private val zoneOffset: ZoneOffset)
         kType = typeOf<OffsetDateTime>(),
     ) {
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+        return LocalDateTimeTypeDescription.isCompatible(dbType)
     }
 
     /** Changes the offset to [ZoneOffset.UTC] and encodes using [LocalDateTimeTypeDescription] */
@@ -209,7 +209,7 @@ internal class OffsetDateTimeTypeDescription(private val zoneOffset: ZoneOffset)
 internal class InstantTypeDescription(private val zoneOffset: ZoneOffset) :
     MySqlTypeDescription<Instant>(dbType = MySqlType.Timestamp, kType = typeOf<Instant>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+        return LocalDateTimeTypeDescription.isCompatible(dbType)
     }
 
     /**

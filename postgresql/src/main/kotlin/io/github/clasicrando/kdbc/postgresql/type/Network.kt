@@ -14,7 +14,7 @@ private const val PGSQL_AF_INET6: Byte = (PGSQL_AF_INET + 1).toByte()
 internal object NetworkAddressTypeDescription :
     PgTypeDescription<PgInet>(dbType = PgType.Inet, kType = typeOf<PgInet>()) {
     override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == this.dbType || dbType == PgType.Cidr
+        return dbType.oid == this.dbType.oid || dbType.oid == PgType.CIDR
     }
 
     /**
