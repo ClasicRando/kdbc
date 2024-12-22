@@ -18,6 +18,7 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
+import io.ktor.utils.io.readInt
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlinx.coroutines.SupervisorJob
@@ -93,13 +94,7 @@ public class KtorStream(
 
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        // As of version 3.0.1, KTOR has a bug where readInt could infinitely loop so read bytes
-        // and create an Int
-        val result =
-            ((readChannel.readByte().toInt() and 0xff shl 24) or
-                (readChannel.readByte().toInt() and 0xff shl 16) or
-                (readChannel.readByte().toInt() and 0xff shl 8) or
-                (readChannel.readByte().toInt() and 0xff))
+        val result = readChannel.readInt()
         return result
     }
 
