@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.mysql
 
 import io.github.clasicrando.kdbc.benchmarks.PostDataClass
 import io.github.clasicrando.kdbc.benchmarks.PostDataClassRowParser
@@ -7,7 +7,7 @@ import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
-import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
+import io.github.clasicrando.kdbc.mysql.pool.MySqlConnectionPool
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -29,10 +29,10 @@ import org.openjdk.jmh.annotations.Warmup
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class PgBenchmarkAsyncMultiKdbc {
+open class MySqlBenchmarkAsyncMultiKdbc {
     private var id = 0
     private val pool =
-        PgConnectionPool(connectOptions = kdbcConnectOptions, poolOptions = poolOptions)
+        MySqlConnectionPool(connectOptions = kdbcConnectOptions, poolOptions = poolOptions)
 
     @Setup
     open fun start(): Unit = runBlocking { pool.acquire().use { query(setupQuery).execute(it) } }
@@ -45,7 +45,7 @@ open class PgBenchmarkAsyncMultiKdbc {
 
     private suspend fun executeQuery(stepId: Int): List<PostDataClass> =
         pool.acquire().use { conn ->
-            query(kdbcQuerySingle).bind(stepId).fetchAll(conn, PostDataClassRowParser)
+            query(querySingle).bind(stepId).fetchAll(conn, PostDataClassRowParser)
         }
 
     @Benchmark

@@ -1,4 +1,4 @@
-package io.github.clasicrando.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks
 
 import java.time.LocalDateTime
 

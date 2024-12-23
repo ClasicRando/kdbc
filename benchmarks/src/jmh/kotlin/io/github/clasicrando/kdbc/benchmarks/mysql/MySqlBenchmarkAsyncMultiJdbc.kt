@@ -1,14 +1,8 @@
-package io.github.clasicrando.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.mysql
 
-import io.github.clasicrando.kdbc.benchmarks.PostDataClass
-import io.github.clasicrando.kdbc.benchmarks.PostDataClassRowParser
-import io.github.clasicrando.kdbc.core.query.bind
-import io.github.clasicrando.kdbc.core.query.execute
-import io.github.clasicrando.kdbc.core.query.fetchAll
-import io.github.clasicrando.kdbc.core.query.query
-import io.github.clasicrando.kdbc.core.use
-import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import java.util.concurrent.TimeUnit
+import javax.sql.DataSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -29,31 +23,42 @@ import org.openjdk.jmh.annotations.Warmup
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class PgBenchmarkAsyncMultiKdbc {
+open class MySqlBenchmarkAsyncMultiJdbc {
     private var id = 0
-    private val pool =
-        PgConnectionPool(connectOptions = kdbcConnectOptions, poolOptions = poolOptions)
+    private val dataSource: DataSource = getJdbcDataSource()
 
     @Setup
-    open fun start(): Unit = runBlocking { pool.acquire().use { query(setupQuery).execute(it) } }
+    open fun start() {
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                setupQueries.forEach(statement::execute)
+            }
+        }
+    }
 
-    private fun step(): Int {
+    private fun singleStep(): Int {
         id++
         if (id > 5000) id = 1
         return id
     }
 
-    private suspend fun executeQuery(stepId: Int): List<PostDataClass> =
-        pool.acquire().use { conn ->
-            query(kdbcQuerySingle).bind(stepId).fetchAll(conn, PostDataClassRowParser)
+    private fun executeQuery(stepId: Int) {
+        dataSource.connection.use { conn ->
+            conn.prepareStatement(querySingle).use { preparedStatement ->
+                preparedStatement.setInt(1, stepId)
+                preparedStatement.executeQuery().use { resultSet ->
+                    extractPostDataClassListFromResultSet(resultSet)
+                }
+            }
         }
+    }
 
     @Benchmark
     open fun querySingleRow(): Unit = runBlocking {
         val results =
             List(CONCURRENCY_LIMIT) {
-                val stepId = step()
-                async { executeQuery(stepId) }
+                val stepId = singleStep()
+                async(Dispatchers.IO) { executeQuery(stepId) }
             }
         results.awaitAll()
     }

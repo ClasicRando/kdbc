@@ -1,12 +1,13 @@
-package io.github.clasicrando.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.mysql
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
+import com.mysql.cj.jdbc.JdbcConnection
 import io.github.clasicrando.kdbc.benchmarks.IOUtils
 import io.github.clasicrando.kdbc.benchmarks.PostDataClass
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
-import io.github.clasicrando.kdbc.postgresql.Postgres
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
-import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.mysql.MySql
+import io.github.clasicrando.kdbc.mysql.connection.MySqlConnection
+import io.github.clasicrando.kdbc.mysql.connection.MySqlConnectionOptions
 import io.github.clasicrando.kdbc.postgresql.copy.CopyStatement
 import io.github.oshai.kotlinlogging.Level
 import java.sql.DriverManager
@@ -23,55 +24,35 @@ import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
-import org.postgresql.jdbc.PgConnection as JdbcPgConnection
 
-val jdbcQuerySingle =
+val querySingle =
     """
     SELECT
-        id, "text", creation_date, last_change_date, counter1, counter2, counter3, counter4,
+        id, `text`, creation_date, last_change_date, counter1, counter2, counter3, counter4,
         counter5, counter6, counter7, counter8, counter9
-    FROM public.posts
+    FROM posts
     WHERE id = ?
     """
         .trimIndent()
 
-val kdbcQuerySingle =
+val query =
     """
     SELECT
-        id, "text", creation_date, last_change_date, counter1, counter2, counter3, counter4,
+        id, `text`, creation_date, last_change_date, counter1, counter2, counter3, counter4,
         counter5, counter6, counter7, counter8, counter9
-    FROM public.posts
-    WHERE id = $1
-    """
-        .trimIndent()
-
-val jdbcQuery =
-    """
-    SELECT
-        id, "text", creation_date, last_change_date, counter1, counter2, counter3, counter4,
-        counter5, counter6, counter7, counter8, counter9
-    FROM public.posts
+    FROM posts
     WHERE id BETWEEN ? AND ?
     """
         .trimIndent()
 
-val kdbcQuery =
+val setupQueries = listOf<String>(
+    "SET @@cte_max_recursion_depth = 6000;",
+    "DROP TABLE IF EXISTS posts;",
     """
-    SELECT
-        id, "text", creation_date, last_change_date, counter1, counter2, counter3, counter4,
-        counter5, counter6, counter7, counter8, counter9
-    FROM public.posts
-    WHERE id BETWEEN $1 AND $2
-    """
-        .trimIndent()
-
-val setupQuery =
-    """
-    DROP TABLE IF EXISTS public.posts;
-    CREATE TABLE public.posts
+    CREATE TABLE posts
     (
-        id int generated always as identity primary key,
-        "text" text not null,
+        id int auto_increment,
+        `text` text not null,
         creation_date timestamp not null,
         last_change_date timestamp not null,
         counter1 int,
@@ -82,21 +63,34 @@ val setupQuery =
         counter6 int,
         counter7 int,
         counter8 int,
-        counter9 int
+        counter9 int,
+        primary key(id)
     );
-    INSERT INTO public.posts("text", creation_date, last_change_date)
-    SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
-    FROM generate_series(1, 5000) t;
     """
-        .trimIndent()
+        .trimIndent(),
+    """
+    INSERT INTO posts(`text`, creation_date, last_change_date)
+    WITH RECURSIVE seq(value) AS (
+        SELECT 1 AS value
+        UNION ALL
+        SELECT value + 1
+        FROM seq
+        WHERE value < 5000
+    )
+    SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
+    FROM seq t;
+    """.trimIndent()
+)
+
+val setupQuery = setupQueries.joinToString(separator = "\n")
 
 val copyOutSetupQuery =
     """
-    DROP TABLE IF EXISTS public.copy_out_posts;
-    CREATE TABLE public.copy_out_posts
+    DROP TABLE IF EXISTS copy_out_posts;
+    CREATE TABLE copy_out_posts
     (
         id int generated always as identity primary key,
-        "text" text not null,
+        `text` text not null,
         creation_date timestamp not null,
         last_change_date timestamp not null,
         counter1 int,
@@ -109,31 +103,9 @@ val copyOutSetupQuery =
         counter8 int,
         counter9 int
     );
-    INSERT INTO public.copy_out_posts("text", creation_date, last_change_date)
+    INSERT INTO copy_out_posts(`text`, creation_date, last_change_date)
     SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
     FROM generate_series(1, 5000) t;
-    """
-        .trimIndent()
-
-val copyInSetupQuery =
-    """
-    DROP TABLE IF EXISTS public.copy_in_posts;
-    CREATE TABLE public.copy_in_posts
-    (
-        id int primary key,
-        "text" text not null,
-        creation_date timestamp not null,
-        last_change_date timestamp not null,
-        counter1 int,
-        counter2 int,
-        counter3 int,
-        counter4 int,
-        counter5 int,
-        counter6 int,
-        counter7 int,
-        counter8 int,
-        counter9 int
-    );
     """
         .trimIndent()
 
@@ -173,15 +145,12 @@ const val JDBC_COPY_OUT = "COPY public.copy_out_posts TO STDOUT WITH (FORMAT csv
 val kdbcCopyIn = CopyStatement.TableFromCsv(schemaName = "public", tableName = "copy_in_posts")
 const val JDBC_COPY_IN = "COPY public.copy_in_posts FROM STDIN WITH (FORMAT csv)"
 
-private const val MISSING_ENVIRONMENT_VARIABLE_MESSAGE =
-    "To run benchmarks the environment " + "variable JDBC_PG_CONNECTION_STRING must be available"
-
 private val connectionString =
-    System.getenv("JDBC_PG_CONNECTION_STRING")
-        ?: throw IllegalStateException(MISSING_ENVIRONMENT_VARIABLE_MESSAGE)
+    System.getenv("JDBC_MYSQL_CONNECTION_STRING")
+        ?: error("To run benchmarks the environment variable JDBC_MYSQL_CONNECTION_STRING must be available")
 
-fun getJdbcConnection(): JdbcPgConnection =
-    DriverManager.getConnection(connectionString).unwrap(JdbcPgConnection::class.java)
+fun getJdbcConnection(): JdbcConnection =
+    DriverManager.getConnection(connectionString).unwrap(JdbcConnection::class.java)
 
 fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     val connectionFactory = DriverManagerConnectionFactory(connectionString, null)
@@ -191,18 +160,15 @@ fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
     return PoolingDataSource(connectionPool)
 }
 
-private const val KDBC_MISSING_ENVIRONMENT_VARIABLE_MESSAGE =
-    "To run benchmarks the environment variable PG_BENCHMARK_PASSWORD must be available"
-
 val kdbcConnectOptions =
-    PgConnectOptions(
+    MySqlConnectionOptions(
         host = "127.0.0.1",
-        port = 5432,
-        username = "postgres",
+        port = 3306,
+        username = "root",
         password =
-            System.getenv("PG_BENCHMARK_PASSWORD")
-                ?: error(KDBC_MISSING_ENVIRONMENT_VARIABLE_MESSAGE),
-        database = "postgres",
+            System.getenv("MYSQL_BENCHMARK_PASSWORD")
+                ?: error("To run benchmarks the environment variable MYSQL_BENCHMARK_PASSWORD must be available"),
+        database = "test",
         applicationName = "KdbcTests${Uuid.random()}",
         statementLogLevel = Level.TRACE,
         socketTimeout = 10.toDuration(DurationUnit.SECONDS),
@@ -210,8 +176,8 @@ val kdbcConnectOptions =
 
 val poolOptions = PoolOptions(maxConnections = 10, minConnections = 8)
 
-suspend fun getKdbcAsyncConnection(): PgConnection =
-    Postgres.connection(connectOptions = kdbcConnectOptions)
+suspend fun getKdbcAsyncConnection(): MySqlConnection =
+    MySql.connection(connectOptions = kdbcConnectOptions)
 
 const val CONCURRENCY_LIMIT = 100
 

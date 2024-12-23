@@ -1,16 +1,12 @@
-package io.github.clasicrando.kdbc.benchmarks.postgresql
+package io.github.clasicrando.kdbc.benchmarks.mysql
 
-import io.github.clasicrando.kdbc.benchmarks.PostDataClass
 import io.github.clasicrando.kdbc.benchmarks.PostDataClassRowParser
+import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
 import io.github.clasicrando.kdbc.core.query.query
-import io.github.clasicrando.kdbc.core.use
-import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -21,6 +17,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -29,32 +26,45 @@ import org.openjdk.jmh.annotations.Warmup
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
-open class PgBenchmarkAsyncMultiKdbc {
+open class MySqlBenchmarkAsyncSingleKdbc {
     private var id = 0
-    private val pool =
-        PgConnectionPool(connectOptions = kdbcConnectOptions, poolOptions = poolOptions)
+    private val connection: Connection = runBlocking { getKdbcAsyncConnection() }
 
-    @Setup
-    open fun start(): Unit = runBlocking { pool.acquire().use { query(setupQuery).execute(it) } }
+    @Setup open fun start(): Unit = runBlocking { query(setupQuery).execute(connection) }
 
-    private fun step(): Int {
+    private fun singleStep(): Int {
         id++
         if (id > 5000) id = 1
         return id
     }
 
-    private suspend fun executeQuery(stepId: Int): List<PostDataClass> =
-        pool.acquire().use { conn ->
-            query(kdbcQuerySingle).bind(stepId).fetchAll(conn, PostDataClassRowParser)
-        }
+    private fun multiStep() {
+        id += 10
+        if (id >= 5000) id = 1
+    }
 
     @Benchmark
     open fun querySingleRow(): Unit = runBlocking {
-        val results =
-            List(CONCURRENCY_LIMIT) {
-                val stepId = step()
-                async { executeQuery(stepId) }
+        singleStep()
+        query(querySingle).bind(id).fetchAll(connection, PostDataClassRowParser)
+    }
+
+    @Benchmark
+    open fun queryMultipleRows(): Unit = runBlocking {
+        multiStep()
+        query(query).bind(id).bind(id + 10).fetchAll(connection, PostDataClassRowParser)
+    }
+
+    @TearDown
+    fun destroy() {
+        runBlocking {
+            if (connection.isConnected) {
+                try {
+                    connection.close()
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                }
             }
-        results.awaitAll()
+        }
     }
 }
