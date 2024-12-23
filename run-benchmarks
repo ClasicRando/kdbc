@@ -14,4 +14,18 @@ if [[ -z "${pgBenchmarkPassword}" ]]; then
   export PG_BENCHMARK_PASSWORD="$pgBenchmarkPassword"
 fi
 
+jdbcMySqlConnectionString="${JDBC_MYSQL_CONNECTION_STRING}"
+if [[ -z "${jdbcMySqlConnectionString}" ]]; then
+  read -s -p "Postgres JDBC Connection String: " jdbcMySqlConnectionString
+  echo ""
+  export JDBC_MYSQL_CONNECTION_STRING="$jdbcMySqlConnectionString"
+fi
+
+mysqlBenchmarkPassword="${MYSQL_BENCHMARK_PASSWORD}"
+if [[ -z "${mysqlBenchmarkPassword}" ]]; then
+  read -s -p "Postgres Password: " mysqlBenchmarkPassword
+  echo ""
+  export MYSQL_BENCHMARK_PASSWORD="$mysqlBenchmarkPassword"
+fi
+
 ./gradlew benchmarks:jmh
