@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.core.pool
 
-import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 /** Options when setting up a connection pool for any database vendor */
 @Serializable
@@ -58,7 +58,10 @@ public data class PoolOptions(
      */
     val maxLifetime: Duration = 30.toDuration(DurationUnit.MINUTES),
     /** Optional parent scope that holds the connection pool's scope */
-    val parentScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    val parentScope: CoroutineScope =
+        CoroutineScope(
+            Dispatchers.IO.limitedParallelism(Runtime.getRuntime().availableProcessors())
+        ),
 ) {
     init {
         require(maxConnections > 0) { "Max connection count cannot be less than 1" }
