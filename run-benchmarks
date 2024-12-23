@@ -16,14 +16,14 @@ fi
 
 jdbcMySqlConnectionString="${JDBC_MYSQL_CONNECTION_STRING}"
 if [[ -z "${jdbcMySqlConnectionString}" ]]; then
-  read -s -p "Postgres JDBC Connection String: " jdbcMySqlConnectionString
+  read -s -p "MySQL JDBC Connection String: " jdbcMySqlConnectionString
   echo ""
   export JDBC_MYSQL_CONNECTION_STRING="$jdbcMySqlConnectionString"
 fi
 
 mysqlBenchmarkPassword="${MYSQL_BENCHMARK_PASSWORD}"
 if [[ -z "${mysqlBenchmarkPassword}" ]]; then
-  read -s -p "Postgres Password: " mysqlBenchmarkPassword
+  read -s -p "MySQL Password: " mysqlBenchmarkPassword
   echo ""
   export MYSQL_BENCHMARK_PASSWORD="$mysqlBenchmarkPassword"
 fi
