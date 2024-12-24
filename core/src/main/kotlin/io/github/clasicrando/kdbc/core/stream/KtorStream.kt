@@ -22,6 +22,7 @@ import io.ktor.utils.io.readInt
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
+import kotlinx.io.EOFException
 import kotlinx.io.Sink
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
@@ -51,12 +52,7 @@ public class KtorStream(
     override suspend fun connect(timeout: Duration) {
         require(timeout.isPositive()) { "Timeout must be positive" }
         try {
-            connection =
-                withTimeout(timeout) {
-                    aSocket(selectorManager).tcp().connect(address) {
-                        this.socketTimeout = this@KtorStream.socketTimeout.inWholeMilliseconds
-                    }.connection()
-                }
+            connection = createConnection(timeout)
             socket = connection.socket
             writeChannel = connection.output
             readChannel = connection.input
@@ -67,6 +63,17 @@ public class KtorStream(
         }
         logWithResource(logger, Kdbc.detailedLogging) {
             message = "Successfully connected to $address"
+        }
+    }
+
+    private suspend fun createConnection(timeout: Duration): Connection {
+        return withTimeout(timeout) {
+            aSocket(selectorManager)
+                .tcp()
+                .connect(address) {
+                    this.socketTimeout = this@KtorStream.socketTimeout.inWholeMilliseconds
+                }
+                .connection()
         }
     }
 
@@ -103,32 +110,30 @@ public class KtorStream(
         }
     }
 
-    override suspend fun readByte(): Byte {
-        check(isConnected) { "Cannot read from a stream that is not connected" }
+    private inline fun <T> readFromChannel(block: ByteReadChannel.() -> T): T {
         return try {
-            readChannel.readByte()
+            block(readChannel)
+        } catch (ex: EOFException) {
+            throw EndOfStream(cause = ex)
         } catch (ex: Exception) {
             throw StreamReadError(ex)
         }
     }
 
+    override suspend fun readByte(): Byte {
+        check(isConnected) { "Cannot read from a stream that is not connected" }
+        return readFromChannel { readByte() }
+    }
+
     override suspend fun readInt(): Int {
         check(isConnected) { "Cannot read from a stream that is not connected" }
-        return try {
-            readChannel.readInt()
-        } catch (ex: Exception) {
-            throw StreamReadError(ex)
-        }
+        return readFromChannel { readInt() }
     }
 
     override suspend fun readBuffer(count: Int): ByteReadBuffer {
         check(isConnected) { "Cannot read from a stream that is not connected" }
         val destination = ByteArray(count)
-        try {
-            readChannel.readFully(destination)
-        } catch (ex: Exception) {
-            throw StreamReadError(ex)
-        }
+        readFromChannel { readFully(destination) }
         return ByteReadBuffer(destination)
     }
 
