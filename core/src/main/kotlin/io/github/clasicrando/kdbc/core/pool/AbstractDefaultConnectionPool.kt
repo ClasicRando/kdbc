@@ -4,13 +4,9 @@ import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KotlinLogging
-import java.time.Instant
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -21,6 +17,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.Instant
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
+import kotlin.uuid.Uuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -47,8 +48,9 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
         SupervisorJob(parent = poolOptions.parentScope.coroutineContext.job)
 
     init {
-        launch { idleConnectionPruner() }
-        launch { idleConnectionKeepAlive() }
+        val cleaningDispatcher = Dispatchers.Default.limitedParallelism(1)
+        launch(cleaningDispatcher) { idleConnectionPruner() }
+        launch(cleaningDispatcher) { idleConnectionKeepAlive() }
     }
 
     /**
@@ -304,6 +306,7 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
                         val entry = result.getOrNull() ?: continue
                         if (!entry.connection.isValid()) {
                             invalidateConnection(entry)
+                            mutex.withLock { createNewConnection() }
                             continue
                         }
                         pulledConnections.add(entry)

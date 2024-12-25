@@ -6,7 +6,6 @@ import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.SizedMessage
-import io.github.clasicrando.kdbc.core.stream.ExitOfProcessingLoop
 import io.github.clasicrando.kdbc.core.stream.Stream
 import io.github.clasicrando.kdbc.core.stream.StreamConnectError
 import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
@@ -24,7 +23,6 @@ import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
@@ -73,34 +71,39 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     /**
-     * State machine like method that allows the caller to specify a [process] lambda that handles
-     * each [PgMessage] received from the server until [Loop.Break] is returned by the lambda. Since
-     * unknown errors can arise in [process], the entire loop is wrapped in a try-catch to return a
-     * [Result] value rather than throwing an exception. The caller is then responsible for
-     * decomposing the [Result]. The only exception that will escape this method is
-     * [CancellationException] to allow for regular coroutine cancellation.
+     * Receives the next available server message from the underlining connection and handles some
+     * known asynchronous messages that may be received from the server so the caller does not need
+     * to handle them explicitly. This differs from [receiveNextServerMessage] because that message
+     * just decodes the incoming message and doesn't handle some async messages. These messages are:
      *
-     * Some asynchronous messages are not passed forward to [process] because they are not of
-     * concern to message processors. These are:
-     * - [PgMessage.NoticeResponse]
-     * - [PgMessage.NotificationResponse]
-     * - [PgMessage.ParameterStatus], should not be received after startup but should be ignored
-     * - [PgMessage.BackendKeyData], should not be received after startup but should be ignored
-     * - [PgMessage.NegotiateProtocolVersion], should not be received after startup but should be
-     *   ignored
+     * 1. [PgMessage.NoticeResponse]
+     * 2. [PgMessage.NotificationResponse] if [handleNotification] is true
+     * 3. [PgMessage.ParameterStatus]
+     * 4. [PgMessage.BackendKeyData]
+     * 5. [PgMessage.NegotiateProtocolVersion]
+     * 6. [PgMessage.ErrorResponse] if [throwOnError] is true
+     *
+     * @throws GeneralPostgresError if an [PgMessage.ErrorResponse] is received from the server and
+     * [throwOnError] is true
+     * @throws io.github.clasicrando.kdbc.core.stream.KdbcIOException if an IO error occurs while
+     * receiving the next message
      */
-    suspend inline fun processMessageLoop(process: (PgMessage) -> Loop) {
-        while (isConnected) {
+    suspend inline fun processMessageLoop(
+        throwOnError: Boolean = true,
+        handleNotification: Boolean = true,
+        process: (PgMessage) -> Loop
+    ) {
+        while (true) {
             when (val message = receiveNextServerMessage()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
-                is PgMessage.NotificationResponse -> onNotification(message)
+                is PgMessage.NotificationResponse if handleNotification -> onNotification(message)
                 is PgMessage.ParameterStatus -> onParameterStatus(message)
                 is PgMessage.BackendKeyData -> onBackendKeyData(message)
                 is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                is PgMessage.ErrorResponse if throwOnError -> throw GeneralPostgresError(message)
                 else -> {
                     when (process(message)) {
-                        Loop.Continue,
-                        Loop.Noop -> continue
+                        Loop.Continue -> continue
                         Loop.Break -> break
                     }
                 }
@@ -109,62 +112,44 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     /**
-     * Similar to [processMessageLoop] but acts as a special case where it ignores all messages
-     * except for [T] and [PgMessage.ErrorResponse]. This is helpful when you need to find a
-     * specific message but also need to ensure error messages are captured and provided as the
-     * failure [Result] option. For example, when starting a `COPY TO` operation,
-     * [PgMessage.CopyOutResponse] must be found before continuing to a message processor for
-     * [PgMessage.CopyServerData] messages. You can wait for that message or errors, proceeding if
-     * the [Result] is successful.
+     * Calls [processMessageLoop] until the desired message [T] is received or an error occurs.
+     * For example, when starting a `COPY TO` operation, [PgMessage.CopyOutResponse] must be found
+     * before continuing to a message processor for [PgMessage.CopyServerData] messages.
      */
     suspend inline fun <reified T : PgMessage> waitForOrError(): T {
-        while (isConnected) {
-            when (val message = receiveNextServerMessage()) {
-                is PgMessage.NoticeResponse -> onNotice(message)
-                is PgMessage.NotificationResponse -> onNotification(message)
-                is PgMessage.ParameterStatus -> onParameterStatus(message)
-                is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
-                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
-                is T -> return message
-                else -> {
-                    log(Kdbc.detailedLogging) {
-                        this.message =
-                            "Ignoring $message since it's not an error or the desired type"
-                    }
+        processMessageLoop { message ->
+            if (message !is T) {
+                log(Kdbc.detailedLogging) {
+                    this.message =
+                        "Ignoring $message since it's not an error or the desired type"
                 }
+                return@processMessageLoop Loop.Continue
             }
+            return message
         }
-        throw ExitOfProcessingLoop(T::class.qualifiedName!!)
+        throw PgException("Exited message processing loop before ${T::class.qualifiedName!!} message returned")
     }
 
     /**
-     * Similar to [processMessageLoop] but acts as a special case where it ignores all messages
-     * except for [PgMessage.NotificationResponse] and [PgMessage.ErrorResponse]. This is only used
-     * by a listener to wait for the next notification.
+     * Similar to [waitForOrError] but acts as a special case where it ignores all messages except
+     * for [PgMessage.NotificationResponse] and [PgMessage.ErrorResponse]. This is only used by a
+     * listener to wait for the next notification.
      */
     suspend fun waitForNotificationOrError(): PgNotification {
-        while (isConnected) {
-            when (val message = receiveNextServerMessage()) {
-                is PgMessage.NoticeResponse -> onNotice(message)
-                is PgMessage.ParameterStatus -> onParameterStatus(message)
-                is PgMessage.BackendKeyData -> onBackendKeyData(message)
-                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
-                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
-                is PgMessage.NotificationResponse ->
-                    return PgNotification(
-                        channelName = message.channelName,
-                        payload = message.payload,
-                    )
-                else -> {
-                    log(Kdbc.detailedLogging) {
-                        this.message =
-                            "Ignoring $message since it's not an error or the desired type"
-                    }
+        processMessageLoop(handleNotification = false) { message ->
+            if (message !is PgMessage.NotificationResponse) {
+                log(Kdbc.detailedLogging) {
+                    this.message =
+                        "Ignoring $message since it's not an error or the desired type"
                 }
+                return@processMessageLoop Loop.Continue
             }
+            return PgNotification(
+                channelName = message.channelName,
+                payload = message.payload,
+            )
         }
-        throw ExitOfProcessingLoop("PgMessage.NotificationResponse")
+        throw PgException("Exited message processing loop before PgMessage.NotificationResponse message returned")
     }
 
     /**
@@ -214,7 +199,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
-    suspend inline fun writeToStream(message: PgMessage) {
+    suspend fun writeToStream(message: PgMessage) {
         stream.writeTo { sink -> PgMessageEncoders.encode(message, sink) }
     }
 
@@ -357,8 +342,6 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
          *
          * @throws PgAuthenticationError if the authentication fails
          * @throws StreamConnectError if the underling [Stream] fails to connect
-         * @throws ExitOfProcessingLoop if waiting for [PgMessage.ReadyForQuery] or error after
-         *   authentication exits the processing loop unexpectedly
          */
         internal suspend fun connect(stream: Stream, connectOptions: PgConnectOptions): PgStream {
             stream.connect(timeout = connectOptions.connectionTimeout)

@@ -13,8 +13,8 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.3")
     // https://mvnrepository.com/artifact/com.mysql/mysql-connector-j
     implementation("com.mysql:mysql-connector-j:9.1.0")
-    // https://mvnrepository.com/artifact/org.apache.commons/commons-dbcp2
-    implementation("org.apache.commons:commons-dbcp2:2.12.0")
+    // https://mvnrepository.com/artifact/com.zaxxer/HikariCP
+    implementation("com.zaxxer:HikariCP:6.2.1")
     // https://mvnrepository.com/artifact/com.github.doyaaaaaken/kotlin-csv
     implementation("com.github.doyaaaaaken:kotlin-csv:$kotlinCsvVersion")
 }

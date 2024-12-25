@@ -14,13 +14,16 @@ public data class PoolOptions(
      * Maximum number of connection instances held within the pool. Once this limit is reached, the
      * acquire method will suspend/block until connections are returned.
      */
-    val maxConnections: Int = 20,
+    val maxConnections: Int = 10,
     /**
      * Minimum number of connections held within the pool. When the pool is initialized, it will be
      * requested to create this number of connections and there will always be this many connections
-     * at all times within the pool.
+     * at all times within the pool. By default, this value is the same as [maxConnections] to avoid
+     * unnecessary pulls from the idle connections to prune unused connections. If you want to avoid
+     * too many idle connections to the database then you should lower the [maxConnections] value.
+     * Generally, 10 connections isn't a large load for most long-lived async applications.
      */
-    val minConnections: Int = 0,
+    val minConnections: Int = maxConnections,
     /**
      * Timeout value for acquiring a connection from the connection pool. This defaults to the max
      * wait time allowed but can be lowered if your application should abort waiting for a

@@ -9,4 +9,4 @@ import io.github.clasicrando.kdbc.core.exceptions.KdbcException
  * - the host sent EOF
  */
 public open class EndOfStream(reason: String = "", cause: Throwable? = null) :
-    KdbcException("Stream has been closed or received EOF. $reason".trim(), cause)
+    KdbcIOException("Stream has been closed or received EOF. $reason".trim(), cause)

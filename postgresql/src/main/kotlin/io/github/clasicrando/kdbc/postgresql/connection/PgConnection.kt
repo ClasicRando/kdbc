@@ -27,7 +27,6 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.splitQuery
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
 import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
-import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -71,7 +70,6 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.reflect.KClass
@@ -145,19 +143,17 @@ internal constructor(
         }
         return mutex.withLock {
             try {
+                waitUntilReady()
                 stream.writeToStream(PgMessage.Query(""))
-                stream.processMessageLoop { message ->
+                stream.processMessageLoop(throwOnError = false) { message ->
                     when (message) {
                         is PgMessage.ErrorResponse -> return false
                         is PgMessage.ReadyForQuery -> Loop.Break
                         else -> Loop.Continue
                     }
                 }
-            } catch (ex: Exception) {
-                if (ex is KdbcException || ex is IOException) {
-                    return false
-                }
-                throw ex
+            } catch (_: KdbcException) {
+                return false
             }
             return true
         }
@@ -240,7 +236,6 @@ internal constructor(
         var columnMapping = statement?.resultMetadata ?: emptyList()
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
                 is PgMessage.RowDescription -> {
                     statement?.resultMetadata = message.fields
                     columnMapping = message.fields
@@ -263,7 +258,6 @@ internal constructor(
                 }
                 is PgMessage.ReadyForQuery -> {
                     handleReadyForQuery(message)
-                    log(Kdbc.detailedLogging) { this.message = "Done collecting result" }
                     Loop.Break
                 }
                 is PgMessage.BindComplete,
@@ -333,13 +327,12 @@ internal constructor(
         writeSync()
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
-                is PgMessage.ParseComplete -> Loop.Continue
+                is PgMessage.ParseComplete,
+                is PgMessage.ParameterDescription -> Loop.Continue
                 is PgMessage.RowDescription -> {
                     statement.resultMetadata = message.fields.map(PgColumnDescription::withBinary)
                     Loop.Continue
                 }
-                is PgMessage.ParameterDescription -> Loop.Continue
                 is PgMessage.NoData -> {
                     statement.resultMetadata = emptyList()
                     Loop.Continue
@@ -583,7 +576,6 @@ internal constructor(
         var completeMessage: PgMessage.CommandComplete? = null
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
                 is PgMessage.CommandComplete -> {
                     completeMessage = message
                     Loop.Continue
@@ -592,13 +584,7 @@ internal constructor(
                     handleReadyForQuery(message)
                     Loop.Break
                 }
-                else -> {
-                    log(Kdbc.detailedLogging) {
-                        this.message =
-                            "Ignoring $message since it's not an error or the desired type"
-                    }
-                    Loop.Continue
-                }
+                else -> logUnexpectedMessage(message)
             }
         }
 
@@ -747,7 +733,6 @@ internal constructor(
         return flow {
             stream.processMessageLoop { message ->
                 when (message) {
-                    is PgMessage.ErrorResponse -> throw GeneralPostgresError(message)
                     is PgMessage.CopyServerData -> {
                         emit(message.data)
                         Loop.Continue

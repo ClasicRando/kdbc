@@ -20,8 +20,6 @@ public const val ZERO_BYTE: Byte = 0
  * outer loop inside nested function calls
  */
 public sealed interface Loop {
-    public data object Noop : Loop
-
     public data object Continue : Loop
 
     public data object Break : Loop

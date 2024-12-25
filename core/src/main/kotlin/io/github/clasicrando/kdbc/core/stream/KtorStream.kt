@@ -19,13 +19,13 @@ import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
 import io.ktor.utils.io.readInt
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.EOFException
 import kotlinx.io.Sink
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
 
 private const val RESOURCE_TYPE = "KtorStream"
 
@@ -44,7 +44,11 @@ public class KtorStream(
     override val resourceType: String = RESOURCE_TYPE
 
     override val isConnected: Boolean
-        get() = this::connection.isInitialized && !socket.isClosed
+        get() =
+            this::connection.isInitialized &&
+                !socket.isClosed &&
+                !writeChannel.isClosedForWrite &&
+                !readChannel.isClosedForRead
 
     override var coroutineContext: CoroutineContext = SupervisorJob()
         private set
@@ -121,17 +125,17 @@ public class KtorStream(
     }
 
     override suspend fun readByte(): Byte {
-        check(isConnected) { "Cannot read from a stream that is not connected" }
+//        check(isConnected) { "Cannot read from a stream that is not connected" }
         return readFromChannel { readByte() }
     }
 
     override suspend fun readInt(): Int {
-        check(isConnected) { "Cannot read from a stream that is not connected" }
+//        check(isConnected) { "Cannot read from a stream that is not connected" }
         return readFromChannel { readInt() }
     }
 
     override suspend fun readBuffer(count: Int): ByteReadBuffer {
-        check(isConnected) { "Cannot read from a stream that is not connected" }
+//        check(isConnected) { "Cannot read from a stream that is not connected" }
         val destination = ByteArray(count)
         readFromChannel { readFully(destination) }
         return ByteReadBuffer(destination)
