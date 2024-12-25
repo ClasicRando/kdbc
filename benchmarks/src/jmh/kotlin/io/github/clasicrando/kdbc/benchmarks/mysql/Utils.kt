@@ -4,6 +4,7 @@ import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import com.mysql.cj.jdbc.JdbcConnection
 import io.github.clasicrando.kdbc.benchmarks.IOUtils
 import io.github.clasicrando.kdbc.benchmarks.PostDataClass
+import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
 import io.github.clasicrando.kdbc.mysql.MySql
 import io.github.clasicrando.kdbc.mysql.connection.MySqlConnection
@@ -172,6 +173,7 @@ val kdbcConnectOptions =
         applicationName = "KdbcTests${Uuid.random()}",
         statementLogLevel = Level.TRACE,
         socketTimeout = 10.toDuration(DurationUnit.SECONDS),
+        sslMode = SslMode.Disable,
     )
 
 val poolOptions = PoolOptions(maxConnections = 10, minConnections = 8)

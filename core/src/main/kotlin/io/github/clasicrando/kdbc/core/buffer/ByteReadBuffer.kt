@@ -333,6 +333,7 @@ public class ByteReadBuffer(
             startIndex = offset + position,
             endIndex = offset + remaining + position,
         )
+        position = size
     }
 
     /** Reset this buffer to it's initial reading position so the value can be read again */
