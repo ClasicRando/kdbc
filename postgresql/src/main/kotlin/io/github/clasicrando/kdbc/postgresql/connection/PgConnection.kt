@@ -27,6 +27,7 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.splitQuery
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
 import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
+import io.github.clasicrando.kdbc.core.stream.KtorStream
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -55,6 +56,9 @@ import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
+import io.ktor.network.selector.SelectorManager
+import io.ktor.network.sockets.InetSocketAddress
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
@@ -93,9 +97,11 @@ internal constructor(
     /** Underlining stream of data to and from the database */
     internal val stream: PgStream,
     /** Reference to the connection pool that owns this connection */
-    internal val pool: PgConnectionPool,
+    internal val pool: PgConnectionPool? = null,
     /** Type registry for connection. Used to decode data rows returned by the server. */
-    @PublishedApi internal val typeCache: PgTypeCache = pool.typeCache,
+    @PublishedApi
+    internal val typeCache: PgTypeCache =
+        pool?.typeCache ?: PgTypeCache(connectOptions.timeZoneOffset),
 ) : AbstractConnection() {
     private var pendingReaderForQueryCount = 0
 
@@ -160,6 +166,10 @@ internal constructor(
     }
 
     override suspend fun close() {
+        if (pool == null) {
+            dispose()
+            return
+        }
         if (!pool.giveBack(this)) {
             dispose()
         }
@@ -1223,12 +1233,17 @@ internal constructor(
          */
         internal suspend fun connect(
             connectOptions: PgConnectOptions,
-            stream: PgStream,
-            pool: PgConnectionPool,
+            pool: PgConnectionPool? = null,
         ): PgConnection {
+            val address = InetSocketAddress(connectOptions.host, connectOptions.port)
+            val selectorManager =
+                pool?.selectorManager ?: SelectorManager(Dispatchers.Default.limitedParallelism(1))
+            val stream = KtorStream(address, selectorManager, connectOptions.socketOptions)
+            var pgStream: PgStream? = null
             var connection: PgConnection? = null
             try {
-                connection = PgConnection(connectOptions, stream, pool)
+                pgStream = PgStream.connect(stream = stream, connectOptions = connectOptions)
+                connection = PgConnection(connectOptions, pgStream, pool)
                 if (!connection.isConnected) {
                     throw PgException("Could not initialize connection")
                 }
@@ -1236,6 +1251,11 @@ internal constructor(
             } catch (ex: Exception) {
                 try {
                     connection?.close()
+                } catch (ex2: Throwable) {
+                    ex.addSuppressed(ex2)
+                }
+                try {
+                    pgStream?.close()
                 } catch (ex2: Throwable) {
                     ex.addSuppressed(ex2)
                 }

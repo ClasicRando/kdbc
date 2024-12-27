@@ -8,6 +8,7 @@ import io.github.clasicrando.kdbc.benchmarks.IOUtils
 import io.github.clasicrando.kdbc.benchmarks.PostDataClass
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
+import io.github.clasicrando.kdbc.core.stream.SocketOptions
 import io.github.clasicrando.kdbc.mysql.MySql
 import io.github.clasicrando.kdbc.mysql.connection.MySqlConnection
 import io.github.clasicrando.kdbc.mysql.connection.MySqlConnectionOptions
@@ -166,7 +167,7 @@ val kdbcConnectOptions =
         database = "test",
         applicationName = "KdbcTests${Uuid.random()}",
         statementLogLevel = Level.TRACE,
-        socketTimeout = 10.toDuration(DurationUnit.SECONDS),
+        socketOptions = SocketOptions(socketTimeout = 10.toDuration(DurationUnit.SECONDS)),
         sslMode = SslMode.Disable,
     )
 

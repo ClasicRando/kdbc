@@ -19,13 +19,12 @@ import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
 import io.ktor.utils.io.readInt
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.EOFException
 import kotlinx.io.Sink
+import kotlin.coroutines.CoroutineContext
 
 private const val RESOURCE_TYPE = "KtorStream"
 
@@ -34,7 +33,7 @@ private val logger = KotlinLogging.logger {}
 public class KtorStream(
     private val address: SocketAddress,
     private val selectorManager: SelectorManager,
-    private val socketTimeout: Duration,
+    private val socketOptions: SocketOptions,
 ) : DefaultUniqueResourceId(), Stream {
     private lateinit var connection: Connection
     private lateinit var socket: Socket
@@ -53,10 +52,9 @@ public class KtorStream(
     override var coroutineContext: CoroutineContext = SupervisorJob()
         private set
 
-    override suspend fun connect(timeout: Duration) {
-        require(timeout.isPositive()) { "Timeout must be positive" }
+    override suspend fun connect() {
         try {
-            connection = createConnection(timeout)
+            connection = createConnection()
             socket = connection.socket
             writeChannel = connection.output
             readChannel = connection.input
@@ -70,20 +68,23 @@ public class KtorStream(
         }
     }
 
-    private suspend fun createConnection(timeout: Duration): Connection {
-        return withTimeout(timeout) {
+    private suspend fun createConnection(): Connection {
+        val (connectTimeout, socketTimeout, keepAlive, noDelay) = this.socketOptions
+        return withTimeout(connectTimeout) {
             aSocket(selectorManager)
                 .tcp()
                 .connect(address) {
-                    this.socketTimeout = this@KtorStream.socketTimeout.inWholeMilliseconds
+                    this.socketTimeout = socketTimeout.inWholeMilliseconds
+                    this.keepAlive = keepAlive
+                    this.noDelay = noDelay
                 }
                 .connection()
         }
     }
 
-    override suspend fun upgradeTls(timeout: Duration) {
+    override suspend fun upgradeTls() {
         connection =
-            withTimeout(timeout) {
+            withTimeout(socketOptions.connectTimeout) {
                 connection.tls(coroutineContext = selectorManager.coroutineContext).connection()
             }
         socket = connection.socket

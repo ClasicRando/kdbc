@@ -134,7 +134,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             MysqlMessage.SslRequest(maxPacketSize = MAX_PACKET_SIZE, characterSet = DEFAULT_CHARSET)
         )
 
-        innerStream.upgradeTls(connectionOptions.connectionTimeout)
+        innerStream.upgradeTls()
         isTls = true
     }
 
@@ -284,7 +284,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             stream: Stream,
             connectionOptions: MySqlConnectionOptions,
         ): MySqlStream {
-            stream.connect(timeout = connectionOptions.connectionTimeout)
+            stream.connect()
             val mySqlStream =
                 MySqlStream(innerStream = stream, connectionOptions = connectionOptions)
             mySqlStream.authFlow()

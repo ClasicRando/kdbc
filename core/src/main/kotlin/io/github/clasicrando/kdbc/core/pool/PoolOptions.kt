@@ -16,14 +16,12 @@ public data class PoolOptions(
      */
     val maxConnections: Int = 10,
     /**
-     * Minimum number of connections held within the pool. When the pool is initialized, it will be
-     * requested to create this number of connections and there will always be this many connections
-     * at all times within the pool. By default, this value is the same as [maxConnections] to avoid
-     * unnecessary pulls from the idle connections to prune unused connections. If you want to avoid
-     * too many idle connections to the database then you should lower the [maxConnections] value.
-     * Generally, 10 connections isn't a large load for most long-lived async applications.
+     * Minimum number of idle connections held within the pool. By default, this value is the same
+     * as [maxConnections] to avoid unnecessary work to prune unused connections. If you want to
+     * avoid too many idle connections to the database then you should lower the [maxConnections]
+     * value. Generally, 10 connections isn't a large load for most long-lived async applications.
      */
-    val minConnections: Int = maxConnections,
+    val minIdleConnections: Int = maxConnections,
     /**
      * Timeout value for acquiring a connection from the connection pool. This defaults to the max
      * wait time allowed but can be lowered if your application should abort waiting for a
@@ -32,8 +30,8 @@ public data class PoolOptions(
     val acquireTimeout: Duration = Duration.INFINITE,
     /**
      * [Duration] for how long a connection will stay idle within a connection pool before the pool
-     * closes the connection (unless the [minConnections] count is the current held count). Must be
-     * positive.
+     * closes the connection (unless the [minIdleConnections] count is the current held count). Must
+     * be positive.
      */
     val idleTimeout: Duration = 10.toDuration(DurationUnit.MINUTES),
     /**
@@ -68,10 +66,12 @@ public data class PoolOptions(
 ) {
     init {
         require(maxConnections > 0) { "Max connection count cannot be less than 1" }
-        require(minConnections >= 0) { "Min connection count cannot be less than 0" }
+        require(minIdleConnections >= 0) { "Min connection count cannot be less than 0" }
         require(acquireTimeout.isPositive()) { "acquireTimeout pool option must be positive" }
-        require(idleTimeout.isPositive()) { "idleTime pool option must be positive" }
-        require(idleTimeout.inWholeSeconds > 10) { "Idle timeout must be greater than " }
+        require(idleTimeout.isPositive() && idleTimeout.isFinite()) {
+            "idleTime pool option must be a positive finite value"
+        }
+        require(idleTimeout.inWholeSeconds > 10) { "Idle timeout must be greater than 10 seconds" }
         require(maxLifetime.inWholeSeconds > 30) {
             "Max Lifetime of a connection must be greater than 30 seconds"
         }

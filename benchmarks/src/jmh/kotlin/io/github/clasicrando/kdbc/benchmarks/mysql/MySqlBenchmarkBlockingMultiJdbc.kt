@@ -1,5 +1,7 @@
 package io.github.clasicrando.kdbc.benchmarks.mysql
 
+import com.zaxxer.hikari.HikariDataSource
+import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorCompletionService
@@ -14,6 +16,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -68,4 +71,7 @@ open class MySqlBenchmarkBlockingMultiJdbc {
             received++
         }
     }
+
+    @TearDown
+    open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
 }

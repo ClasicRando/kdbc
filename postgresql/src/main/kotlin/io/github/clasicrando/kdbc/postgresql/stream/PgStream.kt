@@ -322,7 +322,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
                 }
             }
         }
-        this.stream.upgradeTls(connectOptions.connectionTimeout)
+        this.stream.upgradeTls()
     }
 
     companion object {
@@ -344,7 +344,7 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
          * @throws StreamConnectError if the underling [Stream] fails to connect
          */
         internal suspend fun connect(stream: Stream, connectOptions: PgConnectOptions): PgStream {
-            stream.connect(timeout = connectOptions.connectionTimeout)
+            stream.connect()
             val pgStream = PgStream(stream = stream, connectOptions = connectOptions)
             pgStream.upgradeIfNeeded()
             val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)

@@ -2,14 +2,13 @@ package io.github.clasicrando.kdbc.postgresql.connection
 
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.isZeroOrInfinite
+import io.github.clasicrando.kdbc.core.stream.SocketOptions
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.network.tls.TLSConfigBuilder
-import java.time.ZoneOffset
-import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import java.time.ZoneOffset
+import kotlin.time.Duration
 
 /** Connection options for a postgresql database */
 @Serializable
@@ -22,10 +21,8 @@ public data class PgConnectOptions(
     val username: String,
     /** Optional application name to set as part of the connection context */
     val applicationName: String = "kdbc-driver",
-    /** Timeout duration during initial TCP connection establishment */
-    val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
-    /** Duration that a socket should wait during a read or write operation before timing out */
-    val socketTimeout: Duration = Duration.INFINITE,
+    /** Options for operating the underlining socket */
+    val socketOptions: SocketOptions = SocketOptions(),
     /** Password if the database instance requires a password */
     val password: String? = null,
     /**
@@ -132,7 +129,7 @@ public data class PgConnectOptions(
         if (host != other.host) return false
         if (username != other.username) return false
         if (applicationName != other.applicationName) return false
-        if (connectionTimeout != other.connectionTimeout) return false
+        if (socketOptions != other.socketOptions) return false
         if (password != other.password) return false
         if (database != other.database) return false
         if (statementLogLevel != other.statementLogLevel) return false
@@ -151,7 +148,7 @@ public data class PgConnectOptions(
         result = 31 * result + host.hashCode()
         result = 31 * result + username.hashCode()
         result = 31 * result + applicationName.hashCode()
-        result = 31 * result + connectionTimeout.hashCode()
+        result = 31 * result + socketOptions.hashCode()
         result = 31 * result + (password?.hashCode() ?: 0)
         result = 31 * result + (database?.hashCode() ?: 0)
         result = 31 * result + statementLogLevel.hashCode()
@@ -163,7 +160,7 @@ public data class PgConnectOptions(
 
     override fun toString(): String {
         return "PgConnectOptions(host='$host', port=$port, username='$username', " +
-            "applicationName='$applicationName', connectionTimeout=$connectionTimeout, " +
+            "applicationName='$applicationName', connectionTimeout=$socketOptions, " +
             "database=$database, statementLogLevel=$statementLogLevel, queryTimeout=$queryTimeout, " +
             "statementCacheCapacity=$statementCacheCapacity, " +
             "useExtendedProtocolForSimpleQueries=$useExtendedProtocolForSimpleQueries, " +

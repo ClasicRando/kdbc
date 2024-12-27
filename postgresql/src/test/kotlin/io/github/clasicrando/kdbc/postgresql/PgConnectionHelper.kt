@@ -1,11 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql
 
 import io.github.clasicrando.kdbc.core.SslMode
-import io.github.clasicrando.kdbc.core.pool.PoolOptions
+import io.github.clasicrando.kdbc.core.stream.SocketOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.listen.PgListener
-import io.github.clasicrando.kdbc.postgresql.pool.PgConnectionPool
 import io.github.oshai.kotlinlogging.Level
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -14,7 +13,7 @@ object PgConnectionHelper {
     private val password = System.getenv("PG_TEST_PASSWORD")
     private val port = System.getenv("PG_TEST_PORT").toInt()
 
-    private val defaultConnectOptions =
+    val defaultConnectOptions =
         PgConnectOptions(
             host = "localhost",
             port = port,
@@ -23,10 +22,8 @@ object PgConnectionHelper {
             applicationName = "KdbcTests",
             sslMode = SslMode.Disable,
             statementLogLevel = Level.INFO,
-            socketTimeout = 10.toDuration(DurationUnit.SECONDS),
+            socketOptions = SocketOptions(socketTimeout = 10.toDuration(DurationUnit.SECONDS)),
         )
-
-    fun defaultPool(): PgConnectionPool = PgConnectionPool(defaultConnectOptions, PoolOptions())
 
     suspend fun defaultConnection(): PgConnection =
         Postgres.connection(connectOptions = defaultConnectOptions)
@@ -48,11 +45,7 @@ object PgConnectionHelper {
     suspend fun defaultConnectionWithQueryTimeout(): PgConnection =
         Postgres.connection(connectOptions = defaultConnectOptionsWithQueryTimeout)
 
-    private val defaultConnectOptionsSsl =
-        defaultConnectOptions.copy(
-            sslMode = SslMode.Require,
-            connectionTimeout = 1.toDuration(unit = DurationUnit.SECONDS),
-        )
+    private val defaultConnectOptionsSsl = defaultConnectOptions.copy(sslMode = SslMode.Require)
 
     suspend fun defaultConnectionSsl(): PgConnection =
         Postgres.connection(connectOptions = defaultConnectOptionsSsl)

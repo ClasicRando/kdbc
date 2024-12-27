@@ -1,12 +1,11 @@
 package io.github.clasicrando.kdbc.core.pool
 
-import io.github.clasicrando.kdbc.core.atomic.AtomicMutableMap
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -14,43 +13,46 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.runBlocking
 import java.time.Instant
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 import kotlin.time.DurationUnit
+import kotlin.time.measureTimedValue
 import kotlin.time.toDuration
-import kotlin.uuid.Uuid
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * Default implementation of a [ConnectionPool], using a [Channel] to provide and buffer
- * [Connection] instances as needed. Uses the [poolOptions] and [provider] specified to set the
- * pool's details and allow for creating/validating [Connection] instances.
- *
- * Before using the pool, [initialize] must be called to verify the connection options can create
- * connections. Initialization also pre-populates the pool with the number of connections required
- * by [PoolOptions.minConnections].
+ * [Connection] instances as needed. Uses the [poolOptions] and specified to set the pool's details
+ * and allow for creating/validating [Connection] instances.
  */
 public abstract class AbstractDefaultConnectionPool<C : Connection>(
-    private val poolOptions: PoolOptions,
-    private val provider: ConnectionProvider<C>,
-) : ConnectionPool<C> {
-    private val idleCheckInterval = 30.toDuration(DurationUnit.SECONDS)
-    private val connections = Channel<PoolEntry<C>>(capacity = Channel.UNLIMITED)
-    private val connectionIds: MutableMap<Uuid, PoolEntry<C>> = AtomicMutableMap()
-    private val connectionNeeded = Channel<CompletableDeferred<C?>>(capacity = Channel.BUFFERED)
-    private val mutex = Mutex()
-
+    private val poolOptions: PoolOptions
+) : ConnectionPool<C>, EntryCreator {
     final override val coroutineContext: CoroutineContext =
         SupervisorJob(parent = poolOptions.parentScope.coroutineContext.job)
 
-    init {
-        val cleaningDispatcher = Dispatchers.Default.limitedParallelism(1)
-        launch(cleaningDispatcher) { idleConnectionPruner() }
-        launch(cleaningDispatcher) { idleConnectionKeepAlive() }
+    private val bag = ConcurrentBag<PoolEntry<C>>(this.coroutineContext, this)
+    private var creationExecutor = ChannelExecutor(this, 1, poolOptions.maxConnections)
+    private val cleaningDispatcher = Dispatchers.Default.limitedParallelism(1)
+
+    final override suspend fun requestCreate(waiting: Int) {
+        if (waiting > creationExecutor.requestCount) {
+            creationExecutor.sendRequest(PoolEntryCreator())
+        }
+    }
+
+    /** Create a new connection for the implementor's database */
+    public abstract suspend fun create(): C
+
+    /** Validate that a [Connection] can be safely returned to a connection pool */
+    public open suspend fun validate(connection: C): Boolean {
+        if (connection.isConnected && connection.inTransaction) {
+            connection.rollback()
+        }
+        return connection.isConnected && !connection.inTransaction
     }
 
     /**
@@ -59,264 +61,195 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
      */
     public abstract suspend fun disposeConnection(connection: C)
 
-    /**
-     * Attempt to get a connection from the pool. If a connection is available, it will be returned
-     * without suspending. If a connection is not currently available, a [CompletableDeferred] is
-     * put into the [connectionNeeded] channel, and it's completion is awaited. After resuming, the
-     * available [Connection] is returned.
-     *
-     * @throws AcquireTimeout if the [CompletableDeferred] value does not complete before the
-     *   [PoolOptions.acquireTimeout] duration is exceeded
-     * @throws IllegalStateException if the [connections] channel is closed
-     */
-    override suspend fun acquire(): C {
-        val entry = acquireConnection()
-        if (entry != null) {
-            if (validateConnection(entry.connection)) {
-                return entry.connection
+    /** TODO */
+    final override suspend fun acquire(): C {
+        var timeout = poolOptions.acquireTimeout
+        do {
+            val (entry, duration) =
+                measureTimedValue { bag.borrow(timeout = timeout) ?: throw AcquireTimeout() }
+
+            if (
+                entry.isEvicted ||
+                    (hasExceededIdleTimeout(entry) && isInvalidConnection(entry.item))
+            ) {
+                invalidateConnection(entry)
+                timeout -= duration
+                continue
             }
-            runCatching { invalidateConnection(entry) }
-                .onFailure { ex ->
-                    logger.atTrace {
-                        this.cause = ex
-                        this.message = "Failed closing invalid connection in pool"
-                    }
-                }
-            return acquire()
-        }
-        val deferred = CompletableDeferred<C?>(parent = coroutineContext.job)
-        connectionNeeded.send(deferred)
-        val result =
-            if (poolOptions.acquireTimeout.isInfinite()) {
-                deferred.await()
-            } else {
-                withTimeoutOrNull(poolOptions.acquireTimeout) { deferred.await() }
-            }
-        if (result != null) {
-            return result
-        }
-        deferred.complete(null)
+
+            return entry.item
+        } while (timeout > Duration.ZERO)
+
         throw AcquireTimeout()
     }
 
-    /**
-     * Get the next available [Connection] from the [connections] channel. If the channel is empty
-     * and the pool is not exhausted, [createNewConnection] is called to return a new connection.
-     * This will return null if the channel is empty and the pool is exhausted.
-     *
-     * @throws IllegalStateException if the channel is closed
-     */
-    private suspend fun acquireConnection(): PoolEntry<C>? {
-        val result = connections.tryReceive()
-        when {
-            result.isSuccess -> return result.getOrNull()
-            result.isFailure ->
-                return mutex.withLock {
-                    if (!isExhausted) {
-                        createNewConnection()
-                    } else {
-                        null
-                    }
-                }
-            result.isClosed -> throw KdbcException("Connection channel for pool is closed")
-        }
-        return null
-    }
-
-    /**
-     * Create a new connection using the pool's [provider], set the connection's pool reference, add
-     * the [Connection.resourceId] to the [connectionIds] set and return the new connection
-     */
-    private suspend fun createNewConnection(): PoolEntry<C> {
-        val connection = provider.create(this@AbstractDefaultConnectionPool)
-        val entry = PoolEntry(connection)
-        connectionIds[entry.connection.resourceId] = entry
-        logger.atTrace {
-            message =
-                "Created new connection. Current pool size = ${connectionIds.size}. " +
-                    "Max size = ${poolOptions.maxConnections}"
-        }
-        return entry
-    }
-
-    /**
-     * Invalidate an [entry] from the pool by moving the [Connection] out of the pool's resources
-     * and references. This means, removing the [Connection.resourceId] out of the [connectionIds]
-     * set, removing the reference to the pool in the [Connection] and closing the actual
-     * [Connection]. This action will only fail if the [logger] fails to log.
-     */
+    /** TODO */
     private suspend fun invalidateConnection(entry: PoolEntry<C>) {
-        var connectionId: Uuid? = null
         try {
-            connectionId = entry.connection.resourceId
-            connectionIds.remove(connectionId)
-            logger.atTrace { message = "Invalidating connection id = $connectionId" }
-            disposeConnection(entry.connection)
+            bag.removeEntry(entry)
+            logger.atTrace { message = "Invalidating entry = $entry" }
+            disposeConnection(entry.item)
         } catch (ex: Exception) {
             logger.atError {
                 cause = ex
-                message = "Error while closing invalid connection, '$connectionId'"
+                message = "Error while closing invalid connection, $entry"
             }
         }
     }
 
-    /**
-     * Flag indicating if the pool of connections is exhausted (number of connections is use has
-     * reached the cap on [PoolOptions.maxConnections]
-     */
-    private val isExhausted: Boolean
-        get() = connectionIds.size >= poolOptions.maxConnections
-
-    /** Checks the [connectionIds] lookup table for the [poolConnection]'s ID */
+    /** TODO */
     internal fun hasConnection(poolConnection: C): Boolean {
-        return connectionIds.contains(poolConnection.resourceId)
+        return bag.values.any { it.item.resourceId == poolConnection.resourceId }
     }
 
-    override suspend fun giveBack(connection: C): Boolean {
-        val entry = connectionIds[connection.resourceId] ?: return false
-        if (poolOptions.validateOnReturn && !validateConnection(entry.connection)) {
-            mutex.withLock { invalidateConnection(entry) }
+    final override suspend fun giveBack(connection: C): Boolean {
+        val entry =
+            bag.values.firstOrNull { it.item.resourceId == connection.resourceId } ?: return false
+        if (poolOptions.validateOnReturn && isInvalidConnection(entry.item)) {
+            invalidateConnection(entry)
             return true
-        }
-        if (hasExceededLifetime(entry)) {
-            mutex.withLock { invalidateConnection(entry) }
-            return true
-        }
-
-        while (true) {
-            val result = connectionNeeded.tryReceive()
-            when {
-                result.isSuccess -> {
-                    if (result.getOrThrow().complete(entry.connection)) {
-                        return true
-                    }
-                }
-                result.isFailure -> break
-                result.isClosed -> throw KdbcException("Connection channel for pool is closed")
-            }
         }
 
         entry.lastAccessed = Instant.now()
-        connections.send(entry)
-        return true
-    }
-
-    override suspend fun initialize(): Boolean {
-        var initialConnection: PoolEntry<C>? = null
-        try {
-            initialConnection = createNewConnection()
-            if (!validateConnection(initialConnection.connection)) {
-                return false
-            }
-        } catch (ex: Exception) {
-            logger.atError {
-                message = "Could not create the initial connection needed to validate the pool"
-                cause = ex
-            }
-            return false
-        } finally {
-            try {
-                initialConnection?.connection?.close()
-            } catch (_: Throwable) {}
-        }
-        for (i in 1..<poolOptions.minConnections) {
-            connections.send(createNewConnection())
-        }
+        bag.giveBack(entry)
         return true
     }
 
     override suspend fun close() {
-        connections.close()
-        while (true) {
-            val result = connectionNeeded.tryReceive()
-            when {
-                result.isSuccess -> {
-                    val error = Exception("Pool closed while connections are still being requested")
-                    result.getOrNull()?.completeExceptionally(error)
-                }
-                result.isFailure || result.isClosed -> break
-            }
-        }
-        connectionNeeded.close()
-        for (entry in connectionIds.values) {
+        for (entry in bag.values) {
             invalidateConnection(entry)
         }
         logger.atTrace { message = "Canceling scope of connection pool" }
         cancel()
     }
 
-    private suspend fun validateConnection(connection: C): Boolean {
-        return try {
-            connection.isConnected && provider.validate(connection)
+    /** TODO */
+    private suspend fun isInvalidConnection(connection: C): Boolean {
+        try {
+            if (!validate(connection)) {
+                return true
+            }
         } catch (ex: Exception) {
             logger.atTrace {
                 this.cause = ex
                 this.message = "Could not valid connection"
             }
-            false
+            return true
         }
+        return false
     }
 
+    /** TODO */
     private fun hasExceededIdleTimeout(entry: PoolEntry<C>): Boolean {
         return Instant.now()
             .isAfter(entry.lastAccessed.plusMillis(poolOptions.idleTimeout.inWholeMilliseconds))
     }
 
-    private fun hasExceededLifetime(entry: PoolEntry<C>): Boolean {
-        return Instant.now()
-            .isAfter(entry.created.plusMillis(poolOptions.maxLifetime.inWholeMilliseconds))
+    /** TODO */
+    private inner class PoolEntryCreator : ChannelExecutor.Action {
+        val maxBackoffDuration = 5.toDuration(DurationUnit.SECONDS)
+
+        override suspend fun call() {
+            var backoffDuration = 10.toDuration(DurationUnit.MILLISECONDS)
+            var added = false
+            while (shouldContinueCreating) {
+                val entity = createNewConnection()
+                if (entity == null) {
+                    delay(backoffDuration)
+                    backoffDuration = (backoffDuration * 2).coerceAtMost(maxBackoffDuration)
+                    continue
+                }
+                added = true
+                bag.addEntry(entity)
+                delay(30)
+                break
+            }
+        }
+
+        val shouldContinueCreating: Boolean
+            get() =
+                bag.size < poolOptions.maxConnections &&
+                    (bag.idleEntriesCount < poolOptions.minIdleConnections ||
+                        bag.waitingCount > bag.idleEntriesCount)
     }
 
-    private suspend fun CoroutineScope.idleConnectionPruner() {
-        delay(100)
-        val pulledConnections = mutableListOf<PoolEntry<C>>()
-        while (isActive) {
-            if (connectionIds.size <= poolOptions.minConnections) {
-                delay(idleCheckInterval)
+    /** TODO */
+    private suspend fun createNewConnection(): PoolEntry<C>? {
+        try {
+            val connection = create()
+            val entry = PoolEntry(connection)
+            entry.setKeepAliveJob(keepAliveJob(entry, poolOptions.idleKeepAliveInterval))
+            if (!poolOptions.maxLifetime.isInfinite()) {
+                entry.setMaxLifetimeJob(maxLifetimeJob(entry, poolOptions.maxLifetime))
             }
-            while (isActive && connectionIds.size > poolOptions.minConnections) {
-                val result = connections.tryReceive()
-                when {
-                    result.isSuccess -> {
-                        val entry = result.getOrNull() ?: continue
-                        if (hasExceededIdleTimeout(entry)) {
-                            invalidateConnection(entry)
-                        } else {
-                            pulledConnections.add(entry)
-                        }
-                    }
-                    result.isClosed -> return
-                    result.isFailure -> break
-                }
+            return entry
+        } catch (ex: Exception) {
+            logger.atDebug {
+                message = "Failed to create a new connection"
+                cause = ex
             }
-            pulledConnections.forEach { connections.send(it) }
-            pulledConnections.clear()
+        }
+        return null
+    }
+
+    protected fun initializePool(): Unit = runBlocking {
+        var initialConnection: PoolEntry<C>? = null
+        try {
+            initialConnection = createNewConnection()
+            if (initialConnection == null || isInvalidConnection(initialConnection.item)) {
+                throw KdbcException("Could not validate the initial connection to a pool")
+            }
+            bag.addEntry(entry = initialConnection)
+        } catch (ex: KdbcException) {
+            throw ex
+        } catch (ex: Exception) {
+            throw KdbcException("Could not validate the initial connection to a pool", ex)
+        } finally {
+            try {
+                initialConnection?.item?.close()
+            } catch (_: Exception) {}
         }
     }
 
-    private suspend fun CoroutineScope.idleConnectionKeepAlive() {
-        delay(100)
-        val pulledConnections = mutableListOf<PoolEntry<C>>()
-        while (isActive) {
-            delay(poolOptions.idleKeepAliveInterval)
+    private fun CoroutineScope.maxLifetimeJob(entry: PoolEntry<C>, callbackTimeout: Duration): Job {
+        return launch(cleaningDispatcher) {
+            delay(callbackTimeout)
+            if (softEvictConnection(entry, false)) {
+                requestCreate(bag.waitingCount)
+            }
+        }
+    }
+
+    private fun CoroutineScope.keepAliveJob(entry: PoolEntry<C>, callbackTimeout: Duration): Job {
+        return launch(cleaningDispatcher) {
+            delay(callbackTimeout)
             while (isActive) {
-                val result = connections.tryReceive()
-                when {
-                    result.isSuccess -> {
-                        val entry = result.getOrNull() ?: continue
-                        if (!entry.connection.isValid()) {
-                            invalidateConnection(entry)
-                            mutex.withLock { createNewConnection() }
-                            continue
-                        }
-                        pulledConnections.add(entry)
-                    }
-                    result.isClosed -> return
-                    result.isFailure -> break
-                }
+                runCatching { keepAliveTask(entry) }
+                delay(callbackTimeout)
             }
-            pulledConnections.forEach { connections.send(it) }
-            pulledConnections.clear()
         }
+    }
+
+    private suspend fun keepAliveTask(entry: PoolEntry<C>) {
+        if (!bag.reserveEntry(entry)) {
+            return
+        }
+
+        if (isInvalidConnection(entry.item)) {
+            softEvictConnection(entry, true)
+            requestCreate(bag.waitingCount)
+            return
+        }
+
+        bag.releaseEntry(entry)
+    }
+
+    private suspend fun softEvictConnection(entry: PoolEntry<C>, isEntryOwner: Boolean): Boolean {
+        entry.isEvicted = true
+        if (isEntryOwner || bag.reserveEntry(entry)) {
+            invalidateConnection(entry)
+            return true
+        }
+        return false
     }
 }

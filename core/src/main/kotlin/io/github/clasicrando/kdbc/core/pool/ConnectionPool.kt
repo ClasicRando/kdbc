@@ -28,13 +28,6 @@ public interface ConnectionPool<C : Connection> : CoroutineScope {
      */
     @InternalApi public suspend fun giveBack(connection: C): Boolean
 
-    /**
-     * Initialize resources within the pool. This involves validating the connection options given
-     * to the pool can create valid connections and the pool is pre-populated with the desired
-     * number of minimum connections required.
-     */
-    @InternalApi public suspend fun initialize(): Boolean
-
     /** Close the connection pool and all connections that are associated with the pool */
     public suspend fun close()
 }

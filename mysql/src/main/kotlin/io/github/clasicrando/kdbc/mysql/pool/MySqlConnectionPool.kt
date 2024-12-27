@@ -14,13 +14,23 @@ import kotlinx.coroutines.withContext
  * reference to the pool's [typeCache] and providing the custom [disposeConnection] method that
  * simple calls [MySqlConnection.dispose].
  */
-public class MySqlConnectionPool(connectOptions: MySqlConnectionOptions, poolOptions: PoolOptions) :
-    AbstractDefaultConnectionPool<MySqlConnection>(
-        poolOptions = poolOptions,
-        provider = MySqlConnectionProvider(connectOptions),
-    ) {
+public class MySqlConnectionPool(
+    private val connectOptions: MySqlConnectionOptions,
+    poolOptions: PoolOptions,
+) : AbstractDefaultConnectionPool<MySqlConnection>(poolOptions = poolOptions) {
     internal val typeCache = MySqlTypeCache(connectOptions.timeZoneOffset)
     internal val selectorManager = SelectorManager(dispatcher = this.coroutineContext)
+
+    override suspend fun create(): MySqlConnection {
+        return MySqlConnection.connect(connectOptions, pool = this)
+    }
+
+    override suspend fun validate(connection: MySqlConnection): Boolean {
+        if (connection.isConnected && connection.inTransaction) {
+            connection.rollback()
+        }
+        return connection.isConnected && !connection.inTransaction
+    }
 
     override suspend fun disposeConnection(connection: MySqlConnection) {
         connection.dispose()

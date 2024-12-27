@@ -5,7 +5,9 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.github.clasicrando.kdbc.benchmarks.IOUtils
 import io.github.clasicrando.kdbc.benchmarks.PostDataClass
+import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
+import io.github.clasicrando.kdbc.core.stream.SocketOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
@@ -191,7 +193,7 @@ private const val KDBC_MISSING_ENVIRONMENT_VARIABLE_MESSAGE =
 val kdbcConnectOptions =
     PgConnectOptions(
         host = "127.0.0.1",
-        port = 5432,
+        port = 5234,
         username = "postgres",
         password =
             System.getenv("PG_BENCHMARK_PASSWORD")
@@ -199,7 +201,8 @@ val kdbcConnectOptions =
         database = "postgres",
         applicationName = "KdbcTests${Uuid.random()}",
         statementLogLevel = Level.TRACE,
-        socketTimeout = 10.toDuration(DurationUnit.SECONDS),
+        socketOptions = SocketOptions(socketTimeout = 10.toDuration(DurationUnit.SECONDS)),
+        sslMode = SslMode.Disable,
     )
 
 val poolOptions =

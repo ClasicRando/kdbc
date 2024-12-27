@@ -17,6 +17,7 @@ import io.github.clasicrando.kdbc.core.result.QueryResult
 import io.github.clasicrando.kdbc.core.splitQuery
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
 import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
+import io.github.clasicrando.kdbc.core.stream.KtorStream
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
@@ -45,11 +46,9 @@ import io.github.clasicrando.kdbc.mysql.type.MysqlTypeInfo
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.IOException
-import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.reflect.typeOf
+import io.ktor.network.selector.SelectorManager
+import io.ktor.network.sockets.InetSocketAddress
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -60,6 +59,11 @@ import kotlinx.io.Buffer
 import kotlinx.io.Source
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import java.io.IOException
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -77,9 +81,11 @@ internal constructor(
     /** Underlining stream of data to and from the database */
     internal val stream: MySqlStream,
     /** Reference to the connection pool that owns this connection */
-    internal val pool: MySqlConnectionPool,
+    internal val pool: MySqlConnectionPool?,
     /** Type registry for connection. Used to decode data rows returned by the server. */
-    @PublishedApi internal val typeCache: MySqlTypeCache = pool.typeCache,
+    @PublishedApi
+    internal val typeCache: MySqlTypeCache =
+        pool?.typeCache ?: MySqlTypeCache(connectionOptions.timeZoneOffset),
 ) : AbstractConnection() {
     /**
      * Suspending [Mutex] to allow only 1 coroutine to execute queries against this connection. Each
@@ -239,6 +245,10 @@ internal constructor(
     }
 
     override suspend fun close() {
+        if (pool == null) {
+            dispose()
+            return
+        }
         if (!pool.giveBack(this)) {
             dispose()
         }
@@ -564,12 +574,18 @@ internal constructor(
 
         suspend fun connect(
             connectionOptions: MySqlConnectionOptions,
-            stream: MySqlStream,
-            pool: MySqlConnectionPool,
+            pool: MySqlConnectionPool?,
         ): MySqlConnection {
+            val address = InetSocketAddress(connectionOptions.host, connectionOptions.port)
+            val selectorManager =
+                pool?.selectorManager ?: SelectorManager(Dispatchers.Default.limitedParallelism(1))
+            val stream = KtorStream(address, selectorManager, connectionOptions.socketOptions)
+            var mySqlStream: MySqlStream? = null
             var connection: MySqlConnection? = null
             try {
-                connection = MySqlConnection(connectionOptions, stream, pool)
+                mySqlStream =
+                    MySqlStream.connect(stream = stream, connectionOptions = connectionOptions)
+                connection = MySqlConnection(connectionOptions, mySqlStream, pool)
                 if (!connection.isConnected) {
                     throw MySqlException("Could not initialize connection")
                 }

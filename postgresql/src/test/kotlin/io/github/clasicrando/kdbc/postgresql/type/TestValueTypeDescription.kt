@@ -6,11 +6,10 @@ import io.github.clasicrando.kdbc.core.query.fetchScalar
 import io.github.clasicrando.kdbc.core.query.query
 import io.github.clasicrando.kdbc.core.use
 import io.github.clasicrando.kdbc.postgresql.PgConnectionHelper
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Timeout
 
 class TestValueTypeDescription {
     @JvmInline value class Wrapper(val inner: String)
@@ -22,6 +21,7 @@ class TestValueTypeDescription {
         val query = "SELECT $1 wrapper_col;"
 
         PgConnectionHelper.defaultConnection().use { conn ->
+            conn.registerValueType<Wrapper>()
             val value = query(query).bind(wrapper).fetchScalar<Wrapper>(conn)
             assertEquals(wrapper, value)
         }
@@ -34,16 +34,9 @@ class TestValueTypeDescription {
         val query = "SELECT '${wrapper.inner}' wrapper_col"
 
         PgConnectionHelper.defaultConnection().use { conn ->
+            conn.registerValueType<Wrapper>()
             val value = query(query).fetchScalar<Wrapper>(conn)
             assertEquals(wrapper, value)
-        }
-    }
-
-    companion object {
-        @BeforeAll
-        @JvmStatic
-        fun setup(): Unit = runBlocking {
-            PgConnectionHelper.defaultConnection().use { conn -> conn.registerValueType<Wrapper>() }
         }
     }
 }

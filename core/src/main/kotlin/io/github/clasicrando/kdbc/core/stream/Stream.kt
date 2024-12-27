@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.io.Sink
 
@@ -17,14 +16,17 @@ public interface Stream : UniqueResourceId, AutoCloseable, CoroutineScope {
 
     /**
      * Connect to the host targeted by this stream. This method initiates a connection to the host
-     * and suspends until the connection has been established or the [timeout] is exceeded.
+     * and suspends until the connection has been established or the timeout is exceeded.
      *
      * @throws StreamConnectError if the connect operation fails
-     * @throws IllegalArgumentException if the [timeout] is not positive
      */
-    public suspend fun connect(timeout: Duration)
+    public suspend fun connect()
 
-    public suspend fun upgradeTls(timeout: Duration)
+    /**
+     * Upgrade an existing connection to a TLS stream. This performs a TLS handshake using the
+     * existing connection and so the user can continue to use this stream for future operations.
+     */
+    public suspend fun upgradeTls()
 
     /**
      * Write bytes to the supplied [Sink]. This exposes the socket's write buffer which is flushed
