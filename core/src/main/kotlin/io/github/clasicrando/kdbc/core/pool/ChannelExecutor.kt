@@ -5,41 +5,53 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlin.coroutines.CoroutineContext
 
-internal class ChannelExecutor(parentScope: CoroutineScope, parallelism: Int, channelCapacity: Int) : CoroutineScope {
+internal class ChannelExecutor(
+    parentScope: CoroutineScope,
+    parallelism: Int,
+    channelCapacity: Int,
+) : CoroutineScope, AutoCloseable {
     private var dispatcher = Dispatchers.Default.limitedParallelism(parallelism)
     private val channelRequestCount: AtomicInt = atomic(0)
     private val requestChannel = Channel<Action>(capacity = channelCapacity)
+    private var semaphore = Semaphore(permits = parallelism)
 
-    override var coroutineContext: CoroutineContext = SupervisorJob(parent = parentScope.coroutineContext.job) + dispatcher
+    override val coroutineContext: CoroutineContext =
+        SupervisorJob(parent = parentScope.coroutineContext.job)
 
     init {
         launch(Dispatchers.Default.limitedParallelism(1)) {
-            while (true) {
+            while (isActive) {
                 val action = requestChannel.receive()
-                this.launch(dispatcher) { action.call() }
+                this.launch(dispatcher) { semaphore.withPermit { action.call() } }
             }
         }
     }
 
-    val requestCount: Int get() = channelRequestCount.value
+    val requestCount: Int
+        get() = channelRequestCount.value
 
     fun updateParallelism(parallelism: Int) {
         dispatcher = Dispatchers.Default.limitedParallelism(parallelism)
-        coroutineContext = coroutineContext.job + dispatcher
+        semaphore = Semaphore(permits = parallelism)
     }
 
-    suspend fun sendRequest(action: Action) {
-        ThreadPoolExecutor(1, 1, 1, TimeUnit.MILLISECONDS, LinkedBlockingQueue()).submit({})
+    fun sendRequest(action: Action) {
         channelRequestCount.incrementAndGet()
-        requestChannel.send(action)
+        requestChannel.trySend(action)
+    }
+
+    override fun close() {
+        cancel()
+        requestChannel.close()
     }
 
     interface Action {

@@ -21,15 +21,12 @@ public class MySqlConnectionPool(
     internal val typeCache = MySqlTypeCache(connectOptions.timeZoneOffset)
     internal val selectorManager = SelectorManager(dispatcher = this.coroutineContext)
 
-    override suspend fun create(): MySqlConnection {
-        return MySqlConnection.connect(connectOptions, pool = this)
+    init {
+        initializePool()
     }
 
-    override suspend fun validate(connection: MySqlConnection): Boolean {
-        if (connection.isConnected && connection.inTransaction) {
-            connection.rollback()
-        }
-        return connection.isConnected && !connection.inTransaction
+    override suspend fun create(): MySqlConnection {
+        return MySqlConnection.connect(connectOptions, pool = this)
     }
 
     override suspend fun disposeConnection(connection: MySqlConnection) {

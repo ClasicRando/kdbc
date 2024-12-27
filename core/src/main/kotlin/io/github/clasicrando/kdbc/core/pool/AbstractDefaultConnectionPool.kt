@@ -32,15 +32,17 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
     private val poolOptions: PoolOptions
 ) : ConnectionPool<C>, EntryCreator {
     final override val coroutineContext: CoroutineContext =
-        SupervisorJob(parent = poolOptions.parentScope.coroutineContext.job)
+        SupervisorJob(parent = poolOptions.parentScope?.coroutineContext?.job) +
+            Dispatchers.Default.limitedParallelism(Runtime.getRuntime().availableProcessors())
 
-    private val bag = ConcurrentBag<PoolEntry<C>>(this.coroutineContext, this)
+    private val bag = ConcurrentBag<PoolEntry<C>>(this)
     private var creationExecutor = ChannelExecutor(this, 1, poolOptions.maxConnections)
     private val cleaningDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val poolEntryCreator = PoolEntryCreator()
 
     final override suspend fun requestCreate(waiting: Int) {
         if (waiting > creationExecutor.requestCount) {
-            creationExecutor.sendRequest(PoolEntryCreator())
+            creationExecutor.sendRequest(poolEntryCreator)
         }
     }
 
@@ -87,8 +89,9 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
     private suspend fun invalidateConnection(entry: PoolEntry<C>) {
         try {
             bag.removeEntry(entry)
+            val connection = entry.close()
             logger.atTrace { message = "Invalidating entry = $entry" }
-            disposeConnection(entry.item)
+            disposeConnection(connection)
         } catch (ex: Exception) {
             logger.atError {
                 cause = ex
@@ -116,10 +119,10 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
     }
 
     override suspend fun close() {
+        creationExecutor.close()
         for (entry in bag.values) {
             invalidateConnection(entry)
         }
-        logger.atTrace { message = "Canceling scope of connection pool" }
         cancel()
     }
 
@@ -177,7 +180,7 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
     private suspend fun createNewConnection(): PoolEntry<C>? {
         try {
             val connection = create()
-            val entry = PoolEntry(connection)
+            val entry = PoolEntry.of(connection)
             entry.setKeepAliveJob(keepAliveJob(entry, poolOptions.idleKeepAliveInterval))
             if (!poolOptions.maxLifetime.isInfinite()) {
                 entry.setMaxLifetimeJob(maxLifetimeJob(entry, poolOptions.maxLifetime))

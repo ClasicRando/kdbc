@@ -2,7 +2,6 @@ package io.github.clasicrando.kdbc.core.stream
 
 import io.github.clasicrando.kdbc.core.UniqueResourceId
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.io.Sink
 
 /**
@@ -10,7 +9,7 @@ import kotlinx.io.Sink
  * implementation will depend on the platform and compilation target but each method will suspend
  * during IO operation to yield control of the otherwise blocked thread.
  */
-public interface Stream : UniqueResourceId, AutoCloseable, CoroutineScope {
+public interface Stream : UniqueResourceId, AutoCloseable {
     /** Returns true if the stream is still connected to the host */
     public val isConnected: Boolean
 

@@ -3,30 +3,27 @@ package io.github.clasicrando.kdbc.core.pool
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 private val logger = KotlinLogging.logger {}
 
-internal class ConcurrentBag<T : ConcurrentBagEntry>(
-    override val coroutineContext: CoroutineContext,
-    private val entryCreator: EntryCreator,
-) : CoroutineScope {
+internal class ConcurrentBag<T : ConcurrentBagEntry>(private val entryCreator: EntryCreator) :
+    AutoCloseable {
     private var isClosed = false
     private val entries: MutableList<T> = CopyOnWriteArrayList()
     private val waitingCounter: AtomicInt = atomic(0)
     private val rendezvousChannel = Channel<T>(capacity = Channel.RENDEZVOUS)
 
-    val waitingCount: Int get() = waitingCounter.value
+    val waitingCount: Int
+        get() = waitingCounter.value
 
     val values: List<T>
         get() = entries
@@ -126,6 +123,11 @@ internal class ConcurrentBag<T : ConcurrentBagEntry>(
         }
 
         attemptToHandOffEntry(entry)
+    }
+
+    override fun close() {
+        isClosed = true
+        rendezvousChannel.close()
     }
 
     private suspend fun attemptToHandOffEntry(entry: T) {

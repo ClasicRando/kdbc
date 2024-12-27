@@ -34,7 +34,7 @@ public class PgConnectionPool(
     }
 
     override suspend fun close() {
-        withContext(Dispatchers.IO) { selectorManager.close() }
         super.close()
+        withContext(Dispatchers.IO) { selectorManager.close() }
     }
 }
