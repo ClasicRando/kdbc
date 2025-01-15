@@ -90,8 +90,8 @@ internal sealed class PgMessage(val code: Byte) {
     } // F
 
     /**
-     * Backend message sent with the [COPY_DATA_CODE] header [Byte]. Contains the copy
-     * [data] as a [ByteReadBuffer]. The inner [data] represents a single row.
+     * Backend message sent with the [COPY_DATA_CODE] header [Byte]. Contains the copy [data] as a
+     * [ByteReadBuffer]. The inner [data] represents a single row.
      */
     class CopyServerData(val data: ByteReadBuffer) : PgMessage(COPY_DATA_CODE) // B
 

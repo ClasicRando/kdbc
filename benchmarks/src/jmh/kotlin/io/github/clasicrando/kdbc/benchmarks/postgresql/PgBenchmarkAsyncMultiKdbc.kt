@@ -25,9 +25,9 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 
-@Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
-@Fork(1)
+@Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
+@Fork(2)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
