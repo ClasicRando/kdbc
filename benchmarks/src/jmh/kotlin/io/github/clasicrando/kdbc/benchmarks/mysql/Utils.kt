@@ -17,12 +17,12 @@ import io.github.oshai.kotlinlogging.Level
 import java.sql.DriverManager
 import java.sql.ResultSet
 import java.time.LocalDateTime
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 import kotlin.uuid.Uuid
 import kotlinx.io.asOutputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 
 val querySingle =
     """
@@ -44,10 +44,11 @@ val query =
     """
         .trimIndent()
 
-val setupQueries = listOf<String>(
-    "SET @@cte_max_recursion_depth = 6000;",
-    "DROP TABLE IF EXISTS posts;",
-    """
+val setupQueries =
+    listOf<String>(
+        "SET @@cte_max_recursion_depth = 6000;",
+        "DROP TABLE IF EXISTS posts;",
+        """
     CREATE TABLE posts
     (
         id int auto_increment,
@@ -66,8 +67,8 @@ val setupQueries = listOf<String>(
         primary key(id)
     );
     """
-        .trimIndent(),
-    """
+            .trimIndent(),
+        """
     INSERT INTO posts(`text`, creation_date, last_change_date)
     WITH RECURSIVE seq(value) AS (
         SELECT 1 AS value
@@ -78,8 +79,9 @@ val setupQueries = listOf<String>(
     )
     SELECT LPAD('', 2000, 'x'), current_timestamp, current_timestamp
     FROM seq t;
-    """.trimIndent()
-)
+    """
+            .trimIndent(),
+    )
 
 val setupQuery = setupQueries.joinToString(separator = "\n")
 
@@ -146,7 +148,9 @@ const val JDBC_COPY_IN = "COPY public.copy_in_posts FROM STDIN WITH (FORMAT csv)
 
 private val connectionString =
     System.getenv("JDBC_MYSQL_CONNECTION_STRING")
-        ?: error("To run benchmarks the environment variable JDBC_MYSQL_CONNECTION_STRING must be available")
+        ?: error(
+            "To run benchmarks the environment variable JDBC_MYSQL_CONNECTION_STRING must be available"
+        )
 
 fun getJdbcConnection(): JdbcConnection =
     DriverManager.getConnection(connectionString).unwrap(JdbcConnection::class.java)
@@ -163,7 +167,9 @@ val kdbcConnectOptions =
         username = "root",
         password =
             System.getenv("MYSQL_BENCHMARK_PASSWORD")
-                ?: error("To run benchmarks the environment variable MYSQL_BENCHMARK_PASSWORD must be available"),
+                ?: error(
+                    "To run benchmarks the environment variable MYSQL_BENCHMARK_PASSWORD must be available"
+                ),
         database = "test",
         applicationName = "KdbcTests${Uuid.random()}",
         statementLogLevel = Level.TRACE,

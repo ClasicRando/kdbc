@@ -29,9 +29,7 @@ open class MySqlBenchmarkAsyncSingleJdbc {
 
     @Setup
     open fun start() {
-        connection.createStatement().use { statement ->
-            setupQueries.forEach(statement::execute)
-        }
+        connection.createStatement().use { statement -> setupQueries.forEach(statement::execute) }
     }
 
     private fun singleStep() {

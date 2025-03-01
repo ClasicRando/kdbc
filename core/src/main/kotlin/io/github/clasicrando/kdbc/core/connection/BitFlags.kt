@@ -2,14 +2,15 @@ package io.github.clasicrando.kdbc.core.connection
 
 /**
  * Bit Flags wrapper type over an [Int]. Input values can be [Byte] and [Short] but the value is
- * always internally stored as an [Int]. When using/writing the bits, use the [asByte], [asShort]
- * or [asInt] to extract the value you need but remember that the internal value is not checked for
+ * always internally stored as an [Int]. When using/writing the bits, use the [asByte], [asShort] or
+ * [asInt] to extract the value you need but remember that the internal value is not checked for
  * bits outside the range you request. The output will always truncate other bits.
  */
 @JvmInline
 public value class IntBitFlags(internal val flags: Int) {
-    public constructor(flags: Short): this(flags.toInt() and 0xff_ff)
-    public constructor(flags: Byte): this(flags.toInt() and 0xff)
+    public constructor(flags: Short) : this(flags.toInt() and 0xff_ff)
+
+    public constructor(flags: Byte) : this(flags.toInt() and 0xff)
 
     /**
      * Returns true if the specific status is present in this value (i.e. [Int.and] equals the
@@ -70,9 +71,11 @@ public value class IntBitFlags(internal val flags: Int) {
  */
 @JvmInline
 public value class LongBitFlags(internal val flags: Long) {
-    public constructor(flags: Int): this(flags.toLong() and 0xff_ff_ff_ff)
-    public constructor(flags: Short): this(flags.toLong() and 0xff_ff)
-    public constructor(flags: Byte): this(flags.toLong() and 0xff)
+    public constructor(flags: Int) : this(flags.toLong() and 0xff_ff_ff_ff)
+
+    public constructor(flags: Short) : this(flags.toLong() and 0xff_ff)
+
+    public constructor(flags: Byte) : this(flags.toLong() and 0xff)
 
     /**
      * Returns true if the specific status is present in this value (i.e. [Int.and] equals the

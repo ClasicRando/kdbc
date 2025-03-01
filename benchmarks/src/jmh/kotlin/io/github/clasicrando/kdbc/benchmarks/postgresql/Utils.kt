@@ -193,7 +193,7 @@ private const val KDBC_MISSING_ENVIRONMENT_VARIABLE_MESSAGE =
 val kdbcConnectOptions =
     PgConnectOptions(
         host = "127.0.0.1",
-        port = 5432,
+        port = 5234,
         username = "postgres",
         password =
             System.getenv("PG_BENCHMARK_PASSWORD")

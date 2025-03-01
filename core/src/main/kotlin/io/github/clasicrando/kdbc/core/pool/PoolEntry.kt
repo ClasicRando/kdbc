@@ -11,16 +11,15 @@ import kotlinx.coroutines.Job
  * [Instant] of the last time the item was accessed. [lastAccessed] is only updated once the item is
  * returned to the pool.
  */
-internal class PoolEntry<T : Any> private constructor(
-    var internalItem: T?,
-) : ConcurrentBagEntry {
+internal class PoolEntry<T : Any> private constructor(var internalItem: T?) : ConcurrentBagEntry {
     var lastAccessed: Instant = Instant.now()
     private val status: AtomicRef<EntryStatus> = atomic(EntryStatus.Idle)
     var isEvicted: Boolean = false
     private var keepAliveJob: Job? = null
     private var maxLifetimeJob: Job? = null
 
-    val item get() = internalItem ?: throw KdbcException("Tried to access pool entry after close")
+    val item
+        get() = internalItem ?: throw KdbcException("Tried to access pool entry after close")
 
     fun setKeepAliveJob(job: Job) {
         keepAliveJob = job

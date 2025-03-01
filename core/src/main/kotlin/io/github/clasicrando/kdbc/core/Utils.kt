@@ -15,17 +15,6 @@ import kotlin.time.Duration
 public const val ZERO_BYTE: Byte = 0
 
 /**
- * Sealed class representing the loop control flow statements. These can be used when a lambda is
- * passed to a method that invokes the lambda within a loop. This allows the lambda to control the
- * outer loop inside nested function calls
- */
-public sealed interface Loop {
-    public data object Continue : Loop
-
-    public data object Break : Loop
-}
-
-/**
  * [UniqueResourceId] extension method to log using the [logger] supplied at the specified [level]
  * using the event builder set up using the [block]. This makes each event include the
  * [resourceId][UniqueResourceId.resourceId] in each event as a key value pair.

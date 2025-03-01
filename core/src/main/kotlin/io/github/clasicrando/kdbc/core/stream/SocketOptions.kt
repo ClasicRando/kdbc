@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.core.stream
 
-import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.serialization.Serializable
 
 @Serializable
 public data class SocketOptions(

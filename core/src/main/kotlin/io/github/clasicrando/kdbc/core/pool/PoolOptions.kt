@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.core.pool
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.serialization.Serializable
 
 /** Options when setting up a connection pool for any database vendor */
 @Serializable

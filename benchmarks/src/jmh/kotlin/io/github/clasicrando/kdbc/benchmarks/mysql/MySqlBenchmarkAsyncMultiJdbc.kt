@@ -65,6 +65,5 @@ open class MySqlBenchmarkAsyncMultiJdbc {
         results.awaitAll()
     }
 
-    @TearDown
-    open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
+    @TearDown open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
 }

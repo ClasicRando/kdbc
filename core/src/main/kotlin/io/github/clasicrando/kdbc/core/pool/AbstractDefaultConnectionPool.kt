@@ -3,6 +3,12 @@ package io.github.clasicrando.kdbc.core.pool
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.exceptions.KdbcException
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.time.Instant
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.measureTimedValue
+import kotlin.time.toDuration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,12 +20,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import java.time.Instant
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.measureTimedValue
-import kotlin.time.toDuration
 
 private val logger = KotlinLogging.logger {}
 

@@ -1,6 +1,10 @@
 package io.github.clasicrando.kdbc.core.pool
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.channels.Channel
@@ -8,10 +12,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 
 private val logger = KotlinLogging.logger {}
 

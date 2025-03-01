@@ -18,16 +18,16 @@ Difference is `(KDBC - JDBC)/JDBC * 100`
 | MySqlBenchmarkBlockingMultiJdbc.querySingleRow     | avgt | 40  | 2510.550 ± 2.173      | us/op | N/A                              |
 | MySqlBenchmarkBlockingSingleJdbc.queryMultipleRows | avgt | 40  | 163.245 ± 1.754       | us/op | N/A                              |
 | MySqlBenchmarkBlockingSingleJdbc.querySingleRow    | avgt | 40  | 109.182 ± 1.773       | us/op | N/A                              |
-| PgBenchmarkAsyncCopyKdbc.copyInSource              | avgt | 40  | 107064.838 ± 2501.927 | us/op | 1 (blocking)                     |
-| PgBenchmarkAsyncCopyKdbc.copyInStream              | avgt | 40  | 105445.165 ± 2942.368 | us/op | -0.54 (blocking)                 |
-| PgBenchmarkAsyncCopyKdbc.copyOutSink               | avgt | 40  | 24191.451 ± 219.395   | us/op | 19.78 (blocking)                 |
-| PgBenchmarkAsyncCopyKdbc.copyOutStream             | avgt | 40  | 24226.735 ± 294.541   | us/op | 19.93 (blocking)                 |
+| PgBenchmarkAsyncCopyKdbc.copyInSource              | avgt | 40  | 105982.126 ± 2828.646 | us/op | ~0 (blocking)                    |
+| PgBenchmarkAsyncCopyKdbc.copyInStream              | avgt | 40  | 107876.161 ± 2030.854 | us/op | 1.75 (blocking)                  |
+| PgBenchmarkAsyncCopyKdbc.copyOutSink               | avgt | 40  | 23360.839 ± 495.592   | us/op | 15.65 (blocking)                 |
+| PgBenchmarkAsyncCopyKdbc.copyOutStream             | avgt | 40  | 23620.399 ± 541.365   | us/op | 16.93 (blocking)                 |
 | PgBenchmarkAsyncMultiJdbc.querySingleRow           | avgt | 40  | 1563.172 ± 11.539     | us/op | N/A                              |
-| PgBenchmarkAsyncMultiKdbc.querySingleRow           | avgt | 40  | 2034.988 ± 19.061     | us/op | 30.18 (async) 42.62 (blocking)   |
+| PgBenchmarkAsyncMultiKdbc.querySingleRow           | avgt | 40  | 1807.106 ± 5.080      | us/op | 15.61 (async) 26.65 (blocking)   |
 | PgBenchmarkAsyncSingleJdbc.queryMultipleRows       | avgt | 40  | 83.479 ± 0.845        | us/op | N/A                              |
 | PgBenchmarkAsyncSingleJdbc.querySingleRow          | avgt | 40  | 57.973 ± 1.076        | us/op | N/A                              |
-| PgBenchmarkAsyncSingleKdbc.queryMultipleRows       | avgt | 40  | 93.252 ± 0.246        | us/op | 11.71 (async) 32.33 (blocking)   |
-| PgBenchmarkAsyncSingleKdbc.querySingleRow          | avgt | 40  | 73.157 ± 0.643        | us/op | 26.19 (async) 52.89 (blocking)   |
+| PgBenchmarkAsyncSingleKdbc.queryMultipleRows       | avgt | 40  | 90.329 ± 0.533        | us/op | 8.20 (async) 28.18 (blocking)    |
+| PgBenchmarkAsyncSingleKdbc.querySingleRow          | avgt | 40  | 69.828 ± 1.123        | us/op | 20.45 (async) 45.93 (blocking)   |
 | PgBenchmarkBlockingCopyJdbc.copyIn                 | avgt | 40  | 106018.518 ± 2905.935 | us/op | N/A                              |
 | PgBenchmarkBlockingCopyJdbc.copyOut                | avgt | 40  | 20200.309 ± 438.845   | us/op | N/A                              |
 | PgBenchmarkBlockingMultiJdbc.querySingleRow        | avgt | 40  | 1426.848 ± 3.417      | us/op | N/A                              |

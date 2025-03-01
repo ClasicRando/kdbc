@@ -9,10 +9,11 @@ val kotlinCsvVersion: String by project
 dependencies {
     implementation(project(":postgresql"))
     implementation(project(":mysql"))
+    implementation("org.openjdk.jmh:jmh-core:1.37")
     // https://mvnrepository.com/artifact/org.postgresql/postgresql
     implementation("org.postgresql:postgresql:42.7.3")
     // https://mvnrepository.com/artifact/com.mysql/mysql-connector-j
-    implementation("com.mysql:mysql-connector-j:9.1.0")
+    implementation("com.mysql:mysql-connector-j:9.2.0")
     // https://mvnrepository.com/artifact/com.zaxxer/HikariCP
     implementation("com.zaxxer:HikariCP:6.2.1")
     // https://mvnrepository.com/artifact/com.github.doyaaaaaken/kotlin-csv

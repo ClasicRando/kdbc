@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.core.pool
 
+import kotlin.coroutines.CoroutineContext
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
@@ -12,7 +13,6 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlin.coroutines.CoroutineContext
 
 internal class ChannelExecutor(
     parentScope: CoroutineScope,

@@ -1,9 +1,9 @@
 package io.github.clasicrando.kdbc.benchmarks.mysql
 
-import org.openjdk.jmh.annotations.Benchmark
 import java.sql.Connection
 import java.util.concurrent.TimeUnit
 import kotlin.use
+import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
@@ -27,9 +27,7 @@ open class MySqlBenchmarkBlockingSingleJdbc {
 
     @Setup
     open fun start() {
-        connection.createStatement().use { statement ->
-            setupQueries.forEach(statement::execute)
-        }
+        connection.createStatement().use { statement -> setupQueries.forEach(statement::execute) }
     }
 
     private fun singleStep() {

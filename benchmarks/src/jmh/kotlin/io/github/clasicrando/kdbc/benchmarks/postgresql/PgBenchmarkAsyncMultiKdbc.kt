@@ -60,6 +60,5 @@ open class PgBenchmarkAsyncMultiKdbc {
         results.awaitAll()
     }
 
-    @TearDown
-    open fun destroy(): Unit = runBlocking { pool.close() }
+    @TearDown open fun destroy(): Unit = runBlocking { pool.close() }
 }

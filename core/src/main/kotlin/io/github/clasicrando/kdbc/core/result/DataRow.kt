@@ -242,8 +242,8 @@ public inline fun <reified T : Any> DataRow.getAsNonNull(column: String): T {
 /**
  * Get the value stored within the field at the [index] specified as a [Boolean].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [Boolean]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [Boolean]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getBooleanNonNull(index: Int): Boolean {
@@ -253,8 +253,8 @@ public fun DataRow.getBooleanNonNull(index: Int): Boolean {
 /**
  * Get the value stored within the field at the [index] specified as a [Byte].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [Byte]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [Byte]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getByteNonNull(index: Int): Byte {
@@ -264,8 +264,8 @@ public fun DataRow.getByteNonNull(index: Int): Byte {
 /**
  * Get the value stored within the field at the [index] specified as a [Short].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [Short]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [Short]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getShortNonNull(index: Int): Short {
@@ -275,8 +275,8 @@ public fun DataRow.getShortNonNull(index: Int): Short {
 /**
  * Get the value stored within the field at the [index] specified as a [Int].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [Int]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [Int]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getIntNonNull(index: Int): Int {
@@ -286,8 +286,8 @@ public fun DataRow.getIntNonNull(index: Int): Int {
 /**
  * Get the value stored within the field at the [index] specified as a [Long].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [Long]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [Long]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getLongNonNull(index: Int): Long {
@@ -297,8 +297,8 @@ public fun DataRow.getLongNonNull(index: Int): Long {
 /**
  * Get the value stored within the field at the [index] specified as a [Float].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [Float]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [Float]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getFloatNonNull(index: Int): Float {
@@ -308,8 +308,8 @@ public fun DataRow.getFloatNonNull(index: Int): Float {
 /**
  * Get the value stored within the field at the [index] specified as a [Double].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [Double]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [Double]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getDoubleNonNull(index: Int): Double {
@@ -319,8 +319,8 @@ public fun DataRow.getDoubleNonNull(index: Int): Double {
 /**
  * Get the value stored within the field at the [index] specified as a [LocalTime].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [LocalTime]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [LocalTime]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getLocalTimeNonNull(index: Int): LocalTime {
@@ -330,8 +330,8 @@ public fun DataRow.getLocalTimeNonNull(index: Int): LocalTime {
 /**
  * Get the value stored within the field at the [index] specified as a [LocalDate].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [LocalDate]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [LocalDate]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getLocalDateNonNull(index: Int): LocalDate {
@@ -341,8 +341,8 @@ public fun DataRow.getLocalDateNonNull(index: Int): LocalDate {
 /**
  * Get the value stored within the field at the [index] specified as a [LocalDateTime].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [LocalDateTime]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [LocalDateTime]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getLocalDateTimeNonNull(index: Int): LocalDateTime {
@@ -353,8 +353,8 @@ public fun DataRow.getLocalDateTimeNonNull(index: Int): LocalDateTime {
 /**
  * Get the value stored within the field at the [index] specified as a [Instant].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [Instant]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [Instant]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getInstantNonNull(index: Int): Instant {
@@ -364,8 +364,8 @@ public fun DataRow.getInstantNonNull(index: Int): Instant {
 /**
  * Get the value stored within the field at the [index] specified as a [OffsetDateTime].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [OffsetDateTime]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [OffsetDateTime]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getOffsetDateTimeNonNull(index: Int): OffsetDateTime {
@@ -376,8 +376,8 @@ public fun DataRow.getOffsetDateTimeNonNull(index: Int): OffsetDateTime {
 /**
  * Get the value stored within the field at the [index] specified as a [BigDecimal].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [BigDecimal]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [BigDecimal]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getBigDecimalNonNull(index: Int): BigDecimal {
@@ -387,8 +387,8 @@ public fun DataRow.getBigDecimalNonNull(index: Int): BigDecimal {
 /**
  * Get the value stored within the field at the [index] specified as a [ByteArray].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [ByteArray]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [ByteArray]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getBytesNonNull(index: Int): ByteArray {
@@ -398,8 +398,8 @@ public fun DataRow.getBytesNonNull(index: Int): ByteArray {
 /**
  * Get the value stored within the field at the [index] specified as a [String].
  *
- * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be
- *   decoded to a [String]
+ * @throws io.github.clasicrando.kdbc.core.column.ColumnDecodeError if the column cannot be decoded
+ *   to a [String]
  * @throws KdbcException if the field value is null
  */
 public fun DataRow.getStringNonNull(index: Int): String {

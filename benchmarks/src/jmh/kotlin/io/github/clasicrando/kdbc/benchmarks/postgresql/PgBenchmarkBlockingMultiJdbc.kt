@@ -1,12 +1,12 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import com.zaxxer.hikari.HikariDataSource
-import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.sql.DataSource
+import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -70,6 +70,5 @@ open class PgBenchmarkBlockingMultiJdbc {
         }
     }
 
-    @TearDown
-    open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
+    @TearDown open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
 }

@@ -63,6 +63,5 @@ open class PgBenchmarkAsyncMultiJdbc {
         results.awaitAll()
     }
 
-    @TearDown
-    open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
+    @TearDown open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
 }
