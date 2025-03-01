@@ -1,6 +1,5 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
-import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.cache.LruCache
 import io.github.clasicrando.kdbc.core.chunked
@@ -151,13 +150,7 @@ internal constructor(
             try {
                 waitUntilReady()
                 stream.writeToStream(PgMessage.Query(""))
-                stream.processMessageLoop(throwOnError = false) { message ->
-                    when (message) {
-                        is PgMessage.ErrorResponse -> return false
-                        is PgMessage.ReadyForQuery -> Loop.Break
-                        else -> Loop.Continue
-                    }
-                }
+                waitUntilReady()
             } catch (_: KdbcException) {
                 return false
             }
@@ -201,11 +194,10 @@ internal constructor(
      * Log a [message] that is processed but ignored since it's not important during the current
      * operation
      */
-    private fun logUnexpectedMessage(message: PgMessage): Loop {
+    private fun logUnexpectedMessage(message: PgMessage) {
         log(Kdbc.detailedLogging) {
             this.message = "Ignoring $message since it's not an error or the desired type"
         }
-        return Loop.Continue
     }
 
     /**
@@ -244,40 +236,35 @@ internal constructor(
         statement: PgPreparedStatement? = null
     ) {
         var columnMapping = statement?.resultMetadata ?: emptyList()
-        stream.processMessageLoop { message ->
-            when (message) {
-                is PgMessage.RowDescription -> {
-                    statement?.resultMetadata = message.fields
-                    columnMapping = message.fields
-                    Loop.Continue
+        stream.getIncomingMessagesUntil<PgMessage.ReadyForQuery>()
+            .collect { message ->
+                when (message) {
+                    is PgMessage.RowDescription -> {
+                        statement?.resultMetadata = message.fields
+                        columnMapping = message.fields
+                    }
+                    is PgMessage.DataRow -> {
+                        val row =
+                            PgDataRow.fromBuffer(
+                                buffer = message.rowBuffer,
+                                columnMapping = columnMapping,
+                                typeCache = typeCache,
+                            )
+                        emit(Either.Right(row))
+                    }
+                    is PgMessage.CommandComplete -> {
+                        val queryResult = QueryResult(message.rowCount, message.message)
+                        emit(Either.Left(queryResult))
+                    }
+                    is PgMessage.ReadyForQuery -> handleReadyForQuery(message)
+                    is PgMessage.BindComplete,
+                    is PgMessage.ParseComplete,
+                    is PgMessage.ParameterDescription,
+                    is PgMessage.NoData,
+                    is PgMessage.CloseComplete -> return@collect
+                    else -> logUnexpectedMessage(message)
                 }
-                is PgMessage.DataRow -> {
-                    val row =
-                        PgDataRow.fromBuffer(
-                            buffer = message.rowBuffer,
-                            columnMapping = columnMapping,
-                            typeCache = typeCache,
-                        )
-                    emit(Either.Right(row))
-                    Loop.Continue
-                }
-                is PgMessage.CommandComplete -> {
-                    val queryResult = QueryResult(message.rowCount, message.message)
-                    emit(Either.Left(queryResult))
-                    Loop.Continue
-                }
-                is PgMessage.ReadyForQuery -> {
-                    handleReadyForQuery(message)
-                    Loop.Break
-                }
-                is PgMessage.BindComplete,
-                is PgMessage.ParseComplete,
-                is PgMessage.ParameterDescription,
-                is PgMessage.NoData,
-                is PgMessage.CloseComplete -> Loop.Continue
-                else -> logUnexpectedMessage(message)
             }
-        }
     }
 
     /**
@@ -335,25 +322,21 @@ internal constructor(
             ),
         )
         writeSync()
-        stream.processMessageLoop { message ->
-            when (message) {
-                is PgMessage.ParseComplete,
-                is PgMessage.ParameterDescription -> Loop.Continue
-                is PgMessage.RowDescription -> {
-                    statement.resultMetadata = message.fields.map(PgColumnDescription::withBinary)
-                    Loop.Continue
+        stream.getIncomingMessagesUntil<PgMessage.ReadyForQuery>()
+            .collect { message ->
+                when (message) {
+                    is PgMessage.ParseComplete,
+                    is PgMessage.ParameterDescription -> return@collect
+                    is PgMessage.RowDescription -> {
+                        statement.resultMetadata = message.fields.map(PgColumnDescription::withBinary)
+                    }
+                    is PgMessage.NoData -> {
+                        statement.resultMetadata = emptyList()
+                    }
+                    is PgMessage.ReadyForQuery -> handleReadyForQuery(message)
+                    else -> logUnexpectedMessage(message)
                 }
-                is PgMessage.NoData -> {
-                    statement.resultMetadata = emptyList()
-                    Loop.Continue
-                }
-                is PgMessage.ReadyForQuery -> {
-                    handleReadyForQuery(message)
-                    Loop.Break
-                }
-                else -> logUnexpectedMessage(message)
             }
-        }
         return statement
     }
 
@@ -584,19 +567,14 @@ internal constructor(
         }
 
         var completeMessage: PgMessage.CommandComplete? = null
-        stream.processMessageLoop { message ->
-            when (message) {
-                is PgMessage.CommandComplete -> {
-                    completeMessage = message
-                    Loop.Continue
+        stream.getIncomingMessagesUntil<PgMessage.ReadyForQuery>()
+            .collect { message ->
+                when (message) {
+                    is PgMessage.CommandComplete -> completeMessage = message
+                    is PgMessage.ReadyForQuery -> handleReadyForQuery(message)
+                    else -> logUnexpectedMessage(message)
                 }
-                is PgMessage.ReadyForQuery -> {
-                    handleReadyForQuery(message)
-                    Loop.Break
-                }
-                else -> logUnexpectedMessage(message)
             }
-        }
 
         return QueryResult(
             rowsAffected = completeMessage?.rowCount ?: 0,
@@ -741,21 +719,16 @@ internal constructor(
         pendingReaderForQueryCount++
 
         return flow {
-            stream.processMessageLoop { message ->
-                when (message) {
-                    is PgMessage.CopyServerData -> {
-                        emit(message.data)
-                        Loop.Continue
+            stream.getIncomingMessagesUntil<PgMessage.ReadyForQuery>()
+                .collect { message ->
+                    when (message) {
+                        is PgMessage.CopyServerData -> emit(message.data)
+                        is PgMessage.CopyDone,
+                        is PgMessage.CommandComplete -> return@collect
+                        is PgMessage.ReadyForQuery -> handleReadyForQuery(message)
+                        else -> logUnexpectedMessage(message)
                     }
-                    is PgMessage.CopyDone,
-                    is PgMessage.CommandComplete -> Loop.Continue
-                    is PgMessage.ReadyForQuery -> {
-                        handleReadyForQuery(message)
-                        Loop.Break
-                    }
-                    else -> logUnexpectedMessage(message)
                 }
-            }
         }
     }
 
