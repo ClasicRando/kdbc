@@ -1,5 +1,12 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
+import com.zaxxer.hikari.HikariDataSource
+import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorCompletionService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import javax.sql.DataSource
+import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -9,12 +16,8 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.Executor
-import java.util.concurrent.ExecutorCompletionService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import javax.sql.DataSource
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -31,9 +34,7 @@ open class PgBenchmarkBlockingMultiJdbc {
     @Setup
     open fun start() {
         getJdbcConnection().use { connection ->
-            connection.createStatement().use { statement ->
-                statement.execute(setupQuery)
-            }
+            connection.createStatement().use { statement -> statement.execute(setupQuery) }
         }
     }
 
@@ -56,7 +57,7 @@ open class PgBenchmarkBlockingMultiJdbc {
 
     @Benchmark
     open fun querySingleRow() {
-        val taskCount = concurrencyLimit
+        val taskCount = CONCURRENCY_LIMIT
         repeat(taskCount) {
             val stepId = singleStep()
             completionService.submit { executeQuery(stepId) }
@@ -68,4 +69,6 @@ open class PgBenchmarkBlockingMultiJdbc {
             received++
         }
     }
+
+    @TearDown open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
 }

@@ -6,7 +6,7 @@ package io.github.clasicrando.kdbc.postgresql.type
  *
  * [docs](https://www.postgresql.org/docs/16/datatype-geometric.html#DATATYPE-GEOMETRIC-PATHS)
  */
-data class PgPath(val isClosed: Boolean, val points: List<PgPoint>) : PgGeometryType {
+public data class PgPath(val isClosed: Boolean, val points: List<PgPoint>) : PgGeometryType {
     override val postGisLiteral: String
         get() = buildString {
             append(if (isClosed) '(' else '[')

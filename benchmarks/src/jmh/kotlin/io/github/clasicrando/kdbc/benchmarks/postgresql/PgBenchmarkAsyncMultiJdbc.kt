@@ -1,5 +1,8 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
+import com.zaxxer.hikari.HikariDataSource
+import java.util.concurrent.TimeUnit
+import javax.sql.DataSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -13,9 +16,8 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.TimeUnit
-import javax.sql.DataSource
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -30,9 +32,7 @@ open class PgBenchmarkAsyncMultiJdbc {
     @Setup
     open fun start() {
         dataSource.connection.use { connection ->
-            connection.createStatement().use { statement ->
-                statement.execute(setupQuery)
-            }
+            connection.createStatement().use { statement -> statement.execute(setupQuery) }
         }
     }
 
@@ -45,7 +45,7 @@ open class PgBenchmarkAsyncMultiJdbc {
     private fun executeQuery(stepId: Int) {
         dataSource.connection.use { conn ->
             conn.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
-            preparedStatement.setInt(1, stepId)
+                preparedStatement.setInt(1, stepId)
                 preparedStatement.executeQuery().use { resultSet ->
                     extractPostDataClassListFromResultSet(resultSet)
                 }
@@ -54,11 +54,14 @@ open class PgBenchmarkAsyncMultiJdbc {
     }
 
     @Benchmark
-    open fun querySingleRow() = runBlocking {
-        val results = List(concurrencyLimit) {
-            val stepId = singleStep()
-            async(Dispatchers.IO) { executeQuery(stepId) }
-        }
+    open fun querySingleRow(): Unit = runBlocking {
+        val results =
+            List(CONCURRENCY_LIMIT) {
+                val stepId = singleStep()
+                async(Dispatchers.IO) { executeQuery(stepId) }
+            }
         results.awaitAll()
     }
+
+    @TearDown open fun destroy(): Unit = runBlocking { (dataSource as? HikariDataSource)?.close() }
 }

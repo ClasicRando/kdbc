@@ -1,21 +1,21 @@
 package io.github.clasicrando.kdbc.core
 
-enum class SslMode {
+public enum class SslMode {
     Disable,
     Allow,
     Prefer,
     Require,
     VerifyCa,
-    VerifyFull,;
+    VerifyFull;
 
-    fun acceptInvalidCerts(): Boolean = this != VerifyCa && this != VerifyFull
+    public fun acceptInvalidCerts(): Boolean = this != VerifyCa && this != VerifyFull
 
-    fun acceptInvalidHostnames(): Boolean = this != VerifyFull
+    public fun acceptInvalidHostnames(): Boolean = this != VerifyFull
 
-    companion object {
-        val DEFAULT = Prefer
+    public companion object {
+        public val DEFAULT: SslMode = Prefer
 
-        fun fromString(str: String): SslMode {
+        public fun fromString(str: String): SslMode {
             return when (str.lowercase()) {
                 "disable" -> Disable
                 "allow" -> Allow

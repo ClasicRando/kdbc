@@ -1,13 +1,4 @@
 package io.github.clasicrando.kdbc.core.stream
 
-import io.github.clasicrando.kdbc.core.exceptions.KdbcException
-
-/**
- * [Exception] thrown when the read operation of an [AsyncStream] fails for whatever reason. The
- * underlining [Throwable] (if any) is suppressed.
- */
-class StreamReadError(ex: Throwable? = null) : KdbcException("Stream unable to read") {
-    init {
-        ex?.let { addSuppressed(it) }
-    }
-}
+/** [KdbcIOException] specific to [Stream] read errors errors */
+public class StreamReadError(ex: Throwable) : KdbcIOException("Stream unable to read", ex)

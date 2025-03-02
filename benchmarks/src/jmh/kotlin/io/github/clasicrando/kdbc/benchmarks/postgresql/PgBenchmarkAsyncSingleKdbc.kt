@@ -1,9 +1,12 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
-import io.github.clasicrando.kdbc.core.connection.AsyncConnection
+import io.github.clasicrando.kdbc.benchmarks.PostDataClassRowParser
+import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.query.bind
-import io.github.clasicrando.kdbc.core.query.executeClosing
+import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.query.query
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -16,7 +19,6 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
-import java.util.concurrent.TimeUnit
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -26,12 +28,9 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Benchmark)
 open class PgBenchmarkAsyncSingleKdbc {
     private var id = 0
-    private val connection: AsyncConnection = runBlocking { getKdbcAsyncConnection() }
+    private val connection: Connection = runBlocking { getKdbcAsyncConnection() }
 
-    @Setup
-    open fun start(): Unit = runBlocking {
-        connection.createQuery(setupQuery).executeClosing()
-    }
+    @Setup open fun start(): Unit = runBlocking { query(setupQuery).execute(connection) }
 
     private fun singleStep(): Int {
         id++
@@ -47,18 +46,13 @@ open class PgBenchmarkAsyncSingleKdbc {
     @Benchmark
     open fun querySingleRow(): Unit = runBlocking {
         singleStep()
-        connection.createPreparedQuery(kdbcQuerySingle)
-            .bind(id)
-            .fetchAll(PostDataClassRowParser)
+        query(kdbcQuerySingle).bind(id).fetchAll(connection, PostDataClassRowParser)
     }
 
     @Benchmark
     open fun queryMultipleRows(): Unit = runBlocking {
         multiStep()
-        connection.createPreparedQuery(kdbcQuery)
-            .bind(id)
-            .bind(id + 10)
-            .fetchAll(PostDataClassRowParser)
+        query(kdbcQuery).bind(id).bind(id + 10).fetchAll(connection, PostDataClassRowParser)
     }
 
     @TearDown

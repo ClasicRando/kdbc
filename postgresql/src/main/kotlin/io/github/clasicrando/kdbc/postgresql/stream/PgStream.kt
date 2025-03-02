@@ -1,0 +1,357 @@
+package io.github.clasicrando.kdbc.postgresql.stream
+
+import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
+import io.github.clasicrando.kdbc.core.Loop
+import io.github.clasicrando.kdbc.core.SslMode
+import io.github.clasicrando.kdbc.core.config.Kdbc
+import io.github.clasicrando.kdbc.core.logWithResource
+import io.github.clasicrando.kdbc.core.message.SizedMessage
+import io.github.clasicrando.kdbc.core.stream.Stream
+import io.github.clasicrando.kdbc.core.stream.StreamConnectError
+import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
+import io.github.clasicrando.kdbc.postgresql.authentication.Authentication
+import io.github.clasicrando.kdbc.postgresql.authentication.PgAuthenticationError
+import io.github.clasicrando.kdbc.postgresql.authentication.saslAuthFlow
+import io.github.clasicrando.kdbc.postgresql.authentication.simplePasswordAuthFlow
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
+import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import io.github.clasicrando.kdbc.postgresql.message.decoders.PgMessageDecoders
+import io.github.clasicrando.kdbc.postgresql.message.encoders.PgMessageEncoders
+import io.github.clasicrando.kdbc.postgresql.notification.PgNotification
+import io.github.oshai.kotlinlogging.KLoggingEventBuilder
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.github.oshai.kotlinlogging.Level
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.io.Buffer
+
+private val logger = KotlinLogging.logger {}
+private const val RESOURCE_TYPE = "PgStream"
+
+/**
+ * [Stream] wrapper class for facilitating postgresql specific message protocol behaviour. A
+ * [PgConnection] will own a [PgStream] and utilize it's public methods to process incoming server
+ * messages.
+ */
+internal class PgStream(private val stream: Stream, internal val connectOptions: PgConnectOptions) :
+    DefaultUniqueResourceId(), AutoCloseable {
+    /** Data sent from the backend during connection initialization */
+    private var backendKeyData: PgMessage.BackendKeyData? = null
+
+    override val resourceType: String = RESOURCE_TYPE
+
+    /** [Channel] used to store all server notifications that have not been processed */
+    private val notificationsChannel = Channel<PgNotification>(capacity = Channel.BUFFERED)
+
+    /** [ReceiveChannel] used to store all server notifications that have not been processed */
+    val notifications: ReceiveChannel<PgNotification> = notificationsChannel
+
+    /**
+     * Created a log message at the specified [level], applying the [block] to the
+     * [KLogger.at][io.github.oshai.kotlinlogging.KLogger.at] method.
+     */
+    internal inline fun log(level: Level, crossinline block: KLoggingEventBuilder.() -> Unit) {
+        logWithResource(logger, level, block)
+    }
+
+    /**
+     * Receives the next available server message from the underlining connection. Suspends until
+     * all [RawMessage] data that is required can be fetched then decodes that [RawMessage] into a
+     * [PgMessage] using [PgMessageDecoders.decode].
+     */
+    suspend fun receiveNextServerMessage(): PgMessage {
+        val format = stream.readByte()
+        val size = stream.readInt()
+        val buffer = stream.readBuffer(size - 4)
+        val rawMessage = RawMessage(format = format, size = size, contents = buffer)
+        return PgMessageDecoders.decode(rawMessage)
+    }
+
+    /**
+     * Receives the next available server message from the underlining connection and handles some
+     * known asynchronous messages that may be received from the server so the caller does not need
+     * to handle them explicitly. This differs from [receiveNextServerMessage] because that message
+     * just decodes the incoming message and doesn't handle some async messages. These messages are:
+     *
+     * 1. [PgMessage.NoticeResponse]
+     * 2. [PgMessage.NotificationResponse] if [handleNotification] is true
+     * 3. [PgMessage.ParameterStatus]
+     * 4. [PgMessage.BackendKeyData]
+     * 5. [PgMessage.NegotiateProtocolVersion]
+     * 6. [PgMessage.ErrorResponse] if [throwOnError] is true
+     *
+     * @throws GeneralPostgresError if an [PgMessage.ErrorResponse] is received from the server and
+     * [throwOnError] is true
+     * @throws io.github.clasicrando.kdbc.core.stream.KdbcIOException if an IO error occurs while
+     * receiving the next message
+     */
+    suspend inline fun processMessageLoop(
+        throwOnError: Boolean = true,
+        handleNotification: Boolean = true,
+        process: (PgMessage) -> Loop
+    ) {
+        while (true) {
+            when (val message = receiveNextServerMessage()) {
+                is PgMessage.NoticeResponse -> onNotice(message)
+                is PgMessage.NotificationResponse if handleNotification -> onNotification(message)
+                is PgMessage.ParameterStatus -> onParameterStatus(message)
+                is PgMessage.BackendKeyData -> onBackendKeyData(message)
+                is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
+                is PgMessage.ErrorResponse if throwOnError -> throw GeneralPostgresError(message)
+                else -> {
+                    when (process(message)) {
+                        Loop.Continue -> continue
+                        Loop.Break -> break
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Calls [processMessageLoop] until the desired message [T] is received or an error occurs.
+     * For example, when starting a `COPY TO` operation, [PgMessage.CopyOutResponse] must be found
+     * before continuing to a message processor for [PgMessage.CopyServerData] messages.
+     */
+    suspend inline fun <reified T : PgMessage> waitForOrError(): T {
+        processMessageLoop { message ->
+            if (message !is T) {
+                log(Kdbc.detailedLogging) {
+                    this.message =
+                        "Ignoring $message since it's not an error or the desired type"
+                }
+                return@processMessageLoop Loop.Continue
+            }
+            return message
+        }
+        throw PgException("Exited message processing loop before ${T::class.qualifiedName!!} message returned")
+    }
+
+    /**
+     * Similar to [waitForOrError] but acts as a special case where it ignores all messages except
+     * for [PgMessage.NotificationResponse] and [PgMessage.ErrorResponse]. This is only used by a
+     * listener to wait for the next notification.
+     */
+    suspend fun waitForNotificationOrError(): PgNotification {
+        processMessageLoop(handleNotification = false) { message ->
+            if (message !is PgMessage.NotificationResponse) {
+                log(Kdbc.detailedLogging) {
+                    this.message =
+                        "Ignoring $message since it's not an error or the desired type"
+                }
+                return@processMessageLoop Loop.Continue
+            }
+            return PgNotification(
+                channelName = message.channelName,
+                payload = message.payload,
+            )
+        }
+        throw PgException("Exited message processing loop before PgMessage.NotificationResponse message returned")
+    }
+
+    /**
+     * Event handler method for [PgMessage.NoticeResponse] messages. Only logs the message details
+     */
+    private fun onNotice(message: PgMessage.NoticeResponse) {
+        log(Kdbc.detailedLogging) { this.message = "Notice, message -> $message" }
+    }
+
+    /**
+     * Event handler method for [PgMessage.NotificationResponse] messages. Creates a new
+     * [PgNotification] instance and passes that to [notificationsChannel]
+     */
+    private suspend fun onNotification(message: PgMessage.NotificationResponse) {
+        val notification = PgNotification(message.channelName, message.payload)
+        log(Kdbc.detailedLogging) { this.message = "Notification, message -> $message" }
+        notificationsChannel.send(notification)
+    }
+
+    /**
+     * Event handler method for [PgMessage.BackendKeyData] messages. Puts the [message] contents
+     * into [backendKeyData].
+     */
+    private fun onBackendKeyData(message: PgMessage.BackendKeyData) {
+        log(Kdbc.detailedLogging) {
+            this.message =
+                "Got backend key data. Process ID: ${message.processId}, Secret Key: ****"
+        }
+        backendKeyData = message
+    }
+
+    /**
+     * Event handler method for [PgMessage.ParameterStatus] messages. Only logs the message details
+     */
+    private fun onParameterStatus(message: PgMessage.ParameterStatus) {
+        log(Kdbc.detailedLogging) { this.message = "Parameter Status, $message" }
+    }
+
+    /**
+     * Event handler method for [PgMessage.NegotiateProtocolVersion] messages. Only logs the message
+     * details.
+     */
+    private fun onNegotiateProtocolVersion(message: PgMessage.NegotiateProtocolVersion) {
+        log(Kdbc.detailedLogging) {
+            this.message = "Server does not support protocol version 3.0. $message"
+        }
+    }
+
+    /** Write a single [message] to the [PgStream] using [PgMessageEncoders.encode] */
+    suspend fun writeToStream(message: PgMessage) {
+        stream.writeTo { sink -> PgMessageEncoders.encode(message, sink) }
+    }
+
+    /** Write multiple [messages] to the [PgStream] using [PgMessageEncoders.encode] */
+    suspend fun writeManyToStream(vararg messages: PgMessage) {
+        stream.writeTo { sink ->
+            for (message in messages) {
+                PgMessageEncoders.encode(message, sink)
+            }
+        }
+    }
+
+    /**
+     * Utilize the known size of the [M] messages to optimally write a [flow] of messages to the
+     * server. This involves collecting the [flow] and packing is as many messages as possible into
+     * a single write to the database server.
+     */
+    suspend fun <M> writeManyToStream(flow: Flow<M>) where M : PgMessage, M : SizedMessage {
+        val tempBuffer = Buffer()
+        flow.collect { message ->
+            if (tempBuffer.size + message.size >= WRITE_MANY_BUFFER_SIZE) {
+                stream.writeTo { sink -> tempBuffer.transferTo(sink) }
+            }
+            PgMessageEncoders.encode(message, tempBuffer)
+        }
+        if (!tempBuffer.exhausted()) {
+            stream.writeTo { sink -> tempBuffer.transferTo(sink) }
+        }
+    }
+
+    /**
+     * Close all channels held by this connection, supplying the [throwable] if it's the cause of
+     * the closure.
+     */
+    private fun closeChannels(throwable: Throwable? = null) {
+        notificationsChannel.close(throwable)
+    }
+
+    /** Returns true if the underlining [stream] is still connected */
+    val isConnected: Boolean
+        get() = stream.isConnected
+
+    override fun close() {
+        closeChannels()
+        if (stream.isConnected) {
+            stream.close()
+        }
+    }
+
+    /**
+     * Handle the incoming authentication request with the proper flow of messages. Currently, only
+     * clear text password, md5 password and SASL flows are implemented so if the server requests a
+     * different authentication flow then an exception will be thrown. This will also throw an
+     * exception if the first received message is not a [PgMessage.Authentication] message. In the
+     * event the first message is a [PgMessage.ErrorResponse] a [GeneralPostgresError] is thrown.
+     *
+     * @throws GeneralPostgresError if a [PgMessage.ErrorResponse] is received from the server
+     * @throws PgAuthenticationError if a message is received that is not [PgMessage.Authentication]
+     * @throws IllegalStateException if the [Authentication] type is not supported
+     */
+    private suspend fun handleAuthFlow() {
+        val message = receiveNextServerMessage()
+        if (message is PgMessage.ErrorResponse) {
+            throw GeneralPostgresError(message)
+        }
+        if (message !is PgMessage.Authentication) {
+            throw PgAuthenticationError(
+                "Server sent non-auth message that was not an error. Closing connection"
+            )
+        }
+        when (val auth = message.authentication) {
+            Authentication.Ok -> {
+                log(Kdbc.detailedLogging) { this.message = "Successfully logged in to database" }
+            }
+            Authentication.CleartextPassword -> {
+                this.simplePasswordAuthFlow(
+                    connectOptions.username,
+                    connectOptions.password ?: throw PgAuthenticationError("Missing Password"),
+                )
+            }
+            is Authentication.Md5Password -> {
+                this.simplePasswordAuthFlow(
+                    connectOptions.username,
+                    connectOptions.password ?: throw PgAuthenticationError("Missing Password"),
+                    auth.salt,
+                )
+            }
+            is Authentication.Sasl -> this.saslAuthFlow(auth)
+            else -> throw PgAuthenticationError("Auth request type cannot be handled. $auth")
+        }
+    }
+
+    private suspend fun requestUpgrade(): Boolean {
+        writeToStream(message = PgMessage.SslRequest)
+        return when (val response = stream.readByte()) {
+            'S'.code.toByte() -> true
+            'N'.code.toByte() -> false
+            else -> {
+                val responseChar = response.toInt().toChar()
+                throw PgException("Invalid response byte after SSL request. Byte = '$responseChar'")
+            }
+        }
+    }
+
+    private suspend fun upgradeIfNeeded() {
+        when (connectOptions.sslMode) {
+            SslMode.Disable,
+            SslMode.Allow -> return
+            SslMode.Prefer -> {
+                if (!requestUpgrade()) {
+                    logger.atWarn { message = TLS_REJECT_WARNING }
+                    return
+                }
+            }
+            SslMode.Require,
+            SslMode.VerifyCa,
+            SslMode.VerifyFull -> {
+                check(requestUpgrade()) {
+                    "TLS connection required by client but server does not accept TLS connection"
+                }
+            }
+        }
+        this.stream.upgradeTls()
+    }
+
+    companion object {
+        private const val WRITE_MANY_BUFFER_SIZE = 4096
+        private const val TLS_REJECT_WARNING =
+            "Preferred SSL mode was rejected by server. Continuing with non TLS connection"
+
+        /**
+         * Create a new TCP connection with the Postgresql database targeted by the [connectOptions]
+         * provided. This creates the new [PgStream] instance.
+         *
+         * To initiate the Postgresql connection, a [PgMessage.StartupMessage] is sent and the
+         * response is handled using [handleAuthFlow]. After the connection has been authenticated
+         * The method waits for a [PgMessage.ReadyForQuery] server response. In the case that the
+         * server rejects the connection (by sending a [PgMessage.ErrorResponse]) the new [PgStream]
+         * object is closed and an exception is thrown.
+         *
+         * @throws PgAuthenticationError if the authentication fails
+         * @throws StreamConnectError if the underling [Stream] fails to connect
+         */
+        internal suspend fun connect(stream: Stream, connectOptions: PgConnectOptions): PgStream {
+            stream.connect()
+            val pgStream = PgStream(stream = stream, connectOptions = connectOptions)
+            pgStream.upgradeIfNeeded()
+            val startupMessage = PgMessage.StartupMessage(params = connectOptions.properties)
+            pgStream.writeToStream(message = startupMessage)
+            pgStream.handleAuthFlow()
+            pgStream.waitForOrError<PgMessage.ReadyForQuery>()
+            return pgStream
+        }
+    }
+}

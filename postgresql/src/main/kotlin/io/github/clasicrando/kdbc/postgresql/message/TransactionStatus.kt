@@ -8,8 +8,7 @@ private const val FAILED_TRANSACTION = 'E'.code.toByte()
 internal enum class TransactionStatus(val code: Byte) {
     Idle(IDLE),
     InTransaction(IN_TRANSACTION),
-    FailedTransaction(FAILED_TRANSACTION),
-    ;
+    FailedTransaction(FAILED_TRANSACTION);
 
     companion object {
         fun fromByte(byte: Byte): TransactionStatus {

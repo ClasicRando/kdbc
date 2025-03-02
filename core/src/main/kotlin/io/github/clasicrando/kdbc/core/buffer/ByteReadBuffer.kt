@@ -1,25 +1,34 @@
 package io.github.clasicrando.kdbc.core.buffer
 
-import java.nio.charset.Charset
+import kotlinx.io.Sink
 
 /**
  * Buffer containing a fixed size [ByteArray] where reads against the buffer are always read
- * forward. The data contained within this buffer is not always readable if this instance is a
- * slice over the original buffer. This is done using a size and offset property that are
- * originally set to the [ByteArray.size] property of the backing buffer and 0, respectively. If
- * the instance is constructed using the [slice] method, the new slice's size is the length
- * requested and the offset is calculated using the current [position] and the pre-slice buffer's
- * offset. The [position] property keeps track of the relative position within the buffer and reads
- * against the buffer increments the [position] value based the number of bytes requested.
+ * forward. The data contained within this buffer is not always readable if this instance is a slice
+ * over the original buffer. This is done using a size and offset property that are originally set
+ * to the [ByteArray.size] property of the backing buffer and 0, respectively. If the instance is
+ * constructed using the [slice] method, the new slice's size is the length requested and the offset
+ * is calculated using the current [position] and the pre-slice buffer's offset. The [position]
+ * property keeps track of the relative position within the buffer and reads against the buffer
+ * increments the [position] value based the number of bytes requested.
  */
-class ByteReadBuffer(
-    private var innerBuffer: ByteArray,
+public class ByteReadBuffer(
+    private val innerBuffer: ByteArray,
     private val offset: Int = 0,
-    @PublishedApi
-    internal val size: Int = innerBuffer.size,
-) : AutoCloseable {
-    @PublishedApi
-    internal var position: Int = 0
+    @PublishedApi internal val size: Int = innerBuffer.size,
+) {
+    @PublishedApi internal var position: Int = 0
+
+    /** True if this buffer is a slice of another buffer */
+    public val isSlice: Boolean = offset != 0 || size != innerBuffer.size
+
+    /** Number of bytes remaining as readable within the buffer */
+    public inline val remaining: Int
+        get() = size - position
+
+    /** Returns true if the remaining bytes to read is 0 */
+    public inline val isExhausted: Boolean
+        get() = remaining == 0
 
     /**
      * Create a sub slice of this [ByteReadBuffer], starting at the current position and having a
@@ -30,19 +39,48 @@ class ByteReadBuffer(
      * [length] as required.
      *
      * @throws IllegalArgumentException if the [length] is greater than the number of bytes
-     * [remaining] in the buffer
+     *   [remaining] in the buffer
      */
-    fun slice(length: Int): ByteReadBuffer {
+    public fun slice(length: Int): ByteReadBuffer {
         checkRemaining(length)
         val slice = ByteReadBuffer(innerBuffer, position + offset, length)
         position += length
         return slice
     }
 
-    /** Number of bytes remaining as readable within the buffer */
-    @Suppress("NOTHING_TO_INLINE")
-    inline fun remaining(): Int {
-        return size - position
+    /**
+     * Adds the bytes stored within each buffer into a new [ByteReadBuffer]. The current position
+     * within the buffer does not impact this operation but if this or the other buffer is a slice,
+     * only that portion of that buffer gets copied.
+     */
+    public operator fun plus(other: ByteReadBuffer): ByteReadBuffer {
+        val newBuffer = ByteArray(this.size + other.size)
+        innerBuffer.copyInto(
+            destination = newBuffer,
+            destinationOffset = 0,
+            startIndex = this.offset,
+            endIndex = this.offset + this.size,
+        )
+        other.innerBuffer.copyInto(
+            destination = newBuffer,
+            destinationOffset = this.size,
+            startIndex = other.offset,
+            endIndex = other.offset + other.size,
+        )
+        return ByteReadBuffer(newBuffer)
+    }
+
+    public fun skip(byteCount: Int) {
+        checkRemaining(byteCount)
+        position += byteCount
+    }
+
+    /**
+     * Request the availability of a set number of bytes in the buffer. Returns true if the
+     * remaining bytes meets or exceeds the requested number of bytes.
+     */
+    public fun request(byteCount: Int): Boolean {
+        return remaining >= byteCount
     }
 
     /**
@@ -53,9 +91,28 @@ class ByteReadBuffer(
      * @throws [BufferExhausted] if the buffer does not have the required number of bytes available
      */
     private fun checkRemaining(required: Int) {
-        if (remaining() < required) {
-            throw BufferExhausted(requested = required, remaining = remaining())
+        if (remaining < required) {
+            throw BufferExhausted(requested = required, remaining = remaining)
         }
+    }
+
+    /**
+     * View the next available [Byte] within the buffer without consuming the value.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun peekNext(): Byte {
+        checkRemaining(1)
+        return innerBuffer[offset + position]
+    }
+
+    /**
+     * View the next available [Byte] within the buffer without consuming the value.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun peekNextAsInt(): Int {
+        return peekNext().toInt() and 0xff
     }
 
     /**
@@ -63,9 +120,18 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readByte(): Byte {
+    public fun readByte(): Byte {
         checkRemaining(1)
         return innerBuffer[offset + position++]
+    }
+
+    /**
+     * Read the next available [Byte] within the buffer.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readByteAsInt(): Int {
+        return readByte().toInt() and 0xff
     }
 
     /**
@@ -73,11 +139,24 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readShort(): Short {
+    public fun readShort(): Short {
         checkRemaining(2)
-        val result = (
-            innerBuffer[offset + position++].toInt() and 0xff shl 8
-            or (innerBuffer[offset + position++].toInt() and 0xff))
+        val result =
+            ((innerBuffer[offset + position++].toInt() and 0xff shl 8) or
+                (innerBuffer[offset + position++].toInt() and 0xff))
+        return result.toShort()
+    }
+
+    /**
+     * Read the next available [Short] within the buffer (requires 2 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readShortLe(): Short {
+        checkRemaining(2)
+        val result =
+            ((innerBuffer[offset + position++].toInt() and 0xff) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 8))
         return result.toShort()
     }
 
@@ -86,13 +165,28 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readInt(): Int {
+    public fun readInt(): Int {
         checkRemaining(4)
-        val result = (
-            (innerBuffer[offset + position++].toInt() and 0xff shl 24)
-            or (innerBuffer[offset + position++].toInt() and 0xff shl 16)
-            or (innerBuffer[offset + position++].toInt() and 0xff shl 8)
-            or (innerBuffer[offset + position++].toInt() and 0xff))
+        val result =
+            ((innerBuffer[offset + position++].toInt() and 0xff shl 24) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 16) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 8) or
+                (innerBuffer[offset + position++].toInt() and 0xff))
+        return result
+    }
+
+    /**
+     * Read the next available [Int] within the buffer (requires 4 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readIntLe(): Int {
+        checkRemaining(4)
+        val result =
+            ((innerBuffer[offset + position++].toInt() and 0xff) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 8) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 16) or
+                (innerBuffer[offset + position++].toInt() and 0xff shl 24))
         return result
     }
 
@@ -101,17 +195,48 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readLong(): Long {
+    public fun readLong(): Long {
         checkRemaining(8)
-        val result = (
-            (innerBuffer[offset + position++].toLong() and 0xffL shl 56)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 48)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 40)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 32)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 24)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 16)
-            or (innerBuffer[offset + position++].toLong() and 0xffL shl 8)
-            or (innerBuffer[offset + position++].toLong() and 0xffL))
+        val result =
+            ((innerBuffer[offset + position++].toLong() and 0xffL shl 56) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 48) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 40) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 32) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 24) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 16) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 8) or
+                (innerBuffer[offset + position++].toLong() and 0xffL))
+        return result
+    }
+
+    /**
+     * Read the next available [Long] within the buffer (requires 8 bytes) in LittleEndian order.
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readLongLe(): Long {
+        checkRemaining(8)
+        val result =
+            ((innerBuffer[offset + position++].toLong() and 0xffL) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 8) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 16) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 24) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 32) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 40) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 48) or
+                (innerBuffer[offset + position++].toLong() and 0xffL shl 56))
+        return result
+    }
+
+    public fun readIntLe(byteCount: Int): Long {
+        require(byteCount in 1..8) { "An integer cannot be expressed by 1-8 bytes" }
+        val bytes = readBytes(byteCount)
+        var result = 0L
+        var shiftValue = 0
+        for (i in 1..byteCount) {
+            result = result or (bytes[i - 1].toLong() and 0xff shl shiftValue)
+            shiftValue += 8
+        }
         return result
     }
 
@@ -120,8 +245,17 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readFloat(): Float {
+    public fun readFloat(): Float {
         return Float.fromBits(this.readInt())
+    }
+
+    /**
+     * Read the next available [Float] within the buffer (requires 4 bytes).
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readFloatLe(): Float {
+        return Float.fromBits(this.readIntLe())
     }
 
     /**
@@ -129,8 +263,17 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the buffer has been exhausted
      */
-    fun readDouble(): Double {
+    public fun readDouble(): Double {
         return Double.fromBits(this.readLong())
+    }
+
+    /**
+     * Read the next available [Double] within the buffer (requires 8 bytes).
+     *
+     * @throws BufferExhausted if the buffer has been exhausted
+     */
+    public fun readDoubleLe(): Double {
+        return Double.fromBits(this.readLongLe())
     }
 
     /**
@@ -138,18 +281,11 @@ class ByteReadBuffer(
      *
      * @throws BufferExhausted if the [remaining] bytes cannot satisfy the required number of bytes
      */
-    fun readBytes(length: Int): ByteArray {
+    public fun readBytes(length: Int = remaining): ByteArray {
         checkRemaining(length)
         val start = offset + position
         position += length
         return this.innerBuffer.copyOfRange(start, start + length)
-    }
-
-    /** Read all remaining bytes into a [ByteArray]. This can result in an empty array. */
-    fun readBytes(): ByteArray {
-        val currentPosition = position
-        position = size
-        return this.innerBuffer.copyOfRange(offset + currentPosition, offset + size)
     }
 
     /**
@@ -158,8 +294,12 @@ class ByteReadBuffer(
      *
      * @throws java.nio.charset.MalformedInputException error decoding the String bytes
      */
-    fun readText(charset: Charset = Charsets.UTF_8): String {
-        return String(this.readBytes(), charset = charset)
+    public fun readText(length: Int = remaining): String {
+        if (length == remaining && position == 0 && !isSlice) {
+            position += length
+            return String(innerBuffer, charset = Charsets.UTF_8)
+        }
+        return String(this.readBytes(length = length), charset = Charsets.UTF_8)
     }
 
     /**
@@ -170,35 +310,34 @@ class ByteReadBuffer(
      * @throws BufferExhausted if the buffer has been exhausted before finding a zero byte
      * @throws java.nio.charset.MalformedInputException error decoding the CString bytes
      */
-    fun readCString(charset: Charset = Charsets.UTF_8): String {
-        val buffer = ArrayList<Byte>()
+    public fun readCString(): String {
+        var remaining = this.remaining
+        val start = offset + position
+        var localOffset = 0
 
-        while (remaining() > 0) {
-            val nextByte = innerBuffer[offset + position++]
-            if (nextByte == ZERO_BYTE) {
+        while (remaining > 0) {
+            if (innerBuffer[start + localOffset++] == 0.toByte()) {
                 break
             }
-
-            buffer.add(nextByte)
+            remaining--
         }
-        return String(bytes = buffer.toByteArray(), charset = charset)
+        val result = String(bytes = readBytes(localOffset - 1), charset = Charsets.UTF_8)
+        skip(1)
+        return result
+    }
+
+    /** Write the entire remaining portion of the buffer to a [sink] */
+    public fun transferToSink(sink: Sink) {
+        sink.write(
+            source = innerBuffer,
+            startIndex = offset + position,
+            endIndex = offset + remaining + position,
+        )
+        position = size
     }
 
     /** Reset this buffer to it's initial reading position so the value can be read again */
-    fun reset() {
+    public fun reset() {
         position = 0
-    }
-
-    /**
-     * Reset the buffer's position to 0 and set the inner buffer to an empty [ByteArray]. This
-     * leaves the buffer in an unusable state
-     */
-    override fun close() {
-        reset()
-        innerBuffer = ByteArray(0)
-    }
-
-    companion object {
-        const val ZERO_BYTE: Byte = 0
     }
 }

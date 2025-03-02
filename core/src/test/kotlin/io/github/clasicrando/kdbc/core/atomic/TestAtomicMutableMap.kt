@@ -1,8 +1,6 @@
 package io.github.clasicrando.kdbc.core.atomic
 
 import io.github.clasicrando.kdbc.core.randomString
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,6 +8,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class TestAtomicMutableMap {
     private fun randomIntKeyMap(size: Int, offset: Int = 0): Map<Int, String> {

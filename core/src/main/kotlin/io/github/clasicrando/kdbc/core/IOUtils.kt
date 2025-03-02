@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.core
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.nio.file.Files
 import kotlinx.io.RawSink
 import kotlinx.io.RawSource
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
-import java.nio.file.Files
 
 private val logger = KotlinLogging.logger {}
 
@@ -51,7 +51,7 @@ internal object IOUtils {
      * [mustExist] is true or if the [path] is a directory and that directory is not empty.
      *
      * @throws kotlinx.io.files.FileNotFoundException if the file/directory does not exist and
-     * [mustExist] is true
+     *   [mustExist] is true
      * @throws kotlinx.io.IOException
      */
     fun delete(path: Path, mustExist: Boolean = true) {

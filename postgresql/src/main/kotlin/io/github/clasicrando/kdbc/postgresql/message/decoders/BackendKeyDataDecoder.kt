@@ -12,10 +12,8 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-BACKENDKEYDATA)
  */
-internal object BackendKeyDataDecoder : MessageDecoder<PgMessage.BackendKeyData> {
+internal object BackendKeyDataDecoder : PgMessageDecoder<PgMessage.BackendKeyData>() {
     override fun decode(buffer: ByteReadBuffer): PgMessage.BackendKeyData {
-        return buffer.use {
-            PgMessage.BackendKeyData(it.readInt(), it.readInt())
-        }
+        return PgMessage.BackendKeyData(buffer.readInt(), buffer.readInt())
     }
 }

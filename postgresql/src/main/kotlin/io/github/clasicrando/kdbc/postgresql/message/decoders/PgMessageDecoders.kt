@@ -25,6 +25,7 @@ internal object PgMessageDecoders {
             PgMessage.READY_FOR_QUERY_CODE -> ReadyForQueryDecoder.decode(contents)
             PgMessage.NOTICE_RESPONSE_CODE -> NoticeResponseDecoder.decode(contents)
             PgMessage.DATA_ROW_CODE -> DataRowDecoder.decode(contents)
+            PgMessage.NO_DATA_CODE -> PgMessage.NoData
             PgMessage.COMMAND_COMPLETE_CODE -> CommandCompleteDecoder.decode(contents)
             PgMessage.ROW_DESCRIPTION_CODE -> RowDescriptionDecoder.decode(contents)
             PgMessage.PARSE_COMPLETE_CODE -> PgMessage.ParseComplete
@@ -32,16 +33,16 @@ internal object PgMessageDecoders {
             PgMessage.CLOSE_COMPLETE_CODE -> PgMessage.CloseComplete
             PgMessage.COPY_IN_RESPONSE_CODE -> CopyInResponseDecoder.decode(contents)
             PgMessage.COPY_OUT_RESPONSE_CODE -> CopyOutResponseDecoder.decode(contents)
-            PgMessage.COPY_DATA_CODE -> CopyDataDecoder.decode(contents)
+            PgMessage.COPY_DATA_CODE -> CopyServerDataDecoder.decode(contents)
             PgMessage.COPY_DONE_CODE -> PgMessage.CopyDone
             PgMessage.NOTIFICATION_RESPONSE_CODE -> NotificationResponseDecoder.decode(contents)
             PgMessage.PARAMETER_DESCRIPTION_CODE -> ParameterDescriptionDecoder.decode(contents)
-            PgMessage.NEGOTIATE_PROTOCOL_VERSION_CODE -> NegotiateProtocolVersionDecoder.decode(contents)
+            PgMessage.NEGOTIATE_PROTOCOL_VERSION_CODE ->
+                NegotiateProtocolVersionDecoder.decode(contents)
             else -> {
                 logger.atTrace {
                     message = "Received unexpected message of format = '${rawMessage.format}'"
                 }
-                rawMessage.contents.close()
                 PgMessage.UnknownMessage
             }
         }

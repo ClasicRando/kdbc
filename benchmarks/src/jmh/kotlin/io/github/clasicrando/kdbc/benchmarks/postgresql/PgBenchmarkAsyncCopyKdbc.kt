@@ -1,8 +1,11 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import io.github.clasicrando.kdbc.benchmarks.IOUtils
-import io.github.clasicrando.kdbc.core.query.executeClosing
-import io.github.clasicrando.kdbc.postgresql.connection.PgAsyncConnection
+import io.github.clasicrando.kdbc.core.query.execute
+import io.github.clasicrando.kdbc.core.query.query
+import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
@@ -18,8 +21,6 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -28,7 +29,7 @@ import java.util.concurrent.TimeUnit
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
 open class PgBenchmarkAsyncCopyKdbc {
-    private val connection: PgAsyncConnection = runBlocking { getKdbcAsyncConnection() }
+    private val connection: PgConnection = runBlocking { getKdbcAsyncConnection() }
     private val outputPath = Path(".", "temp", "kdbc-async-copy-out-benchmark.csv")
     private val inputPath = Path(".", "temp", "kdbc-async-copy-in-benchmark.csv")
     private val outputPathJava = java.nio.file.Path.of(outputPath.toString())
@@ -39,55 +40,41 @@ open class PgBenchmarkAsyncCopyKdbc {
         IOUtils.createFileIfNotExists(outputPath)
         createBenchmarkCsv(inputPath)
         runBlocking {
-            connection.createQuery(copyOutSetupQuery)
-                .executeClosing()
-            connection.createQuery(copyInSetupQuery)
-                .executeClosing()
+            query(copyOutSetupQuery).execute(connection)
+            query(copyInSetupQuery).execute(connection)
         }
     }
 
     @Benchmark
     open fun copyOutSink(): Unit = runBlocking {
         IOUtils.sink(outputPath).buffered().use { sink ->
-            connection.copyOut(
-                copyOutStatement = kdbcCopyOut,
-                sink = sink,
-            )
+            connection.copyOut(copyOutStatement = kdbcCopyOut, sink = sink)
         }
     }
 
     @Benchmark
     open fun copyOutStream(): Unit = runBlocking {
         Files.newOutputStream(outputPathJava).use { stream ->
-            connection.copyOut(
-                copyOutStatement = kdbcCopyOut,
-                outputStream = stream,
-            )
+            connection.copyOut(copyOutStatement = kdbcCopyOut, outputStream = stream)
         }
     }
 
     @TearDown(Level.Invocation)
     open fun cleanUp(): Unit = runBlocking {
-        connection.createQuery("TRUNCATE TABLE public.copy_in_posts;").executeClosing()
+        query("TRUNCATE TABLE public.copy_in_posts;").execute(connection)
     }
 
     @Benchmark
     open fun copyInSource(): Unit = runBlocking {
         IOUtils.source(inputPath).buffered().use { source ->
-            connection.copyIn(
-                copyInStatement = kdbcCopyIn,
-                source = source,
-            )
+            connection.copyIn(copyInStatement = kdbcCopyIn, source = source)
         }
     }
 
     @Benchmark
     open fun copyInStream(): Unit = runBlocking {
         Files.newInputStream(inputPathJava).use { stream ->
-            connection.copyIn(
-                copyInStatement = kdbcCopyIn,
-                inputStream = stream,
-            )
+            connection.copyIn(copyInStatement = kdbcCopyIn, inputStream = stream)
         }
     }
 

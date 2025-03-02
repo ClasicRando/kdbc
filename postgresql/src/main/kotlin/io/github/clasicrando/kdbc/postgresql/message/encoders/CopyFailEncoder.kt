@@ -1,9 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.message.encoders
 
-import io.github.clasicrando.kdbc.core.buffer.ByteWriteBuffer
-import io.github.clasicrando.kdbc.core.buffer.writeLengthPrefixed
+import io.github.clasicrando.kdbc.core.buffer.writeCString
 import io.github.clasicrando.kdbc.core.message.MessageEncoder
+import io.github.clasicrando.kdbc.postgresql.buffer.writeLengthPrefixed
 import io.github.clasicrando.kdbc.postgresql.message.PgMessage
+import kotlinx.io.Sink
 
 /**
  * [MessageEncoder] for [PgMessage.CopyFail]. This message is sent to notify the backend that the
@@ -14,11 +15,9 @@ import io.github.clasicrando.kdbc.postgresql.message.PgMessage
  *
  * [docs](https://www.postgresql.org/docs/current/protocol-message-formats.html#PROTOCOL-MESSAGE-FORMATS-COPYFAIL)
  */
-internal object CopyFailEncoder : MessageEncoder<PgMessage.CopyFail> {
-    override fun encode(value: PgMessage.CopyFail, buffer: ByteWriteBuffer) {
+internal object CopyFailEncoder : PgMessageEncoder<PgMessage.CopyFail>() {
+    override fun encode(value: PgMessage.CopyFail, buffer: Sink) {
         buffer.writeByte(value.code)
-        buffer.writeLengthPrefixed(includeLength = true) {
-            writeCString(value.message)
-        }
+        buffer.writeLengthPrefixed(includeLength = true) { writeCString(value.message) }
     }
 }

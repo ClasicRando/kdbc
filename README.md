@@ -10,23 +10,19 @@
     </h4>
 </div>
 
-Database drivers using Kotlin™ to drive database communication. The library
-provides both blocking and non-blocking solutions for database communication.
-The coroutine based solution uses Ktor networking under the hood which
-implements non-blocking selector socket channel connections. For the blocking
-solution, basic java sockets (as seen in JDBC based libraries) are used to
-facilitate database communications. This library is heavily inspired by Rust's
-[SQLx](https://github.com/launchbadge/sqlx) and the connection spec in C#.
+Database drivers using Kotlin™ to facilitate non-blocking, coroutine based database communication.
+This library is heavily inspired by Rust's [SQLx](https://github.com/launchbadge/sqlx), using kotlin idioms to provide a pure kotlin
+approach to .
 
-Currently, there is only initial support for [Postgresql](https://www.postgresql.org/) and plans for
-other freely available databases, but other JDBC compliant databases might
-also be added in the future.
+Currently, there is support for [Postgresql](https://www.postgresql.org/) and
+[MySQL](https://www.mysql.com/) but other databases with JDBC drivers might also be added in the
+future.
 
 ## Importing Library
 ### Gradle
 ```kotlin
 dependencies {
-    implementation("io.github.clasicrando:kdbc-postgresql:0.0.3")
+    implementation("io.github.clasicrando:kdbc-postgresql:0.0.4")
 }
 ```
 
@@ -40,12 +36,11 @@ val connectOptions = PgConnectOptions(
       applicationName = "MyFirstKdbcProject"
 )
 val connection = Postgres.asyncConnection(connectOption = connectOptions)
-val text: String = connection.createQuery("SELECT 'KDBC Docs'")
-    .fetchScalar()
+val text: String = query("SELECT 'KDBC Docs'").fetchScalar(connection)
 println(text) // KDBC Docs
-connection.createPreparedQuery("CALL your_stored_procedure($1, $2)")
+query("CALL your_stored_procedure($1, $2)")
     .bind(1)
     .bind("KDBC Docs")
-    .execute()
+    .execute(connection)
 connection.close()
 ```

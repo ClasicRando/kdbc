@@ -8,4 +8,4 @@ package io.github.clasicrando.kdbc.postgresql.notification
  * [listen](https://www.postgresql.org/docs/current/sql-listen.html)
  * [notify](https://www.postgresql.org/docs/current/sql-notify.html)
  */
-data class PgNotification(val channelName: String, val payload: String)
+public data class PgNotification(val channelName: String, val payload: String)

@@ -1,5 +1,8 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
+import java.sql.Connection
+import java.util.concurrent.TimeUnit
+import kotlin.use
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.Benchmark
@@ -13,9 +16,6 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
-import java.sql.Connection
-import java.util.concurrent.TimeUnit
-import kotlin.use
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -29,9 +29,7 @@ open class PgBenchmarkAsyncSingleJdbc {
 
     @Setup
     open fun start() {
-        connection.createStatement().use { statement ->
-            statement.execute(setupQuery)
-        }
+        connection.createStatement().use { statement -> statement.execute(setupQuery) }
     }
 
     private fun singleStep() {
@@ -45,27 +43,29 @@ open class PgBenchmarkAsyncSingleJdbc {
     }
 
     @Benchmark
-    open fun queryMultipleRows() = runBlocking(Dispatchers.IO) {
-        multiStep()
-        connection.prepareStatement(jdbcQuery).use { preparedStatement ->
-            preparedStatement.setInt(1, id)
-            preparedStatement.setInt(2, id + 10)
-            preparedStatement.executeQuery().use { resultSet ->
-                extractPostDataClassListFromResultSet(resultSet)
+    open fun queryMultipleRows(): Unit =
+        runBlocking(Dispatchers.IO) {
+            multiStep()
+            connection.prepareStatement(jdbcQuery).use { preparedStatement ->
+                preparedStatement.setInt(1, id)
+                preparedStatement.setInt(2, id + 10)
+                preparedStatement.executeQuery().use { resultSet ->
+                    extractPostDataClassListFromResultSet(resultSet)
+                }
             }
         }
-    }
 
     @Benchmark
-    open fun querySingleRow() = runBlocking(Dispatchers.IO) {
-        singleStep()
-        connection.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
-            preparedStatement.setInt(1, id)
-            preparedStatement.executeQuery().use { resultSet ->
-                extractPostDataClassListFromResultSet(resultSet)
+    open fun querySingleRow(): Unit =
+        runBlocking(Dispatchers.IO) {
+            singleStep()
+            connection.prepareStatement(jdbcQuerySingle).use { preparedStatement ->
+                preparedStatement.setInt(1, id)
+                preparedStatement.executeQuery().use { resultSet ->
+                    extractPostDataClassListFromResultSet(resultSet)
+                }
             }
         }
-    }
 
     @TearDown
     open fun tearDown() {

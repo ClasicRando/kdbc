@@ -1,19 +1,18 @@
 package io.github.clasicrando.kdbc.postgresql.connection
 
-import io.github.clasicrando.kdbc.core.LogSettings
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.isZeroOrInfinite
+import io.github.clasicrando.kdbc.core.stream.SocketOptions
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.network.tls.TLSConfigBuilder
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import java.time.ZoneOffset
 import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 
 /** Connection options for a postgresql database */
 @Serializable
-data class PgConnectOptions(
+public data class PgConnectOptions(
     /** Host name or IP address of the postgresql server */
     val host: String,
     /** Port on the host machine of the postgresql server */
@@ -21,9 +20,9 @@ data class PgConnectOptions(
     /** Name of the user to log in to the postgresql server */
     val username: String,
     /** Optional application name to set as part of the connection context */
-    val applicationName: String? = null,
-    /** Timeout duration during initial TCP connection establishment */
-    val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
+    val applicationName: String = "kdbc-driver",
+    /** Options for operating the underlining socket */
+    val socketOptions: SocketOptions = SocketOptions(),
     /** Password if the database instance requires a password */
     val password: String? = null,
     /**
@@ -31,11 +30,11 @@ data class PgConnectOptions(
      * database with the same name as the [username]
      */
     val database: String? = null,
-    /** Statement logging settings. If not specified, [LogSettings.DEFAULT] is used. */
-    val logSettings: LogSettings = LogSettings.DEFAULT,
+    /** Statement logging level. If not specified, [Level.DEBUG] is used. */
+    val statementLogLevel: Level = Level.DEBUG,
     /**
-     * The duration that is waited before canceling a query execution due to timeout. The default
-     * is an infinite timeout which means it will never cancel a query.
+     * The duration that is waited before canceling a query execution due to timeout. The default is
+     * an infinite timeout which means it will never cancel a query.
      *
      * Note: [Duration.ZERO] is also treated as infinite and negative timeouts are ignored with the
      * default value is used
@@ -58,9 +57,7 @@ data class PgConnectOptions(
      * [docs](https://www.postgresql.org/docs/16/runtime-config-client.html#GUC-EXTRA-FLOAT-DIGITS)
      */
     val extraFloatDigits: Int = 1,
-    /**
-     * SSL Mode of the connection. Uses the default mode of [SslMode.Prefer]
-     */
+    /** SSL Mode of the connection. Uses the default mode of [SslMode.Prefer] */
     val sslMode: SslMode = SslMode.DEFAULT,
     /**
      * The default schema within the database connection. Sets the `search_path` connection
@@ -69,97 +66,105 @@ data class PgConnectOptions(
      */
     val currentSchema: String? = null,
     /**
-     * TLS Config builder action to modify the config provided to the ktor socket creator. This is
-     * only used if the server supports TLS and the socket used to create the database connection
-     * is a [io.github.clasicrando.kdbc.core.stream.KtorAsyncStream] (i.e. only for async
-     * connections).
+     * Timezone offset to use when retrieving timezone aware types from the database. The connection
+     * itself will always use UTC but when [java.time.OffsetDateTime] or [java.time.Instant] is
+     * requested, this offset will be applied before returning the value.
+     *
+     * Note that this value is not applied to [java.time.OffsetTime] (the `timetz` type) because
+     * postgres stores the value internally with an offset in seconds from UTC so further processing
+     * is not required.
+     *
+     * The default value is [ZoneOffset.UTC].
      */
-    @Transient
-    val tlsConfig: TLSConfigBuilder.() -> Unit = {},
+    @Transient public val timeZoneOffset: ZoneOffset = ZoneOffset.UTC,
+    /**
+     * TLS Config builder action to modify the config provided to the ktor socket creator. This is
+     * only used if the server supports TLS and the socket used to create the database connection is
+     * a [io.github.clasicrando.kdbc.core.stream.KtorStream] (i.e. only for async connections).
+     */
+    @Transient val tlsConfig: TLSConfigBuilder.() -> Unit = {},
 ) {
     /** Connection properties as they are sent to the database upon connection initialization */
-    val properties: List<Pair<String, String>> = listOf(
-        "user" to username,
-        "database" to database,
-        "client_encoding" to "UTF-8",
-        "DateStyle" to "ISO",
-        "intervalstyle" to "iso_8601",
-        "TimeZone" to "UTC",
-        "extra_float_digits" to extraFloatDigits.toString(),
-        "search_path" to currentSchema,
-        "bytea_output" to "hex",
-        "application_name" to applicationName,
-        "statement_timeout" to queryTimeout.coerceAtLeast(Duration.ZERO).let {
-            if (it.isZeroOrInfinite()) {
-                "0"
-            } else {
-                it.inWholeMilliseconds.coerceAtMost(Int.MAX_VALUE.toLong()).toString()
-            }
-        }
-    ).mapNotNull { (key, value) ->
-        value?.let { key to it }
-    }
-
-    /**
-     * Return a shallow copy of the current [PgConnectOptions] with the log statement [level]
-     * altered
-     */
-    fun logStatements(level: Level): PgConnectOptions {
-        val newLogSettings = logSettings.copy(statementLevel = level)
-        return copy(logSettings = newLogSettings)
-    }
-
-    /**
-     * Return a shallow copy of the current [PgConnectOptions] with the new log slow statement
-     * [level] and [duration] altered
-     */
-    fun logSlowStatements(level: Level, duration: Duration): PgConnectOptions {
-        val newLogSettings = logSettings.copy(
-            slowStatementsLevel = level,
-            slowStatementDuration = duration,
-        )
-        return copy(logSettings = newLogSettings)
-    }
-
-    /**
-     * Return a shallow copy of the current [PgConnectOptions] with both log statement levels set
-     * to [Level.OFF] and the slow statement duration set to [Duration.INFINITE].
-     */
-    fun disableStatementLogging(): PgConnectOptions {
-        return copy(
-            logSettings = LogSettings(
-                statementLevel = Level.OFF,
-                slowStatementsLevel = Level.OFF,
-                slowStatementDuration = Duration.INFINITE
+    @Transient
+    val properties: List<Pair<String, String>> =
+        listOf(
+                "user" to username,
+                "database" to database,
+                "client_encoding" to "UTF-8",
+                "DateStyle" to "ISO",
+                "intervalstyle" to "iso_8601",
+                "TimeZone" to "UTC",
+                "extra_float_digits" to extraFloatDigits.toString(),
+                "search_path" to currentSchema,
+                "bytea_output" to "hex",
+                "application_name" to applicationName,
+                "statement_timeout" to
+                    queryTimeout.coerceAtLeast(Duration.ZERO).let {
+                        if (it.isZeroOrInfinite()) {
+                            "0"
+                        } else {
+                            it.inWholeMilliseconds.coerceAtMost(Int.MAX_VALUE.toLong()).toString()
+                        }
+                    },
             )
-        )
+            .mapNotNull { (key, value) -> value?.let { key to it } }
+
+    /**
+     * Return a shallow copy of the current [PgConnectOptions] with both log statement levels set to
+     * [Level.OFF] and the slow statement duration set to [Duration.INFINITE].
+     */
+    public fun disableStatementLogging(): PgConnectOptions {
+        return copy(statementLogLevel = Level.OFF)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PgConnectOptions) return false
+
+        if (port != other.port) return false
+        if (statementCacheCapacity != other.statementCacheCapacity) return false
+        if (useExtendedProtocolForSimpleQueries != other.useExtendedProtocolForSimpleQueries)
+            return false
+        if (extraFloatDigits != other.extraFloatDigits) return false
+        if (host != other.host) return false
+        if (username != other.username) return false
+        if (applicationName != other.applicationName) return false
+        if (socketOptions != other.socketOptions) return false
+        if (password != other.password) return false
+        if (database != other.database) return false
+        if (statementLogLevel != other.statementLogLevel) return false
+        if (queryTimeout != other.queryTimeout) return false
+        if (sslMode != other.sslMode) return false
+        if (currentSchema != other.currentSchema) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = port
+        result = 31 * result + statementCacheCapacity
+        result = 31 * result + useExtendedProtocolForSimpleQueries.hashCode()
+        result = 31 * result + extraFloatDigits
+        result = 31 * result + host.hashCode()
+        result = 31 * result + username.hashCode()
+        result = 31 * result + applicationName.hashCode()
+        result = 31 * result + socketOptions.hashCode()
+        result = 31 * result + (password?.hashCode() ?: 0)
+        result = 31 * result + (database?.hashCode() ?: 0)
+        result = 31 * result + statementLogLevel.hashCode()
+        result = 31 * result + queryTimeout.hashCode()
+        result = 31 * result + sslMode.hashCode()
+        result = 31 * result + (currentSchema?.hashCode() ?: 0)
+        return result
     }
 
     override fun toString(): String {
-        return buildString {
-            append("PgConnectOptions(host=")
-            append(host)
-            append(",port=")
-            append(port)
-            append(",username=")
-            append(username)
-            append(",applicationName=")
-            append(applicationName)
-            append(",connectionTimeout=")
-            append(connectionTimeout)
-            append(",password=***, database=")
-            append(database)
-            append(",logSettings=")
-            append(logSettings)
-            append(",statementCacheCapacity=")
-            append(statementCacheCapacity)
-            append(",extraFloatDigits=")
-            append(extraFloatDigits)
-            append(",sslMode=")
-            append(sslMode)
-            append(",currentSchema=")
-            append(currentSchema)
-            append(")")
-        }
+        return "PgConnectOptions(host='$host', port=$port, username='$username', " +
+            "applicationName='$applicationName', connectionTimeout=$socketOptions, " +
+            "database=$database, statementLogLevel=$statementLogLevel, queryTimeout=$queryTimeout, " +
+            "statementCacheCapacity=$statementCacheCapacity, " +
+            "useExtendedProtocolForSimpleQueries=$useExtendedProtocolForSimpleQueries, " +
+            "extraFloatDigits=$extraFloatDigits, sslMode=$sslMode, currentSchema=$currentSchema" +
+            "timeZoneOffset=$timeZoneOffset)"
     }
 }

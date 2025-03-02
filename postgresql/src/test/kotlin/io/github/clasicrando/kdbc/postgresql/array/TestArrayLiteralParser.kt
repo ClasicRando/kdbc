@@ -1,10 +1,10 @@
 package io.github.clasicrando.kdbc.postgresql.array
 
 import io.github.clasicrando.kdbc.postgresql.type.ArrayLiteralParser
+import java.util.stream.Stream
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.util.stream.Stream
 
 class TestArrayLiteralParser {
     @ParameterizedTest
@@ -23,10 +23,8 @@ class TestArrayLiteralParser {
                 "{1,2,3,4}" to listOf("1", "2", "3", "4"),
                 "{test,1,also a test}" to listOf("test", "1", "also a test"),
                 "{\"2023-01-01 02:22:26-01\"}" to listOf("2023-01-01 02:22:26-01"),
-                "{\"(test,1,also a test)\",\"(test,1,also a test)\"}" to listOf(
-                    "(test,1,also a test)",
-                    "(test,1,also a test)"
-                ),
+                "{\"(test,1,also a test)\",\"(test,1,also a test)\"}" to
+                    listOf("(test,1,also a test)", "(test,1,also a test)"),
                 "{}" to listOf(),
                 "{test,NULL,also a test}" to listOf("test", null, "also a test"),
             )

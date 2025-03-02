@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.benchmarks
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.nio.file.Files
 import kotlinx.io.RawSink
 import kotlinx.io.RawSource
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
-import java.nio.file.Files
 
 private val logger = KotlinLogging.logger {}
 
@@ -23,9 +23,7 @@ object IOUtils {
      *
      * @throws kotlinx.io.IOException
      */
-    fun pathExists(path: Path): Boolean {
-        return SystemFileSystem.exists(path = path)
-    }
+    fun pathExists(path: Path): Boolean = SystemFileSystem.exists(path = path)
 
     /**
      * Creates the file defined by the [path] if it doesn't already exist.
@@ -51,7 +49,7 @@ object IOUtils {
      * [mustExist] is true or if the [path] is a directory and that directory is not empty.
      *
      * @throws kotlinx.io.files.FileNotFoundException if the file/directory does not exist and
-     * [mustExist] is true
+     *   [mustExist] is true
      * @throws kotlinx.io.IOException
      */
     fun delete(path: Path, mustExist: Boolean = true) {
