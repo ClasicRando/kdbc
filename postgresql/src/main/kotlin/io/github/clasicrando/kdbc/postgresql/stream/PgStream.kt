@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.postgresql.stream
 
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
+import io.github.clasicrando.kdbc.core.Loop
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.config.Kdbc
 import io.github.clasicrando.kdbc.core.logWithResource
@@ -25,9 +26,6 @@ import io.github.oshai.kotlinlogging.Level
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.io.Buffer
 
 private val logger = KotlinLogging.logger {}
@@ -73,26 +71,28 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     /**
+     * Receives the next available server message from the underlining connection and handles some
+     * known asynchronous messages that may be received from the server so the caller does not need
+     * to handle them explicitly. This differs from [receiveNextServerMessage] because that message
+     * just decodes the incoming message and doesn't handle some async messages. These messages are:
      *
+     * 1. [PgMessage.NoticeResponse]
+     * 2. [PgMessage.NotificationResponse] if [handleNotification] is true
+     * 3. [PgMessage.ParameterStatus]
+     * 4. [PgMessage.BackendKeyData]
+     * 5. [PgMessage.NegotiateProtocolVersion]
+     * 6. [PgMessage.ErrorResponse] if [throwOnError] is true
+     *
+     * @throws GeneralPostgresError if an [PgMessage.ErrorResponse] is received from the server and
+     * [throwOnError] is true
+     * @throws io.github.clasicrando.kdbc.core.stream.KdbcIOException if an IO error occurs while
+     * receiving the next message
      */
-    inline fun <reified T : PgMessage> getIncomingMessagesUntil(
+    suspend inline fun processMessageLoop(
         throwOnError: Boolean = true,
         handleNotification: Boolean = true,
-    ): Flow<PgMessage> {
-        return getIncomingMessagesUntil(
-            throwOnError = throwOnError,
-            handleNotification = handleNotification,
-        ) { it is T }
-    }
-
-    /**
-     *
-     */
-    fun getIncomingMessagesUntil(
-        throwOnError: Boolean = true,
-        handleNotification: Boolean = true,
-        endAfter: (PgMessage) -> Boolean
-    ): Flow<PgMessage> = flow {
+        process: (PgMessage) -> Loop
+    ) {
         while (true) {
             when (val message = receiveNextServerMessage()) {
                 is PgMessage.NoticeResponse -> onNotice(message)
@@ -102,9 +102,9 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
                 is PgMessage.NegotiateProtocolVersion -> onNegotiateProtocolVersion(message)
                 is PgMessage.ErrorResponse if throwOnError -> throw GeneralPostgresError(message)
                 else -> {
-                    emit(message)
-                    if (endAfter(message)) {
-                        break
+                    when (process(message)) {
+                        Loop.Continue -> continue
+                        Loop.Break -> break
                     }
                 }
             }
@@ -112,23 +112,22 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
     }
 
     /**
-     * Calls [getIncomingMessagesUntil] until the desired message [T] is received or an error occurs.
+     * Calls [processMessageLoop] until the desired message [T] is received or an error occurs.
      * For example, when starting a `COPY TO` operation, [PgMessage.CopyOutResponse] must be found
      * before continuing to a message processor for [PgMessage.CopyServerData] messages.
      */
     suspend inline fun <reified T : PgMessage> waitForOrError(): T {
-        return getIncomingMessagesUntil<T>()
-            .mapNotNull { message ->
-                if (message !is T) {
-                    log(Kdbc.detailedLogging) {
-                        this.message =
-                            "Ignoring $message since it's not an error or the desired type"
-                    }
-                    return@mapNotNull null
+        processMessageLoop { message ->
+            if (message !is T) {
+                log(Kdbc.detailedLogging) {
+                    this.message =
+                        "Ignoring $message since it's not an error or the desired type"
                 }
-                message
+                return@processMessageLoop Loop.Continue
             }
-            .first()
+            return message
+        }
+        throw PgException("Exited message processing loop before ${T::class.qualifiedName!!} message returned")
     }
 
     /**
@@ -137,18 +136,20 @@ internal class PgStream(private val stream: Stream, internal val connectOptions:
      * listener to wait for the next notification.
      */
     suspend fun waitForNotificationOrError(): PgNotification {
-        return getIncomingMessagesUntil<PgMessage.NotificationResponse>(handleNotification = false)
-            .mapNotNull { message ->
-                if (message !is PgMessage.NotificationResponse) {
-                    log(Kdbc.detailedLogging) {
-                        this.message =
-                            "Ignoring $message since it's not an error or the desired type"
-                    }
-                    return@mapNotNull null
+        processMessageLoop(handleNotification = false) { message ->
+            if (message !is PgMessage.NotificationResponse) {
+                log(Kdbc.detailedLogging) {
+                    this.message =
+                        "Ignoring $message since it's not an error or the desired type"
                 }
-                PgNotification(channelName = message.channelName, payload = message.payload)
+                return@processMessageLoop Loop.Continue
             }
-            .first()
+            return PgNotification(
+                channelName = message.channelName,
+                payload = message.payload,
+            )
+        }
+        throw PgException("Exited message processing loop before PgMessage.NotificationResponse message returned")
     }
 
     /**
