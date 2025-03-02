@@ -3,6 +3,11 @@ package io.github.clasicrando.kdbc.core.pool
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -10,17 +15,14 @@ import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
-import kotlin.uuid.Uuid
+import kotlin.test.Test
 
 const val TEST_TIMEOUT = 60L
 
 class TestAbstractDefaultConnectionPool {
-    //    @ParameterizedTest
+    @ParameterizedTest
     @Timeout(value = TEST_TIMEOUT)
     @ValueSource(ints = [0, 1])
     fun `acquire should return connection`(minConnections: Int): Unit = runBlocking {
@@ -44,7 +46,7 @@ class TestAbstractDefaultConnectionPool {
             .use { assertDoesNotThrow { it.acquire() } }
     }
 
-    //    @Test
+    @Test
     @Timeout(value = TEST_TIMEOUT)
     fun `acquire should return connection after suspending when pool exhausted`(): Unit =
         runBlocking {
@@ -73,15 +75,15 @@ class TestAbstractDefaultConnectionPool {
                 }
         }
 
-    //    @Test
+    @Test
     @Timeout(value = TEST_TIMEOUT)
-    fun `acquire should throw cancellation exception when acquire duration exceeded`(): Unit =
+    fun `acquire should throw AcquireTimeout exception when acquire duration exceeded`(): Unit =
         runBlocking {
             val options =
                 PoolOptions(
                     maxConnections = 1,
                     minIdleConnections = 0,
-                    acquireTimeout = 1.toDuration(DurationUnit.NANOSECONDS),
+                    acquireTimeout = 1.toDuration(DurationUnit.SECONDS),
                 )
             mockConnectionPool(
                     poolOptions = options,
@@ -100,7 +102,7 @@ class TestAbstractDefaultConnectionPool {
                 }
         }
 
-    //    @Test
+    @Test
     @Timeout(value = TEST_TIMEOUT)
     fun `giveBack should return connection to pool when returned connection is valid`(): Unit =
         runBlocking {
@@ -133,79 +135,6 @@ class TestAbstractDefaultConnectionPool {
                     assertDoesNotThrow { it.acquire() }
                 }
         }
-
-    //    @Test
-    @Timeout(value = TEST_TIMEOUT)
-    fun `initialize should return false when first connection is invalid`(): Unit = runBlocking {
-        val options =
-            PoolOptions(
-                maxConnections = 1,
-                minIdleConnections = 0,
-                acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
-            )
-        //        mockConnectionPool(
-        //                poolOptions = options,
-        //                create = {
-        //                    val connectionId = Uuid.random()
-        //                    val connection = mockk<Connection>(relaxed = true)
-        //                    every { connection.resourceId } returns connectionId
-        //                    every { connection.isConnected } returns true
-        //                    connection
-        //                },
-        //                validate = { false },
-        //            )
-        //            .use {
-        //                val isValid = it.initialize()
-        //                assertFalse(isValid)
-        //            }
-    }
-
-    //    @Test
-    @Timeout(value = TEST_TIMEOUT)
-    fun `initialize should return true when first connection is valid`(): Unit = runBlocking {
-        val options =
-            PoolOptions(
-                maxConnections = 1,
-                minIdleConnections = 0,
-                acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
-            )
-        //        mockConnectionPool(
-        //                poolOptions = options,
-        //                create = {
-        //                    val connectionId = Uuid.random()
-        //                    val connection = mockk<Connection>(relaxed = true)
-        //                    every { connection.resourceId } returns connectionId
-        //                    every { connection.isConnected } returns true
-        //                    connection
-        //                },
-        //                validate = { true },
-        //            )
-        //            .use {
-        //                val isValid = it.initialize()
-        //                assertTrue(isValid)
-        //            }
-    }
-
-    //    @Test
-    @Timeout(value = TEST_TIMEOUT)
-    fun `initialize return false when create throws`(): Unit = runBlocking {
-        val exceptionMessage = "Special Throwable"
-        val options =
-            PoolOptions(
-                maxConnections = 1,
-                minIdleConnections = 0,
-                acquireTimeout = 5.toDuration(DurationUnit.SECONDS),
-            )
-        //        mockConnectionPool(
-        //                poolOptions = options,
-        //                create = { throw Exception(exceptionMessage) },
-        //                validate = { true },
-        //            )
-        //            .use {
-        //                val result = assertDoesNotThrow { it.initialize() }
-        //                assertFalse(result)
-        //            }
-    }
 }
 
 private suspend inline fun <R, C : Connection> ConnectionPool<C>.use(

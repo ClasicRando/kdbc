@@ -63,13 +63,21 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
      */
     public abstract suspend fun disposeConnection(connection: C)
 
-    /** TODO */
+    /**
+     * Attempts to borrow a connection from this pool, waiting for a free connection if all are
+     * currently in use. The method will throw [AcquireTimeout] if the [PoolOptions.acquireTimeout]
+     * is exceeded while waiting for a connection
+     */
     final override suspend fun acquire(): C {
         var timeout = poolOptions.acquireTimeout
         do {
-            val (entry, duration) =
-                measureTimedValue { bag.borrow(timeout = timeout) ?: throw AcquireTimeout() }
+            val (entry, duration) = measureTimedValue { bag.borrow(timeout = timeout) }
+            if (entry == null) {
+                throw AcquireTimeout()
+            }
 
+            // Final check to see if the borrowed entry has been evicted or exceeded timeout and is
+            // invalid. If the check fails, invalidate that entry and try again
             if (
                 entry.isEvicted ||
                     (hasExceededIdleTimeout(entry) && isInvalidConnection(entry.item))
@@ -85,7 +93,7 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
         throw AcquireTimeout()
     }
 
-    /** TODO */
+    /** Removed the [entry] from this pool and closes the underlining connection */
     private suspend fun invalidateConnection(entry: PoolEntry<C>) {
         try {
             bag.removeEntry(entry)
@@ -100,7 +108,7 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
         }
     }
 
-    /** TODO */
+    /** Returns true if the supplied [poolConnection] is found in the pool */
     internal fun hasConnection(poolConnection: C): Boolean {
         return bag.values.any { it.item.resourceId == poolConnection.resourceId }
     }
@@ -126,7 +134,10 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
         cancel()
     }
 
-    /** TODO */
+    /**
+     * Returns true if the [connection] cannot be validated or throws an exception while validating.
+     * Otherwise, returns false.
+     */
     private suspend fun isInvalidConnection(connection: C): Boolean {
         try {
             if (!validate(connection)) {
@@ -142,13 +153,20 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
         return false
     }
 
-    /** TODO */
+    /**
+     * Returns true if the [entry] hasn't been accessed for a duration equal to the
+     * [PoolOptions.idleTimeout]
+     */
     private fun hasExceededIdleTimeout(entry: PoolEntry<C>): Boolean {
         return Instant.now()
             .isAfter(entry.lastAccessed.plusMillis(poolOptions.idleTimeout.inWholeMilliseconds))
     }
 
-    /** TODO */
+    /**
+     * [ChannelExecutor.Action] that creates new [PoolEntry]s and adds them to the pool. If a new
+     * entry fails to be created, there is an exponential backoff applied (starting at 10ms) for
+     * each retry until a max duration of 5s.
+     */
     private inner class PoolEntryCreator : ChannelExecutor.Action {
         val maxBackoffDuration = 5.toDuration(DurationUnit.SECONDS)
 
@@ -176,7 +194,11 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
                         bag.waitingCount > bag.idleEntriesCount)
     }
 
-    /** TODO */
+    /**
+     * Create a new [PoolEntry] holding a [Connection]. Also initializes the keep alive job and max
+     * lifetime jobs associated with the [Connection]. Returns the [PoolEntry] or null if any step
+     * initializing the entry fails.
+     */
     private suspend fun createNewConnection(): PoolEntry<C>? {
         try {
             val connection = create()
@@ -195,6 +217,14 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
         return null
     }
 
+    /**
+     * Initialize the first entry of the pool in a [runBlocking] action to allow for execution
+     * during the object's constructor.
+     *
+     * The initial connection is created using [createNewConnection] and the result is checked to
+     * ensure it's non-null and passes the [isInvalidConnection] test. If those succeed, the first
+     * connection is added to the pool. Otherwise, a [KdbcException] is thrown describing the issue.
+     */
     protected fun initializePool(): Unit = runBlocking {
         var initialConnection: PoolEntry<C>? = null
         try {
@@ -214,6 +244,10 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
         }
     }
 
+    /**
+     * Launch a coroutine that waits for a [callbackTimeout] and then soft evicts the specified
+     * [entry] from the pool. If the eviction succeeds, a new entry is requested.
+     */
     private fun CoroutineScope.maxLifetimeJob(entry: PoolEntry<C>, callbackTimeout: Duration): Job {
         return launch(cleaningDispatcher) {
             delay(callbackTimeout)
@@ -223,6 +257,10 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
         }
     }
 
+    /**
+     * Launch a coroutine that attempts to keep the [entry] alive every [callbackTimeout]. Once the
+     * timeout is exceeded, [keepAliveTask] is run.
+     */
     private fun CoroutineScope.keepAliveJob(entry: PoolEntry<C>, callbackTimeout: Duration): Job {
         return launch(cleaningDispatcher) {
             delay(callbackTimeout)
@@ -238,13 +276,19 @@ public abstract class AbstractDefaultConnectionPool<C : Connection>(
             return
         }
 
-        if (isInvalidConnection(entry.item)) {
-            softEvictConnection(entry, true)
-            requestCreate(bag.waitingCount)
-            return
+        var didEvict = false
+        try {
+            if (isInvalidConnection(entry.item)) {
+                softEvictConnection(entry, true)
+                didEvict = true
+                requestCreate(bag.waitingCount)
+                return
+            }
+        } finally {
+            if (!didEvict) {
+                bag.releaseEntry(entry)
+            }
         }
-
-        bag.releaseEntry(entry)
     }
 
     private suspend fun softEvictConnection(entry: PoolEntry<C>, isEntryOwner: Boolean): Boolean {
