@@ -71,7 +71,7 @@ public suspend inline fun <reified T : Any> Query.fetchScalar(connection: Connec
 @PublishedApi
 internal suspend fun Query.fetchScalar(connection: Connection, kType: KType): Any? {
     val row = fetchFirstRow(connection) ?: throw EmptyQueryResult("")
-    return row[0, kType]
+    return row.get(0, kType)
 }
 
 /**
@@ -196,6 +196,9 @@ public fun List<Query>.fetchMany(
  *   exceptions for more details
  */
 public fun <T : Any, R : RowParser<T>> List<DataRow>.mapToRows(rowParser: R): List<T> {
+    if (this.isEmpty()) {
+        return emptyList()
+    }
     return this.map { it.parse(rowParser) }
 }
 

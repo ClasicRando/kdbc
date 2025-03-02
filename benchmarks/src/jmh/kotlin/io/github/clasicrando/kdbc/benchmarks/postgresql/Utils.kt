@@ -1,8 +1,13 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import io.github.clasicrando.kdbc.benchmarks.IOUtils
+import io.github.clasicrando.kdbc.benchmarks.PostDataClass
+import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.pool.PoolOptions
+import io.github.clasicrando.kdbc.core.stream.SocketOptions
 import io.github.clasicrando.kdbc.postgresql.Postgres
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
@@ -11,15 +16,12 @@ import io.github.oshai.kotlinlogging.Level
 import java.sql.DriverManager
 import java.sql.ResultSet
 import java.time.LocalDateTime
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 import kotlin.uuid.Uuid
 import kotlinx.io.asOutputStream
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
-import org.apache.commons.dbcp2.DriverManagerConnectionFactory
-import org.apache.commons.dbcp2.PoolableConnection
-import org.apache.commons.dbcp2.PoolableConnectionFactory
-import org.apache.commons.dbcp2.PoolingDataSource
-import org.apache.commons.pool2.impl.GenericObjectPool
 import org.postgresql.jdbc.PgConnection as JdbcPgConnection
 
 val jdbcQuerySingle =
@@ -180,12 +182,9 @@ private val connectionString =
 fun getJdbcConnection(): JdbcPgConnection =
     DriverManager.getConnection(connectionString).unwrap(JdbcPgConnection::class.java)
 
-fun getJdbcDataSource(): PoolingDataSource<PoolableConnection> {
-    val connectionFactory = DriverManagerConnectionFactory(connectionString, null)
-    val poolableConnectionFactory = PoolableConnectionFactory(connectionFactory, null)
-    val connectionPool = GenericObjectPool(poolableConnectionFactory)
-    poolableConnectionFactory.pool = connectionPool
-    return PoolingDataSource(connectionPool)
+fun getJdbcDataSource(): HikariDataSource {
+    val config = HikariConfig().apply { jdbcUrl = connectionString }
+    return HikariDataSource(config)
 }
 
 private const val KDBC_MISSING_ENVIRONMENT_VARIABLE_MESSAGE =
@@ -202,9 +201,12 @@ val kdbcConnectOptions =
         database = "postgres",
         applicationName = "KdbcTests${Uuid.random()}",
         statementLogLevel = Level.TRACE,
+        socketOptions = SocketOptions(socketTimeout = 10.toDuration(DurationUnit.SECONDS)),
+        sslMode = SslMode.Disable,
     )
 
-val poolOptions = PoolOptions(maxConnections = 10, minConnections = 8)
+val poolOptions =
+    PoolOptions(maxConnections = 10, acquireTimeout = 10.toDuration(DurationUnit.SECONDS))
 
 suspend fun getKdbcAsyncConnection(): PgConnection =
     Postgres.connection(connectOptions = kdbcConnectOptions)

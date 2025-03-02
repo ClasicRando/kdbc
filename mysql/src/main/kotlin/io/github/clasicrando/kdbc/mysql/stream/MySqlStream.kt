@@ -3,6 +3,7 @@ package io.github.clasicrando.kdbc.mysql.stream
 import io.github.clasicrando.kdbc.core.DefaultUniqueResourceId
 import io.github.clasicrando.kdbc.core.SslMode
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.logWithResource
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.core.stream.Stream
@@ -52,7 +53,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      * Current client capabilities. Initialized with certain values but gets updated to remove
      * capabilities that the server does not possess.
      */
-    var capabilities =
+    var capabilities: LongBitFlags =
         Capabilities.CLIENT_PROTOCOL_41 +
             Capabilities.CLIENT_IGNORE_SPACE +
             Capabilities.CLIENT_DEPRECATE_EOF +
@@ -68,7 +69,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             Capabilities.CLIENT_LOCAL_FILES +
             Capabilities.CLIENT_CONNECT_ATTRS +
             if (connectionOptions.database == null) {
-                Capabilities(0uL)
+                LongBitFlags(0)
             } else {
                 Capabilities.CLIENT_CONNECT_WITH_DB
             }
@@ -133,7 +134,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             MysqlMessage.SslRequest(maxPacketSize = MAX_PACKET_SIZE, characterSet = DEFAULT_CHARSET)
         )
 
-        innerStream.upgradeTls(connectionOptions.connectionTimeout)
+        innerStream.upgradeTls()
         isTls = true
     }
 
@@ -142,7 +143,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
         while (waitingQueue.isNotEmpty()) {
             while (waitingQueue.firstOrNull() == Waiting.Row) {
                 val packet = receiveNextPacket()
-                if (packet.peekNextAsInt() == 0xfe && packet.remaining() < 9) {
+                if (packet.peekNextAsInt() == 0xfe && packet.remaining < 9) {
                     val eof = EofDecoder.decode(packet, Unit)
                     removeFirstWaitingIfAny()
                     if (eof.status[Status.SERVER_MORE_RESULTS_EXISTS]) {
@@ -185,17 +186,16 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      */
     suspend fun receiveNextPacket(): ByteReadBuffer {
         var payload = readRawPacket()
-        if (payload.remaining() >= MAX_PACKET_SIZE) {
+        if (payload.remaining >= MAX_PACKET_SIZE) {
             var lastRead = MAX_PACKET_SIZE
             while (lastRead == MAX_PACKET_SIZE) {
                 val nextPayload = readRawPacket()
-                lastRead = nextPayload.remaining()
-                val nextBytes = nextPayload.readBytes()
-                payload = ByteReadBuffer(payload.readBytes().plus(nextBytes))
+                lastRead = nextPayload.remaining
+                payload += nextPayload
             }
         }
 
-        if (payload.exhausted()) {
+        if (payload.isExhausted) {
             throw MySqlException("Received empty packet")
         }
 
@@ -227,7 +227,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
      * Receive the next packet and decode using a [MessageDecoder] that has a context of
      * [Capabilities]
      */
-    suspend fun <M : MysqlMessage> receiveNext(decoder: MessageDecoder<M, Capabilities>): M {
+    suspend fun <M : MysqlMessage> receiveNext(decoder: MessageDecoder<M, LongBitFlags>): M {
         return decoder.decode(receiveNextPacket(), capabilities)
     }
 
@@ -284,7 +284,7 @@ internal class MySqlStream(val innerStream: Stream, val connectionOptions: MySql
             stream: Stream,
             connectionOptions: MySqlConnectionOptions,
         ): MySqlStream {
-            stream.connect(timeout = connectionOptions.connectionTimeout)
+            stream.connect()
             val mySqlStream =
                 MySqlStream(innerStream = stream, connectionOptions = connectionOptions)
             mySqlStream.authFlow()

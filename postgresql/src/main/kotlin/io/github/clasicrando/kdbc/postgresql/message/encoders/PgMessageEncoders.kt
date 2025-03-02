@@ -30,7 +30,7 @@ internal object PgMessageEncoders {
             is PgMessage.Execute -> ExecuteEncoder.encode(message, buffer)
             is PgMessage.Sync -> CodeOnlyMessageEncoder.encode(message, buffer)
             is PgMessage.Close -> CloseEncoder.encode(message, buffer)
-            is PgMessage.CopyData -> CopyDataEncoder.encode(message, buffer)
+            is PgMessage.CopyClientData -> CopyClientDataEncoder.encode(message, buffer)
             is PgMessage.CopyDone -> CodeOnlyMessageEncoder.encode(message, buffer)
             is PgMessage.CopyFail -> CopyFailEncoder.encode(message, buffer)
             is PgMessage.CancelRequest -> CancelRequestEncoder.encode(message, buffer)

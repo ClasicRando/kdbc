@@ -124,7 +124,7 @@ internal object LocalDateTimeTypeDescription :
     private val formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss[.S]")
 
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+        return dbType.inner == MySqlType.Timestamp.inner || dbType.inner == MySqlType.Datetime.inner
     }
 
     /**
@@ -177,7 +177,7 @@ internal class OffsetDateTimeTypeDescription(private val zoneOffset: ZoneOffset)
         kType = typeOf<OffsetDateTime>(),
     ) {
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+        return LocalDateTimeTypeDescription.isCompatible(dbType)
     }
 
     /** Changes the offset to [ZoneOffset.UTC] and encodes using [LocalDateTimeTypeDescription] */
@@ -209,7 +209,7 @@ internal class OffsetDateTimeTypeDescription(private val zoneOffset: ZoneOffset)
 internal class InstantTypeDescription(private val zoneOffset: ZoneOffset) :
     MySqlTypeDescription<Instant>(dbType = MySqlType.Timestamp, kType = typeOf<Instant>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Timestamp || dbType == MySqlType.Datetime
+        return LocalDateTimeTypeDescription.isCompatible(dbType)
     }
 
     /**
@@ -292,7 +292,7 @@ private fun Sink.encodeTime(time: LocalTime, includeMicro: Boolean) {
  *   the buffer has 3 or fewer bytes.
  */
 private fun ByteReadBuffer.decodeDate(): LocalDate {
-    val length = remaining()
+    val length = remaining
     checkOrMySqlException(length > 0) { "Found a zero date when trying to decode DATE value" }
     checkOrMySqlException(length >= 4) {
         "Require 4 bytes to decode a DATE value but only found $length"
@@ -315,6 +315,6 @@ private fun ByteReadBuffer.decodeTime(length: Int): LocalTime {
     val hour = readByteAsInt()
     val minute = readByteAsInt()
     val second = readByteAsInt()
-    val microSecond = if (length > 3) readIntLe(remaining()) else 0
+    val microSecond = if (length > 3) readIntLe(remaining) else 0
     return LocalTime.of(hour, minute, second, validateInt(microSecond))
 }

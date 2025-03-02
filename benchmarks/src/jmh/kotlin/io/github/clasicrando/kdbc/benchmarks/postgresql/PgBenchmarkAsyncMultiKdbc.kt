@@ -1,5 +1,8 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
+import io.github.clasicrando.kdbc.benchmarks.PostDataClass
+import io.github.clasicrando.kdbc.benchmarks.PostDataClassRowParser
+import io.github.clasicrando.kdbc.core.pool.useConnection
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute
 import io.github.clasicrando.kdbc.core.query.fetchAll
@@ -19,6 +22,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 
 @Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
@@ -33,7 +37,7 @@ open class PgBenchmarkAsyncMultiKdbc {
         PgConnectionPool(connectOptions = kdbcConnectOptions, poolOptions = poolOptions)
 
     @Setup
-    open fun start(): Unit = runBlocking { pool.acquire().use { query(setupQuery).execute(it) } }
+    open fun start(): Unit = runBlocking { pool.useConnection { query(setupQuery).execute(it) } }
 
     private fun step(): Int {
         id++
@@ -55,4 +59,6 @@ open class PgBenchmarkAsyncMultiKdbc {
             }
         results.awaitAll()
     }
+
+    @TearDown open fun destroy(): Unit = runBlocking { pool.close() }
 }

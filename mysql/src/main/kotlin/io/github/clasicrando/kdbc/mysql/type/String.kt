@@ -19,14 +19,14 @@ import kotlinx.io.Sink
 internal object StringTypeDescription :
     MySqlTypeDescription<String>(dbType = MySqlType.VarString, kType = typeOf<String>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Varchar ||
-            dbType == MySqlType.Blob ||
-            dbType == MySqlType.TinyBlob ||
-            dbType == MySqlType.MediumBlob ||
-            dbType == MySqlType.LongBlob ||
-            dbType == MySqlType.String ||
-            dbType == MySqlType.VarString ||
-            dbType == MySqlType.Enum
+        return dbType.inner == MySqlType.Varchar.inner ||
+            dbType.inner == MySqlType.Blob.inner ||
+            dbType.inner == MySqlType.TinyBlob.inner ||
+            dbType.inner == MySqlType.MediumBlob.inner ||
+            dbType.inner == MySqlType.LongBlob.inner ||
+            dbType.inner == MySqlType.String.inner ||
+            dbType.inner == MySqlType.VarString.inner ||
+            dbType.inner == MySqlType.Enum.inner
     }
 
     override fun encode(value: String, buffer: Sink) {
@@ -50,7 +50,7 @@ internal object StringTypeDescription :
 internal object BigDecimalTypeDescription :
     MySqlTypeDescription<BigDecimal>(dbType = MySqlType.NewDecimal, kType = typeOf<BigDecimal>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.NewDecimal || dbType == MySqlType.Decimal
+        return dbType.inner == MySqlType.NewDecimal.inner || dbType.inner == MySqlType.Decimal.inner
     }
 
     override fun encode(value: BigDecimal, buffer: Sink) {
@@ -142,7 +142,7 @@ internal class EnumTypeDescription<E : Enum<E>>(kType: KType, values: Array<E>) 
 internal object JsonTypeDescription :
     MySqlTypeDescription<Json>(dbType = MySqlType.String, kType = typeOf<Json>()) {
     override fun isCompatible(dbType: MySqlType): Boolean {
-        return dbType == MySqlType.Json ||
+        return dbType.inner == MySqlType.Json.inner ||
             StringTypeDescription.isCompatible(dbType) ||
             ByteArrayTypeDescription.isCompatible(dbType)
     }

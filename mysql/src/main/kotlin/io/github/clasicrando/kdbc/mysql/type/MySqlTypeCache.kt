@@ -11,8 +11,10 @@ import kotlin.reflect.KType
  * be applied to timezone aware types when decoding.
  */
 internal class MySqlTypeCache(zoneOffset: ZoneOffset) {
+    val offsetDateTimeTypeDescription = OffsetDateTimeTypeDescription(zoneOffset = zoneOffset)
+    val instantTypeDescription = InstantTypeDescription(zoneOffset = zoneOffset)
     private val typeDescriptions: MutableMap<KType, MySqlTypeDescription<*>> =
-        AtomicMutableMap(getBaseTypes(zoneOffset = zoneOffset))
+        AtomicMutableMap(getBaseTypes())
 
     /**
      * Return the custom type description for the provided [kType]
@@ -30,32 +32,30 @@ internal class MySqlTypeCache(zoneOffset: ZoneOffset) {
         typeDescriptions[typeDescription.kType] = typeDescription
     }
 
-    companion object {
-        private fun getBaseTypes(zoneOffset: ZoneOffset): Map<KType, MySqlTypeDescription<*>> {
-            return listOf(
-                    BooleanTypeDescription,
-                    TinyIntTypeDescription,
-                    ShortTypeDescription,
-                    IntegerTypeDescription,
-                    LongTypeDescription,
-                    FloatTypeDescription,
-                    DoubleTypeDescription,
-                    ByteArrayTypeDescription,
-                    DurationTypeDescription,
-                    LocalTimeTypeDescription,
-                    LocalDateTypeDescription,
-                    LocalDateTimeTypeDescription,
-                    OffsetDateTimeTypeDescription(zoneOffset = zoneOffset),
-                    InstantTypeDescription(zoneOffset = zoneOffset),
-                    UuidTypeDescription,
-                    JUUIDTypeDescription,
-                    StringTypeDescription,
-                    BigDecimalTypeDescription,
-                    JsonTypeDescription,
-                    JsonTextTypeDescription,
-                    JsonBytesTypeDescription,
-                )
-                .associateBy { it.kType }
-        }
+    private fun getBaseTypes(): Map<KType, MySqlTypeDescription<*>> {
+        return listOf(
+            BooleanTypeDescription,
+            TinyIntTypeDescription,
+            ShortTypeDescription,
+            IntegerTypeDescription,
+            LongTypeDescription,
+            FloatTypeDescription,
+            DoubleTypeDescription,
+            ByteArrayTypeDescription,
+            DurationTypeDescription,
+            LocalTimeTypeDescription,
+            LocalDateTypeDescription,
+            LocalDateTimeTypeDescription,
+            offsetDateTimeTypeDescription,
+            instantTypeDescription,
+            UuidTypeDescription,
+            JUUIDTypeDescription,
+            StringTypeDescription,
+            BigDecimalTypeDescription,
+            JsonTypeDescription,
+            JsonTextTypeDescription,
+            JsonBytesTypeDescription,
+        )
+            .associateBy { it.kType }
     }
 }

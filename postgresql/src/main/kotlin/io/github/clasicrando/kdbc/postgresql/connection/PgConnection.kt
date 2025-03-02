@@ -27,7 +27,7 @@ import io.github.clasicrando.kdbc.core.result.getAsNonNull
 import io.github.clasicrando.kdbc.core.splitQuery
 import io.github.clasicrando.kdbc.core.statement.CsvDataRow
 import io.github.clasicrando.kdbc.core.statement.mapIntoCsvByteArrayChunks
-import io.github.clasicrando.kdbc.postgresql.GeneralPostgresError
+import io.github.clasicrando.kdbc.core.stream.KtorStream
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgFormatCode
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
@@ -56,13 +56,9 @@ import io.github.clasicrando.kdbc.postgresql.type.ValueTypeDescription
 import io.github.oshai.kotlinlogging.KLoggingEventBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.oshai.kotlinlogging.Level
-import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.full.primaryConstructor
-import kotlin.reflect.typeOf
+import io.ktor.network.selector.SelectorManager
+import io.ktor.network.sockets.InetSocketAddress
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.asFlow
@@ -78,6 +74,12 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.io.readByteArray
+import java.io.InputStream
+import java.io.OutputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.typeOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -95,9 +97,11 @@ internal constructor(
     /** Underlining stream of data to and from the database */
     internal val stream: PgStream,
     /** Reference to the connection pool that owns this connection */
-    internal val pool: PgConnectionPool,
+    internal val pool: PgConnectionPool? = null,
     /** Type registry for connection. Used to decode data rows returned by the server. */
-    @PublishedApi internal val typeCache: PgTypeCache = pool.typeCache,
+    @PublishedApi
+    internal val typeCache: PgTypeCache =
+        pool?.typeCache ?: PgTypeCache(connectOptions.timeZoneOffset),
 ) : AbstractConnection() {
     private var pendingReaderForQueryCount = 0
 
@@ -145,25 +149,27 @@ internal constructor(
         }
         return mutex.withLock {
             try {
+                waitUntilReady()
                 stream.writeToStream(PgMessage.Query(""))
-                stream.processMessageLoop { message ->
+                stream.processMessageLoop(throwOnError = false) { message ->
                     when (message) {
                         is PgMessage.ErrorResponse -> return false
                         is PgMessage.ReadyForQuery -> Loop.Break
                         else -> Loop.Continue
                     }
                 }
-            } catch (ex: Exception) {
-                if (ex is KdbcException || ex is IOException) {
-                    return false
-                }
-                throw ex
+            } catch (_: KdbcException) {
+                return false
             }
             return true
         }
     }
 
     override suspend fun close() {
+        if (pool == null) {
+            dispose()
+            return
+        }
         if (!pool.giveBack(this)) {
             dispose()
         }
@@ -240,9 +246,6 @@ internal constructor(
         var columnMapping = statement?.resultMetadata ?: emptyList()
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> {
-                    throw GeneralPostgresError(message)
-                }
                 is PgMessage.RowDescription -> {
                     statement?.resultMetadata = message.fields
                     columnMapping = message.fields
@@ -265,7 +268,6 @@ internal constructor(
                 }
                 is PgMessage.ReadyForQuery -> {
                     handleReadyForQuery(message)
-                    log(Kdbc.detailedLogging) { this.message = "Done collecting result" }
                     Loop.Break
                 }
                 is PgMessage.BindComplete,
@@ -302,7 +304,7 @@ internal constructor(
         if (connectOptions.useExtendedProtocolForSimpleQueries && !query.contains('$')) {
             val queries = splitQuery(query)
             if (queries.size == 1) {
-                return sendExtendedQuery(query, listOf())
+                return sendExtendedQuery(query, emptyList())
             }
         }
 
@@ -335,15 +337,12 @@ internal constructor(
         writeSync()
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> {
-                    throw GeneralPostgresError(message)
-                }
-                is PgMessage.ParseComplete -> Loop.Continue
+                is PgMessage.ParseComplete,
+                is PgMessage.ParameterDescription -> Loop.Continue
                 is PgMessage.RowDescription -> {
                     statement.resultMetadata = message.fields.map(PgColumnDescription::withBinary)
                     Loop.Continue
                 }
-                is PgMessage.ParameterDescription -> Loop.Continue
                 is PgMessage.NoData -> {
                     statement.resultMetadata = emptyList()
                     Loop.Continue
@@ -365,12 +364,12 @@ internal constructor(
      * [executePreparedStatement] is called to populate the [PgPreparedStatement] with the required
      * data.
      *
-     * @throws IllegalArgumentException if the number of [parameters] does not match the number of
+     * @throws IllegalArgumentException if the number of [args] does not match the number of
      *   parameters required by the query
      */
     private suspend fun getOrPrepareStatement(
         query: String,
-        parameters: List<QueryParameter>,
+        args: List<PgArgument>,
     ): PgPreparedStatement {
         preparedStatements[query]?.let {
             return it
@@ -379,7 +378,13 @@ internal constructor(
         val statement =
             executeStatementPrepare(
                 query = query,
-                parameterTypes = parameters.map { typeCache.getTypeHint(it).oid },
+                parameterTypes =
+                    args.map {
+                        if (it.parameter == null) {
+                            return@map PgType.UNSPECIFIED
+                        }
+                        it.pgTypeDescription.getActualType(it.parameter).oid
+                    },
             )
         preparedStatements.insert(query, statement)?.let { releasePreparedStatement(it.value) }
         return statement
@@ -394,15 +399,14 @@ internal constructor(
      */
     private suspend fun executePreparedStatement(
         statement: PgPreparedStatement,
-        parameters: List<QueryParameter>,
+        parameters: List<PgArgument>,
         sendSync: Boolean = true,
     ) {
-        val arguments = parameters.map { PgArgument(it, typeCache) }
         stream.writeManyToStream(
             PgMessage.Bind(
                 portal = null,
                 statementName = statement.statementName,
-                arguments = arguments,
+                arguments = parameters,
             ),
             PgMessage.Execute(portalName = null, maxRowCount = 0),
             PgMessage.Close(MessageTarget.Portal, null),
@@ -432,10 +436,11 @@ internal constructor(
         require(query.isNotBlank()) { "Cannot send an empty query" }
         checkConnected()
 
+        val args = mapParameters(parameters)
         return mutex.withLock {
             waitUntilReady()
-            val statement = getOrPrepareStatement(query, parameters)
-            executePreparedStatement(statement, parameters)
+            val statement = getOrPrepareStatement(query, args)
+            executePreparedStatement(statement, args)
             flow { collectResult(statement = statement) }
         }
     }
@@ -523,18 +528,20 @@ internal constructor(
             val statements =
                 Array(queries.size) { i ->
                     val query = queries[i]
-                    getOrPrepareStatement(query = query.sql, parameters = query.parameters)
+                    val args = mapParameters(query.parameters)
+                    val statement = getOrPrepareStatement(query = query.sql, args = args)
+                    statement to args
                 }
             for (i in statements.indices) {
-                val statement = statements[i]
+                val (statement, args) = statements[i]
                 executePreparedStatement(
                     statement = statement,
-                    parameters = queries[i].parameters,
+                    parameters = args,
                     sendSync = syncAll || i == queries.size - 1,
                 )
             }
             flow {
-                for (statement in statements) {
+                for ((statement, _) in statements) {
                     collectResult(statement = statement)
                 }
             }
@@ -545,7 +552,7 @@ internal constructor(
      * Internal method for executing a `COPY IN` command. Steps are:
      * 1. Execute the [copyQuery]
      * 2. Wait for a [PgMessage.CopyInResponse] exiting if a [PgMessage.ErrorResponse] is received
-     * 3. Write all elements in the [data] sequence as [PgMessage.CopyData] to the backend
+     * 3. Write all elements in the [data] sequence as [PgMessage.CopyClientData] to the backend
      * 4. Writing a [PgMessage.CopyDone] message to instruct the backend to parse the data sent
      * 5. Collect the result messages
      * 6. Process the [TransactionStatus] response from the backend
@@ -553,9 +560,9 @@ internal constructor(
      * 8. Return a [QueryResult] with the number of rows impacted and message sent from the backend
      *
      * Any unexpected errors during result collection will be aggregated and thrown before
-     * returning. However, if an exception is thrown while sending/creating [PgMessage.CopyData]
-     * messages, the expected [PgMessage.ErrorResponse] received from the server will be treated as
-     * a result message and not an error.
+     * returning. However, if an exception is thrown while sending/creating
+     * [PgMessage.CopyClientData] messages, the expected [PgMessage.ErrorResponse] received from the
+     * server will be treated as a result message and not an error.
      */
     private suspend fun copyInInternal(copyQuery: String, data: Flow<ByteArray>): QueryResult {
         waitUntilReady()
@@ -567,7 +574,7 @@ internal constructor(
         pendingReaderForQueryCount++
 
         try {
-            stream.writeManyToStream(data.map { PgMessage.CopyData(it) })
+            stream.writeManyToStream(data.map { PgMessage.CopyClientData(it) })
             stream.writeToStream(PgMessage.CopyDone)
         } catch (ex: Exception) {
             if (stream.isConnected) {
@@ -579,9 +586,6 @@ internal constructor(
         var completeMessage: PgMessage.CommandComplete? = null
         stream.processMessageLoop { message ->
             when (message) {
-                is PgMessage.ErrorResponse -> {
-                    throw GeneralPostgresError(message)
-                }
                 is PgMessage.CommandComplete -> {
                     completeMessage = message
                     Loop.Continue
@@ -590,13 +594,7 @@ internal constructor(
                     handleReadyForQuery(message)
                     Loop.Break
                 }
-                else -> {
-                    log(Kdbc.detailedLogging) {
-                        this.message =
-                            "Ignoring $message since it's not an error or the desired type"
-                    }
-                    Loop.Continue
-                }
+                else -> logUnexpectedMessage(message)
             }
         }
 
@@ -733,7 +731,7 @@ internal constructor(
      * 3. Process all incoming messages by yielding a [Sequence] of [ByteArray] instances from
      *    [PgMessage.CopyData] messages. Exit the loop when [PgMessage.ReadyForQuery] is received.
      */
-    private suspend fun copyOutInternal(copyQuery: String): Flow<ByteArray> {
+    private suspend fun copyOutInternal(copyQuery: String): Flow<ByteReadBuffer> {
         waitUntilReady()
         log(connectOptions.statementLogLevel) {
             message = "Sending query: ${copyQuery.normalizeWhitespace()}"
@@ -745,10 +743,7 @@ internal constructor(
         return flow {
             stream.processMessageLoop { message ->
                 when (message) {
-                    is PgMessage.ErrorResponse -> {
-                        throw GeneralPostgresError(message)
-                    }
-                    is PgMessage.CopyData -> {
+                    is PgMessage.CopyServerData -> {
                         emit(message.data)
                         Loop.Continue
                     }
@@ -764,7 +759,7 @@ internal constructor(
         }
     }
 
-    public suspend fun copyOut(copyOutStatement: CopyStatement.To): Flow<ByteArray> {
+    public suspend fun copyOut(copyOutStatement: CopyStatement.To): Flow<ByteReadBuffer> {
         checkConnected()
         return mutex.withLock { copyOutInternal(copyOutStatement.toQuery()) }
     }
@@ -774,7 +769,7 @@ internal constructor(
      * each row returned from the query to the [sink] supplied
      */
     public suspend fun copyOut(copyOutStatement: CopyStatement.To, sink: Sink) {
-        copyOut(copyOutStatement).collect(sink::write)
+        copyOut(copyOutStatement).collect { it.transferToSink(sink) }
     }
 
     /**
@@ -888,6 +883,14 @@ internal constructor(
      */
     public suspend fun notify(channelName: String, payload: String) {
         query("SELECT pg_notify($1, $2)").bind(channelName).bind(payload).execute(this)
+    }
+
+    private fun mapParameters(params: List<QueryParameter>): List<PgArgument> {
+        return if (params.isEmpty()) {
+            emptyList()
+        } else {
+            params.map { PgArgument.of(it, typeCache) }
+        }
     }
 
     /**
@@ -1095,9 +1098,7 @@ internal constructor(
     ): PgTypeDescription<T> {
         require(kClass.isValue) { "Type must be a value type to create wrapper type description" }
         val innerType = kClass.primaryConstructor!!.parameters.first().type
-        val innerTypeDescription =
-            typeCache.getTypeDescription<Any>(innerType)
-                ?: throw PgException("Could not find type description for inner type $innerType")
+        val innerTypeDescription = typeCache.getTypeDescription<Any>(innerType)
         return ValueTypeDescription(kClass, kType, innerTypeDescription)
     }
 
@@ -1142,13 +1143,14 @@ internal constructor(
          * Put the [row] data into a [ByteReadBuffer]. Has a special case where for the first row,
          * the first 19 bytes should be ignored since they are the binary copy's file header.
          */
-        internal fun getBinaryBuffer(rowCount: Long, row: ByteArray): ByteReadBuffer {
-            return ByteReadBuffer(
-                when {
-                    rowCount == 1L -> row.copyOfRange(fromIndex = 19, toIndex = row.size)
-                    else -> row
+        internal fun getBinaryBuffer(rowCount: Long, row: ByteReadBuffer): ByteReadBuffer {
+            return when (rowCount) {
+                1L -> {
+                    row.skip(19)
+                    row.slice(row.remaining)
                 }
-            )
+                else -> row
+            }
         }
 
         /**
@@ -1231,12 +1233,17 @@ internal constructor(
          */
         internal suspend fun connect(
             connectOptions: PgConnectOptions,
-            stream: PgStream,
-            pool: PgConnectionPool,
+            pool: PgConnectionPool? = null,
         ): PgConnection {
+            val address = InetSocketAddress(connectOptions.host, connectOptions.port)
+            val selectorManager =
+                pool?.selectorManager ?: SelectorManager(Dispatchers.Default.limitedParallelism(1))
+            val stream = KtorStream(address, selectorManager, connectOptions.socketOptions)
+            var pgStream: PgStream? = null
             var connection: PgConnection? = null
             try {
-                connection = PgConnection(connectOptions, stream, pool)
+                pgStream = PgStream.connect(stream = stream, connectOptions = connectOptions)
+                connection = PgConnection(connectOptions, pgStream, pool)
                 if (!connection.isConnected) {
                     throw PgException("Could not initialize connection")
                 }
@@ -1244,6 +1251,11 @@ internal constructor(
             } catch (ex: Exception) {
                 try {
                     connection?.close()
+                } catch (ex2: Throwable) {
+                    ex.addSuppressed(ex2)
+                }
+                try {
+                    pgStream?.close()
                 } catch (ex2: Throwable) {
                     ex.addSuppressed(ex2)
                 }

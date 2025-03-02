@@ -1,19 +1,20 @@
 package io.github.clasicrando.kdbc.mysql.type
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.IntBitFlags
 import io.github.clasicrando.kdbc.core.validateByte
 import io.github.clasicrando.kdbc.core.validateInt
 import io.github.clasicrando.kdbc.core.validateShort
 import io.github.clasicrando.kdbc.mysql.exceptions.MySqlException
 import io.github.clasicrando.kdbc.mysql.result.ColumnFlags
 import io.github.clasicrando.kdbc.mysql.result.MySqlValue
-import kotlin.reflect.typeOf
 import kotlinx.io.Sink
 import kotlinx.io.writeDoubleLe
 import kotlinx.io.writeFloatLe
 import kotlinx.io.writeIntLe
 import kotlinx.io.writeLongLe
 import kotlinx.io.writeShortLe
+import kotlin.reflect.typeOf
 
 /**
  * Implementation of a [MySqlTypeDescription] for the [Boolean] type. Accepts TINY, SHORT, INT24,
@@ -21,7 +22,7 @@ import kotlinx.io.writeShortLe
  */
 internal object BooleanTypeDescription :
     MySqlTypeDescription<Boolean>(dbType = MySqlType.Tiny, kType = typeOf<Boolean>()) {
-    override val flags: ColumnFlags = ColumnFlags.BINARY + ColumnFlags.UNSIGNED
+    override val flags: IntBitFlags = ColumnFlags.BINARY + ColumnFlags.UNSIGNED
 
     override fun isCompatible(dbType: MySqlType): Boolean {
         return dbType == MySqlType.Tiny ||
@@ -160,11 +161,11 @@ internal object LongTypeDescription :
 
 /** Returns true if [dbType] is TINY, SHORT, INT24, LONG or LONGLONG */
 private fun intCompatible(dbType: MySqlType): Boolean {
-    return dbType == MySqlType.Tiny ||
-        dbType == MySqlType.Short ||
-        dbType == MySqlType.Long ||
-        dbType == MySqlType.LongLong ||
-        dbType == MySqlType.Int24
+    return dbType.inner == MySqlType.Tiny.inner ||
+        dbType.inner == MySqlType.Short.inner ||
+        dbType.inner == MySqlType.Long.inner ||
+        dbType.inner == MySqlType.LongLong.inner ||
+        dbType.inner == MySqlType.Int24.inner
 }
 
 /**
@@ -174,13 +175,13 @@ private fun intCompatible(dbType: MySqlType): Boolean {
  * [Long] with only have 2 bytes possibly populated.
  */
 private fun decodeInt(buffer: ByteReadBuffer): Long {
-    val byteCount = buffer.remaining()
+    val byteCount = buffer.remaining
     if (byteCount > 8) {
         throw MySqlException(
             "Expected integer value to be at most 8 bytes but found $byteCount bytes"
         )
     }
-    return buffer.readIntLe(buffer.remaining())
+    return buffer.readIntLe(buffer.remaining)
 }
 
 /** Implementation of a [MySqlTypeDescription] for the [Float] type. Accepts FLOAT and DOUBLE */
@@ -239,7 +240,7 @@ private fun floatCompatible(dbType: MySqlType): Boolean {
  * @throws MySqlException if the number of bytes remaining in the buffer is not 4 or 8
  */
 private fun decodeFloat(buffer: ByteReadBuffer): Double {
-    return when (val length = buffer.remaining()) {
+    return when (val length = buffer.remaining) {
         4 -> buffer.readFloatLe().toDouble()
         8 -> buffer.readDoubleLe()
         else -> {

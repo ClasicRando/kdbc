@@ -1,11 +1,11 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.IntBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.buffer.readLongLengthEncoded
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
-import io.github.clasicrando.kdbc.mysql.message.Status
 
 /**
  * [MessageDecoder] for [MysqlMessage.Ok] packets. Starts with 0x00 or 0xfe, followed by the
@@ -23,7 +23,7 @@ internal object OkDecoder : MessageDecoder<MysqlMessage.Ok, Unit> {
 
         val affectedRows = buffer.readLongLengthEncoded()
         val lastInsertId = buffer.readLongLengthEncoded()
-        val status = Status(buffer.readShortLe())
+        val status = IntBitFlags(buffer.readShortLe())
         val warnings = buffer.readShortLe().toInt()
 
         return MysqlMessage.Ok(affectedRows, lastInsertId, status, warnings)

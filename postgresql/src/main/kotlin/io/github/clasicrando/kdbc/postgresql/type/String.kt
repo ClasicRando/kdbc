@@ -12,11 +12,11 @@ import kotlinx.io.writeString
 internal object VarcharTypeDescription :
     PgTypeDescription<String>(dbType = PgType.Varchar, kType = typeOf<String>()) {
     override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == PgType.Text ||
-            dbType == PgType.Varchar ||
-            dbType == PgType.Xml ||
-            dbType == PgType.Name ||
-            dbType == PgType.Bpchar
+        return dbType.oid == PgType.Text.oid ||
+            dbType.oid == PgType.Varchar.oid ||
+            dbType.oid == PgType.Xml.oid ||
+            dbType.oid == PgType.Name.oid ||
+            dbType.oid == PgType.Bpchar.oid
     }
 
     /** Simply writes the [String] value to the buffer in UTF8 encoding */

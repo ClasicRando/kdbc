@@ -9,6 +9,7 @@ import io.github.clasicrando.kdbc.core.result.DataRow
 import io.github.clasicrando.kdbc.postgresql.column.PgColumnDescription
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
 import io.github.clasicrando.kdbc.postgresql.result.PgDataRow
+import io.github.clasicrando.kdbc.postgresql.statement.PgArgument
 import io.github.clasicrando.kdbc.postgresql.statement.encodeValue
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
@@ -61,7 +62,8 @@ internal class BaseCompositeTypeDescription<T : Any>(
         for (i in attributeMapping.indices) {
             val column = attributeMapping[i]
             buffer.writeInt(column.pgType.oid)
-            buffer.encodeValue(values[i], typeCache)
+            val arg = PgArgument.of(values[i], typeCache)
+            buffer.encodeValue(arg.parameter, arg.pgTypeDescription)
         }
     }
 
@@ -192,7 +194,7 @@ internal class ReflectionCompositeTypeDescription<T : Any>(cls: KClass<T>) :
         val args =
             Array(finalParameterNames.size) { i ->
                 val (parameterName, parameterType) = finalParameterNames[i]
-                row[parameterName, parameterType]
+                row.get(parameterName, parameterType)
             }
         return primaryConstructor.call(*args)
     }

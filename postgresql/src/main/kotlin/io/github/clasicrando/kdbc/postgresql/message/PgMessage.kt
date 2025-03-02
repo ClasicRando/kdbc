@@ -82,20 +82,25 @@ internal sealed class PgMessage(val code: Byte) {
 
     /**
      * Backend and frontend message sent with the [COPY_DATA_CODE] header [Byte]. Contains the copy
-     * [data] as a [ByteReadBuffer]. When this message is sent from the backend, the [data]
-     * represents a single row. When this message is sent from the frontend, the [data] could
-     * represent any chunk of the total data copied since the backend parsing the data as it comes
-     * in, byte by byte.
+     * [data] as a [ByteArray]. The inner [data] could represent any chunk of the total data copied
+     * since the backend parsing the data as it comes in, byte by byte.
      */
-    class CopyData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage {
+    class CopyClientData(val data: ByteArray) : PgMessage(COPY_DATA_CODE), SizedMessage {
         override val size: Int = data.size
-    } // F & B
+    } // F
+
+    /**
+     * Backend message sent with the [COPY_DATA_CODE] header [Byte]. Contains the copy [data] as a
+     * [ByteReadBuffer]. The inner [data] represents a single row.
+     */
+    class CopyServerData(val data: ByteReadBuffer) : PgMessage(COPY_DATA_CODE) // B
 
     /**
      * Backend and frontend message sent with the [COPY_DONE_CODE] header [Byte]. Contains no data,
      * only signifying that the copy operation is done. The frontend sends this message when the
      * `COPY FROM` operation is complete. The backend sends this message when the `COPY TO`
-     * operation is done and the client should stop processing [CopyData] messages from the backend.
+     * operation is done and the client should stop processing [CopyServerData] messages from the
+     * backend.
      */
     data object CopyDone : PgMessage(COPY_DONE_CODE) // F & B
 

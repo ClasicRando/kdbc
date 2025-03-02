@@ -1,0 +1,63 @@
+package io.github.clasicrando.kdbc.benchmarks.mysql
+
+import io.github.clasicrando.kdbc.benchmarks.PostDataClass
+import io.github.clasicrando.kdbc.benchmarks.PostDataClassRowParser
+import io.github.clasicrando.kdbc.core.query.bind
+import io.github.clasicrando.kdbc.core.query.execute
+import io.github.clasicrando.kdbc.core.query.fetchAll
+import io.github.clasicrando.kdbc.core.query.query
+import io.github.clasicrando.kdbc.core.use
+import io.github.clasicrando.kdbc.mysql.pool.MySqlConnectionPool
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
+import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.BenchmarkMode
+import org.openjdk.jmh.annotations.Fork
+import org.openjdk.jmh.annotations.Measurement
+import org.openjdk.jmh.annotations.Mode
+import org.openjdk.jmh.annotations.OutputTimeUnit
+import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
+import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.annotations.Warmup
+
+@Warmup(iterations = 4, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 20, time = 10, timeUnit = TimeUnit.SECONDS)
+@Fork(2)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.MICROSECONDS)
+@State(Scope.Benchmark)
+open class MySqlBenchmarkAsyncMultiKdbc {
+    private var id = 0
+    private val pool =
+        MySqlConnectionPool(connectOptions = kdbcConnectOptions, poolOptions = poolOptions)
+
+    @Setup
+    open fun start(): Unit = runBlocking { pool.acquire().use { query(setupQuery).execute(it) } }
+
+    private fun step(): Int {
+        id++
+        if (id > 5000) id = 1
+        return id
+    }
+
+    private suspend fun executeQuery(stepId: Int): List<PostDataClass> =
+        pool.acquire().use { conn ->
+            query(querySingle).bind(stepId).fetchAll(conn, PostDataClassRowParser)
+        }
+
+    @Benchmark
+    open fun querySingleRow(): Unit = runBlocking {
+        val results =
+            List(CONCURRENCY_LIMIT) {
+                val stepId = step()
+                async { executeQuery(stepId) }
+            }
+        results.awaitAll()
+    }
+
+    @TearDown open fun destroy(): Unit = runBlocking { pool.close() }
+}

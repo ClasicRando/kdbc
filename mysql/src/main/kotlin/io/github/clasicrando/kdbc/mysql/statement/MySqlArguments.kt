@@ -17,7 +17,7 @@ internal data class MySqlArguments(val inner: List<MySqlArgument>) {
                 val byteIndex = i / 8
                 val bitOffset = i % 8
 
-                val byte = if (inner[i].value.value == null) 1 else 0
+                val byte = if (inner[i].value == null) 1 else 0
                 this[byteIndex] = (this[byteIndex].toInt() or (byte shl bitOffset)).toByte()
             }
         }

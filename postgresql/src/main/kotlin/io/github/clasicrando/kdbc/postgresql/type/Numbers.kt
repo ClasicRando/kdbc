@@ -1,7 +1,11 @@
 package io.github.clasicrando.kdbc.postgresql.type
 
+import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
 import io.github.clasicrando.kdbc.core.column.columnDecodeError
+import io.github.clasicrando.kdbc.core.validateInt
+import io.github.clasicrando.kdbc.core.validateShort
 import io.github.clasicrando.kdbc.postgresql.column.PgValue
+import io.github.clasicrando.kdbc.postgresql.exceptions.PgException
 import kotlin.reflect.typeOf
 import kotlinx.io.Sink
 import kotlinx.io.writeDouble
@@ -13,6 +17,10 @@ import kotlinx.io.writeFloat
  */
 internal object SmallIntTypeDescription :
     PgTypeDescription<Short>(dbType = PgType.Int2, kType = typeOf<Short>()) {
+    override fun isCompatible(dbType: PgType): Boolean {
+        return intCompatible(dbType)
+    }
+
     /** Simply writes the [Short] value to the buffer */
     override fun encode(value: Short, buffer: Sink) {
         buffer.writeShort(value)
@@ -20,7 +28,10 @@ internal object SmallIntTypeDescription :
 
     /** Read the first [Short] value from the buffer. */
     override fun decodeBytes(value: PgValue.Binary): Short {
-        return value.bytes.readShort()
+        return when (value.bytes.remaining) {
+            2 -> value.bytes.readShort()
+            else -> validateShort(decodeInt(value.bytes))
+        }
     }
 
     /**
@@ -54,7 +65,10 @@ internal object IntTypeDescription :
 
     /** Read the first [Int] value from the buffer. */
     override fun decodeBytes(value: PgValue.Binary): Int {
-        return value.bytes.readInt()
+        return when (value.bytes.remaining) {
+            4 -> value.bytes.readInt()
+            else -> validateInt(decodeInt(value.bytes))
+        }
     }
 
     /**
@@ -85,7 +99,7 @@ internal object BigIntTypeDescription :
 
     /** Read the first [Long] value from the buffer. */
     override fun decodeBytes(value: PgValue.Binary): Long {
-        return value.bytes.readLong()
+        return decodeInt(value.bytes)
     }
 
     /**
@@ -100,6 +114,31 @@ internal object BigIntTypeDescription :
                 type = value.typeData,
                 reason = "Could not convert '${value.text}' into a Long",
             )
+    }
+}
+
+/** Returns true if [dbType] is `smallint`, `int`, `bigint` */
+private fun intCompatible(dbType: PgType): Boolean {
+    return dbType.oid == PgType.INT2 ||
+        dbType.oid == PgType.INT4 ||
+        dbType.oid == PgType.INT8 ||
+        dbType.oid ==PgType.OID
+}
+
+/**
+ * Read all remaining bytes in the buffer as a [Long]. The value might not actually be a long but
+ * the convenience of decoding to [Long] and then validating ranges later makes it easier. For
+ * example, if there are only 2 bytes in the buffer than the value is actually a [Short] so the
+ * [Long] with only have 2 bytes possibly populated.
+ */
+private fun decodeInt(buffer: ByteReadBuffer): Long {
+    return when (val byteCount = buffer.remaining) {
+        2 -> buffer.readShort().toLong() and 0xff_ff
+        4 -> buffer.readInt().toLong() and 0xff_ff_ff_ff
+        8 -> buffer.readLong()
+        else -> throw PgException(
+            "Expected integer value to be at most 8 bytes but found $byteCount bytes"
+        )
     }
 }
 

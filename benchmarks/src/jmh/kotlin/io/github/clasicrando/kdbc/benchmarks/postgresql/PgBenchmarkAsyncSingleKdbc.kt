@@ -1,5 +1,6 @@
 package io.github.clasicrando.kdbc.benchmarks.postgresql
 
+import io.github.clasicrando.kdbc.benchmarks.PostDataClassRowParser
 import io.github.clasicrando.kdbc.core.connection.Connection
 import io.github.clasicrando.kdbc.core.query.bind
 import io.github.clasicrando.kdbc.core.query.execute

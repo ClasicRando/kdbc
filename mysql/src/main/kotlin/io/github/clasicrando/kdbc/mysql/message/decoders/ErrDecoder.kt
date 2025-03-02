@@ -1,6 +1,7 @@
 package io.github.clasicrando.kdbc.mysql.message.decoders
 
 import io.github.clasicrando.kdbc.core.buffer.ByteReadBuffer
+import io.github.clasicrando.kdbc.core.connection.LongBitFlags
 import io.github.clasicrando.kdbc.core.message.MessageDecoder
 import io.github.clasicrando.kdbc.mysql.exceptions.checkOrMySqlException
 import io.github.clasicrando.kdbc.mysql.message.Capabilities
@@ -12,8 +13,8 @@ import io.github.clasicrando.kdbc.mysql.message.MysqlMessage
  *
  * [docs](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html)
  */
-internal object ErrDecoder : MessageDecoder<MysqlMessage.Err, Capabilities> {
-    override fun decode(buffer: ByteReadBuffer, context: Capabilities): MysqlMessage.Err {
+internal object ErrDecoder : MessageDecoder<MysqlMessage.Err, LongBitFlags> {
+    override fun decode(buffer: ByteReadBuffer, context: LongBitFlags): MysqlMessage.Err {
         val header = buffer.readByteAsInt()
         checkOrMySqlException(header == 0xff) {
             "Expected Err header (0xff) but found 0x${header.toHexString()}"

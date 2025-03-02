@@ -50,7 +50,7 @@ internal object LocalDateTimeTypeDescription :
     private val formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss[.S][X]")
 
     override fun isCompatible(dbType: PgType): Boolean {
-        return dbType == PgType.Timestamp || dbType == PgType.Timestamptz
+        return dbType.oid == PgType.Timestamp.oid || dbType.oid == PgType.TIMESTAMPTZ
     }
 
     /**

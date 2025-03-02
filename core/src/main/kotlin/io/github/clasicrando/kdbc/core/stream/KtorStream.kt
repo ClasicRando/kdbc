@@ -18,47 +18,41 @@ import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.readByte
 import io.ktor.utils.io.readFully
-import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.job
+import io.ktor.utils.io.readInt
 import kotlinx.coroutines.withTimeout
+import kotlinx.io.EOFException
 import kotlinx.io.Sink
+
+private const val RESOURCE_TYPE = "KtorStream"
 
 private val logger = KotlinLogging.logger {}
 
 public class KtorStream(
     private val address: SocketAddress,
     private val selectorManager: SelectorManager,
+    private val socketOptions: SocketOptions,
 ) : DefaultUniqueResourceId(), Stream {
     private lateinit var connection: Connection
     private lateinit var socket: Socket
     private lateinit var writeChannel: ByteWriteChannel
     private lateinit var readChannel: ByteReadChannel
 
+    override val resourceType: String = RESOURCE_TYPE
+
     override val isConnected: Boolean
-        get() = this::connection.isInitialized && !socket.isClosed
+        get() =
+            this::connection.isInitialized &&
+                !socket.isClosed &&
+                !writeChannel.isClosedForWrite &&
+                !readChannel.isClosedForRead
 
-    override var coroutineContext: CoroutineContext = SupervisorJob()
-        private set
-
-    override suspend fun connect(timeout: Duration) {
-        require(timeout.isPositive()) { "Timeout must be positive" }
+    override suspend fun connect() {
         try {
-            connection =
-                withTimeout(timeout) {
-                    aSocket(selectorManager).tcp().connect(address).connection()
-                }
+            connection = createConnection()
             socket = connection.socket
             writeChannel = connection.output
             readChannel = connection.input
-            coroutineContext =
-                socket.coroutineContext + SupervisorJob(parent = socket.coroutineContext.job)
         } catch (ex: Exception) {
-            logWithResource(logger, Kdbc.detailedLogging) {
-                message = "Failed to connect to $address"
-                cause = ex
-            }
             throw StreamConnectError(address, ex)
         }
         logWithResource(logger, Kdbc.detailedLogging) {
@@ -66,9 +60,23 @@ public class KtorStream(
         }
     }
 
-    override suspend fun upgradeTls(timeout: Duration) {
+    private suspend fun createConnection(): Connection {
+        val (connectTimeout, socketTimeout, keepAlive, noDelay) = this.socketOptions
+        return withTimeout(connectTimeout) {
+            aSocket(selectorManager)
+                .tcp()
+                .connect(address) {
+                    this.socketTimeout = socketTimeout.inWholeMilliseconds
+                    this.keepAlive = keepAlive
+                    this.noDelay = noDelay
+                }
+                .connection()
+        }
+    }
+
+    override suspend fun upgradeTls() {
         connection =
-            withTimeout(timeout) {
+            withTimeout(socketOptions.connectTimeout) {
                 connection.tls(coroutineContext = selectorManager.coroutineContext).connection()
             }
         socket = connection.socket
@@ -79,38 +87,51 @@ public class KtorStream(
     @OptIn(InternalAPI::class)
     override suspend fun writeTo(block: suspend (Sink) -> Unit) {
         check(isConnected) { "Cannot write to a stream that is not connected" }
+        var error: Exception? = null
         try {
             block(writeChannel.writeBuffer)
+        } catch (ex: Exception) {
+            error = ex
         } finally {
-            writeChannel.flush()
+            if (error == null) {
+                try {
+                    writeChannel.flush()
+                } catch (ex: Exception) {
+                    error = ex
+                }
+            }
+        }
+
+        if (error != null) {
+            throw StreamWriteError(error)
+        }
+    }
+
+    private inline fun <T> readFromChannel(block: ByteReadChannel.() -> T): T {
+        return try {
+            block(readChannel)
+        } catch (ex: EOFException) {
+            throw EndOfStream(cause = ex)
+        } catch (ex: Exception) {
+            throw StreamReadError(ex)
         }
     }
 
     override suspend fun readByte(): Byte {
-        check(isConnected) { "Cannot read from a stream that is not connected" }
-        return readChannel.readByte()
+        return readFromChannel { readByte() }
     }
 
     override suspend fun readInt(): Int {
-        check(isConnected) { "Cannot read from a stream that is not connected" }
-        // As of version 3.0.1, KTOR has a bug where readInt could infinitely loop so read bytes
-        // and create an Int
-        val result =
-            ((readChannel.readByte().toInt() and 0xff shl 24) or
-                (readChannel.readByte().toInt() and 0xff shl 16) or
-                (readChannel.readByte().toInt() and 0xff shl 8) or
-                (readChannel.readByte().toInt() and 0xff))
-        return result
+        return readFromChannel { readInt() }
     }
 
     override suspend fun readBuffer(count: Int): ByteReadBuffer {
-        check(isConnected) { "Cannot read from a stream that is not connected" }
         val destination = ByteArray(count)
-        readChannel.readFully(destination)
+        readFromChannel { readFully(destination) }
         return ByteReadBuffer(destination)
     }
 
     override fun close() {
-        socket.close()
+        socket.dispose()
     }
 }

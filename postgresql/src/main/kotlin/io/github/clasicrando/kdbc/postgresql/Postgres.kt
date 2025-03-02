@@ -5,7 +5,6 @@ import io.github.clasicrando.kdbc.postgresql.Postgres.connection
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnectOptions
 import io.github.clasicrando.kdbc.postgresql.connection.PgConnection
 import io.github.clasicrando.kdbc.postgresql.listen.PgListener
-import io.github.clasicrando.kdbc.postgresql.pool.PgPoolManager
 
 /** [Database] implementation for Postgresql */
 public object Postgres : Database<PgConnection, PgConnectOptions> {
@@ -14,7 +13,7 @@ public object Postgres : Database<PgConnection, PgConnectOptions> {
      * supplied [PgConnectOptions].
      */
     override suspend fun connection(connectOptions: PgConnectOptions): PgConnection {
-        return PgPoolManager.acquireConnection(connectOptions)
+        return PgConnection.connect(connectOptions = connectOptions, pool = null)
     }
 
     /** Create a new [PgListener] with a connection acquired from [connection] */

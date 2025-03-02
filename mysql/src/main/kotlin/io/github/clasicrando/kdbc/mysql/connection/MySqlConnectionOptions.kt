@@ -1,14 +1,13 @@
 package io.github.clasicrando.kdbc.mysql.connection
 
 import io.github.clasicrando.kdbc.core.SslMode
+import io.github.clasicrando.kdbc.core.stream.SocketOptions
 import io.github.oshai.kotlinlogging.Level
 import io.ktor.network.tls.TLSConfigBuilder
-import java.time.ZoneOffset
-import kotlin.time.Duration
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import java.time.ZoneOffset
+import kotlin.time.Duration
 
 /** Connection options for a mysql database */
 @Serializable
@@ -24,8 +23,8 @@ public data class MySqlConnectionOptions(
      * 'kdbc-mysql-application'
      */
     public val applicationName: String = "kdbc-mysql-application",
-    /** Timeout duration during initial TCP connection establishment */
-    public val connectionTimeout: Duration = 10.toDuration(DurationUnit.SECONDS),
+    /** Options for operating the underlining socket */
+    public val socketOptions: SocketOptions = SocketOptions(),
     /** Password if the database instance requires a password */
     public val password: String? = null,
     /**
@@ -119,7 +118,7 @@ public data class MySqlConnectionOptions(
         if (host != other.host) return false
         if (username != other.username) return false
         if (applicationName != other.applicationName) return false
-        if (connectionTimeout != other.connectionTimeout) return false
+        if (socketOptions != other.socketOptions) return false
         if (database != other.database) return false
         if (statementLogLevel != other.statementLogLevel) return false
         if (queryTimeout != other.queryTimeout) return false
@@ -138,7 +137,7 @@ public data class MySqlConnectionOptions(
         result = 31 * result + host.hashCode()
         result = 31 * result + username.hashCode()
         result = 31 * result + applicationName.hashCode()
-        result = 31 * result + connectionTimeout.hashCode()
+        result = 31 * result + socketOptions.hashCode()
         result = 31 * result + (database?.hashCode() ?: 0)
         result = 31 * result + statementLogLevel.hashCode()
         result = 31 * result + queryTimeout.hashCode()
@@ -149,7 +148,7 @@ public data class MySqlConnectionOptions(
 
     override fun toString(): String {
         return "MySqlConnectionOptions(host='$host', port=$port, username='$username', " +
-            "applicationName='$applicationName', connectionTimeout=$connectionTimeout, " +
+            "applicationName='$applicationName', socketOptions=$socketOptions, " +
             "database=$database, statementLogLevel=$statementLogLevel, " +
             "queryTimeout=$queryTimeout, statementCacheCapacity=$statementCacheCapacity, " +
             "sslMode=$sslMode, allowClearTextPlugin=$allowClearTextPlugin, " +
