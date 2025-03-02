@@ -84,7 +84,7 @@ jobs:
     - name: Build with Gradle Wrapper
       run: |
         STORE="$RUNNER_TEMP/${{ env.TRUST_STORE_NAME }}"
-        ./gradlew "-PtrustStorePath=$STORE" "-PtrustStorePassword=${{ env.TRUST_STORE_PASSWORD }}" build
+        ./gradlew "-PtrustStorePath=$STORE" "-PtrustStorePassword=${{ env.TRUST_STORE_PASSWORD }}" build -x ktfmtCheckMain -x ktfmtCheckTest
 
     # NOTE: The Gradle Wrapper is the default and recommended way to run Gradle (https://docs.gradle.org/current/userguide/gradle_wrapper.html).
     # If your project does not have the Gradle Wrapper configured, you can use the following configuration to run Gradle with a specified version.

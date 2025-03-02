@@ -16,18 +16,14 @@ allprojects {
     group = "io.github.clasicrando"
     version = "0.0.4"
 
-    repositories {
-        mavenCentral()
-    }
+    repositories { mavenCentral() }
 
     kotlin {
         jvmToolchain(17)
         compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
         compilerOptions.optIn.add("kotlin.uuid.ExperimentalUuidApi")
         compilerOptions.optIn.add("io.github.clasicrando.kdbc.core.annotations.InternalApi")
-        compilerOptions {
-            freeCompilerArgs.add("-Xwhen-guards")
-        }
+        compilerOptions { freeCompilerArgs.add("-Xwhen-guards") }
         if (this@allprojects.name != "benchmarks") {
             explicitApi()
         }
@@ -41,9 +37,7 @@ subprojects {
     apply(plugin = "com.vanniktech.maven.publish")
     apply(plugin = "com.ncorti.ktfmt.gradle")
 
-    repositories {
-        mavenCentral()
-    }
+    repositories { mavenCentral() }
 
     val kotlinxIoVersion: String by project
     val kotlinLoggingVersion: String by project
@@ -74,9 +68,7 @@ subprojects {
         testImplementation("io.mockk:mockk:$mockkVersion")
     }
 
-    ktfmt {
-        kotlinLangStyle()
-    }
+    ktfmt { kotlinLangStyle() }
 
     tasks.test {
         workingDir = project.rootDir
@@ -99,22 +91,20 @@ subprojects {
                             ${result.successfulTestCount} succeeded,
                             ${result.failedTestCount} failed,
                             ${result.skippedTestCount} skipped
-                            """.trimIndent().replace("\n", ""),
+                            """
+                                .trimIndent()
+                                .replace("\n", "")
                         )
                     }
-                }),
+                })
             )
         }
         useJUnitPlatform()
     }
 
-    tasks.dokkaHtml {
-        outputDirectory.set(layout.buildDirectory.dir("documentation/html"))
-    }
+    tasks.dokkaHtml { outputDirectory.set(layout.buildDirectory.dir("documentation/html")) }
 
-    tasks.dokkaJavadoc {
-        outputDirectory.set(layout.buildDirectory.dir("documentation/javadoc"))
-    }
+    tasks.dokkaJavadoc { outputDirectory.set(layout.buildDirectory.dir("documentation/javadoc")) }
 
     val projName =
         when (project.name) {
@@ -123,19 +113,10 @@ subprojects {
             else -> "kdbc-other"
         }
 
-    tasks {
-        jar {
-            base.archivesName.set(projName)
-        }
-    }
+    tasks { jar { base.archivesName.set(projName) } }
 
     mavenPublishing {
-        configure(
-            KotlinJvm(
-                javadocJar = JavadocJar.Dokka("dokkaHtml"),
-                sourcesJar = true,
-            ),
-        )
+        configure(KotlinJvm(javadocJar = JavadocJar.Dokka("dokkaHtml"), sourcesJar = true))
         publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
         coordinates(group.toString(), projName, version.toString())
         pom {
